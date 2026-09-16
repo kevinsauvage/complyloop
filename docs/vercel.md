@@ -1,21 +1,21 @@
 # Deploying ComplyLoop on Vercel
 
-Single topology: the Next.js app (web + API) runs on Vercel; a GitHub Actions
-scheduled workflow sweeps assessments; Postgres runs on Neon or Supabase.
-There is no worker process, no Docker image, and no `git` CLI anywhere —
-checkouts use pure-JS git (isomorphic-git) and preview audits use a
-serverless Chromium build (`@sparticuz/chromium`).
+Single topology: the Next.js app (web + API) runs on Vercel; assessments
+execute on GitHub Actions runners (same Playwright Chromium family as local
+dev — no serverless browser drift); Postgres runs on Neon or Supabase.
+There is no worker process to operate, no Docker image, and no `git` CLI
+anywhere — checkouts use pure-JS git (isomorphic-git).
 
 ## How it runs
 
-| Concern       | Behavior                                                                                                                                                                                                                  |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Web/API**   | Vercel Fluid functions, `next build` with zero config                                                                                                                                                                     |
-| **Jobs**      | Manual and webhook runs enqueue in Postgres (`enqueueAssessmentJob`) and drain through the single-scan worker route (`POST /api/internal/jobs/run?limit=1`, triggered in `after()` + the GitHub Actions sweep every 5 min as backstop). The dashboard click only enqueues and resolves fast with "queued" copy — progress lives in the Pipeline section (polls every 3s, refreshes on completion). Serial per project in the queue, 3 attempts with backoff, 30-min lease renewed by a 5-min heartbeat; a second click while a job is active is refused with an "already queued/running" message |
-| **Checkouts** | Ephemeral isomorphic-git shallow clone per job into `/tmp`; deleted after                                                                                                                                                 |
-| **Browsers**  | `@sparticuz/chromium` (pinned) when `ASSESSMENT_RUNTIME_BROWSER=serverless`; locally installed Playwright browser otherwise                                                                                               |
-| **State**     | Postgres only; evidence append-only (`prepare: false` is already set, so pooled/transaction-mode connections work)                                                                                                        |
-| **Backups**   | Postgres provider point-in-time (no app-side dump)                                                                                                                                                                        |
+| Concern       | Behavior                                                                                                                                                                                                                                                                                                                                                           |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Web/API**   | Vercel Fluid functions, `next build` with zero config                                                                                                                                                                                                                                                                                                              |
+| **Jobs**      | Manual and webhook runs enqueue in Postgres (`enqueueAssessmentJob`). Trigger sites schedule a drain in `after()`: the GitHub Actions `assessment-worker` workflow (`.github/workflows/assessment-worker.yml`) executes the batch with Playwright Chromium — immediately via `repository_dispatch` (`assessment-drain`), every 15 min on schedule as the orphan/expired-lease backstop, or manually via `workflow_dispatch`. Unconfigured/failed dispatch falls back to self-fetching the single-scan worker route (`POST /api/internal/jobs/run?limit=1`, Vercel browser stack, degraded path). Serial per project in the queue, 3 attempts with backoff, 30-min lease renewed by a 5-min heartbeat |
+| **Checkouts** | Ephemeral isomorphic-git shallow clone per job into `/tmp`; deleted after                                                                                                                                                                                                                                                                                          |
+| **Browsers**  | Playwright Chromium (`npx playwright install chromium`, lockfile-pinned so CI matches local dev); `@sparticuz/chromium` behind `ASSESSMENT_RUNTIME_BROWSER=serverless` remains only for the degraded Vercel worker-route path                                                                                                                                          |
+| **State**     | Postgres only; evidence append-only (`prepare: false` is already set, so pooled/transaction-mode connections work)                                                                                                                                                                                                                                                 |
+| **Backups**   | Postgres provider point-in-time (no app-side dump)                                                                                                                                                                                                                                                                                                                 |
 
 ## 1. Database
 
@@ -33,22 +33,45 @@ and on every schema change:
 DATABASE_URL="<remote-url>" npm run db:migrate
 ```
 
-## 2. Sweep (the assessment worker)
+## 2. Worker (GitHub Actions executor)
 
-`/api/internal/jobs/run` runs scans **for the queued path (manual +
-webhook)**. Trigger sites only enqueue, then schedule a drain of
-`POST /api/internal/jobs/run?limit=1` in `after()` so scans start
-immediately (each invocation claims one job; per-project claims serialize
-concurrent tasks; dev/e2e drains inline instead). The backstop is the
-`assessment-sweep` GitHub Actions workflow
-(`.github/workflows/assessment-sweep.yml`, every 5 min,
-`?limit=10&concurrency=2`): it reclaims jobs left `queued`/`running` by
-failed drains, killed tasks, or expired leases via the route's
-lease-recovery path. There is no Vercel Cron — Hobby plans only allow daily
-schedules, which left orphans stranded up to ~24h. `workflow_dispatch` on the
-workflow doubles as an operator drain button.
+`npm run worker:drain` (`tsx --conditions=react-server
+scripts/assessment-worker-drain.ts`) claims and runs queued jobs until idle
+or `ASSESSMENT_WORKER_LIMIT` attempts (`ASSESSMENT_WORKER_CONCURRENCY`
+bounds the in-process pool; per-project claims serialize concurrent jobs).
+It exits non-zero only when the batch itself crashes (DB down, missing env)
+— per-job failures and retries are recorded in Postgres, so the workflow run
+reflects infra health, not assessment outcomes.
 
-Authentication: both the self-fetch and the sweep send
+Triggers (`assessment-worker.yml`): `repository_dispatch` (`assessment-drain`,
+fired from the app in `after()` on every enqueue so scans start immediately),
+schedule every 15 min (orphan/expired-lease backstop), `workflow_dispatch`
+(operator drain button, with `limit`/`concurrency` inputs). One runner drains
+the whole batch; `concurrency: group: assessment-worker,
+cancel-in-progress: false` keeps ticks serial. Job `timeout-minutes: 60`
+caps a hung runner so it cannot burn the free-minutes budget (Free private:
+2,000 Linux min/mo).
+
+The dispatch needs a fine-grained PAT with Actions write on the app repo:
+`GH_WORKER_DISPATCH_TOKEN` on Vercel; the target repo resolves from
+`APP_REPO_FULL_NAME` (`owner/repo`) or Vercel's `VERCEL_GIT_REPO_OWNER` /
+`VERCEL_GIT_REPO_SLUG`. The worker itself needs repo secrets `DATABASE_URL`
+(pooled Postgres) plus `COMPLYLOOP_APP_ID` / `COMPLYLOOP_APP_PRIVATE_KEY`
+— same values as Vercel's `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY`
+(the `GITHUB_` prefix is reserved in Actions, so the workflow maps them).
+When the token is missing or GitHub rejects the
+event, the app falls back to self-fetching the single-scan worker route
+(`POST /api/internal/jobs/run?limit=1`, `WORKER_SECRET` Bearer) — same scan
+on the Vercel browser stack, kept only as a degraded path (verdicts may
+diverge per stack; a warning with code `assessment_worker_dispatch_failed`
+marks those runs in the logs).
+
+The old curl sweep (`assessment-sweep.yml`, retired) hit the Vercel route
+every 5 min; restore it from git history if the GH executor ever needs a
+Vercel-side backstop again. There is no Vercel Cron — Hobby plans only allow
+daily schedules.
+
+Authentication for the Vercel route: the self-fetch sends
 `Authorization: Bearer <WORKER_SECRET>`; the route compares it constant-time
 (`worker-auth.ts`). Set a single `WORKER_SECRET` (≥16 chars, production
 only) — no `CRON_SECRET` coupling.
@@ -135,7 +158,7 @@ the newest 5000 rows and mark `truncated` — that bounds downloads, not the tab
 - [ ] Remote Postgres reachable; `db:migrate` applied from local machine
 - [ ] All env vars set, `WORKER_SECRET` (≥16 chars) configured, no placeholders
 - [ ] Basic Auth credentials set (private preview); remove them at public launch
-- [ ] Sweep workflow firing every 5 min (Actions tab) + `WORKER_SECRET` repo secret set
+- [ ] Worker workflow firing (Actions tab: dispatch on enqueue + every-15-min schedule) + `DATABASE_URL` / `COMPLYLOOP_APP_ID` / `COMPLYLOOP_APP_PRIVATE_KEY` repo secrets set + `GH_WORKER_DISPATCH_TOKEN` on Vercel
 - [ ] Sign in → connect a repo → run assessment → results appear
 - [ ] Assessment of a real repo exercises the isomorphic-git clone path
 - [ ] Preview audit works with `ASSESSMENT_RUNTIME_BROWSER=serverless`

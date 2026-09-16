@@ -2,6 +2,7 @@ import "server-only";
 
 import { isE2EHarnessEnabled } from "../e2e-harness";
 import { reportWarning } from "../observability";
+import { dispatchAssessmentWorker } from "./assessment-job-dispatch";
 
 /**
  * Process jobs in-process when a dedicated worker is not expected —
@@ -81,17 +82,22 @@ export async function drainAssessmentJobsInline(): Promise<string> {
  * scan itself (the 300s serverless ceiling killed direct runs).
  *
  * Dev/e2e drains the queue inline and returns the user-facing message;
- * production self-fetches the single-scan worker route
- * (`POST /api/internal/jobs/run?limit=1`) and returns `undefined`, so the
- * caller falls back to the "queued" copy.
+ * production kicks the GitHub Actions executor (`repository_dispatch`) and
+ * returns `undefined`, so the caller falls back to the "queued" copy. When
+ * the dispatch is unconfigured or rejected, production falls back to
+ * self-fetching the single-scan worker route
+ * (`POST /api/internal/jobs/run?limit=1`) — same scan, Vercel browser stack,
+ * kept only as a degraded path until the GH executor is proven.
  *
- * Never throws — a failed self-fetch or a killed task leaves the job
- * `queued`/`running` and the scheduled sweep reclaims it via lease recovery.
+ * Never throws — a failed dispatch/self-fetch or a killed task leaves the
+ * job `queued`/`running` and the scheduled worker reclaim it via lease
+ * recovery.
  */
 export async function scheduleAssessmentDrain(): Promise<string | undefined> {
   if (shouldDrainAssessmentJobsInline()) {
     return drainAssessmentJobsInline();
   }
+  if (await dispatchAssessmentWorker()) return undefined;
   await triggerWorkerSelfFetch();
   return undefined;
 }

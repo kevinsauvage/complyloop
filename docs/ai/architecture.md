@@ -33,12 +33,14 @@ publish-only.
 append-only. Tokens AES-256-GCM at rest. Server-owned env keys live in
 `src/server/env.ts` (lazy getters — never module constants); `AUTH_*` stays
 with auth/middleware/token crypto, framework keys stay direct. Manual and
-webhook assessments are durable jobs (enqueue → worker route in `after()` +
-GHA sweep backstop → `POST /api/internal/jobs/run`); dev/e2e drains inline.
+webhook assessments are durable jobs: enqueue → `repository_dispatch` kicks
+the GitHub Actions `assessment-worker` (Playwright Chromium, same family as
+local dev) → 15-min schedule backstop → `POST /api/internal/jobs/run`
+(Vercel fallback only); dev/e2e drains inline.
 
 ```
-Manual run (dashboard action enqueues + after() drain) → assessment_jobs → worker route / sweep
-Webhook (enqueue + after() self-fetch) → assessment_jobs → GHA sweep (orphans/expired leases)
+Manual run (dashboard action enqueues + after() dispatch) → assessment-worker (GH) → claim → scan → persist
+Webhook (enqueue + after() dispatch) → assessment-worker (GH); 15-min schedule covers orphans/expired leases
                                            ↓ (clone → scan → persist)
                            Core + contract → Catalog / Analysis / AI
                                            ↓
@@ -183,9 +185,10 @@ Assessments always use the project's `defaultPresetId`. Requirements page
 
 ## Key flows
 
-**Assessment:** manual runs enqueue in the dashboard action and drain via
-   the worker queue (see
-   180|Jobs); webhook runs go enqueue → worker. Either way the worker
+**Assessment:** manual runs enqueue in the dashboard action and kick the GH
+   worker via dispatch (fallback: Vercel worker route); webhook runs go
+   enqueue → dispatch, 15-min schedule backstop (see
+   180|Jobs). Either way the worker
    clones + scans → `detectChanges` (depth-1
 clone: author is HEAD) → AST → optional Playwright → merge → re-derive
 statuses → `verifyDraftPrRemediation` (uses `approvalAction` on the

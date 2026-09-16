@@ -6,6 +6,13 @@ vi.mock("../assessment/assessment-worker", () => ({
   processNextAssessmentJob: vi.fn(),
 }));
 
+const dispatchAssessmentWorker = vi.hoisted(() => vi.fn());
+
+vi.mock("../assessment/assessment-job-dispatch", () => ({
+  dispatchAssessmentWorker: (...args: unknown[]) =>
+    dispatchAssessmentWorker(...args),
+}));
+
 vi.mock("../observability", () => ({
   reportEvent: vi.fn(),
   reportWarning: vi.fn(),
@@ -162,9 +169,21 @@ describe("scheduleAssessmentDrain", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("self-fetches the worker route in production and returns undefined", async () => {
+  it("kicks the GH executor in production and returns undefined", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("E2E_AUTH_ENABLED", "");
+    dispatchAssessmentWorker.mockResolvedValue(true);
+
+    await expect(scheduleAssessmentDrain()).resolves.toBeUndefined();
+    expect(dispatchAssessmentWorker).toHaveBeenCalledTimes(1);
+    expect(processNext).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the worker-route self-fetch when the dispatch fails", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("E2E_AUTH_ENABLED", "");
+    dispatchAssessmentWorker.mockResolvedValue(false);
 
     await expect(scheduleAssessmentDrain()).resolves.toBeUndefined();
     expect(processNext).not.toHaveBeenCalled();

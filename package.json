@@ -28,7 +28,8 @@
     "db:reset": "tsx --conditions=react-server scripts/db-reset.ts",
     "db:ensure-owner": "tsx --conditions=react-server scripts/ensure-org-owner.ts",
     "db:studio": "drizzle-kit studio",
-    "ops:check": "tsx --conditions=react-server scripts/operations-check.ts"
+    "ops:check": "tsx --conditions=react-server scripts/operations-check.ts",
+    "worker:drain": "tsx --conditions=react-server scripts/assessment-worker-drain.ts"
   },
   "dependencies": {
     "@octokit/auth-app": "^8.3.1",

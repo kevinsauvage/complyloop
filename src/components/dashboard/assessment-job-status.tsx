@@ -28,9 +28,9 @@ const statusIndicator: Record<AssessmentJob["status"], string> = {
 /**
  * A job that has been ready longer than this with no worker picking it up
  * almost certainly means the queue backstop is failing. Manual and webhook
- * runs both queue (the dashboard action only enqueues); production drains
- * by self-fetching the worker route on trigger, with the GitHub Actions
- * sweep as the orphan backstop (see docs/vercel.md).
+ * runs both queue (the dashboard action only enqueues); the GitHub Actions
+ * `assessment-worker` drains via dispatch with its 15-min schedule as the
+ * orphan backstop (see docs/vercel.md).
  */
 export const WORKER_STALL_MS = 10 * 60_000;
 
@@ -137,9 +137,9 @@ export function AssessmentJobStatus({
             Assessment worker may be stopped.
           </span>{" "}
             Oldest queued job waiting {formatStallAge(stalledAge)} — scans
-            are drained by the assessment-sweep workflow as backstop (
-            <code className="font-mono">/api/internal/jobs/run</code>, see
-            docs/vercel.md).
+            are drained by the assessment-worker workflow (
+            <code className="font-mono">repository_dispatch</code> + 15-min
+            schedule, see docs/vercel.md).
         </p>
       ) : null}
       <ul className="flex flex-col gap-2" aria-label="Recent assessment jobs">
