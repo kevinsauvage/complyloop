@@ -35,8 +35,16 @@ DATABASE_URL="<remote-url>" npm run db:migrate
 
 ## 2. Worker (GitHub Actions executor)
 
-`npm run worker:drain` (`tsx --conditions=react-server
-scripts/assessment-worker-drain.ts`) claims and runs queued jobs until idle
+`npm run worker:drain` builds the executor (`scripts/build-worker.mjs` →
+`dist/worker/assessment-worker-drain.cjs`, gitignored) and runs it with
+plain Node. The bundle exists so probe sources reach the page exactly as
+authored: tsx compiles with esbuild keepNames, whose `__name()` wrappers
+have no definition in-page (`ReferenceError`, every probe dies), while
+SWC/webpack stacks never emit them — hence the divergence. The build uses
+`keepNames: false` and fails loudly if `__name(` ever appears in the
+output; workspace-external native deps (`playwright-core`, `typescript`,
+`@sentry/*`, `isomorphic-git`) resolve from `node_modules` because they
+depend on `__dirname`/self-`require()` at runtime. It claims and runs queued jobs until idle
 or `ASSESSMENT_WORKER_LIMIT` attempts (`ASSESSMENT_WORKER_CONCURRENCY`
 bounds the in-process pool; per-project claims serialize concurrent jobs).
 It exits non-zero only when the batch itself crashes (DB down, missing env)

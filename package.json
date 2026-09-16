@@ -30,7 +30,8 @@
     "db:studio": "drizzle-kit studio",
     "ops:check": "tsx --conditions=react-server scripts/operations-check.ts",
     "postinstall": "node scripts/postinstall-ssrf-guard.mjs",
-    "worker:drain": "tsx --conditions=react-server scripts/assessment-worker-drain.ts"
+    "worker:build": "node scripts/build-worker.mjs",
+    "worker:drain": "npm run worker:build && node dist/worker/assessment-worker-drain.cjs"
   },
   "dependencies": {
     "@octokit/auth-app": "^8.3.1",

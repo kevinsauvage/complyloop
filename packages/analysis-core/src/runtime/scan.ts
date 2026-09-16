@@ -18,7 +18,6 @@ import {
   aggregateApplicabilityObservations,
   applicabilityObservationsForPage,
 } from "./applicability.ts";
-import { BROWSER_INIT_SHIM_SRC } from "./browser-init-shim.ts";
 import {
   runCustomRuntimeChecks,
   runThemeSensitiveCustomChecks,
@@ -325,12 +324,6 @@ function createPlaywrightAxeScanner(options?: {
   return async (urls) => {
     const browser = await getBrowser();
     const context = await browser.newContext();
-    // Compiler-helper shim (see browser-init-shim.ts): tsx-compiled probe
-    // sources reference `__name()`, whose definition never travels with
-    // `fn.toString()` fragments or `page.evaluate` closures. Context-level
-    // so it survives the reloads between probes; CDP injection bypasses
-    // page CSP, unlike tag injection.
-    await context.addInitScript({ content: BROWSER_INIT_SHIM_SRC });
     // Per-stage wall-clock attribution for production slowness (see the
     // `[timing]` line before `return pages`): accumulates across pages.
     const stageMs: Record<string, number> = {};
