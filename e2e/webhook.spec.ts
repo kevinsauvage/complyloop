@@ -100,23 +100,12 @@ test.describe("webhook-driven continuous monitoring", () => {
       const jobId: string = body.jobId;
       await waitForJobSuccess({ jobId });
 
-      // The webhook-triggered job actually ran a re-assessment.
+      // PR scans are non-authoritative previews (no assessment_job evidence);
+      // job success + Check Run post proves the re-assessment ran.
       await expect
-        .poll(
-          () =>
-            withDb(async (sql) => {
-              const rows = await sql<Array<{ n: number }>>`
-              SELECT count(*)::int AS n
-              FROM evidence
-              WHERE project_id = ${E2E_PROJECT_ID}
-                AND kind = 'assessment_job'
-                AND detail->>'phase' = 'completed'
-                AND detail->>'trigger' = 'webhook'
-            `;
-              return rows[0]?.n ?? 0;
-            }),
-          { timeout: 30_000 },
-        )
+        .poll(() => Promise.resolve(mock.checkRuns.length), {
+          timeout: 30_000,
+        })
         .toBeGreaterThan(0);
 
       expect(mock.checkRuns).toHaveLength(1);

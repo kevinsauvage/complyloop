@@ -9,7 +9,7 @@ test.describe("public pages", () => {
       }),
     ).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "Get started free" }),
+      page.getByRole("link", { name: /Sign in with GitHub/i }).first(),
     ).toBeVisible();
   });
 

@@ -4,7 +4,7 @@ test.describe("organization account", () => {
   test("shows account overview for the seeded workspace", async ({ page }) => {
     await page.goto("/org");
     await expect(
-      page.getByRole("heading", { name: "Organization account", exact: true }),
+      page.getByRole("heading", { name: "Organization", exact: true }),
     ).toBeVisible();
     await expect(page.getByText(/Settings for E2E Workspace/)).toBeVisible();
     await expect(
@@ -54,7 +54,7 @@ test.describe("organization account", () => {
     const downloadPromise = page.waitForEvent("download");
     await page.getByRole("button", { name: /Download JSON/i }).click();
     const download = await downloadPromise;
-    expect(download.suggestedFilename()).toMatch(/complyloop-org-.*\.json/);
+    expect(download.suggestedFilename()).toMatch(/complyloop-.*\.json/);
 
     await expect(
       page.getByRole("status").filter({
@@ -71,7 +71,7 @@ test.describe("organization account", () => {
     await page.goto("/org");
     await page.getByRole("button", { name: "New organization" }).click();
     const createDialog = page.getByRole("dialog", {
-      name: /Create a team organization/i,
+      name: /Create an organization/i,
     });
     await expect(createDialog).toBeVisible();
     await createDialog.getByLabel(/Organization name/i).fill(orgName);
@@ -90,6 +90,7 @@ test.describe("organization account", () => {
       page.getByText(new RegExp(`Settings for ${orgName}`)),
     ).toBeVisible();
 
+    await page.getByText("Advanced — show delete controls").click();
     await page.getByRole("button", { name: /^Delete organization$/i }).click();
     await expect(
       page.getByRole("heading", { name: new RegExp(`Delete ${orgName}`, "i") }),

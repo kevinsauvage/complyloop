@@ -4,7 +4,7 @@ test.describe("compliance core loop", () => {
   test("assess → finding → evidence", async ({ page }) => {
     await page.goto("/dashboard");
     await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
+      page.getByRole("heading", { name: /sample-app|Welcome to ComplyLoop/i }),
     ).toBeVisible();
 
     await page.getByRole("button", { name: "Run assessment" }).click();
@@ -17,7 +17,8 @@ test.describe("compliance core loop", () => {
 
     await page
       .getByRole("navigation", { name: "Main" })
-      .getByRole("link", { name: "Findings", exact: true })
+      .getByRole("link", { name: /Findings/ })
+      .first()
       .click();
     await expect(page.getByRole("heading", { name: "Findings" })).toBeVisible();
 
@@ -63,9 +64,12 @@ test.describe("compliance core loop", () => {
 
     await page
       .getByRole("navigation", { name: "Main" })
-      .getByRole("link", { name: "Evidence", exact: true })
+      .getByRole("link", { name: /Evidence/ })
+      .first()
       .click();
-    await expect(page.getByRole("heading", { name: "Evidence" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Evidence", exact: true }),
+    ).toBeVisible();
     await expect(
       page.getByText(/Assessment of|assessment_completed/i).first(),
     ).toBeVisible();

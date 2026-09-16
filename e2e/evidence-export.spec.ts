@@ -5,11 +5,13 @@ import { expect, test } from "@playwright/test";
 test.describe("evidence export", () => {
   test("downloads evidence JSON from the export menu", async ({ page }) => {
     await page.goto("/evidence");
-    await expect(page.getByRole("heading", { name: "Evidence" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Evidence", exact: true }),
+    ).toBeVisible();
 
-    await page.getByRole("button", { name: /^Export/i }).click();
+    await page.getByRole("button", { name: /More export formats/i }).click();
     const downloadPromise = page.waitForEvent("download");
-    await page.getByRole("menuitem", { name: /Export JSON/i }).click();
+    await page.getByRole("menuitem", { name: /Download raw JSON/i }).click();
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toBe("evidence.json");
 

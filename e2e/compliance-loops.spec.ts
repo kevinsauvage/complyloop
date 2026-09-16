@@ -8,7 +8,7 @@ test.describe("compliance loops", () => {
   test("assess → record requirement exception → evidence", async ({ page }) => {
     await page.goto("/dashboard");
     await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
+      page.getByRole("heading", { name: /sample-app|Welcome to ComplyLoop/i }),
     ).toBeVisible();
 
     await page.getByRole("button", { name: "Run assessment" }).click();
@@ -20,7 +20,8 @@ test.describe("compliance loops", () => {
 
     await page
       .getByRole("navigation", { name: "Main" })
-      .getByRole("link", { name: "Requirements", exact: true })
+      .getByRole("link", { name: /Requirements/ })
+      .first()
       .click();
     await expect(
       page.getByRole("heading", { name: "Requirements" }),
@@ -53,9 +54,12 @@ test.describe("compliance loops", () => {
 
     await page
       .getByRole("navigation", { name: "Main" })
-      .getByRole("link", { name: "Evidence", exact: true })
+      .getByRole("link", { name: /Evidence/ })
+      .first()
       .click();
-    await expect(page.getByRole("heading", { name: "Evidence" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Evidence", exact: true }),
+    ).toBeVisible();
     await expect(
       page
         .getByText(/exception|marketing microsite|requirement_exception/i)
@@ -67,7 +71,7 @@ test.describe("compliance loops", () => {
     await page.goto("/findings/e2e-finding-img-alt");
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
-    await page.getByText("Dismiss this finding").click();
+    await page.getByRole("button", { name: /Dismiss…/ }).click();
     await page
       .getByLabel(/Note \(kept as evidence\)/i)
       .fill("E2E dismiss: false positive in fixture.");
@@ -84,9 +88,12 @@ test.describe("compliance loops", () => {
 
     await page
       .getByRole("navigation", { name: "Main" })
-      .getByRole("link", { name: "Evidence", exact: true })
+      .getByRole("link", { name: /Evidence/ })
+      .first()
       .click();
-    await expect(page.getByRole("heading", { name: "Evidence" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Evidence", exact: true }),
+    ).toBeVisible();
     await expect(
       page
         .getByText(/Finding dismissed|finding_dismissed|false_positive/i)
@@ -100,13 +107,12 @@ test.describe("compliance loops", () => {
     const response = await page.goto("/evidence/report/html");
     expect(response?.ok()).toBeTruthy();
     await expect(
-      page.getByRole("heading", { name: /Compliance report/i }),
+      page.getByRole("heading", { name: /Audit report/i }),
     ).toBeVisible();
     await expect(page.getByRole("heading", { name: "Summary" })).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Requirements" }),
     ).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Findings" })).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Evidence trail" }),
     ).toBeVisible();

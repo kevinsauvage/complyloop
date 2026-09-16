@@ -8,20 +8,18 @@ test.describe("project settings", () => {
       page.getByRole("link", { name: "e2e/sample-app" }),
     ).toBeVisible();
     await expect(
-      page.getByText("Runtime audit", { exact: true }),
+      page.getByRole("heading", { name: "Preview URL" }),
     ).toBeVisible();
-    await expect(page.getByLabel(/Preview \/ staging URL/i)).toBeVisible();
+    await expect(page.getByLabel(/Preview URL/i)).toBeVisible();
     await expect(
-      page.getByRole("button", { name: /Save preview settings/i }),
+      page.getByRole("button", { name: /Save preview URL/i }),
     ).toBeVisible();
   });
 
   test("rejects localhost runtime audit URLs", async ({ page }) => {
     await page.goto("/settings");
-    await page
-      .getByLabel(/Preview \/ staging URL/i)
-      .fill("http://localhost:3000");
-    await page.getByRole("button", { name: /Save preview settings/i }).click();
+    await page.getByLabel(/Preview URL/i).fill("http://localhost:3000");
+    await page.getByRole("button", { name: /Save preview URL/i }).click();
 
     await expect(
       page
@@ -31,6 +29,6 @@ test.describe("project settings", () => {
 
     // Unsafe value must not be persisted.
     await page.reload();
-    await expect(page.getByLabel(/Preview \/ staging URL/i)).toHaveValue("");
+    await expect(page.getByLabel(/Preview URL/i)).toHaveValue("");
   });
 });
