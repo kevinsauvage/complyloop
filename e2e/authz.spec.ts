@@ -4,7 +4,7 @@ test.describe("viewer authorization", () => {
   test("viewer cannot run assessment", async ({ page }) => {
     await page.goto("/dashboard");
     await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
+      page.getByRole("heading", { name: /sample-app|Welcome to ComplyLoop/i }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Run assessment" }),
@@ -26,10 +26,10 @@ test.describe("viewer authorization", () => {
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
     await expect(
-      page.getByRole("button", { name: /Save preview settings/i }),
+      page.getByRole("button", { name: /Save preview URL/i }),
     ).toHaveCount(0);
     await expect(
-      page.getByText(/requires an admin or owner role/i),
+      page.getByText(/requires an admin or owner role/i).first(),
     ).toBeVisible();
   });
 
@@ -38,7 +38,7 @@ test.describe("viewer authorization", () => {
   }) => {
     await page.goto("/org");
     await expect(
-      page.getByRole("heading", { name: /Organization account/i }),
+      page.getByRole("heading", { name: "Organization", exact: true }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Invite member" }),

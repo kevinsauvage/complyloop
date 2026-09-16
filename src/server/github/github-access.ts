@@ -34,6 +34,13 @@ export async function resolveProjectGitHubToken(
     return createInstallationAccessToken(installationId);
   }
 
+  // E2E harness has no GitHub App installation: the mock Checks API
+  // (GITHUB_API_BASE_URL) accepts any bearer, so return the seeded stub
+  // token to exercise Check Run posting end-to-end.
+  if (process.env.E2E_AUTH_ENABLED === "1") {
+    return process.env.E2E_GITHUB_TOKEN ?? "ghx_e2e_mock_check";
+  }
+
   return null;
 }
 
