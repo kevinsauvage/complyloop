@@ -48,6 +48,9 @@ const nextConfig: NextConfig = {
   // file tracing only follows JS imports — on Vercel the JSON never made it
   // into the function bundle (`Cannot find module .../browsers.json`, surfaced
   // as generic "Runtime scan failed."). 1 KB, so it goes to every route.
+  // Same for `axe-core/axe.min.js`: the remediation-verify re-checks run
+  // inside finding-page actions (not the worker route), so only a global
+  // include keeps them working in production.
   // `@sparticuz/chromium` ships its binaries as non-JS `bin/*.br` assets with
   // the same tracing blind spot (`The input directory
   // ".../@sparticuz/chromium/bin" does not exist`). 66 MB, so it is included

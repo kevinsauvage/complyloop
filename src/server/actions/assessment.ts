@@ -34,9 +34,10 @@ const cancelAssessmentJobInput = z.object({
  *
  * The click resolves in well under a second with "queued" copy while the
  * scan itself runs wherever the queue drains: inline in the same request on
- * the dev/e2e path (local Playwright, no function timeout), or in the
- * single-scan worker route on production via `after()` + the scheduled
- * sweep backstop. The previous direct behavior — scanning inside this
+ * the dev/e2e path (local Playwright, no function timeout), or on the
+ * GitHub Actions executor on production via `after()` dispatch (Vercel
+ * worker-route self-fetch as a degraded fallback; 15-min schedule as the
+ * backstop). The previous direct behavior — scanning inside this
  * action — timed out the dashboard function on Vercel (300s) and left
  * stranded `running` rows; the queue has lease recovery instead.
  *
@@ -107,7 +108,8 @@ export async function runAssessmentAction(
       return message ?? "Assessment complete.";
     }
     // Production: kick the worker after responding. Never throws — a failed
-    // self-fetch leaves the job queued and the sweep reclaims it.
+    // dispatch falls back to the self-fetch, and anything still queued is
+    // reclaimed by the worker's 15-min schedule via lease recovery.
     after(() => scheduleAssessmentDrain());
     refresh(...COMPLIANCE_LOOP_ROUTES);
     return "Assessment queued — the worker picks it up shortly. Track progress in the Pipeline below; you can leave this page.";

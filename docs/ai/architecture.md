@@ -114,10 +114,10 @@ evidence, findings, remediations, requirements }`; the worker persists via
     "queued" copy and progress lives in the Pipeline section (polls every
     3s, refreshes on completion). A second click while a job is active is
     refused — claims are serial per project.
-  - **Webhook (queued)** — enqueue then `after()` self-fetch of
-    `POST /api/internal/jobs/run?limit=1`; the GitHub Actions sweep (every
-    5 min) is the backstop for failed fetches, killed tasks, and expired
-    leases. Dev/e2e drain the queue inline.
+  - **Webhook (queued)** — enqueue then `after()` dispatch of the GH
+    worker; its 15-min schedule is the backstop for failed dispatches,
+    killed tasks, and expired leases (Vercel worker-route self-fetch
+    remains as a degraded fallback). Dev/e2e drain the queue inline.
   Expired rate-limit buckets prune once per batch.
 - **Checkouts** — shallow ephemeral checkout per job via pure-JS git
   (isomorphic-git, no `git` CLI); deleted after. Serverless Chromium via
