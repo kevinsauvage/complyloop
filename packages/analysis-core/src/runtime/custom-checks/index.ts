@@ -116,8 +116,24 @@ async function runProbe(
   }
 }
 
-/** Condition-neutral probes — safe to run concurrently. */
-const PARALLEL_PROBES: readonly GuardedProbe[] = [
+/**
+ * Pristine-page reset between probes. Probes used to run concurrently while
+ * mutating shared page state (hover, focus, injected styles, zoom), so each
+ * probe measured the others' transient state and verdicts depended on
+ * CPU-speed interleaving — stable per environment, divergent across them.
+ * Every probe now starts from blur + top + neutral pointer.
+ */
+async function quiescePageForProbe(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const el = document.activeElement;
+    if (el instanceof HTMLElement) el.blur();
+    window.scrollTo(0, 0);
+  });
+  await page.mouse.move(0, 0);
+}
+
+/** Measurement probes — sequential with a quiesce step, never concurrent. */
+const MEASUREMENT_PROBES: readonly GuardedProbe[] = [
   {
     id: "text-spacing-runtime",
     run: (page) => textSpacingRuntimeViolation(page),
@@ -190,6 +206,7 @@ async function collectCustomViolations(
 ): Promise<{ violations: CustomViolation[]; probeFailures: string[] }> {
   const probeFailures: string[] = [];
   const run = async (probe: GuardedProbe): Promise<CustomViolation[]> => {
+    await quiescePageForProbe(page);
     // Per-probe markers: the last started-but-unfinished probe names the
     // stall when a run dies mid-pass.
     console.info(`[progress] runtime probe ${probe.id} started`);
@@ -203,7 +220,10 @@ async function collectCustomViolations(
     }
   };
 
-  const optional = await Promise.all(PARALLEL_PROBES.map(run));
+  const measured: CustomViolation[][] = [];
+  for (const probe of MEASUREMENT_PROBES) {
+    measured.push(await run(probe));
+  }
 
   const violations: CustomViolation[] = [];
   for (const probe of INTERACTION_PROBES) {
@@ -214,7 +234,7 @@ async function collectCustomViolations(
     violations.push(...(await run(probe)));
   }
 
-  violations.push(...optional.flat());
+  violations.push(...measured.flat());
 
   return { violations, probeFailures };
 }
@@ -242,12 +262,14 @@ export async function runThemeSensitiveCustomChecks(
 ): Promise<CustomChecksResult> {
   const probeFailures: string[] = [];
   const theme: CustomViolation[] = [
-    ...(await runProbe(probeFailures, "focus", () =>
-      focusCustomViolations(page),
-    )),
-    ...(await runProbe(probeFailures, "non-text-contrast", () =>
-      nonTextContrastViolation(page),
-    )),
+    ...(await runProbe(probeFailures, "focus", async () => {
+      await quiescePageForProbe(page);
+      return focusCustomViolations(page);
+    })),
+    ...(await runProbe(probeFailures, "non-text-contrast", async () => {
+      await quiescePageForProbe(page);
+      return nonTextContrastViolation(page);
+    })),
   ];
   return {
     findings: findingsFromCustomViolations(pageUrl, theme),

@@ -5,8 +5,10 @@ import {
   toViolationNodes,
 } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
+import { isVisuallyHiddenByDesign } from "./visually-hidden.ts";
 
 const FONT_SCALE = "200%";
+const IS_HIDDEN_SOURCE = isVisuallyHiddenByDesign.toString();
 
 export async function resizeTextViolation(
   page: Page,
@@ -14,12 +16,17 @@ export async function resizeTextViolation(
   try {
     const hit = await pageEvaluateWithHitCapture(
       page,
-      (captureHit, { fontScale }) => {
+      (captureHit, { fontScale, hiddenSrc }) => {
+        const isHidden = new Function(
+          `return (${hiddenSrc})`,
+        )() as typeof isVisuallyHiddenByDesign;
         document.documentElement.style.fontSize = fontScale;
 
         const clipped = Array.from(document.querySelectorAll("body *")).find(
           (el) => {
             if (!(el instanceof HTMLElement)) return false;
+            // Skip links and other sr-only content clip by design.
+            if (isHidden(el)) return false;
             const style = getComputedStyle(el);
             if (style.overflowX === "auto" || style.overflowX === "scroll") {
               return false;
@@ -42,7 +49,7 @@ export async function resizeTextViolation(
         if (!clipped) return null;
         return captureHit(clipped);
       },
-      { fontScale: FONT_SCALE },
+      { fontScale: FONT_SCALE, hiddenSrc: IS_HIDDEN_SOURCE },
     );
 
     if (!hit) return null;

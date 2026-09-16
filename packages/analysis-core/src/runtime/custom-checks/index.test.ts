@@ -126,7 +126,10 @@ vi.mock("./target-size-enhanced.js", () => ({
 
 import { runCustomRuntimeChecks, runThemeSensitiveCustomChecks } from "./index";
 
-const page = {} as Page;
+const page = {
+  evaluate: vi.fn(async () => undefined),
+  mouse: { move: vi.fn(async () => undefined) },
+} as unknown as Page;
 
 describe("runCustomRuntimeChecks", () => {
   it("merges optional, composite, and sequential violations into findings", async () => {
