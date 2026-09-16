@@ -1,6 +1,11 @@
 import { createRequire } from "node:module";
+import path from "node:path";
 
-const require = createRequire(import.meta.url);
+// Workspace-root-anchored (not `import.meta.url`): the esbuild-bundled
+// worker has no meaningful module URL, and every runtime (tsx, Next,
+// bundled Node) launches with the workspace root as CWD — same precedent
+// as `resolveAxeMinJsPath` in runtime/scan.ts.
+const require = createRequire(path.join(process.cwd(), "package.json"));
 
 function versionFromPackageJson(pkgJsonPath: string): string | undefined {
   try {
