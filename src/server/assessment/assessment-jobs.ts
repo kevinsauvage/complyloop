@@ -266,39 +266,6 @@ async function recoverExpiredLeases(tx: DrizzleDb, now: string): Promise<void> {
     );
 }
 
-/**
- * Inserts a job already `running`, for the direct manual run: the caller
- * executes the scan in its own request instead of waiting for a worker claim.
- * `attempts` starts at 1 because this insert *is* the first attempt, so the
- * lease-recovery path (see `recoverExpiredLeases`) requeues it for a
- * background retry if the request dies mid-scan. No project exclusivity check:
- * the caller runs the scan immediately, and a queued/running row must never
- * block a direct run.
- */
-export async function startAssessmentJob(
-  input: EnqueueAssessmentJobInput,
-): Promise<AssessmentJob> {
-  const drizzle = await getDrizzle();
-  const now = new Date().toISOString();
-  // Reap expired leases even when the scheduled sweep is silent: a killed
-  // direct run otherwise strands its `running` row forever (only expired
-  // leases are touched — live workers hold valid ones — same safety as the
-  // claim-tick recovery).
-  await drizzle.transaction((tx) => recoverExpiredLeases(tx, now));
-  const [created] = await drizzle
-    .insert(assessmentJobs)
-    .values({
-      ...newAssessmentJobRow(crypto.randomUUID(), input, now),
-      status: "running",
-      attempts: 1,
-      startedAt: now,
-      leaseExpiresAt: new Date(Date.now() + DEFAULT_LEASE_MS).toISOString(),
-    })
-    .returning();
-  if (!created) throw new Error("Could not start assessment job.");
-  return jobFromRow(created);
-}
-
 /** Claims one ready job while ensuring only one assessment runs per project. */
 export async function claimNextAssessmentJob(): Promise<AssessmentJob | null> {
   const drizzle = await getDrizzle();
@@ -453,6 +420,36 @@ export async function recentAssessmentJobsForProject(
     .orderBy(desc(assessmentJobs.createdAt))
     .limit(limit);
   return rows.map(jobFromRow);
+}
+
+/**
+ * Oldest still-active (`queued`/`running`) job for a project, or null.
+ * The dashboard action uses this to refuse a second manual run while one is
+ * already in flight, and the Run button uses it to disable itself — the
+ * serial-per-project claim would otherwise stack full scans behind each
+ * other with no visible explanation.
+ */
+export async function activeAssessmentJobForProject(
+  projectId: string,
+): Promise<AssessmentJob | null> {
+  const drizzle = await getDrizzle();
+  const rows = await drizzle
+    .select()
+    .from(assessmentJobs)
+    .where(
+      and(
+        eq(assessmentJobs.projectId, projectId),
+        inArray(assessmentJobs.status, ["queued", "running"]),
+      ),
+    )
+    .limit(25);
+  // Oldest-first in JS (not ORDER BY): one row is all the caller needs and
+  // this stays deterministic regardless of index order.
+  let oldest: (typeof rows)[number] | null = null;
+  for (const row of rows) {
+    if (!oldest || row.createdAt < oldest.createdAt) oldest = row;
+  }
+  return oldest ? jobFromRow(oldest) : null;
 }
 
 export interface CancelAssessmentJobInput {

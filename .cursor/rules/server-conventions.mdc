@@ -12,7 +12,7 @@ alwaysApply: false
 - Evidence is insert-only — never UPDATE/DELETE evidence rows (DB trigger enforces this).
 - Status changes go through core helpers (`advanceRemediation`, requirement-status transitions) — actions must not invent statuses.
 - Never log or return raw GitHub tokens. Source trees are ephemeral temp clones (`repo-checkout.ts`).
-- Long assessments: durable jobs + worker (`assessment-jobs`, `assessment-worker`), not long-running request handlers. **Exception — direct manual runs:** `runAssessmentAction` starts a job row and scans in the same request (the button loader, toast, and refreshed results are one round trip); only webhook scans go through the queued worker. The rule still forbids *new* long-running request handlers, and a direct run must keep its recoverable job row (`startAssessmentJob` → settle) so a killed request is requeued by the sweep.
+- Long assessments: durable jobs + worker (`assessment-jobs`, `assessment-worker`), not long-running request handlers — no exceptions. `runAssessmentAction` only enqueues and schedules the drain in `after()`; the scan always runs in the worker route (or inline on the dev/e2e path). The rule forbids *new* long-running request handlers.
 - Webhook deliveries are idempotent by `x-github-delivery`.
 
 ## Verification loop

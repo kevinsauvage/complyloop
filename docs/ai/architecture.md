@@ -32,12 +32,12 @@ publish-only.
 **Connectors:** GitHub only. **State:** Postgres (`DATABASE_URL`). Evidence is
 append-only. Tokens AES-256-GCM at rest. Server-owned env keys live in
 `src/server/env.ts` (lazy getters — never module constants); `AUTH_*` stays
-with auth/middleware/token crypto, framework keys stay direct. Manual
-assessments run directly in the request; webhook assessments are durable jobs
-(GHA sweep + webhook self-fetch → `POST /api/internal/jobs/run`).
+with auth/middleware/token crypto, framework keys stay direct. Manual and
+webhook assessments are durable jobs (enqueue → worker route in `after()` +
+GHA sweep backstop → `POST /api/internal/jobs/run`); dev/e2e drains inline.
 
 ```
-Manual run (dashboard action) → start job (running) → clone → scan → persist → settle
+Manual run (dashboard action enqueues + after() drain) → assessment_jobs → worker route / sweep
 Webhook (enqueue + after() self-fetch) → assessment_jobs → GHA sweep (orphans/expired leases)
                                            ↓ (clone → scan → persist)
                            Core + contract → Catalog / Analysis / AI
@@ -106,14 +106,12 @@ evidence, findings, remediations, requirements }`; the worker persists via
   3 attempts, serial per project, cancellable (`queued`/`running` →
   `cancelled`, project-scoped; a cancelled mid-run run saves nothing and posts
   no Check Run).
-  Two execution topologies, one job model:
-  - **Manual (direct)** — `runAssessmentAction` inserts the job `running`
-    (`startAssessmentJob`, lease + `attempts: 1`) and scans in the same
-    request, so the button loader, success toast, and refreshed results share
-    one round trip. The scan runs *outside* the project write lock (holding it
-    for minutes would deadlock the apply). A killed request leaves a `running`
-    row whose lease expiry requeues it for the sweep — attempts start at 1 so
-    the first recovery retry is attempt 2.
+  Two triggers, one queued topology, one job model:
+  - **Manual** — `runAssessmentAction` enqueues (`queued`, `attempts: 0`)
+    and schedules the drain in `after()`; the click resolves fast with
+    "queued" copy and progress lives in the Pipeline section (polls every
+    3s, refreshes on completion). A second click while a job is active is
+    refused — claims are serial per project.
   - **Webhook (queued)** — enqueue then `after()` self-fetch of
     `POST /api/internal/jobs/run?limit=1`; the GitHub Actions sweep (every
     5 min) is the backstop for failed fetches, killed tasks, and expired
@@ -185,9 +183,10 @@ Assessments always use the project's `defaultPresetId`. Requirements page
 
 ## Key flows
 
-**Assessment:** manual runs execute directly in the dashboard action (see
-   180|Jobs); webhook runs go enqueue → worker. Either way the worker/action
-clones + scans → `detectChanges` (depth-1
+**Assessment:** manual runs enqueue in the dashboard action and drain via
+   the worker queue (see
+   180|Jobs); webhook runs go enqueue → worker. Either way the worker
+   clones + scans → `detectChanges` (depth-1
 clone: author is HEAD) → AST → optional Playwright → merge → re-derive
 statuses → `verifyDraftPrRemediation` (uses `approvalAction` on the
 remediation, not historical evidence). Only a **default-branch** scan (or a

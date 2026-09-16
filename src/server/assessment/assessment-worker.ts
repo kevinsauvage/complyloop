@@ -178,9 +178,9 @@ export type RunningAssessmentJobResult = Exclude<
 
 /**
  * Executes an already-`running` job to a terminal state: run the scan, then
- * complete, cancel, or fail it. Shared by the claim loop below and the direct
- * manual run (`actions/assessment.ts`), so a manual run and a worker run have
- * identical persistence, cancellation, and retry semantics.
+ * complete, cancel, or fail it. Shared by the claim loop below, so worker
+ * runs have identical persistence, cancellation, and retry semantics no
+ * matter which trigger enqueued the job.
  */
 export async function settleRunningAssessmentJob(
   job: AssessmentJob,

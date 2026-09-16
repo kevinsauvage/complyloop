@@ -1,9 +1,9 @@
 # Backstop sweep for the assessment queue (replaces Vercel Cron, which Hobby
-# plans limit to a daily schedule). Only webhook assessments are queued: each
-# webhook enqueue self-fetches the single-scan worker route in `after()`, and
-# this workflow reclaims jobs left `queued`/`running` by failed fetches,
-# killed tasks, or expired leases via the route's lease-recovery path.
-# Manual runs scan in the dashboard request and never queue.
+# plans limit to a daily schedule). Manual and webhook assessments enqueue:
+# each trigger self-fetches the single-scan worker route in `after()` (dev
+# drains inline), and this workflow reclaims jobs left `queued`/`running` by
+# failed fetches, killed tasks, or expired leases via the route's
+# lease-recovery path.
 # `workflow_dispatch` doubles as an operator drain button.
 #
 # Required: `WORKER_SECRET` repository secret (same value as the production

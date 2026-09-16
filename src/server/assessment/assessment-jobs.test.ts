@@ -298,6 +298,7 @@ function createDrizzle() {
 }
 
 import {
+  activeAssessmentJobForProject,
   type AssessmentJob,
   cancelAssessmentJob,
   claimNextAssessmentJob,
@@ -307,7 +308,6 @@ import {
   queuedAssessmentJobCount,
   recentAssessmentJobsForProject,
   refreshAssessmentJobLease,
-  startAssessmentJob,
 } from "./assessment-jobs";
 
 beforeEach(() => {
@@ -680,73 +680,34 @@ describe("claimNextAssessmentJob", () => {
   });
 });
 
-describe("startAssessmentJob", () => {
-  it("inserts a running job with a lease and the first attempt recorded", async () => {
-    const job = await startAssessmentJob({
-      projectId: "p1",
-      trigger: "manual",
-      requestedByUserId: "user-1",
-    });
-
-    expect(job.status).toBe("running");
-    expect(job.projectId).toBe("p1");
-    expect(job.trigger).toBe("manual");
-    expect(job.requestedByUserId).toBe("user-1");
-    // The insert *is* attempt 1, so lease recovery retries it as attempt 2.
-    expect(job.attempts).toBe(1);
-    expect(job.startedAt).toBeTruthy();
-    expect(job.leaseExpiresAt).toBeTruthy();
-    expect(jobs.size).toBe(1);
+describe("activeAssessmentJobForProject", () => {
+  it("returns null when no job is active", async () => {
+    await expect(activeAssessmentJobForProject("p1")).resolves.toBeNull();
   });
 
-  it("does not use a queued state, so no claim can pick it up", async () => {
-    const job = await startAssessmentJob({ projectId: "p1", trigger: "manual" });
-    // A running row is never `queued`, so the claim query must not see it.
-    expect(await claimNextAssessmentJob()).toBeNull();
-    expect(jobs.get(job.id)?.status).toBe("running");
-  });
-
-  it("starts a second job for the same project instead of being blocked", async () => {
-    const queued = await enqueueAssessmentJob({
+  it("returns the oldest active job and ignores terminal ones", async () => {
+    await enqueueAssessmentJob({ projectId: "p1", trigger: "manual" });
+    const second = await enqueueAssessmentJob({
       projectId: "p1",
       trigger: "webhook",
     });
-    const direct = await startAssessmentJob({
+    const done = await enqueueAssessmentJob({
       projectId: "p1",
       trigger: "manual",
     });
+    const claimed = await claimNextAssessmentJob();
+    if (!claimed) throw new Error("expected a claim");
+    await completeAssessmentJob(claimed);
 
-    expect(direct.id).not.toBe(queued.id);
-    expect(jobs.get(direct.id)?.status).toBe("running");
-    expect(jobs.get(queued.id)?.status).toBe("queued");
+    const active = await activeAssessmentJobForProject("p1");
+    expect(active?.id).toBe(second.id);
+    expect(active?.status).toBe("queued");
+    expect(done.id).not.toBe(active?.id);
   });
 
-  it("requeues expired leases so a killed direct run recovers", async () => {
-    const stale = await enqueueAssessmentJob({
-      projectId: "p1",
-      trigger: "manual",
-    });
-    const row = jobs.get(stale.id);
-    if (!row) throw new Error("expected row");
-    row.status = "running";
-    row.leaseExpiresAt = new Date(Date.now() - 60_000).toISOString();
-    row.attempts = 1;
-
-    const live = await enqueueAssessmentJob({
-      projectId: "p2",
-      trigger: "manual",
-    });
-    const liveRow = jobs.get(live.id);
-    if (!liveRow) throw new Error("expected live row");
-    liveRow.status = "running";
-    liveRow.leaseExpiresAt = new Date(Date.now() + 60_000).toISOString();
-
-    await startAssessmentJob({ projectId: "p3", trigger: "manual" });
-
-    // Expired lease requeued for a background retry…
-    expect(jobs.get(stale.id)?.status).toBe("queued");
-    // …while a live lease is untouched.
-    expect(jobs.get(live.id)?.status).toBe("running");
+  it("is scoped to the project", async () => {
+    await enqueueAssessmentJob({ projectId: "p1", trigger: "manual" });
+    await expect(activeAssessmentJobForProject("p2")).resolves.toBeNull();
   });
 });
 

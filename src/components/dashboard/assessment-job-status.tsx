@@ -27,10 +27,10 @@ const statusIndicator: Record<AssessmentJob["status"], string> = {
 
 /**
  * A job that has been ready longer than this with no worker picking it up
- * almost certainly means the queue backstop is failing. Only webhook jobs are
- * queued (manual runs execute in the dashboard request); production drains
- * webhooks by self-fetching the worker route on delivery, with the GitHub
- * Actions sweep as the orphan backstop (see docs/vercel.md).
+ * almost certainly means the queue backstop is failing. Manual and webhook
+ * runs both queue (the dashboard action only enqueues); production drains
+ * by self-fetching the worker route on trigger, with the GitHub Actions
+ * sweep as the orphan backstop (see docs/vercel.md).
  */
 export const WORKER_STALL_MS = 10 * 60_000;
 
@@ -120,7 +120,8 @@ export function AssessmentJobStatus({
             <p className="text-xs text-destructive">{pollError}</p>
           ) : hasQueued ? (
             <p className="text-xs text-muted-foreground">
-              Queued — waiting for the assessment worker.
+              Queued — the assessment worker picks it up automatically. This
+              page updates when the scan finishes.
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">Recent job history</p>
@@ -135,10 +136,10 @@ export function AssessmentJobStatus({
           <span className="font-medium text-foreground">
             Assessment worker may be stopped.
           </span>{" "}
-          Oldest queued job waiting {formatStallAge(stalledAge)} — webhook
-          scans are drained by the assessment-sweep workflow as backstop (
-          <code className="font-mono">/api/internal/jobs/run</code>, see
-          docs/vercel.md).
+            Oldest queued job waiting {formatStallAge(stalledAge)} — scans
+            are drained by the assessment-sweep workflow as backstop (
+            <code className="font-mono">/api/internal/jobs/run</code>, see
+            docs/vercel.md).
         </p>
       ) : null}
       <ul className="flex flex-col gap-2" aria-label="Recent assessment jobs">
@@ -199,7 +200,7 @@ export function AssessmentJobStatus({
                 <StatefulActionForm
                   action={runAssessmentAction}
                   submitLabel="Run assessment again"
-                  pendingLabel="Assessing…"
+                  pendingLabel="Queuing…"
                   variant="outline"
                   size="sm"
                 />

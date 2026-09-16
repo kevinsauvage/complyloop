@@ -71,12 +71,14 @@ export async function drainAssessmentJobsInline(): Promise<string> {
 }
 
 /**
- * Single scheduling entry point for the **queued** (webhook) path. Call it
- * inside `after()` in production; `await` it directly only on the dev/e2e
- * inline path (it returns the user-facing message there).
+ * Single scheduling entry point for the **queued** path (webhook and manual).
+ * Call it inside `after()` in production; `await` it directly only on the
+ * dev/e2e inline path (it runs the scan there and returns the user-facing
+ * message).
  *
- * Manual runs do not come through here — `runAssessmentAction` executes the
- * scan in its own request (direct UX: loader → toast → results).
+ * Manual runs come through here too — `runAssessmentAction` enqueues and
+ * then drains via this scheduler, so the dashboard request never hosts the
+ * scan itself (the 300s serverless ceiling killed direct runs).
  *
  * Dev/e2e drains the queue inline and returns the user-facing message;
  * production self-fetches the single-scan worker route

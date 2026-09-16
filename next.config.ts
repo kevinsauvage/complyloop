@@ -51,18 +51,16 @@ const nextConfig: NextConfig = {
   // `@sparticuz/chromium` ships its binaries as non-JS `bin/*.br` assets with
   // the same tracing blind spot (`The input directory
   // ".../@sparticuz/chromium/bin" does not exist`). 66 MB, so it is included
-  // only where a browser is launched: the worker route (webhook scans via the
-  // GHA sweep) and /dashboard, whose direct manual run scans in the click's
-  // request. A new *trigger* route must execute scans only through the worker
-  // route, or it needs its own entry here — that is the failure this scoping
-  // exists to make loud.
+  // only where a browser is launched: the worker route (manual + webhook
+  // scans drain through it). No other route launches a browser — the
+  // dashboard action only enqueues. A new route that launches one needs its
+  // own entry here — that is the failure this scoping exists to make loud.
   outputFileTracingIncludes: {
     "/*": [
       "./node_modules/playwright-core/browsers.json",
       "./node_modules/axe-core/axe.min.js",
     ],
     "/api/internal/jobs/run": ["./node_modules/@sparticuz/chromium/bin/**/*"],
-    "/dashboard": ["./node_modules/@sparticuz/chromium/bin/**/*"],
   },
   transpilePackages: [
     "@complyloop/analysis-core",

@@ -1,5 +1,6 @@
 "use server";
 
+import { after } from "next/server";
 import { z } from "zod";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
@@ -9,15 +10,15 @@ import { entityIdSchema, parseForm } from "@/core/validate";
 
 import { type ActionState, runAction } from "../action-state";
 import {
+  scheduleAssessmentDrain,
+  shouldDrainAssessmentJobsInline,
+} from "../assessment/assessment-job-inline";
+import {
+  activeAssessmentJobForProject,
   type AssessmentJob,
   cancelAssessmentJob,
-  startAssessmentJob,
+  enqueueAssessmentJob,
 } from "../assessment/assessment-jobs";
-import {
-  type RunningAssessmentJobResult,
-  settleRunningAssessmentJob,
-} from "../assessment/assessment-worker";
-import { reportEvent } from "../observability";
 import { assertAssessRateLimit } from "../rate-limit";
 import { appendEvidence } from "../workspace/project-rows";
 import { withProjectWrite } from "../workspace/workspace-write";
@@ -28,42 +29,24 @@ const cancelAssessmentJobInput = z.object({
   jobId: entityIdSchema,
 });
 
-/** Toast copy for a finished direct run; never claims more than the result. */
-function runOutcomeMessage(
-  outcome: RunningAssessmentJobResult,
-  job: AssessmentJob,
-): string {
-  switch (outcome.kind) {
-    case "succeeded":
-      return "Assessment complete.";
-    case "cancelled":
-      return "Assessment cancelled.";
-    case "retrying":
-      return "Assessment hit an error and will retry automatically.";
-    case "failed":
-      return `${job.attempts >= job.maxAttempts ? "Assessment" : "The previous assessment"} failed. Check the server logs for details.`;
-    default: {
-      const _exhaustive: never = outcome;
-      throw new Error(`Unhandled assessment outcome: ${_exhaustive}`);
-    }
-  }
-}
-
 /**
- * Runs an assessment **directly**: the user's click scans the repository and
- * resolves with the result, so the button loader, the toast, and the refreshed
- * results all belong to one request. There is no queue hop for manual runs —
- * progress was invisible behind a queued job and a polling UI.
+ * Queues a manual assessment and kicks the worker without waiting for it.
  *
- * The job row is still written (status `running`, lease + `attempts: 1`)
- * before the scan and settled after it, for two reasons: a killed request
- * leaves a recoverable row that the scheduled sweep requeues, and the job
- * history stays one model for manual and webhook runs. The scan therefore
- * runs *outside* the project write lock — holding `project-write:{id}` for
- * minutes would deadlock the apply that takes the same lock.
+ * The click resolves in well under a second with "queued" copy while the
+ * scan itself runs wherever the queue drains: inline in the same request on
+ * the dev/e2e path (local Playwright, no function timeout), or in the
+ * single-scan worker route on production via `after()` + the scheduled
+ * sweep backstop. The previous direct behavior — scanning inside this
+ * action — timed out the dashboard function on Vercel (300s) and left
+ * stranded `running` rows; the queue has lease recovery instead.
  *
- * Webhooks keep the queued worker path: GitHub requires a 2xx in seconds, so
- * their scans cannot run inside the delivery request.
+ * The scan therefore runs *outside* the project write lock — holding
+ * `project-write:{id}` for minutes would deadlock the apply that takes the
+ * same lock. Progress is visible in the dashboard Pipeline section, which
+ * polls `queued`/`running` jobs every 3s and refreshes on completion.
+ *
+ * Webhooks share this queued path: GitHub requires a 2xx in seconds, so
+ * their scans cannot run inside the delivery request either.
  */
 export async function runAssessmentAction(
   _previous: ActionState,
@@ -71,17 +54,27 @@ export async function runAssessmentAction(
 ): Promise<ActionState> {
   void _formData;
   return runAction(async () => {
-    // Start the job in one short write (permission + rate limit + evidence,
-    // all under the project lock), then scan outside it.
-    const context: { projectId: string | null; job: AssessmentJob | null } = {
+    // One short write (permission + rate limit + enqueue + evidence, all
+    // under the project lock), then the drain happens outside it.
+    const context: {
+      projectId: string | null;
+      job: AssessmentJob | null;
+      alreadyActive: AssessmentJob | null;
+    } = {
       projectId: null,
       job: null,
+      alreadyActive: null,
     };
     await withProjectWrite(async (workspace) => {
       requireOnActive(workspace, "project.assess");
       context.projectId = workspace.project.id;
       if (workspace.userId) await assertAssessRateLimit(workspace.userId);
-      const job = await startAssessmentJob({
+      const active = await activeAssessmentJobForProject(workspace.project.id);
+      if (active) {
+        context.alreadyActive = active;
+        return;
+      }
+      const job = await enqueueAssessmentJob({
         projectId: workspace.project.id,
         trigger: "manual",
         requestedByUserId: workspace.userId,
@@ -90,25 +83,34 @@ export async function runAssessmentAction(
       const payload: ProjectWritePayload = {};
       appendEvidence(payload, {
         kind: "assessment_job",
-        summary: `Assessment job ${job.id} started for "${workspace.project.name}"`,
+        summary: `Assessment job ${job.id} queued for "${workspace.project.name}"`,
         projectId: workspace.project.id,
-        detail: { phase: "started", jobId: job.id, trigger: "manual" },
+        detail: { phase: "queued", jobId: job.id, trigger: "manual" },
       });
       return payload;
     });
 
+    const alreadyActive = context.alreadyActive;
+    if (alreadyActive) {
+      refresh(...COMPLIANCE_LOOP_ROUTES);
+      const state = alreadyActive.status === "running" ? "running" : "queued";
+      return `An assessment is already ${state} — track it in the Pipeline below.`;
+    }
+
     const job = context.job;
-    if (!job) throw new PublicError("Could not start the assessment.");
-    const outcome = await settleRunningAssessmentJob(job);
-    reportEvent("assessment job run directly", {
-      code: "assessment_run_direct",
-      projectId: context.projectId,
-      jobId: job.id,
-      trigger: "manual",
-      outcome: outcome.kind,
-    });
+    if (!job) throw new PublicError("Could not queue the assessment.");
+    if (shouldDrainAssessmentJobsInline()) {
+      // Dev/e2e: no function timeout and a local browser, so drain now and
+      // report the real outcome like before.
+      const message = await scheduleAssessmentDrain();
+      refresh(...COMPLIANCE_LOOP_ROUTES);
+      return message ?? "Assessment complete.";
+    }
+    // Production: kick the worker after responding. Never throws — a failed
+    // self-fetch leaves the job queued and the sweep reclaims it.
+    after(() => scheduleAssessmentDrain());
     refresh(...COMPLIANCE_LOOP_ROUTES);
-    return runOutcomeMessage(outcome, job);
+    return "Assessment queued — the worker picks it up shortly. Track progress in the Pipeline below; you can leave this page.";
   });
 }
 

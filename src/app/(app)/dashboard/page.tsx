@@ -31,10 +31,10 @@ export const metadata: Metadata = {
     "Compliance snapshot, pipeline activity, and next actions for the active project.",
 };
 
-// Direct manual runs execute the scan inside this page's action (see
-// `runAssessmentAction`), so the segment — not the worker route — owns the
-// timeout budget for a click.
-export const maxDuration = 300;
+// Manual runs only enqueue (see `runAssessmentAction`): the click resolves
+// fast and the scan drains through the worker queue, so this segment needs
+// no extended timeout — the worker route (`/api/internal/jobs/run`) owns
+// its own `maxDuration` budget instead.
 
 export default async function DashboardPage() {
   const view = await loadDashboardView();
@@ -59,7 +59,7 @@ export default async function DashboardPage() {
 
   const { caps } = view;
   const assessAction = caps.canAssess ? (
-    <AssessmentRunForm />
+    <AssessmentRunForm projectId={view.project.id} />
   ) : (
     <PermissionNotice>
       View-only role — you can browse results but not run assessments.

@@ -119,8 +119,8 @@ export async function POST(request: Request): Promise<Response> {
   // self-fetches `POST /api/internal/jobs/run?limit=1` so pushes start
   // scanning immediately. Each invocation claims one job
   // (serial-per-project); the scheduled sweep is the backstop for failed
-  // fetches, killed tasks, and expired leases. Manual runs bypass this path
-  // entirely — the dashboard action scans in its own request.
+  // fetches, killed tasks, and expired leases. Manual runs share this queued
+  // path — the dashboard action enqueues and drains the same way.
   if (result.handled) {
     after(() => scheduleAssessmentDrain());
   }

@@ -22,9 +22,11 @@ import {
   dismissFindingAction,
 } from "./remediation";
 
-const startAssessmentJob = vi.hoisted(() => vi.fn());
+const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
+const activeAssessmentJobForProject = vi.hoisted(() => vi.fn());
 const cancelAssessmentJob = vi.hoisted(() => vi.fn());
-const settleRunningAssessmentJob = vi.hoisted(() => vi.fn());
+const scheduleAssessmentDrain = vi.hoisted(() => vi.fn());
+const shouldDrainAssessmentJobsInline = vi.hoisted(() => vi.fn());
 const assertAssessRateLimit = vi.hoisted(() => vi.fn());
 const applyRequirementStatusRefresh = vi.hoisted(() => vi.fn());
 const afterFn = vi.hoisted(() => vi.fn());
@@ -55,13 +57,17 @@ vi.mock("../assessment/assessment", () => ({
 }));
 
 vi.mock("../assessment/assessment-jobs", () => ({
-  startAssessmentJob: (...args: unknown[]) => startAssessmentJob(...args),
+  activeAssessmentJobForProject: (...args: unknown[]) =>
+    activeAssessmentJobForProject(...args),
+  enqueueAssessmentJob: (...args: unknown[]) => enqueueAssessmentJob(...args),
   cancelAssessmentJob: (...args: unknown[]) => cancelAssessmentJob(...args),
 }));
 
-vi.mock("../assessment/assessment-worker", () => ({
-  settleRunningAssessmentJob: (...args: unknown[]) =>
-    settleRunningAssessmentJob(...args),
+vi.mock("../assessment/assessment-job-inline", () => ({
+  scheduleAssessmentDrain: (...args: unknown[]) =>
+    scheduleAssessmentDrain(...args),
+  shouldDrainAssessmentJobsInline: (...args: unknown[]) =>
+    shouldDrainAssessmentJobsInline(...args),
 }));
 
 vi.mock("../rate-limit", async () => {
@@ -239,18 +245,12 @@ describe("bulkApproveRemediationsAction", () => {
 });
 
 describe("runAssessmentAction", () => {
-  it("runs directly, records the started job, and reports the outcome", async () => {
+  it("enqueues and kicks the worker via after(), resolving with queued copy", async () => {
     const workspace = workspaceFor("member");
     mockProjectWrite(workspace);
-    startAssessmentJob.mockResolvedValue({
-      id: "job-1",
-      attempts: 1,
-      maxAttempts: 3,
-    });
-    settleRunningAssessmentJob.mockResolvedValue({
-      kind: "succeeded",
-      jobId: "job-1",
-    });
+    activeAssessmentJobForProject.mockResolvedValue(null);
+    enqueueAssessmentJob.mockResolvedValue({ id: "job-1" });
+    shouldDrainAssessmentJobsInline.mockReturnValue(false);
     assertAssessRateLimit.mockResolvedValue(undefined);
 
     const result = await runAssessmentAction(
@@ -258,19 +258,20 @@ describe("runAssessmentAction", () => {
       new FormData(),
     );
 
-    expect(result).toEqual({ ok: true, message: "Assessment complete." });
-    expect(startAssessmentJob).toHaveBeenCalledWith({
+    expect(result).toEqual({
+      ok: true,
+      message:
+        "Assessment queued — the worker picks it up shortly. Track progress in the Pipeline below; you can leave this page.",
+    });
+    expect(enqueueAssessmentJob).toHaveBeenCalledWith({
       projectId: "p1",
       trigger: "manual",
       requestedByUserId: "user-1",
     });
-    expect(settleRunningAssessmentJob).toHaveBeenCalledWith({
-      id: "job-1",
-      attempts: 1,
-      maxAttempts: 3,
-    });
-    // No queue hop for manual runs: no after() self-fetch.
-    expect(afterFn).not.toHaveBeenCalled();
+    // The scan never runs inside the action: the drain is deferred past the
+    // response so the click resolves fast.
+    expect(scheduleAssessmentDrain).not.toHaveBeenCalled();
+    expect(afterFn).toHaveBeenCalledTimes(1);
     expect(
       projectWritePayload()?.evidence?.some(
         (row) => row.kind === "assessment_job",
@@ -278,20 +279,13 @@ describe("runAssessmentAction", () => {
     ).toBe(true);
   });
 
-  it("requires no active-job check so a second click is never deduped away", async () => {
+  it("drains inline on the dev path and reports the drain copy", async () => {
     const workspace = workspaceFor("member");
     mockProjectWrite(workspace);
-    // Manually clicking while another run is active must still start a run:
-    // the action no longer consults the active-job loader at all.
-    startAssessmentJob.mockResolvedValue({
-      id: "job-2",
-      attempts: 1,
-      maxAttempts: 3,
-    });
-    settleRunningAssessmentJob.mockResolvedValue({
-      kind: "succeeded",
-      jobId: "job-2",
-    });
+    activeAssessmentJobForProject.mockResolvedValue(null);
+    enqueueAssessmentJob.mockResolvedValue({ id: "job-2" });
+    shouldDrainAssessmentJobsInline.mockReturnValue(true);
+    scheduleAssessmentDrain.mockResolvedValue("Assessment complete.");
     assertAssessRateLimit.mockResolvedValue(undefined);
 
     const result = await runAssessmentAction(
@@ -300,20 +294,16 @@ describe("runAssessmentAction", () => {
     );
 
     expect(result).toEqual({ ok: true, message: "Assessment complete." });
-    expect(settleRunningAssessmentJob).toHaveBeenCalled();
+    expect(scheduleAssessmentDrain).toHaveBeenCalledTimes(1);
+    expect(afterFn).not.toHaveBeenCalled();
   });
 
-  it("maps a retrying outcome to retry copy", async () => {
+  it("refuses a second run while a job is already active", async () => {
     const workspace = workspaceFor("member");
     mockProjectWrite(workspace);
-    startAssessmentJob.mockResolvedValue({
-      id: "job-3",
-      attempts: 1,
-      maxAttempts: 3,
-    });
-    settleRunningAssessmentJob.mockResolvedValue({
-      kind: "retrying",
-      jobId: "job-3",
+    activeAssessmentJobForProject.mockResolvedValue({
+      id: "job-running",
+      status: "running",
     });
     assertAssessRateLimit.mockResolvedValue(undefined);
 
@@ -324,33 +314,11 @@ describe("runAssessmentAction", () => {
 
     expect(result).toEqual({
       ok: true,
-      message: "Assessment hit an error and will retry automatically.",
+      message:
+        "An assessment is already running — track it in the Pipeline below.",
     });
-  });
-
-  it("maps a terminal failure to failure copy", async () => {
-    const workspace = workspaceFor("member");
-    mockProjectWrite(workspace);
-    startAssessmentJob.mockResolvedValue({
-      id: "job-4",
-      attempts: 3,
-      maxAttempts: 3,
-    });
-    settleRunningAssessmentJob.mockResolvedValue({
-      kind: "failed",
-      jobId: "job-4",
-    });
-    assertAssessRateLimit.mockResolvedValue(undefined);
-
-    const result = await runAssessmentAction(
-      initialActionState,
-      new FormData(),
-    );
-
-    // The run itself resolved (the user's request succeeded); the job is what
-    // failed, so this is honest copy rather than a generic action error.
-    expect(result.ok).toBe(true);
-    expect(result.message).toMatch(/failed/);
+    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
+    expect(afterFn).not.toHaveBeenCalled();
   });
 
   it("surfaces rate limit errors", async () => {
@@ -364,7 +332,7 @@ describe("runAssessmentAction", () => {
     );
 
     expect(result.ok ? null : result.message).toMatch(/Too many requests/);
-    expect(startAssessmentJob).not.toHaveBeenCalled();
+    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
   });
 });
 
