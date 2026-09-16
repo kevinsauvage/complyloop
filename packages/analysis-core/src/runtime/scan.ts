@@ -86,6 +86,10 @@ function isServerlessBrowserEnabled(): boolean {
 
 async function getBrowser(): Promise<Browser> {
   if (!sharedBrowser) {
+    // Cold-start marker: sparticuz extracts ~100MB to /tmp on first launch.
+    console.info(
+      `[progress] runtime browser launch started serverless=${isServerlessBrowserEnabled()}`,
+    );
     if (isServerlessBrowserEnabled()) {
       const [{ chromium }, sparticuz] = await Promise.all([
         import("playwright-core"),
@@ -290,7 +294,12 @@ function createPlaywrightAxeScanner(options?: {
     });
 
     try {
-      for (const url of urls) {
+      for (const [index, url] of urls.entries()) {
+        // Per-page marker with the query stripped (preview tokens): the last
+        // line before a timeout names the hanging page.
+        console.info(
+          `[progress] runtime page ${index + 1}/${urls.length} started ${url.replace(/\?[^\s"'<>]*/g, "")}`,
+        );
         blockedReason = null;
         hopGuard = createRedirectHopGuard();
         // Re-check near navigation (narrows the DNS rebinding window).
@@ -477,6 +486,10 @@ export async function scanRuntime(
     const siteLevelChecksRan = pages.length >= 2;
     const htmlValidateRan = pages.some((page) => page.htmlValidateRan === true);
     const linkStart = Date.now();
+    // The crawl resolves only when fully done, so log its start budget here.
+    console.info(
+      `[progress] runtime link check started urls=${urls.length} quota=${maxRuntimePages()}`,
+    );
     const linkFindings =
       pages.length > 0
         ? await brokenLinkFindingsForUrls(urls, {

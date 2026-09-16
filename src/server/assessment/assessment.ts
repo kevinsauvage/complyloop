@@ -243,6 +243,10 @@ export async function runAssessment(
   const stageMs: Record<string, number> = {};
   async function timed<T>(label: string, fn: () => Promise<T> | T): Promise<T> {
     const start = Date.now();
+    // Start-of-stage marker: completion timings are reported at the end, so a
+    // killed function (Vercel timeout) leaves nothing — the last progress
+    // line names the stall instead.
+    console.info(`[progress] assessment stage ${label} started`);
     try {
       return await fn();
     } finally {

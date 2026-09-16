@@ -80,6 +80,42 @@ describe("brokenLinkFindingsForUrls", () => {
     expect(findings[0]?.reason).toContain("fragment target missing");
   });
 
+  it("bounds the recursive crawl with a timeout, concurrency, and URL quota", async () => {
+    checkMock.mockClear();
+    checkMock.mockResolvedValue({ passed: true, links: [] });
+
+    await brokenLinkFindingsForUrls(["https://app.example/"], {
+      recurse: true,
+      maxUrls: 3,
+    });
+
+    expect(checkMock).toHaveBeenCalledTimes(1);
+    const checkOptions = checkMock.mock.calls[0]?.[0] as {
+      recurse: boolean;
+      timeout: number;
+      concurrency: number;
+      linksToSkip: (linkUrl: string) => Promise<boolean>;
+    };
+    expect(checkOptions.recurse).toBe(true);
+    // A hanging preview page must fail fast instead of stalling the scan.
+    expect(checkOptions.timeout).toBeGreaterThan(0);
+    expect(checkOptions.concurrency).toBeGreaterThan(0);
+
+    // Seed (1) + two accepted links reach the quota of 3; the rest skip.
+    await expect(
+      checkOptions.linksToSkip("https://app.example/a"),
+    ).resolves.toBe(false);
+    await expect(
+      checkOptions.linksToSkip("https://app.example/b"),
+    ).resolves.toBe(false);
+    await expect(
+      checkOptions.linksToSkip("https://app.example/c"),
+    ).resolves.toBe(true);
+    await expect(
+      checkOptions.linksToSkip("https://other.example/"),
+    ).resolves.toBe(true);
+  });
+
   it("skips malformed fragment encodings without losing other findings", async () => {
     checkMock.mockResolvedValue({ passed: true, links: [] });
 
