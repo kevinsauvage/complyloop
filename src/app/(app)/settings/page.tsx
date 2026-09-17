@@ -1,14 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import {
-  presetById,
-  presetSummaries,
-  projectDefaultPresetId,
-} from "@complyloop/analysis-core/catalog/registry";
-import { isRuntimeOnlyCheck } from "@complyloop/analysis-core/check-authority";
-import { CHECK_REGISTRY } from "@complyloop/analysis-core/check-registry";
-
 import { CopyButton } from "@/components/copy-button";
 import {
   MetaTile,
@@ -22,9 +14,7 @@ import { RuntimeAuditForm } from "@/components/runtime-audit-form";
 import { DefaultPresetForm } from "@/components/settings/default-preset-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
-import { latestAssessmentFor } from "@/core/assessment-helpers";
-import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
-import { getProjectRuntime } from "@/server/workspace/project-runtime";
+import { loadSettingsView } from "@/server/workspace/settings-view";
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -33,9 +23,9 @@ export const metadata: Metadata = {
 };
 
 export default async function SettingsPage() {
-  const { project, caps } = await loadActiveProjectPage();
+  const view = await loadSettingsView();
 
-  if (!project) {
+  if (!view.project) {
     return (
       <NoProjectNotice
         title="Settings"
@@ -45,29 +35,18 @@ export default async function SettingsPage() {
     );
   }
 
-  const runtime = await getProjectRuntime(project.id, {
-    findingStatuses: [],
-  });
-  const latestAssessment = latestAssessmentFor(runtime.assessments, project.id);
-  const runtimeError = latestAssessment?.engines?.runtimeError ?? null;
-  const runtimeStatus = latestAssessment?.engines?.runtime
-    ? `Last assessment audited ${latestAssessment.engines.runtimePagesScanned ?? 0} page(s).`
-    : runtimeError
-      ? "Last runtime attempt failed — details below."
-      : "No runtime audit has run yet for this project.";
-
-  const githubFullName = project.github?.fullName;
-  const repoUrl =
-    project.sourceRef ??
-    (githubFullName ? `https://github.com/${githubFullName}` : undefined);
-  const defaultPresetId = projectDefaultPresetId(project);
-  const defaultPreset = presetById(defaultPresetId);
-  const presets = presetSummaries();
-  // Runtime-only check count from the static registry (same source as
-  // check-authority.ts) for the "needs runtime audit" empty-state hint below.
-  const runtimeOnlyCheckCount = CHECK_REGISTRY.filter((entry) =>
-    isRuntimeOnlyCheck(entry.id),
-  ).length;
+  const {
+    project,
+    caps,
+    runtimeError,
+    runtimeStatus,
+    githubFullName,
+    repoUrl,
+    defaultPresetId,
+    defaultPreset,
+    presets,
+    runtimeOnlyCheckCount,
+  } = view;
 
   return (
     <>

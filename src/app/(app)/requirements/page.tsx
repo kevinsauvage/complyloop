@@ -15,7 +15,7 @@ import { RequirementsStatusChips } from "@/components/requirements/requirements-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { loadRequirementsView } from "@/server/workspace/project-view";
+import { loadRequirementsView } from "@/server/workspace/requirements-view";
 
 export const metadata: Metadata = {
   title: "Requirements",

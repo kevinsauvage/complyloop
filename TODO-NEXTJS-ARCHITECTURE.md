@@ -15,36 +15,6 @@ There is exactly one P0 (a real dependency-direction violation); everything else
 
 ## P1 — High
 
-- [ ] **Split the 769-line `project-view.ts` god-loader per route**
-  - Why: one file owns five page models (`loadFindingsView`, `loadFindingDetailView`, `loadDashboardView`, `loadEvidenceView`, `loadRequirementsView`). Every page debugs through the same 769 lines, and unrelated page changes collide. The "exactly one loader per page" rule is good — the single-file implementation is not.
-  - Where: `src/server/workspace/project-view.ts:1-769` (header contract at `:1-10`); callers `src/app/(app)/dashboard/page.tsx:41`, `src/app/(app)/findings/page.tsx:43`, `src/app/(app)/findings/[id]/page.tsx:49`, `src/app/(app)/evidence/page.tsx:46`, `src/app/(app)/requirements/page.tsx:35`.
-  - Current: all composition (tenancy + runtime + counts + clustering + pagination) lives in one module; the file header explicitly centralizes it there.
-  - Change: keep the one-loader-per-page contract, but move each loader next to its concern: `dashboard-view.ts`, `findings-view.ts`, `finding-detail-view.ts`, `requirements-view.ts`, `evidence-view.ts` (under `src/server/workspace/` or `src/server/reporting/` for the evidence/requirements pair). Keep shared helpers (`loadActiveProjectPage` resolution, pagination) in one small `view-shared.ts`. Pages keep calling exactly one function — only the import path changes.
-  - Next.js principle: App Router colocates data needs per segment; a per-segment loader module mirrors `app/` structure instead of funneling every segment through one file.
-  - Impact: smaller blast radius per page, fewer merge conflicts, obvious place to look per route.
-  - Risk: low (pure move; no behavior change; loaders are covered by page/action tests).
-
-- [ ] **Bring `settings/page.tsx` back under the one-loader rule**
-  - Why: every `(app)` page calls exactly one `load*View` loader except settings, which hand-rolls `loadActiveProjectPage()` + `getProjectRuntime()` inline. That breaks the documented invariant (`src/server/workspace/workspace.ts:142-151`, `project-view.ts:1-10`) and duplicates loader logic in the page.
-  - Where: `src/app/(app)/settings/page.tsx:36-50` (`loadActiveProjectPage` at `:36`, raw `getProjectRuntime(project.id, …)` at `:48`); contrast `src/app/(app)/dashboard/page.tsx:41`, `src/app/(app)/evidence/page.tsx:46`.
-  - Current: page does tenancy + runtime composition itself and derives `latestAssessmentFor` inline.
-  - Change: add `loadSettingsView()` alongside the other loaders (or in the split `settings-view.ts` from the item above) and make the page call exactly it. No new capability — just move lines `:36-57` down one layer.
-  - Next.js principle: pages stay routing + rendering; composition lives in the loader (the repo's own stated rule, matching RSC colocation).
-  - Impact: the "pages never open Drizzle / call one loader" invariant becomes actually true; settings stops being the exception every audit must carve out.
-  - Risk: low.
-
-- [ ] **Parallelize the independent awaits in loaders and `ConnectProjectPanel`**
-  - Why: several hot paths await independent reads sequentially, adding latency to every page load for no reason. `React.cache()` dedupes SQL, but sequential awaits still serialize GitHub/RSC work that could overlap.
-  - Where:
-    - `src/server/workspace/project-view.ts:138,152,158` (`loadActiveProjectPage` → `countFindingsByStatus` → `getProjectRuntime`; the latter two both need only `project.id`).
-    - Same shape in `loadDashboardView:374,378`, `loadRequirementsView:681,684`, `loadEvidenceView:577,592-599`.
-    - `src/components/connect-project-panel.tsx:29,32` (`getSession()` then `getWorkspace()` — independent reads).
-  - Current: `const { project, caps } = await loadActiveProjectPage(); const counts = await …; const runtime = await …`.
-  - Change: after tenancy resolves, `await Promise.all([count…, getProjectRuntime(…)])`. In `connect-project-panel.tsx`, `await Promise.all([getSession(), getWorkspace()])` (keep `getGitHubAccessToken` → `listAvailableRepos` sequential at `:54,59` — that one is genuinely dependent). The codebase already uses `Promise.all` correctly in `src/server/reporting/evidence-queries.ts:28-35`, `src/server/reporting/report.ts:139-142` — extend the same idiom.
-  - Next.js principle: RSC `async` components should overlap independent I/O with `Promise.all` rather than serial awaits (standard App Router waterfall guidance).
-  - Impact: faster dashboard/findings/requirements/evidence loads; no API or shape change.
-  - Risk: low.
-
 - [ ] **Stop shipping client JS to marketing pages (`TooltipProvider` + `Toaster` in root layout)**
   - Why: `src/app/layout.tsx:49-59` wraps _every_ route — including static `/`, `/login`, `/legal/*` — in `next-themes` + Radix tooltip + Sonner. Marketing pages pay client-JS cost for app-only interactivity. The repo already acknowledges this (`docs/ai/architecture.md:250-253`: "until marketing pages need zero client JS").
   - Where: `src/app/layout.tsx:49-59` (`ThemeProvider` at `:49-54`, `TooltipProvider` at `:55-58`, `Toaster` at `:57`); marketing shell `src/app/(marketing)/layout.tsx:8-30`, pages `src/app/(marketing)/page.tsx`, `src/app/(marketing)/login/page.tsx`, `src/app/(marketing)/legal/*/page.tsx`.
@@ -182,8 +152,8 @@ There is exactly one P0 (a real dependency-direction violation); everything else
 ## Biggest Architectural Wins (highest value first)
 
 1. ~~**Fix the `workspace-write → actions/shared` inversion** — the only real layering violation; restores one-way `actions → workspace → db/repo`.~~ — DONE 2026-09-17.
-2. **Split `project-view.ts` per route + give settings its own loader** — the 769-line god-loader and its one exception (`settings/page.tsx:48`) are the biggest readability tax in the app layer.
-3. **`Promise.all` the independent loader awaits** — free latency win on every dashboard/findings/requirements/evidence load.
+2. ~~**Split `project-view.ts` per route + give settings its own loader** — the 769-line god-loader and its one exception (`settings/page.tsx:48`) are the biggest readability tax in the app layer.~~ — DONE 2026-09-17.
+3. ~~**`Promise.all` the independent loader awaits** — free latency win on every dashboard/findings/requirements/evidence load.~~ — DONE 2026-09-17 (where genuinely independent).
 4. **Move `TooltipProvider` + `Toaster` to `(app)/layout.tsx`** — marketing pages stop shipping app-only client JS; root stays a server shell.
 5. ~~**Make `github-connector.ts` the enforced boundary or delete it** — ends the four-file "which github module?" chase.~~ — DONE 2026-09-17 (documented boundary, not enforced).
 6. **Convert `GitHubRepoList` to RSC** — the biggest convertible client-bundle win; establishes the "forms don't need the directive" precedent.

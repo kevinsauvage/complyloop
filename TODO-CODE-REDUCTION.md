@@ -8,29 +8,8 @@
 
 ## P0 — Major reduction
 
-- [x] **Unify `withProjectWrite` / `withFindingWrite` (near-duplicate write pipeline)**
-  - > **Done 2026-09-17 (partial, deliberate):** shared commit tail extracted as `commitLockedProjectPayload()` (~30 lines deduped); `withProjectWrite`/`withFindingWrite` keep distinct lock-resolution paths (cookie-probe + stale-guard vs finding-preview — full unification judged too risky for the locking protocol). `withProjectLock` re-export hop deleted (`alerts.ts` imports from `workspace/db.ts`). `withOrgWrite`/`withConnectWrite` already share `withLockedTenancy` — left as-is.
-  - Why: two ~70-line functions in the same file do lock → load → snapshot → `fn()` → `stampEvidenceActor` → `persistProjectRows`. Only the lock-target resolution differs (cookie project vs finding's project). Same for `withOrgWrite` / `withConnectWrite` sharing `withLockedTenancy` + near-identical persist loops.
-  - Where: `src/server/workspace/workspace-write.ts:72-143` (`withProjectWrite`), `src/server/workspace/workspace-write.ts:146-200` (`withFindingWrite`), `src/server/workspace/workspace-write.ts:217-322` (`withLockedTenancy`, `withOrgWrite`, `withConnectWrite`)
-  - Reduction: one `withLockedProjectWrite({ projectId | findingId }, fn)` + one tenancy-write helper; keep `withProjectLock` re-export in `src/server/workspace/db.ts` instead of re-exporting through `workspace-write.ts:203`.
-  - Risk: medium (locking + stale-slice guards need tests: `src/server/workspace/workspace.test.ts`, `packages/db/src/*`)
-  - Impact: ~120–150 LOC / 1 file / 2–3 abstractions removed
-
-- [ ] **Collapse runtime custom-check probe sprawl into fewer modules**
-  - Why: ~25 one-violation files (`focus.ts` 479 lines being the outlier, most 100–260 lines) + `index.ts` (278 lines: `findingsFromCustomViolations`, `runProbe` + 60s timeout race, `quiescePageForProbe`, `runCustomRuntimeChecks`, `runThemeSensitiveCustomChecks`) + support layers `hit-capture.ts`, `hit-capture-evaluate.ts`, `playwright-page.ts` (`withProbePage`, `registerPlaywrightBrowserTeardown` — top hubs with 25–29 callers), `page-restore.ts`, `with-emulated-media.ts`, `widget-keyboard-utils.ts`, `hover-reveal.ts`, `form-submit-probe.ts`, `visually-hidden.ts`, `dom-hit-rich.ts`, `layout-table-fixtures.ts`. Each probe repeats evaluate → capture → `CustomViolation` shaping. Verified via `graft map` (110 files / 298 symbols in `runtime/`) and `graft skeleton packages/analysis-core/src/runtime/custom-checks/index.ts`.
-  - Where: `packages/analysis-core/src/runtime/custom-checks/*.ts` (esp. `index.ts:37-278`, `focus.ts:139-201`, `form-error-submit.ts:22-123`), `packages/analysis-core/src/runtime/dom-location.ts`, `packages/analysis-core/src/runtime/raw-finding-from-dom.ts`
-  - Reduction: one `probes/` table (`{ id, run(page): Promise<CustomViolation[]> }`) + single harness (`runProbe` + quiesce + restore); merge `hit-capture*` + `playwright-page.ts` into harness; merge tiny probes by theme (keyboard, forms, media, contrast, tables); delete fixture-only modules or move fixtures into tests.
-  - Risk: medium (runtime behavior must stay identical; keep `index.test.ts`, `custom-checks.test.ts` green)
-  - Impact: ~800–1200 LOC / ~15–20 files / 1 orchestration abstraction removed
-
-- [ ] **Merge report stack: model + markdown + HTML + loader + caches**
-  - Why: same `ReportInput` is rendered twice (string-templated HTML in `report-html/report.ts` 205 lines + `report-html/primitives.ts` 459 lines, markdown in `report-markdown.ts` 270 lines) from the same model in `report-model.ts` (331 lines: `composeEngineeringReport`, `composeAuditReport`, `toEngineeringFindingCard`, `toAuditRequirementRow`, `evidenceRowsForProject`, `indexBy`, `languageForLocation`). `report.ts` (154 lines) adds three module-level caches (`CONTROLS_BY_ID`, `FRAMEWORK_BY_PRESET`, `DISPLAY_CONTROLS`) + `frameworkForProject` + `displayControl` + `reportInputForProject` + `loadReportInput` for what is static catalog data + one query. `graft callers frameworkForProject/displayControl` shows only 3–5 callers each — cache buys nothing measurable.
-  - Where: `src/server/reporting/report.ts:41-154`, `src/server/reporting/report-model.ts:42-331`, `src/server/reporting/report-markdown.ts`, `src/server/reporting/report-html/report.ts`, `src/server/reporting/report-html/primitives.ts:420-459`
-  - Reduction: keep one model builder; render HTML from markdown (or share row/card helpers); delete hand-rolled caches (replace with direct `presetById`/`shippedCatalog` lookup or single lazy `Map`); fold `loadReportInput` into the two export routes that use it.
-  - Risk: medium (report output is an audit artifact — snapshot-test before/after)
-  - Impact: ~400–600 LOC / 2–3 files / 2 cache abstractions removed
-
 - [ ] **Collapse display-tone/status/badge tower**
+  - > **Decided 2026-09-17: skip.** Barrel serves 19 importers; `mustGet` serves 15 call sites (inlining adds lines); badge wrappers encode per-status presentation; tables are test-pinned copy. Negative-value churn — matches the NEXTJS generic-component "no change now" note.
   - Why: `report-tones.ts` (147 lines: `STATUS_TONE_STYLE` + 5 derived `Record` maps + `toneStyle`/`requiredReport`/`requiredReportClass` via `mustGet`) + `status.ts` (351 lines: 10+ `*Display` interfaces + tables, each via `mustGet`) + `evidence.ts` (103 lines) + `must-get.ts` (11 lines) + `display.ts` barrel (47 lines re-exporting everything) + `badges.tsx` (176 lines: 7 near-identical `*Badge` wrappers around `StatusBadge`) + `badge-with-description.tsx` (31 lines: Tooltip wrapper used almost exclusively by `StatusBadge`). `graft callers mustGet` = 14 thin wrappers doing `Record[key] ?? throw`. This is a lookup table wearing four layers.
   - Where: `src/core/display/report-tones.ts`, `src/core/display/status.ts`, `src/core/display/evidence.ts`, `src/core/display/must-get.ts`, `src/core/display.ts`, `src/components/badges.tsx:38-176`, `src/components/badge-with-description.tsx:11-31`
   - Reduction: single `status-display.ts` with plain `Record` + direct index (or `?? throw` inline — delete `mustGet`); delete barrel re-exports; replace 7 badge wrappers with one `<StatusBadge display={…}>` call site or a tiny map; inline `BadgeWithDescription` into `StatusBadge` (only other callers are 2 spots in `findings/[id]/page.tsx:100-110` — use `StatusBadge` there).
@@ -83,6 +62,7 @@
   - Impact: ~150–220 LOC / 1–2 files
 
 - [ ] **Consolidate AST/ARIA thin helpers (`parse.ts` + `heuristic-utils` + `a11y-*`)**
+  - > **Decided 2026-09-17: skip.** The named "one-liners" are multi-use shared predicates (`isDecorativeOrHidden` 7+ sites across 4 families, `isPresentationRole` 4+); inlining duplicates logic. Matches the analysis-core "do not split shared helpers" rule.
   - Why: `parse.ts` hubs (`getAttribute` 90 callers, `tagNameOf` 86, `visitJsxTags` 63, `stringValueOf` 60 — per `graft map` hotspots) + `heuristic-utils.ts` (`descendantTags` 14, `textContentOf` 13, `classNameTextOf` 5) + `a11y-model.ts`/`a11y-aria.ts` one-line wrappers (`isNativeInteractive`, `nativeSatisfiesRole`, `isDecorativeOrHidden`, `isPresentationRole`). Per `packages/analysis-core/AGENTS.md`, `heuristic-utils.ts` has ~14 dependents — the wrappers are load-bearing but the ARIA one-liners add a hop without logic.
   - Where: `packages/analysis-core/src/parse.ts:56-106`, `packages/analysis-core/src/checks/heuristic-utils.ts`, `packages/analysis-core/src/a11y-model.ts:197-202`, `packages/analysis-core/src/a11y-aria.ts:78-87`
   - Reduction: inline single-use wrappers (`isNativeInteractive`, `nativeSatisfiesRole`) at call sites; do NOT split `heuristic-utils.ts` further; document don't-rename constraint (already in AGENTS.md) instead of adding wrapper types.
@@ -90,6 +70,7 @@
   - Impact: ~60–100 LOC / 0–1 files / fewer hops
 
 - [ ] **Merge parallel catalog trees (RGAA + WCAG) and guidance layers**
+  - > **Decided 2026-09-17: skip.** Reference-data restructure (different tree shapes: RGAA has guidance + twins) for file count alone, pinned only by catalog tests — risk without behavior gain. `pertinence-twins.ts` stays: an 18-line tested sidecar beats churning ~100 control rows.
   - Why: `catalog/rgaa/{controls,presets,guidance,pertinence-twins}.ts` mirrors `catalog/wcag/{controls,presets}.ts` + `catalog.ts` (`shippedCatalog` 8-line wrapper returning two constants) + `registry.ts` (`presetById`, `projectDefaultPresetId`, `FrameworkPresetSummary` Pick-type) + `control-theme.ts` (`controlDisplayCodes`, `controlForDisplay`, `secondaryReferenceLabel`) + `guidance.ts` per framework. Same `Control` shape, two hand-maintained copies + a theming pass that could be data.
   - Where: `packages/analysis-core/src/catalog/*`, `packages/analysis-core/src/catalog/rgaa/*`, `packages/analysis-core/src/catalog/wcag/*`
   - Reduction: one `controls.ts` + one `presets.ts` keyed by framework; fold `pertinence-twins.ts` into control data (boolean/refs, not a module); inline `shippedCatalog()` at the 15 call sites or keep only if lazy-load is needed (currently returns constants — `FRAMEWORK_BY_PRESET` cache in `report.ts` proves it is static); delete `FrameworkPresetSummary` Pick-type (inline at its 1–2 consumers).
@@ -167,10 +148,10 @@
 
 ## Biggest Wins (top 8)
 
-1. **Runtime probe consolidation** — ~25 files → ~8 theme modules + 1 harness (~800–1200 LOC).
+1. ~~**Runtime probe consolidation** — ~25 files → ~8 theme modules + 1 harness (~800–1200 LOC).~~ — DONE 2026-09-17 scoped (harness already existed; −1 file; rest kept by decision).
 2. ~~**Write-pipeline unification** (`withProjectWrite`/`withFindingWrite`/`withOrgWrite`/`withConnectWrite`) — ~120–150 LOC + 2 lock-path concepts.~~ — DONE 2026-09-17 (shared tail only; lock paths kept — see item note).
-3. **Report stack merge** (model + markdown + HTML + caches) — ~400–600 LOC + 2–3 files.
-4. **Display/badge tower collapse** (tones + status tables + 7 badge wrappers + tooltip + `mustGet` + barrels) — ~350–450 LOC + 4–5 files.
+3. ~~**Report stack merge** (model + markdown + HTML + caches) — ~400–600 LOC + 2–3 files.~~ — DONE 2026-09-17 scoped (caches deleted; renderer merge skipped by decision).
+4. ~~**Display/badge tower collapse** (tones + status tables + 7 badge wrappers + tooltip + `mustGet` + barrels) — ~350–450 LOC + 4–5 files.~~ — DECIDED 2026-09-17: skip (negative value).
 5. ~~**Action wrapper deletion** (`define-action.ts` + guards + route lists) — ~120–180 LOC + 2 layers.~~ — DECIDED 2026-09-17: keep (6 call sites); `requireFindingContext` + compat re-export deleted instead.
 6. **Error-reporting merge + demo deletion** (`observability` + `report-client-error` + `ReportedError` + `sentry-example-page`) — ~300–400 LOC + 3–4 files.
 7. **Form-stack simplification** (`StatefulActionForm` + `ConfirmSubmitButton` + toasts + duplicate note fields) — ~200–300 LOC.

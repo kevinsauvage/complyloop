@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 
 import git from "isomorphic-git";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { captureSnapshot, detectChanges, readRepoHead, summarizeChanges } from "./monitor";
 
@@ -47,6 +47,35 @@ describe("detectChanges", () => {
     expect(
       summarizeChanges([{ filePath: "a.tsx" }, { filePath: "b.tsx" }]),
     ).toBe("2 file(s) changed: a.tsx, b.tsx");
+  });
+
+  it("snapshots exactly the script set (node_modules/dotfiles excluded)", async () => {
+    fs.mkdirSync(path.join(rootPath, "node_modules", "pkg"), {
+      recursive: true,
+    });
+    fs.writeFileSync(
+      path.join(rootPath, "node_modules", "pkg", "index.ts"),
+      "export {};\n",
+    );
+    fs.writeFileSync(path.join(rootPath, ".hidden.ts"), "export {};\n");
+    fs.writeFileSync(path.join(rootPath, "util.ts"), "export {};\n");
+    const snapshot = await captureSnapshot(rootPath);
+    expect(Object.keys(snapshot.fileHashes).sort()).toEqual([
+      "A.tsx",
+      "util.ts",
+    ]);
+  });
+
+  it("fails the snapshot walk when the checkout exceeds quota", async () => {
+    vi.stubEnv("ASSESSMENT_MAX_CHECKOUT_FILES", "1");
+    try {
+      fs.writeFileSync(path.join(rootPath, "B.tsx"), "export {};\n");
+      await expect(captureSnapshot(rootPath)).rejects.toThrow(
+        /assessment quota/,
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
 

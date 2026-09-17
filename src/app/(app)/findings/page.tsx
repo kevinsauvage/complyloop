@@ -25,7 +25,7 @@ import { findingsListHref } from "@/core/filter-params";
 import { reportHref } from "@/core/filter-params";
 import { DEFAULT_PAGE_SIZE } from "@/core/filter-params";
 import { displayControl } from "@/server/reporting/report";
-import { loadFindingsView } from "@/server/workspace/project-view";
+import { loadFindingsView } from "@/server/workspace/findings-view";
 
 import { FindingsStatusNav } from "./_components/status-nav";
 

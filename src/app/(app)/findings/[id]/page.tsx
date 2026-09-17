@@ -34,7 +34,7 @@ import {
 import { findingsListHref } from "@/core/filter-params";
 import { cn } from "@/lib/utils";
 import { displayControl } from "@/server/reporting/report";
-import { loadFindingDetailView } from "@/server/workspace/project-view";
+import { loadFindingDetailView } from "@/server/workspace/finding-detail-view";
 import { isProjectVisible } from "@/server/workspace/project-visibility";
 import { getWorkspace, requireFinding } from "@/server/workspace/workspace";
 

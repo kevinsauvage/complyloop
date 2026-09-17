@@ -511,6 +511,31 @@ export async function runAssessment(
     // Shared for the whole run: many new findings share a source file, so the
     // suggestion builder should read each file once (see buildSuggestion).
     const fileTextCache = new Map<string, string>();
+    // Indexed once per run (O(findings + controls)): the per-control loop
+    // below used to re-filter all findings twice per control plus raw hits
+    // once per control — O(C×F)×3 on a hot loop that also writes evidence.
+    // Rows created mid-pass are control-scoped, so upfront slices stay exact.
+    const openByControl = new Map<string, Finding[]>();
+    const dismissedByControl = new Map<string, Finding[]>();
+    for (const finding of rows.findings) {
+      if (finding.projectId !== project.id) continue;
+      const target =
+        finding.status === "open"
+          ? openByControl
+          : finding.status === "dismissed"
+            ? dismissedByControl
+            : null;
+      if (!target) continue;
+      const list = target.get(finding.controlId) ?? [];
+      list.push(finding);
+      target.set(finding.controlId, list);
+    }
+    const rawByCheckId = new Map<string, RawFinding[]>();
+    for (const raw of rawFindings) {
+      const list = rawByCheckId.get(raw.checkId) ?? [];
+      list.push(raw);
+      rawByCheckId.set(raw.checkId, list);
+    }
     for (const control of scoped) {
       if (control.checkId === null) continue;
       reconcileControlFindings({
@@ -519,9 +544,9 @@ export async function runAssessment(
         control,
         assessmentId,
         rootPath,
-        rawForControl: rawFindings.filter(
-          (raw) => raw.checkId === control.checkId,
-        ),
+        rawForControl: rawByCheckId.get(control.checkId) ?? [],
+        openFindings: openByControl.get(control.id) ?? [],
+        dismissedFindings: dismissedByControl.get(control.id) ?? [],
         scopedFileSet,
         runtimeRan,
         fileTextCache,

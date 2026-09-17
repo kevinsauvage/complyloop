@@ -21,7 +21,7 @@ import { evidenceRecordHref } from "@/core/filter-params";
 import { evidenceKindHref } from "@/core/filter-params";
 import { DEFAULT_PAGE_SIZE } from "@/core/filter-params";
 import { cn } from "@/lib/utils";
-import { loadEvidenceView } from "@/server/workspace/project-view";
+import { loadEvidenceView } from "@/server/workspace/evidence-view";
 
 import { EvidenceExportMenu } from "./_components/evidence-export-menu";
 

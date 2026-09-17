@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { hasSourceFiles, listSourceFiles } from "./source-files";
+import { hasSourceFiles, listSourceFiles, shouldSnapshotFile } from "./source-files";
 
 const tempDirs: string[] = [];
 
@@ -59,5 +59,47 @@ describe("hasSourceFiles", () => {
 
     const empty = makeTempTree({ "README.md": "# hi" });
     expect(hasSourceFiles(empty, "script")).toBe(false);
+  });
+});
+
+describe("shouldSnapshotFile", () => {
+  it("matches the script glob set on a tricky tree", () => {
+    const root = makeTempTree({
+      "src/App.tsx": "x",
+      "src/util.ts": "x",
+      "README.md": "x",
+      "node_modules/pkg/index.ts": "x",
+      ".next/build.js": "x",
+      "dist/bundle.js": "x",
+      ".hidden/secret.ts": "x",
+      ".eslintrc.js": "x",
+      "dist.ts": "x",
+      "App.TSX": "x",
+    });
+    const listed = new Set(
+      listSourceFiles(root, "script").map((absolute) =>
+        path.relative(root, absolute),
+      ),
+    );
+    const candidates = [
+      "src/App.tsx",
+      "src/util.ts",
+      "README.md",
+      "node_modules/pkg/index.ts",
+      ".next/build.js",
+      "dist/bundle.js",
+      ".hidden/secret.ts",
+      ".eslintrc.js",
+      "dist.ts",
+      "App.TSX",
+    ];
+    for (const relative of candidates) {
+      expect(
+        shouldSnapshotFile(relative),
+        relative,
+      ).toBe(listed.has(relative));
+    }
+    expect(shouldSnapshotFile("dist.ts")).toBe(true);
+    expect(shouldSnapshotFile("App.TSX")).toBe(false);
   });
 });

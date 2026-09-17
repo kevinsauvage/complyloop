@@ -206,6 +206,8 @@ export interface ReconcileControlFindingsInput {
   assessmentId: string;
   rootPath: string;
   rawForControl: RawFinding[];
+  openFindings: Finding[];
+  dismissedFindings: Finding[];
   scopedFileSet: Set<string> | null;
   runtimeRan: boolean;
   /** Shared per-run file-text memo so suggestion building reads each file once. */
@@ -252,25 +254,14 @@ export function reconcileControlFindings(
     assessmentId,
     rootPath,
     rawForControl,
+    openFindings,
+    dismissedFindings,
     scopedFileSet,
     runtimeRan,
     fileTextCache,
     onFindingResolved,
   } = input;
   const projectId = project.id;
-
-  const openFindings = rows.findings.filter(
-    (finding) =>
-      finding.projectId === projectId &&
-      finding.controlId === control.id &&
-      finding.status === "open",
-  );
-  const dismissedFindings = rows.findings.filter(
-    (finding) =>
-      finding.projectId === projectId &&
-      finding.controlId === control.id &&
-      finding.status === "dismissed",
-  );
 
   const matchedIds = new Set<string>();
   // Include findings created in this pass so duplicate raw hits update the

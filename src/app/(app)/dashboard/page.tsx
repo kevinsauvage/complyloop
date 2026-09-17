@@ -24,7 +24,7 @@ import { FormattedDateTime } from "@/components/formatted-datetime";
 import { PageActionLink, PageSection } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
 import { displayControl } from "@/server/reporting/report";
-import { loadDashboardView } from "@/server/workspace/project-view";
+import { loadDashboardView } from "@/server/workspace/dashboard-view";
 
 export const metadata: Metadata = {
   title: "Dashboard",

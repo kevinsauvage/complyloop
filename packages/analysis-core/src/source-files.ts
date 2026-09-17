@@ -13,6 +13,36 @@ const GLOBS: Record<SourceExtensionSet, string[]> = {
   script: ["**/*.{tsx,jsx,ts,js}"],
 };
 
+/** Extensions hashed into assessment snapshots (mirrors the `script` glob). */
+const SNAPSHOT_EXTENSIONS = new Set(["tsx", "jsx", "ts", "js"]);
+
+/**
+ * Whether a checkout-relative path belongs in the assessment snapshot —
+ * exactly the set `listSourceFiles(root, "script")` enumerates (script
+ * extensions, shared ignore directories as *directories*, no dotfiles).
+ * The snapshot walk uses this per-entry so quota counting and hashing share
+ * one tree walk without changing snapshot bytes.
+ */
+export function shouldSnapshotFile(relativePath: string): boolean {
+  const segments = relativePath.split(path.sep);
+  const basename = segments[segments.length - 1] ?? "";
+  // fast-glob `dot: false`: no dot-segment at any level.
+  if (segments.some((segment) => segment.startsWith("."))) return false;
+  // Shared `**/<dir>/**` ignores apply to directories, not to a root-level
+  // file that merely shares the name (e.g. `dist.ts` still snapshots).
+  if (
+    segments
+      .slice(0, -1)
+      .some((segment) => IGNORED_DIRECTORIES.includes(segment))
+  ) {
+    return false;
+  }
+  const dot = basename.lastIndexOf(".");
+  if (dot < 0) return false;
+  // Case-sensitive like fast-glob on Linux: `App.TSX` does not snapshot.
+  return SNAPSHOT_EXTENSIONS.has(basename.slice(dot + 1));
+}
+
 function globRelative(
   rootPath: string,
   extensions: SourceExtensionSet,

@@ -68,7 +68,19 @@ export interface RuntimeScanResult {
   applicabilityFacts?: ReadonlyMap<CheckId, string>;
   /** Unique custom-probe ids that threw on at least one page (P2-5). */
   probeFailures?: string[];
+  /**
+   * Per-page scan failures contained by the page loop (axe crash, navigation
+   * failure, …). Sibling pages' findings are kept; a total outage (zero
+   * pages, non-empty here) still surfaces as `error` above.
+   */
+  pageFailures?: RuntimePageFailure[];
   error?: string;
+}
+
+/** One contained per-page runtime failure (axe crash, navigation, …). */
+export interface RuntimePageFailure {
+  url: string;
+  error: string;
 }
 
 function severityFromImpact(impact: string | null | undefined): Severity {

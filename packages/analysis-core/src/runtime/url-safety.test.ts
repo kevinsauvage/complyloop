@@ -233,7 +233,7 @@ describe("assertStableRuntimeDns", () => {
 
 describe("scanRuntime SSRF gate", () => {
   it("refuses scans when the base URL resolves to a private IP", async () => {
-    const scanner = vi.fn(async () => []);
+    const scanner = vi.fn(async () => ({ pages: [], pageFailures: [] }));
     const result = await scanRuntime({
       runtimeBaseUrl: "https://evil.example.com",
       runtimeRoutes: ["/"],
@@ -246,7 +246,7 @@ describe("scanRuntime SSRF gate", () => {
   });
 
   it("refuses scans when a route URL is a private literal", async () => {
-    const scanner = vi.fn(async () => []);
+    const scanner = vi.fn(async () => ({ pages: [], pageFailures: [] }));
     const result = await scanRuntime({
       runtimeBaseUrl: "https://preview.example.com",
       runtimeRoutes: ["http://127.0.0.1/admin"],
@@ -258,9 +258,10 @@ describe("scanRuntime SSRF gate", () => {
   });
 
   it("allows scans when DNS resolves to a public address", async () => {
-    const scanner = vi.fn(async () => [
-      { url: "https://preview.example.com/", violations: [] },
-    ]);
+    const scanner = vi.fn(async () => ({
+      pages: [{ url: "https://preview.example.com/", violations: [] }],
+      pageFailures: [],
+    }));
     const result = await scanRuntime({
       runtimeBaseUrl: "https://preview.example.com",
       runtimeRoutes: ["/"],

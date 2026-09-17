@@ -2,52 +2,6 @@
 
 ## P2 — Medium
 
-### [ ] P2-3 — `reconcileControlFindings` re-filters all findings per control (O(C×F)×2); index once
-
-**Why:**
-Per assessment run, per control: two full-array `.filter` passes over all findings (`openFindings`, `dismissedFindings`), plus `rawFindings.filter(checkId)` per control in `assessment.ts:426-428` (O(C×R)). The status-refresh module already solved this exact problem with `openFindingsByControlId` ("O(controls × findings) → O(findings + controls)", `assessment-status.ts:349-357`). Reconcile is the hotter loop (it also mutates + writes evidence) and still does the naive thing.
-
-**Where (verified 2026-09-16):**
-`src/server/assessment/assessment-findings.ts` L262–273, `src/server/assessment/assessment.ts` L514–524 (`rawForControl` filter per control).
-
-**Proposed simplification:**
-Build `openByControl`, `dismissedByControl`, and `rawByCheckId` maps once per run (same shape as the status module's map) and pass them into `reconcileControlFindings`. Mechanical change; keep the per-control function signature otherwise.
-
-**Why this is safe:**
-Pure in-memory iteration-order change; matching/resolution/evidence semantics untouched. (Note: today's `matchPool` ordering and `rows.findings[rows.findings.length − 1]` created-row pickup must be preserved — keep per-control processing order.)
-
-**Impact:** Medium (scales with controls × findings; ~100 controls today)
-
-**Complexity:** Small.
-
-**Evidence (verified 2026-09-16):**
-`assessment-findings.ts:262-267` (`openFindings` full-array `.filter` per control); `:268-273` (`dismissedFindings` second `.filter` per control); `assessment.ts:522-524` (third per-control filter `rawFindings.filter(checkId)` at the `reconcileControlFindings` call site `:516`); `assessment-status.ts:349-357` (indexed precedent, still the only indexed path — reconcile does not use it).
-
----
-
-### [ ] P2-4 — The checkout tree is walked 4–5× per run under two different file scopes
-
-**Why:**
-Per assessment: quota walk(s) (`assertCheckoutWithinQuota`, twice when a ref is given — pre-fetch + post), `captureSnapshot` hash walk, `listSourceFiles` inside the scan, and per-file reads in the scan + suggestion builder. Worse, the walks disagree on scope: snapshot enumerates `"script"` files, the AST scan enumerates `"jsx"` files (`monitor.ts:33` vs `scan.ts:53`), and quota walks everything except `.git`. Three enumerations, three extension policies, one tree.
-
-**Where (verified 2026-09-16):**
-`src/server/assessment/repo-checkout.ts` (`assertCheckoutWithinQuota` L43–86, called L234 + L262), `src/server/assessment/monitor.ts` (`captureSnapshot` L37–46, scope flag L41), `packages/analysis-core/src/scan.ts` (`scanProject` L52–62, scope flag L53), `packages/analysis-core/src/source-files.ts` (scope flags L7–14).
-
-**Proposed simplification:**
-(a) Unify on one `listSourceFiles` scope for snapshot + scan (snapshot hashes a superset the scan never reads — align them and document why if the superset is intentional for change detection); (b) fold the quota check into the snapshot walk (bytes/files counted while hashing — one walk instead of two/three). Keep `buildSuggestion`'s `fileTextCache` (already correct).
-
-**Why this is safe:**
-Change-detection semantics preserved (same hashes, same paths); quota enforced at the same thresholds, just during an existing walk. Scan input unchanged.
-
-**Impact:** Medium (I/O + hashing on every run, multiplied on large repos)
-
-**Complexity:** Medium (touches checkout/snapshot contract — snapshot format must stay backward-compatible for `detectChanges` diffing).
-
-**Evidence (verified 2026-09-16):**
-`repo-checkout.ts:234` + `:262` (double quota walk for ref checkouts); `monitor.ts:41` (`listSourceFiles(rootPath, "script")`); `scan.ts:53` (`listSourceFiles(rootPath, "jsx")`); `source-files.ts:9-14` (`jsx` vs `script` glob sets still distinct). Only mitigation since writing: shared fast-glob ignore semantics (`source-files.ts:30-41`).
-
----
-
 ### [ ] P2-5 — Remediation `history[]` duplicates evidence rows; derive the history view instead of storing both
 
 **Why:**
@@ -97,29 +51,6 @@ No AI, status, or verification logic changes. Stale suggestions become visible i
 
 **Evidence (verified 2026-09-16):**
 `remediation-ai.ts:59` (unbounded explanations append); `:150-171` (persist + evidence `detail` with no scan/commit ref); `assessment-findings.ts:288-299` (re-detect refreshes location/fix/analyzers, suggestion/explanations untouched) and `:319-326` (match path, same; `assessmentId` deliberately write-once per `:315-318` comment); `finding-types.ts:171-179` (no provenance-of-scan fields); no invalidation path exists anywhere (grep `stale*suggestion|invalidat|predates` — no hits).
-
----
-
-### [ ] P2-9 — Axe crash fails the whole runtime sub-scan while every other engine failure is contained
-
-**Why:**
-Engine containment is inconsistent: throwing custom probes are recorded on `probeFailures` and the pass continues; html-validate failures are non-fatal; but an axe throw escapes the per-page loop and the whole-scan catch discards already-collected pages (`findings: [], pagesScanned: 0`). Blast-radius note (verified 2026-09-16): at the _job_ level this no longer fails anything — `assessment.ts` degrades to `unable_to_verify` and continues — so the loss is the runtime sub-scan's findings, not the job. One flaky page (axe OOM/timeout on a large DOM) still wipes the other pages' results.
-
-**Where (verified 2026-09-16):**
-`packages/analysis-core/src/runtime/scan.ts` (page loop L374–492; unguarded axe call L401; html-validate guard L417–422; whole-scan catch L610–632), `scan-error.ts` (`classifyRuntimeScanError` L105–119), `docs/ai/architecture.md` L141–143 (documents the inconsistency), `src/server/assessment/assessment.ts` L471–498 (runtimeRan gate + non-fatal handling).
-
-**Proposed simplification:**
-Contain axe per page like custom probes: on axe crash, record the page + error on the run (extend the existing `probeFailures`-style record / `runtimeError` on `AssessmentEngines`), continue other pages, and let authority gates do their job (`runtimeRan` requires `pagesScanned > 0`, `assessment.ts:471-474` — a total axe outage still yields `runtimeRan=false` → `unable_to_verify`, never false `passed`). Only fail the job when _zero_ pages produce results across all engines. (Failing closed on total outage is already the behavior — this change only preserves partial results.)
-
-**Why this is safe:**
-Status law already handles partial runtime data faithfully (authority gates degrade to `unable_to_verify`). Partial outages become visible-but-degraded instead of wiping sibling pages' findings.
-
-**Impact:** Medium (fewer lost runtime findings on large sites)
-
-**Complexity:** Medium (touch runtime orchestration + tests; verify `runtimeViolationStillPresent` single-page path still fails loudly — it should, it's a user-facing verdict).
-
-**Evidence (verified 2026-09-16):**
-`scan.ts:401` (axe throw escapes page loop — only a `finally` teardown at `:485-491`) vs `:417-422` (html-validate contained) vs `custom-checks/index.ts:93-117` (`runProbe` contained to `probeFailures`); `scan.ts:627-631` (catch discards pages → `findings: [], pagesScanned: 0`); `architecture.md:141-143` ("a throwing custom probe … continues. html-validate failures are non-fatal. An axe crash still fails the scan."); `assessment.ts:471-474` (`runtimeRan` gate already fail-safe) + `:475-492` (failed sub-scan warns, job continues — blast radius is the sub-scan, not the job).
 
 ---
 

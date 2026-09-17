@@ -1,19 +1,5 @@
 # TODO — Master priority list (unified)
 
-## P1 — High (user-facing + high-value simplification)
-
-- [ ] **4. Loader split + settings loader + parallelize (NEXTJS-P1 ×3 + CODE-P1 workspace reads) — batch B**
-      Split `project-view.ts` per route (`view-shared.ts` for shared bits); add `loadSettingsView()`; `Promise.all` independent awaits in loaders + `ConnectProjectPanel`.
-
-- [ ] **12. Site-copy fix (TODO-09) — batch F**
-      Branch `site` explicitly in `findingAct`/`handoff.ts`/PR rejection (re-audit wording, not PR).
-
-- [ ] **13. Scan hot loop (ASSESSMENT P2-3 index + P2-4 walk-fold) + probe consolidation (CODE-P0) — batch E**
-      Index findings once per run; unify snapshot/scan scope + fold quota into snapshot walk; probe table + single harness.
-
-- [ ] **14. Report + display collapse (CODE-P0 ×2) — batch G**
-      One report model (HTML from markdown or shared helpers, drop hand caches); one `status-display.ts`, delete `mustGet`/barrel/7 badge wrappers.
-
 ## P2 — Medium
 
 - [ ] **15. Remediation history + AI staleness (ASSESSMENT P2-5 + P2-6) — batch F**

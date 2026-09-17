@@ -10,7 +10,10 @@ import type {
   AssessmentSnapshot,
   FileChange,
 } from "@complyloop/analysis-core/contract/entities";
-import { listSourceFiles } from "@complyloop/analysis-core/source-files";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { shouldSnapshotFile } from "@complyloop/analysis-core/source-files";
+
+import { assessmentCheckoutQuota } from "../env";
 
 function hashFileContents(absolutePath: string): string {
   const buffer = fs.readFileSync(absolutePath);
@@ -37,10 +40,53 @@ export async function readRepoHead(
 export async function captureSnapshot(
   rootPath: string,
 ): Promise<AssessmentSnapshot> {
+  // Single tree walk: quota-count every file but `.git` (same coverage as
+  // `assertCheckoutWithinQuota`) while hashing exactly the snapshot set
+  // (`shouldSnapshotFile` mirrors the old fast-glob enumeration, so snapshot
+  // bytes — and therefore `detectChanges` diffs — are unchanged). Async +
+  // time-budgeted so a huge tree cannot block the event loop.
+  const { maxBytes, maxFiles, scanTimeoutMs } = assessmentCheckoutQuota();
+  const deadline = Date.now() + scanTimeoutMs;
   const fileHashes: Record<string, string> = {};
-  for (const absolute of listSourceFiles(rootPath, "script")) {
-    const relative = path.relative(rootPath, absolute);
-    fileHashes[relative] = hashFileContents(absolute);
+  let bytes = 0;
+  let files = 0;
+  const pending = [rootPath];
+  const quotaExceeded = (): PublicError =>
+    new PublicError(
+      `Repository exceeds the assessment quota (${maxFiles} files or ${Math.floor(maxBytes / 1024 / 1024)} MB).`,
+      "assessment_quota_exceeded",
+    );
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (!current) continue;
+    let directory: fs.Dir;
+    try {
+      directory = await fs.promises.opendir(current);
+    } catch {
+      continue;
+    }
+    for await (const entry of directory) {
+      if (Date.now() > deadline) {
+        throw new PublicError(
+          "Repository quota check timed out.",
+          "assessment_quota_exceeded",
+        );
+      }
+      if (entry.name === ".git") continue;
+      const absolute = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        pending.push(absolute);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      files += 1;
+      bytes += (await fs.promises.stat(absolute)).size;
+      if (files > maxFiles || bytes > maxBytes) throw quotaExceeded();
+      const relative = path.relative(rootPath, absolute);
+      if (shouldSnapshotFile(relative)) {
+        fileHashes[relative] = hashFileContents(absolute);
+      }
+    }
   }
   return { fileHashes, gitHead: await readRepoHead(rootPath) };
 }

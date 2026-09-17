@@ -26,6 +26,7 @@ import {
   type AxeViolationLike,
   findingsFromAxePages,
   joinRuntimeUrl,
+  type RuntimePageFailure,
   runtimeRoutesFor,
   type RuntimeScanPageResult,
   type RuntimeScanResult,
@@ -66,9 +67,11 @@ import {
   TARGET_SIZE_AXE_RULE,
 } from "./viewport-conditions.ts";
 
-export type RuntimePageScanner = (
-  urls: ReadonlyArray<string>,
-) => Promise<RuntimeScanPageResult[]>;
+export type RuntimePageScanner = (urls: ReadonlyArray<string>) => Promise<{
+  pages: RuntimeScanPageResult[];
+  /** Per-page failures contained by the loop — sibling results are kept. */
+  pageFailures: RuntimePageFailure[];
+}>;
 
 let sharedBrowser: Browser | null = null;
 
@@ -184,7 +187,9 @@ async function getBrowser(): Promise<Browser> {
         // error (missing binary, unsupported arch, fs issue) is the only clue
         // the function logs get; keep its text stripped of filesystem paths.
         const raw = error instanceof Error ? error.message : String(error);
-        throw new Error(`sparticuz-launch: ${raw.replace(/\/[^\s"'<>]*\//g, "/")}`);
+        throw new Error(
+          `sparticuz-launch: ${raw.replace(/\/[^\s"'<>]*\//g, "/")}`,
+        );
       }
     } else {
       // Fail fast with an operator-actionable error: without the serverless
@@ -334,7 +339,7 @@ function createPlaywrightAxeScanner(options?: {
       } finally {
         stageMs[label] = (stageMs[label] ?? 0) + Date.now() - start;
       }
-    };
+    }
     // Cache DNS per host for this scan: the interceptor runs for every
     // subresource, while the pre-navigation/rebinding checks below keep using
     // the uncached lookup on purpose.
@@ -342,6 +347,7 @@ function createPlaywrightAxeScanner(options?: {
       lookup: createCachedDnsLookup(options?.lookup),
     };
     const pages: RuntimeScanPageResult[] = [];
+    const pageFailures: RuntimePageFailure[] = [];
     let blockedReason: string | null = null;
     let hopGuard = createRedirectHopGuard();
 
@@ -377,16 +383,25 @@ function createPlaywrightAxeScanner(options?: {
         console.info(
           `[progress] runtime page ${index + 1}/${urls.length} started ${url.replace(/\?[^\s"'<>]*/g, "")}`,
         );
-        blockedReason = null;
-        hopGuard = createRedirectHopGuard();
-        // Re-check near navigation (narrows the DNS rebinding window).
-        const precheck = await allowRuntimeNavigation(url, lookupOptions);
-        if (!precheck.ok) {
-          throw new PublicError(precheck.message);
-        }
-        const page = await context.newPage();
+        // One page must never sink its siblings: every per-page failure
+        // (navigation, axe crash, blocked request, …) is contained below and
+        // the loop continues. `page` stays null until the browser hands one
+        // over, so teardown below never touches an unopened page.
+        let page: Page | null = null;
         try {
-          try {
+          blockedReason = null;
+          hopGuard = createRedirectHopGuard();
+          // Re-check near navigation (narrows the DNS rebinding window).
+          const precheck = await allowRuntimeNavigation(url, lookupOptions);
+          if (!precheck.ok) {
+            throw new PublicError(precheck.message);
+          }
+            page = await context.newPage();
+            // Fresh const for narrowing: `page` stays nullable for the
+            // `finally` teardown below, but everything past this point
+            // holds a live page.
+            const currentPage: Page = page;
+            try {
             // Re-resolve DNS immediately before goto and reject address
             // changes to shrink the rebinding TOCTOU window.
             await assertStableRuntimeDns(url, lookupOptions);
@@ -398,24 +413,24 @@ function createPlaywrightAxeScanner(options?: {
           if (blockedReason) {
             throw new PublicError(blockedReason);
           }
-          const results = await timed("axe", () => runAxeOnPage(page));
+          const results = await timed("axe", () => runAxeOnPage(currentPage));
           const customChecks = await timed("custom", () =>
-            runCustomRuntimeChecks(page, url),
+            runCustomRuntimeChecks(currentPage, url),
           );
           const customFindings = customChecks.findings;
           // Rendered pass: validate the generated DOM. Serialize on
           // the open page (no extra browser cost) and validate in-process.
           const otherStart = Date.now();
-          const snapshot = await capturePageSnapshot(page, url);
+          const snapshot = await capturePageSnapshot(currentPage, url);
           const applicabilityObservations =
-            await applicabilityObservationsForPage(page, url);
-          const hasDoctype = await page.evaluate(
+            await applicabilityObservationsForPage(currentPage, url);
+          const hasDoctype = await currentPage.evaluate(
             () => document.doctype !== null,
           );
           let htmlValidateFindings: RawFinding[] = [];
           let pageHtmlValidateRan = false;
           try {
-            htmlValidateFindings = await htmlValidateFindingsForPage(page, url);
+            htmlValidateFindings = await htmlValidateFindingsForPage(currentPage, url);
             pageHtmlValidateRan = true;
           } catch {
             // Non-fatal: axe + custom findings are still valid evidence.
@@ -439,10 +454,10 @@ function createPlaywrightAxeScanner(options?: {
                 },
               ];
 
-          const defaultTargetSize = await axeTargetSizeViolations(page);
+          const defaultTargetSize = await axeTargetSizeViolations(currentPage);
           violations = [...violations, ...defaultTargetSize];
           violations = await collectViewportAndPointerViolations(
-            page,
+            currentPage,
             violations,
           );
 
@@ -453,7 +468,7 @@ function createPlaywrightAxeScanner(options?: {
             conditionProbeFailures,
           } = await timed("conditions", () =>
             collectBrowserConditionFindings(
-              page,
+              currentPage,
               url,
               conditions,
               violations,
@@ -469,7 +484,7 @@ function createPlaywrightAxeScanner(options?: {
           pages.push({
             url,
             loadedCleanly: true,
-            finalUrl: page.url(),
+            finalUrl: currentPage.url(),
             violations: [...violations, ...conditionViolations],
             incomplete: results.incomplete,
             customFindings: [...customFindings, ...conditionCustomFindings],
@@ -482,11 +497,24 @@ function createPlaywrightAxeScanner(options?: {
               ...conditionProbeFailures,
             ],
           });
+        } catch (error) {
+          // Contained per page (axe crash, navigation failure, blocked
+          // request, …): sibling pages' findings are kept. A total outage
+          // (zero pages) still fails via the `pageFailures` synthesis in
+          // `scanRuntime` below — never a silent pass. Query stripped
+          // (preview tokens).
+          const message =
+            error instanceof Error ? error.message : String(error);
+          pageFailures.push({ url, error: message });
+          console.warn(
+            `[warning] runtime page failed, continuing with other pages: ${url.replace(/\?[^\s"'<>]*/g, "")}: ${message.slice(0, 300)}`,
+          );
         } finally {
           // Close markers: teardown is the only untimed await in the page
-          // loop — if a run stalls here, these lines name it.
+          // loop — if a run stalls here, these lines name it. `page` is
+          // still null when `newPage()` itself threw; never touch it then.
           console.info("[progress] runtime page close started");
-          await closeTeardown("page", page.close());
+          if (page) await closeTeardown("page", page.close());
           console.info("[progress] runtime page close finished");
         }
       }
@@ -496,9 +524,9 @@ function createPlaywrightAxeScanner(options?: {
       console.info("[progress] runtime context close finished");
     }
     console.info(
-      `[timing] runtime pages scanned=${pages.length} axe=${stageMs.axe ?? 0}ms custom=${stageMs.custom ?? 0}ms conditions=${stageMs.conditions ?? 0}ms other=${stageMs.other ?? 0}ms`,
+      `[timing] runtime pages scanned=${pages.length} failed=${pageFailures.length} axe=${stageMs.axe ?? 0}ms custom=${stageMs.custom ?? 0}ms conditions=${stageMs.conditions ?? 0}ms other=${stageMs.other ?? 0}ms`,
     );
-    return pages;
+    return { pages, pageFailures };
   };
 }
 
@@ -564,8 +592,20 @@ export async function scanRuntime(
     });
   try {
     const scanStart = Date.now();
-    const pages = await scanner(urls);
+    const { pages, pageFailures } = await scanner(urls);
     const pagesMs = Date.now() - scanStart;
+    // Total outage with contained per-page failures: surface the first
+    // failure as the scan error so authority gates degrade to
+    // `unable_to_verify` (never a silent pass) exactly like a thrown scan.
+    if (pages.length === 0 && pageFailures.length > 0) {
+      const first = pageFailures[0] as RuntimePageFailure;
+      return {
+        findings: [],
+        pagesScanned: 0,
+        pageFailures,
+        error: classifyRuntimeScanError(new Error(first.error)),
+      };
+    }
     const siteLevelChecksRan = pages.length >= 2;
     const htmlValidateRan = pages.some((page) => page.htmlValidateRan === true);
     const linkStart = Date.now();
@@ -606,6 +646,7 @@ export async function scanRuntime(
       linkCheckRan,
       applicabilityFacts,
       probeFailures,
+      pageFailures,
     };
   } catch (error) {
     // This is the only place the unclassified cause is visible: callers only
@@ -616,11 +657,14 @@ export async function scanRuntime(
     // Stage the raw serverless markers the classifier cannot map (launch vs
     // navigation vs axe injection), so the next generic failure names where
     // the scan died instead of collapsing to "Runtime scan failed.".
-    const stage = /sparticuz-launch|browserType\.launch|browserType\.newPage|addScriptTag|page\.evaluate|page\.goto/.test(
-      raw,
-    )
-      ? raw.match(/sparticuz-launch|browserType\.launch|browserType\.newPage|addScriptTag|page\.evaluate|page\.goto/)?.[0]
-      : "unknown";
+    const stage =
+      /sparticuz-launch|browserType\.launch|browserType\.newPage|addScriptTag|page\.evaluate|page\.goto/.test(
+        raw,
+      )
+        ? raw.match(
+            /sparticuz-launch|browserType\.launch|browserType\.newPage|addScriptTag|page\.evaluate|page\.goto/,
+          )?.[0]
+        : "unknown";
     console.warn(
       `[warning] runtime scan failed (${error instanceof Error ? error.name : "unknown"}, stage ${stage}): ${raw.replace(/\?[^\s"'<>]*/g, "")}`,
     );
@@ -739,7 +783,7 @@ export async function runtimeViolationStillPresent(
   let pages: RuntimeScanPageResult[];
   try {
     await assertSafeRuntimeUrl(url);
-    pages = await scanner([url]);
+    ({ pages } = await scanner([url]));
   } catch (error) {
     // Unreachable / blocked / scan failure: we cannot prove the fix, so the
     // violation is treated as still present (fail closed — never verified).

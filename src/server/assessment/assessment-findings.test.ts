@@ -165,6 +165,12 @@ describe("reconcileControlFindings", () => {
       assessmentId: "a1",
       rootPath: "/tmp",
       rawForControl: [raw, { ...raw }],
+      openFindings: rows.findings.filter(
+        (finding) => finding.status === "open",
+      ),
+      dismissedFindings: rows.findings.filter(
+        (finding) => finding.status === "dismissed",
+      ),
       scopedFileSet: null,
       runtimeRan: false,
       onFindingResolved: () => {},
@@ -233,6 +239,12 @@ describe("reconcileControlFindings", () => {
           fix: null,
         },
       ],
+      openFindings: rows.findings.filter(
+        (finding) => finding.status === "open",
+      ),
+      dismissedFindings: rows.findings.filter(
+        (finding) => finding.status === "dismissed",
+      ),
       scopedFileSet: null,
       runtimeRan: false,
       onFindingResolved: () => {},
@@ -288,6 +300,12 @@ describe("reconcileControlFindings", () => {
       assessmentId: "a1",
       rootPath: "/tmp",
       rawForControl: [raw],
+      openFindings: rows.findings.filter(
+        (finding) => finding.status === "open",
+      ),
+      dismissedFindings: rows.findings.filter(
+        (finding) => finding.status === "dismissed",
+      ),
       scopedFileSet: null,
       runtimeRan: false,
       onFindingResolved: () => {},
@@ -334,6 +352,12 @@ describe("reconcileControlFindings", () => {
       assessmentId: "a1",
       rootPath: "/tmp",
       rawForControl: [raw, { ...raw }, { ...raw }],
+      openFindings: rows.findings.filter(
+        (finding) => finding.status === "open",
+      ),
+      dismissedFindings: rows.findings.filter(
+        (finding) => finding.status === "dismissed",
+      ),
       scopedFileSet: null,
       runtimeRan: true,
       onFindingResolved: () => {},

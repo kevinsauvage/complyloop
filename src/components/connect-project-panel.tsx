@@ -88,10 +88,12 @@ export async function ConnectProjectPanel({
   triggerLabel?: string;
 }) {
   const configured = isGitHubAuthConfigured();
-  const session = configured ? await getSession() : null;
+  const [session, workspace] = await Promise.all([
+    configured ? getSession() : null,
+    getWorkspace(),
+  ]);
   const signedIn = Boolean(session?.user);
   const userId = session?.user?.id ?? null;
-  const workspace = await getWorkspace();
   const caps = projectCapabilities(
     workspace.project,
     workspace.access,

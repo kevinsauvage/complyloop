@@ -24,7 +24,6 @@ import { liveRegionUpdatesViolation } from "./live-region-updates.ts";
 import { mediaIdentificationViolation } from "./media-identification.ts";
 import { mediaKeyboardViolation } from "./media-keyboard.ts";
 import { nonTextContrastViolation } from "./non-text-contrast.ts";
-import { restorePageAfterMutatingProbes } from "./page-restore.ts";
 import { reducedMotionViolation } from "./reduced-motion.ts";
 import { reflowViolation } from "./reflow.ts";
 import { resizeTextViolation } from "./resize-text.ts";
@@ -200,6 +199,20 @@ const VIEWPORT_PROBES: readonly GuardedProbe[] = [
     run: (page) => targetSizeEnhancedViolation(page),
   },
 ];
+
+/**
+ * Reload the audit URL after probes that submit forms, hover tooltips, or
+ * otherwise mutate DOM state so later sequential checks see a pristine page.
+ * Single consumer (the harness below) — kept here instead of its own module.
+ */
+async function restorePageAfterMutatingProbes(page: Page): Promise<void> {
+  const url = page.url();
+  await page.goto(url, {
+    waitUntil: "domcontentloaded",
+    timeout: 30_000,
+  });
+  await page.waitForTimeout(250);
+}
 
 async function collectCustomViolations(
   page: Page,

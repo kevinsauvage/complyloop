@@ -310,15 +310,18 @@ describe("runtimeViolationStillPresent", () => {
     findings: RawFinding[],
     extras: { loadedCleanly?: boolean; finalUrl?: string; url?: string } = {},
   ): RuntimePageScanner {
-    return async () => [
-      {
-        url: extras.url ?? "https://8.8.8.8/checkout",
-        violations: [],
-        customFindings: findings,
-        loadedCleanly: extras.loadedCleanly,
-        finalUrl: extras.finalUrl,
-      },
-    ];
+    return async () => ({
+      pages: [
+        {
+          url: extras.url ?? "https://8.8.8.8/checkout",
+          violations: [],
+          customFindings: findings,
+          loadedCleanly: extras.loadedCleanly,
+          finalUrl: extras.finalUrl,
+        },
+      ],
+      pageFailures: [],
+    });
   }
 
   it("returns true when the same violation is still present", async () => {
@@ -338,34 +341,43 @@ describe("runtimeViolationStillPresent", () => {
 
   it("returns false when the violating node is gone from a cleanly loaded page", async () => {
     await expect(
-      runtimeViolationStillPresent(domFinding, async () => [
-        {
-          url: "https://8.8.8.8/checkout",
-          violations: [],
-          customFindings: [],
-          loadedCleanly: true,
-        },
-      ]),
+      runtimeViolationStillPresent(domFinding, async () => ({
+        pages: [
+          {
+            url: "https://8.8.8.8/checkout",
+            violations: [],
+            customFindings: [],
+            loadedCleanly: true,
+          },
+        ],
+        pageFailures: [],
+      })),
     ).resolves.toBe(false);
   });
 
   it("fails closed when the loaded URL is not the audited page", async () => {
     await expect(
-      runtimeViolationStillPresent(domFinding, async () => [
-        {
-          url: "https://8.8.8.8/login",
-          violations: [],
-          customFindings: [],
-          loadedCleanly: true,
-          finalUrl: "https://8.8.8.8/login",
-        },
-      ]),
+      runtimeViolationStillPresent(domFinding, async () => ({
+        pages: [
+          {
+            url: "https://8.8.8.8/login",
+            violations: [],
+            customFindings: [],
+            loadedCleanly: true,
+            finalUrl: "https://8.8.8.8/login",
+          },
+        ],
+        pageFailures: [],
+      })),
     ).resolves.toBe(true);
   });
 
   it("fails closed (true) when no page is produced", async () => {
     await expect(
-      runtimeViolationStillPresent(domFinding, async () => []),
+      runtimeViolationStillPresent(domFinding, async () => ({
+        pages: [],
+        pageFailures: [],
+      })),
     ).resolves.toBe(true);
   });
 

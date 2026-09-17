@@ -15,9 +15,6 @@ const violation = (
 });
 
 const mocks = vi.hoisted(() => ({
-  restorePageAfterMutatingProbes: vi
-    .fn<() => Promise<void>>()
-    .mockResolvedValue(undefined),
   textSpacingRuntimeViolation: vi.fn<() => Promise<CustomViolation | null>>(),
   nonTextContrastViolation: vi.fn<() => Promise<CustomViolation | null>>(),
   labelAdjacentViolation: vi.fn<() => Promise<CustomViolation | null>>(),
@@ -47,9 +44,6 @@ const mocks = vi.hoisted(() => ({
   targetSizeEnhancedViolation: vi.fn<() => Promise<CustomViolation | null>>(),
 }));
 
-vi.mock("./page-restore.js", () => ({
-  restorePageAfterMutatingProbes: mocks.restorePageAfterMutatingProbes,
-}));
 vi.mock("./text-spacing-runtime.js", () => ({
   textSpacingRuntimeViolation: mocks.textSpacingRuntimeViolation,
 }));
@@ -129,6 +123,9 @@ import { runCustomRuntimeChecks, runThemeSensitiveCustomChecks } from "./index";
 const page = {
   evaluate: vi.fn(async () => undefined),
   mouse: { move: vi.fn(async () => undefined) },
+  url: vi.fn(() => "https://app.example/"),
+  goto: vi.fn(async () => undefined),
+  waitForTimeout: vi.fn(async () => undefined),
 } as unknown as Page;
 
 describe("runCustomRuntimeChecks", () => {
@@ -180,12 +177,10 @@ describe("runCustomRuntimeChecks", () => {
       ),
     ).toBe(true);
     expect(results.probeFailures).toEqual([]);
-    expect(mocks.restorePageAfterMutatingProbes).toHaveBeenCalledTimes(1);
   });
 
   it("contains a throwing probe and records it instead of aborting the audit (P2-5)", async () => {
     for (const mock of Object.values(mocks)) mock.mockReset();
-    mocks.restorePageAfterMutatingProbes.mockResolvedValue(undefined);
     for (const mock of [
       mocks.textSpacingRuntimeViolation,
       mocks.nonTextContrastViolation,

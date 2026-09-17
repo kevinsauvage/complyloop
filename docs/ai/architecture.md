@@ -145,7 +145,9 @@ externals in `next.config.ts`.
 
 Engine containment: a throwing custom probe is recorded on
 `probeFailures` and the rest of the pass continues. html-validate
-failures are non-fatal. An axe crash still fails the scan.
+failures are non-fatal. A per-page failure (axe crash, navigation, …)
+is contained to that page (`pageFailures`) and sibling pages continue;
+only a total outage (zero pages) fails the sub-scan.
 
 **html-validate** — structural HTML for RGAA 8.2 / 10.1 only
 (`markup-nesting`, `css-for-presentation`). Those stay `unable_to_verify`

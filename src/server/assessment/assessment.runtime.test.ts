@@ -76,25 +76,28 @@ describe("runAssessment with runtime engine", () => {
   it("creates DOM findings from the injected scanner and skips AST input-label", async () => {
     const { assessment } = await assess({
       runtimeLookup: publicLookup,
-      runtimeScanner: async (urls) => [
-        {
-          url: urls[0]!,
-          violations: [
-            {
-              id: "label",
-              impact: "serious",
-              description: "Form elements must have labels",
-              help: "Form elements must have labels",
-              nodes: [
-                {
-                  html: '<input id="email">',
-                  target: ["#email"],
-                },
-              ],
-            },
-          ],
-        },
-      ],
+      runtimeScanner: async (urls) => ({
+        pages: [
+          {
+            url: urls[0]!,
+            violations: [
+              {
+                id: "label",
+                impact: "serious",
+                description: "Form elements must have labels",
+                help: "Form elements must have labels",
+                nodes: [
+                  {
+                    html: '<input id="email">',
+                    target: ["#email"],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        pageFailures: [],
+      }),
     });
 
     expect(assessment.engines?.runtime).toBe(true);
@@ -118,14 +121,17 @@ describe("runAssessment with runtime engine", () => {
   it("records default theme conditions on the assessment engines", async () => {
     const { assessment } = await assess({
       runtimeLookup: publicLookup,
-      runtimeScanner: async (urls) => [
-        {
-          url: urls[0]!,
-          violations: [],
-          incomplete: [],
-          htmlValidateRan: false,
-        },
-      ],
+      runtimeScanner: async (urls) => ({
+        pages: [
+          {
+            url: urls[0]!,
+            violations: [],
+            incomplete: [],
+            htmlValidateRan: false,
+          },
+        ],
+        pageFailures: [],
+      }),
     });
 
     expect(assessment.engines?.themeConditions).toEqual(["dark", "light"]);
