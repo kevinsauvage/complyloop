@@ -10,14 +10,19 @@ import type { ActionState } from "@/core/action-state";
 import { parseEntityId, parseForm, requiredField } from "@/core/validate";
 
 import { publicErrorMessage, runAction } from "../action-state";
+import { getGitHubAccessToken } from "../github/access-token";
+import { lookupGitHubUser } from "../github/github";
 import {
   clearActiveProjectCookie,
+  readActiveOrgCookie,
   writeActiveOrgCookie,
   writeActiveProjectCookie,
 } from "../workspace/active-cookies";
 import {
   changeOrgMemberRole,
+  findOrgMembershipByLogin,
   inviteOrgMember,
+  leaveOrgMember,
   removeOrgMember,
 } from "../workspace/org-membership";
 import { resolveActiveOrgId } from "../workspace/org-queries";
@@ -135,12 +140,36 @@ export async function inviteOrgMemberAction(
       formData,
     );
 
-    await withOrgWrite(({ db }) => {
-      const membership = inviteOrgMember(db, orgId, userId, githubLogin, role);
-      return { result: undefined, upsertMemberships: [membership] };
+    // Typo guard: verify the login exists when the inviter has a token.
+    // Unverifiable (GitHub outage) proceeds as before — never block a
+    // legitimate invite on a transient lookup failure.
+    const inviterToken = await getGitHubAccessToken();
+    let unverified = false;
+    if (inviterToken) {
+      const lookup = await lookupGitHubUser(inviterToken, githubLogin);
+      if (lookup.status === "not-found") {
+        throw new PublicError(
+          `No GitHub user "@${githubLogin.trim().replace(/^@/, "")}" — check the spelling.`,
+        );
+      }
+      unverified = lookup.status === "unverifiable";
+    }
+
+    const { membership, isNew } = await withOrgWrite(({ db }) => {
+      const preExisting = findOrgMembershipByLogin(db, orgId, githubLogin);
+      const invited = inviteOrgMember(db, orgId, userId, githubLogin, role);
+      return {
+        result: { membership: invited, isNew: !preExisting },
+        upsertMemberships: [invited],
+      };
     });
     refresh();
-    return `Invited @${githubLogin} as ${role}.`;
+    if (!isNew) {
+      return `Updated @${membership.githubLogin} role to ${role}.`;
+    }
+    return unverified
+      ? `Invited @${membership.githubLogin} as ${role} (GitHub lookup unavailable — invite created unverified).`
+      : `Invited @${membership.githubLogin} as ${role}.`;
   });
 }
 
@@ -170,8 +199,39 @@ export async function removeOrgMemberAction(
   });
 }
 
-export async function changeOrgMemberRoleAction(
+/**
+ * Self-leave: any member may remove their own membership (no membershipId —
+ * the target is always the caller, so there is nothing to forge). Active
+ * cookies self-heal via `resolveActiveOrgId`/`resolveActiveProject`, but the
+ * project cookie is cleared when leaving the active org so no page keeps
+ * rendering a project the user can no longer see.
+ */
+export async function leaveOrgMemberAction(
   _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return runAction(async () => {
+    const { userId } = await requireSignedIn(
+      "Sign in to leave an organization.",
+    );
+    const { orgId } = parseForm(orgMembershipInput.pick({ orgId: true }), formData);
+
+    await withOrgWrite(({ db }) => {
+      const left = leaveOrgMember(db, orgId, userId);
+      return {
+        result: undefined,
+        deleteMembershipIds: [left.removedMembershipId],
+      };
+    });
+    if ((await readActiveOrgCookie()) === orgId) {
+      await clearActiveProjectCookie();
+    }
+    refresh();
+    return "You left the organization.";
+  });
+}
+
+export async function changeOrgMemberRoleAction(  _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
   return runAction(async () => {

@@ -12,6 +12,7 @@ import { assertProductionGitHubApp } from "@/server/github/github-app";
 import {
   clearStoredGitHubToken,
   getStoredGitHubTokenWithExpiry,
+  isTokenRefreshError,
   refreshGitHubToken,
 } from "@/server/github/github-tokens";
 
@@ -41,33 +42,35 @@ function assertProductionGitHubAuth(): void {
 }
 
 /**
- * Reads the GitHub OAuth access token from encrypted server-side storage.
- * Server-only — never pass the result into client components.
- *
- * Returns null when the user has no stored token. Throws a PublicError with
- * code `github_token_unreadable` when a stored row exists but cannot be
- * decrypted — callers should surface that message (it tells the user to
- * reconnect) rather than treating it as "not connected".
+ * Token-state signal for repair UI. `revoked` (grant revoked/expired at
+ * GitHub) wants a "reconnect" banner; `missing` (no row, transient refresh
+ * failure, or undecryptable row) wants the generic sign-in hint. The stored
+ * row is cleared only on `revoked` — transient failures keep it for retry.
  */
-export async function getGitHubAccessToken(): Promise<string | null> {
-  if (!githubOAuthConfigured()) return null;
+export type GitHubTokenState =
+  | { state: "valid"; token: string }
+  | { state: "revoked" }
+  | { state: "missing" };
+
+export async function getGitHubAccessTokenState(): Promise<GitHubTokenState> {
+  if (!githubOAuthConfigured()) return { state: "missing" };
   assertProductionGitHubAuth();
   const cookieStore = await cookies();
   const cookieHeader = cookieStore
     .getAll()
     .map((cookie) => `${cookie.name}=${cookie.value}`)
     .join("; ");
-  if (!cookieHeader) return null;
+  if (!cookieHeader) return { state: "missing" };
 
   const token = await getToken({
     req: { headers: { cookie: cookieHeader } },
     secret: resolveAuthSecret(),
     secureCookie: sessionCookieIsSecure(),
   });
-  if (typeof token?.sub !== "string") return null;
+  if (typeof token?.sub !== "string") return { state: "missing" };
 
   const stored = await getStoredGitHubTokenWithExpiry(token.sub);
-  if (!stored) return null;
+  if (!stored) return { state: "missing" };
 
   if (
     stored.expiresAt &&
@@ -79,12 +82,29 @@ export async function getGitHubAccessToken(): Promise<string | null> {
         userId: token.sub,
         refreshToken: stored.refreshToken,
       });
-      return refreshed.accessToken;
-    } catch {
-      await clearStoredGitHubToken(token.sub);
-      return null;
+      return { state: "valid", token: refreshed.accessToken };
+    } catch (error) {
+      if (isTokenRefreshError(error) && error.reason === "revoked") {
+        await clearStoredGitHubToken(token.sub);
+        return { state: "revoked" };
+      }
+      return { state: "missing" };
     }
   }
 
-  return stored.accessToken;
+  return { state: "valid", token: stored.accessToken };
+}
+
+/**
+ * Reads the GitHub OAuth access token from encrypted server-side storage.
+ * Server-only — never pass the result into client components.
+ *
+ * Returns null when the user has no stored token. Throws a PublicError with
+ * code `github_token_unreadable` when a stored row exists but cannot be
+ * decrypted — callers should surface that message (it tells the user to
+ * reconnect) rather than treating it as "not connected".
+ */
+export async function getGitHubAccessToken(): Promise<string | null> {
+  const state = await getGitHubAccessTokenState();
+  return state.state === "valid" ? state.token : null;
 }

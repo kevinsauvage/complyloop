@@ -129,3 +129,36 @@ export function redactCloneUrl(text: string): string {
 export function normalizeGitHubFullName(fullName: string): string {
   return fullName.trim().toLowerCase();
 }
+
+export type GitHubUserLookup =
+  | { status: "found"; login: string }
+  | { status: "not-found" }
+  | { status: "unverifiable" };
+
+/**
+ * Verifies a GitHub username exists (invite-time typo guard). 404 →
+ * `not-found`; any other transport/API failure → `unverifiable` so a GitHub
+ * outage never blocks a legitimate invite (status quo behavior).
+ */
+export async function lookupGitHubUser(
+  accessToken: string,
+  login: string,
+): Promise<GitHubUserLookup> {
+  const octokit = createOctokit(accessToken);
+  try {
+    const { data } = await octokit.rest.users.getByUsername({
+      username: login.trim().replace(/^@/, ""),
+    });
+    return { status: "found", login: data.login };
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "status" in error &&
+      (error as { status: unknown }).status === 404
+    ) {
+      return { status: "not-found" };
+    }
+    return { status: "unverifiable" };
+  }
+}

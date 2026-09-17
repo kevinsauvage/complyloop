@@ -13,6 +13,10 @@ vi.mock("@/server/actions/org", () => ({
     error: null,
     message: "Invite revoked.",
   })),
+  leaveOrgMemberAction: vi.fn(async () => ({
+    error: null,
+    message: "You left the organization.",
+  })),
 }));
 
 afterEach(() => {

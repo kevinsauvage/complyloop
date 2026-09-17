@@ -120,6 +120,11 @@ vi.mock("../github/github-checks", () => ({
     title: "ok",
     summary: "ok",
   }),
+  summarizeAssessmentFailureForCheckRun: () => ({
+    conclusion: "failure" as const,
+    title: "failed",
+    summary: "failed",
+  }),
 }));
 
 import { ASSESSMENT_JOB_HEARTBEAT_MS } from "./assessment-jobs";
@@ -277,6 +282,55 @@ describe("settleRunningAssessmentJob", () => {
         detail: expect.objectContaining({ phase: "failed" }),
       }),
     );
+  });
+
+  it("posts a failure Check Run when a PR preview scan fails terminally", async () => {
+    loadProjectDb.mockResolvedValue(projectDb());
+    withProjectCheckout.mockRejectedValue(new Error("clone failed"));
+    failAssessmentJob.mockResolvedValue("failed");
+    resolveProjectGitHubToken.mockResolvedValue("tok");
+    postPullRequestCheckRun.mockResolvedValue({ ok: true });
+
+    await expect(
+      settleRunningAssessmentJob(
+        job({
+          attempts: 3,
+          trigger: "webhook",
+          payload: { pullRequestHeadSha: "abc123" },
+        }),
+      ),
+    ).resolves.toEqual({ kind: "failed", jobId: "job-1" });
+    expect(postPullRequestCheckRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headSha: "abc123",
+        conclusion: "failure",
+      }),
+    );
+  });
+
+  it("stays quiet on retryable PR failures and non-PR terminal failures", async () => {
+    loadProjectDb.mockResolvedValue(projectDb());
+    withProjectCheckout.mockRejectedValue(new Error("clone failed"));
+    resolveProjectGitHubToken.mockResolvedValue("tok");
+    postPullRequestCheckRun.mockResolvedValue({ ok: true });
+
+    failAssessmentJob.mockResolvedValue("retrying");
+    await expect(
+      settleRunningAssessmentJob(
+        job({
+          attempts: 1,
+          trigger: "webhook",
+          payload: { pullRequestHeadSha: "abc123" },
+        }),
+      ),
+    ).resolves.toEqual({ kind: "retrying", jobId: "job-1" });
+    expect(postPullRequestCheckRun).not.toHaveBeenCalled();
+
+    failAssessmentJob.mockResolvedValue("failed");
+    await expect(
+      settleRunningAssessmentJob(job({ attempts: 3 })),
+    ).resolves.toEqual({ kind: "failed", jobId: "job-1" });
+    expect(postPullRequestCheckRun).not.toHaveBeenCalled();
   });
 
   it("completes with the renewed lease after a heartbeat renewal", async () => {

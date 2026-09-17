@@ -221,4 +221,61 @@ describe("refreshGitHubToken", () => {
       refreshGitHubToken({ userId: "user-1", refreshToken: "rt" }),
     ).rejects.toThrow(/AUTH_GITHUB_ID and AUTH_GITHUB_SECRET are required/);
   });
+
+  it("classifies invalid_grant as revoked", async () => {
+    const { refreshGitHubToken, isTokenRefreshError } = await import(
+      "./github-tokens"
+    );
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ error: "invalid_grant" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    ) as unknown as typeof fetch;
+
+    process.env.AUTH_GITHUB_ID = "client-id";
+    process.env.AUTH_GITHUB_SECRET = "client-secret";
+
+    try {
+      const error = await refreshGitHubToken({
+        userId: "user-1",
+        refreshToken: "rt",
+      }).catch((cause: unknown) => cause);
+      expect(isTokenRefreshError(error)).toBe(true);
+      expect(
+        (error as { reason: string }).reason,
+      ).toBe("revoked");
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  it("classifies server errors as transient", async () => {
+    const { refreshGitHubToken, isTokenRefreshError } = await import(
+      "./github-tokens"
+    );
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn(() =>
+      Promise.resolve(new Response("boom", { status: 500 })),
+    ) as unknown as typeof fetch;
+
+    process.env.AUTH_GITHUB_ID = "client-id";
+    process.env.AUTH_GITHUB_SECRET = "client-secret";
+
+    try {
+      const error = await refreshGitHubToken({
+        userId: "user-1",
+        refreshToken: "rt",
+      }).catch((cause: unknown) => cause);
+      expect(isTokenRefreshError(error)).toBe(true);
+      expect(
+        (error as { reason: string }).reason,
+      ).toBe("transient");
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
 });

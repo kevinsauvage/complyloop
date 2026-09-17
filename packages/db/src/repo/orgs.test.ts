@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { OrgMembership } from "@complyloop/analysis-core/contract/project-types";
+
 import type { DrizzleDb } from "../postgres.ts";
-import { listOrgIdsForUser } from "./orgs.ts";
+import {
+  claimMembershipsForLogin,
+  isUnclaimedInviteExpired,
+  listOrgIdsForUser,
+} from "./orgs.ts";
 
 /** Collect primitive / Param values from a drizzle SQL tree (no circular JSON). */
 function sqlBoundValues(node: unknown, out: unknown[] = []): unknown[] {
@@ -73,5 +79,81 @@ describe("listOrgIdsForUser", () => {
     expect(await listOrgIdsForUser(drizzle, null, null)).toEqual([]);
     expect(await listOrgIdsForUser(drizzle, null, "   ")).toEqual([]);
     expect(select).not.toHaveBeenCalled();
+  });
+});
+
+function invitePayload(createdAt: string): OrgMembership {
+  return {
+    id: "m-invite",
+    orgId: "org-1",
+    role: "member",
+    githubLogin: "bob",
+    createdAt,
+  };
+}
+
+describe("isUnclaimedInviteExpired", () => {
+  it("expires unclaimed invites past 30 days, never claimed rows", () => {
+    const now = Date.parse("2026-09-17T00:00:00.000Z");
+    expect(
+      isUnclaimedInviteExpired(
+        invitePayload("2026-07-01T00:00:00.000Z"),
+        now,
+      ),
+    ).toBe(true);
+    expect(
+      isUnclaimedInviteExpired(
+        invitePayload("2026-09-01T00:00:00.000Z"),
+        now,
+      ),
+    ).toBe(false);
+    expect(
+      isUnclaimedInviteExpired(
+        { ...invitePayload("2026-07-01T00:00:00.000Z"), userId: "user-1" },
+        now,
+      ),
+    ).toBe(false);
+    expect(isUnclaimedInviteExpired(invitePayload("not-a-date"), now)).toBe(
+      false,
+    );
+  });
+});
+
+describe("claimMembershipsForLogin", () => {
+  it("prunes expired unclaimed invites instead of granting them", async () => {
+    const stale = invitePayload("2026-01-01T00:00:00.000Z");
+    const fresh = {
+      ...invitePayload(new Date(Date.now() - 24 * 3600 * 1000).toISOString()),
+      id: "m-fresh",
+    };
+    const upserted: string[] = [];
+    const deleted: string[] = [];
+    const tx = {
+      select: () => ({
+        from: () => ({
+          where: async () => [
+            { payload: stale, userId: null },
+            { payload: fresh, userId: null },
+          ],
+        }),
+      }),
+      insert: () => ({
+        values: (row: { id: string }) => ({
+          onConflictDoUpdate: async () => {
+            upserted.push(row.id);
+          },
+        }),
+      }),
+      delete: () => ({
+        where: async () => {
+          deleted.push(stale.id);
+        },
+      }),
+    } as unknown as DrizzleDb;
+
+    const changed = await claimMembershipsForLogin(tx, "user-9", "bob");
+    expect(changed).toBe(true);
+    expect(upserted).toEqual(["m-fresh"]);
+    expect(deleted).toEqual(["m-invite"]);
   });
 });

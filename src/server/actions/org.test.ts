@@ -23,6 +23,7 @@ import {
   deleteOrgAction,
   exportOrgDataAction,
   inviteOrgMemberAction,
+  leaveOrgMemberAction,
   removeOrgMemberAction,
   switchOrgAction,
 } from "./org";
@@ -34,11 +35,13 @@ const resolveActiveOrgId = vi.hoisted(() => vi.fn());
 const writeActiveOrgCookie = vi.hoisted(() => vi.fn());
 const writeActiveProjectCookie = vi.hoisted(() => vi.fn());
 const clearActiveProjectCookie = vi.hoisted(() => vi.fn());
+const readActiveOrgCookie = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
 const listFindingsForProjects = vi.hoisted(() => vi.fn());
 const listRemediationsForProjects = vi.hoisted(() => vi.fn());
 const listRequirementsForProjects = vi.hoisted(() => vi.fn());
 const listAlertsForProjects = vi.hoisted(() => vi.fn());
+const lookupGitHubUser = vi.hoisted(() => vi.fn());
 
 vi.mock("../workspace/orgs", async () => {
   const actual =
@@ -68,7 +71,7 @@ vi.mock("../workspace/active-cookies", () => ({
     writeActiveProjectCookie(...args),
   clearActiveProjectCookie: (...args: unknown[]) =>
     clearActiveProjectCookie(...args),
-  readActiveOrgCookie: vi.fn(),
+  readActiveOrgCookie: (...args: unknown[]) => readActiveOrgCookie(...args),
   readActiveProjectCookie: vi.fn(),
 }));
 
@@ -111,9 +114,20 @@ vi.mock("@complyloop/db/repo/requirements", () => ({
     listRequirementsForProjects(...args),
 }));
 vi.mock("@complyloop/db/repo/alerts", () => ({
-  listAlertsForProjects: (...args: unknown[]) => listAlertsForProjects(...args),
+  listAlertsForProjects: (...args: unknown[]) =>
+    listAlertsForProjects(...args),
 }));
 
+vi.mock("../github/github", async () => {
+  const actual =
+    await vi.importActual<typeof import("../github/github")>(
+      "../github/github",
+    );
+  return {
+    ...actual,
+    lookupGitHubUser: (...args: unknown[]) => lookupGitHubUser(...args),
+  };
+});
 const org: Organization = {
   id: "org-1",
   name: "Acme",
@@ -188,6 +202,12 @@ beforeEach(() => {
   listAlertsForProjects.mockReset();
   listAlertsForProjects.mockResolvedValue([]);
   deleteOrganization.mockReturnValue({ deleteMembershipIds: ["m-owner"] });
+  lookupGitHubUser.mockReset();
+  lookupGitHubUser.mockResolvedValue({ status: "found", login: "bob" });
+  actionAuthMocks.getGitHubAccessToken.mockReset();
+  actionAuthMocks.getGitHubAccessToken.mockResolvedValue(null);
+  readActiveOrgCookie.mockReset();
+  readActiveOrgCookie.mockResolvedValue(null);
   actionAuthMocks.auth.mockResolvedValue({
     user: { id: "user-1", login: "alice" },
   });
@@ -437,6 +457,46 @@ describe("org member management actions", () => {
     expect(result.message).toMatch(/Invited @bob as member/);
   });
 
+  it("rejects a misspelled GitHub username when the inviter has a token", async () => {
+    actionAuthMocks.getGitHubAccessToken.mockResolvedValue("gho_inviter");
+    lookupGitHubUser.mockResolvedValue({ status: "not-found" });
+    const form = new FormData();
+    form.set("orgId", "org-1");
+    form.set("githubLogin", "bbo");
+    form.set("role", "member");
+    const result = await inviteOrgMemberAction(initialActionState, form);
+    expect(result.ok ? null : result.message).toMatch(
+      /No GitHub user "@bbo" — check the spelling/,
+    );
+    expect(lookupGitHubUser).toHaveBeenCalledWith("gho_inviter", "bbo");
+  });
+
+  it("names role changes on re-invite instead of saying Invited", async () => {
+    const bob = testMembership("member", {
+      id: "m-bob",
+      userId: "user-2",
+      githubLogin: "bob",
+    });
+    const db = emptyWorkspaceSlice([ownerMembership, bob]);
+    withOrgWrite.mockImplementation(async (fn) =>
+      invokeOrgWrite(
+        {
+          db,
+          userId: "user-1",
+          githubLogin: "alice",
+          organizations: [org],
+        },
+        fn,
+      ),
+    );
+    const form = new FormData();
+    form.set("orgId", "org-1");
+    form.set("githubLogin", "bob");
+    form.set("role", "admin");
+    const result = await inviteOrgMemberAction(initialActionState, form);
+    expect(result.message).toBe("Updated @bob role to admin.");
+  });
+
   it("rejects owner role on invite", async () => {
     const form = new FormData();
     form.set("orgId", "org-1");
@@ -508,8 +568,114 @@ describe("org member management actions", () => {
     expect(result.message).toBe("Invite revoked.");
   });
 
-  it("changes a member role", async () => {
-    const member = testMembership("member", {
+  it("lets a member leave the org", async () => {
+    const bob = testMembership("member", {
+      id: "m-bob",
+      userId: "user-2",
+      githubLogin: "bob",
+    });
+    const db = emptyWorkspaceSlice([ownerMembership, bob]);
+    withOrgWrite.mockImplementation(async (fn) =>
+      invokeOrgWrite(
+        {
+          db,
+          userId: "user-2",
+          githubLogin: "bob",
+          organizations: [org],
+        },
+        fn,
+      ),
+    );
+    actionAuthMocks.auth.mockResolvedValue({
+      user: { id: "user-2", login: "bob" },
+    });
+
+    const form = new FormData();
+    form.set("orgId", "org-1");
+    const result = await leaveOrgMemberAction(initialActionState, form);
+    expect(result.message).toBe("You left the organization.");
+    expect(clearActiveProjectCookie).not.toHaveBeenCalled();
+  });
+
+  it("clears the project cookie when leaving the active org", async () => {
+    const bob = testMembership("member", {
+      id: "m-bob",
+      userId: "user-2",
+      githubLogin: "bob",
+    });
+    const db = emptyWorkspaceSlice([ownerMembership, bob]);
+    withOrgWrite.mockImplementation(async (fn) =>
+      invokeOrgWrite(
+        {
+          db,
+          userId: "user-2",
+          githubLogin: "bob",
+          organizations: [org],
+        },
+        fn,
+      ),
+    );
+    actionAuthMocks.auth.mockResolvedValue({
+      user: { id: "user-2", login: "bob" },
+    });
+    readActiveOrgCookie.mockResolvedValue("org-1");
+
+    const form = new FormData();
+    form.set("orgId", "org-1");
+    const result = await leaveOrgMemberAction(initialActionState, form);
+    expect(result.message).toBe("You left the organization.");
+    expect(clearActiveProjectCookie).toHaveBeenCalled();
+  });
+
+  it("blocks the last owner and the last member from leaving", async () => {
+    const bob = testMembership("member", {
+      id: "m-bob",
+      userId: "user-2",
+      githubLogin: "bob",
+    });
+    const db = emptyWorkspaceSlice([ownerMembership, bob]);
+    withOrgWrite.mockImplementation(async (fn) =>
+      invokeOrgWrite(
+        {
+          db,
+          userId: "user-1",
+          githubLogin: "alice",
+          organizations: [org],
+        },
+        fn,
+      ),
+    );
+    const form = new FormData();
+    form.set("orgId", "org-1");
+    await expect(
+      leaveOrgMemberAction(initialActionState, form),
+    ).resolves.toEqual({
+      ok: false,
+      message: "You are the last owner — assign another owner before leaving.",
+    });
+
+    const soloDb = emptyWorkspaceSlice([ownerMembership]);
+    withOrgWrite.mockImplementation(async (fn) =>
+      invokeOrgWrite(
+        {
+          db: soloDb,
+          userId: "user-1",
+          githubLogin: "alice",
+          organizations: [org],
+        },
+        fn,
+      ),
+    );
+    await expect(
+      leaveOrgMemberAction(initialActionState, form),
+    ).resolves.toEqual({
+      ok: false,
+      message:
+        "You are the last member — delete the organization instead of leaving it.",
+    });
+  });
+
+  it("changes a member role", async () => {    const member = testMembership("member", {
       id: "m-member",
       userId: "user-2",
       githubLogin: "bob",

@@ -9,12 +9,74 @@ import { SignInWithGitHubButton } from "@/components/sign-in-with-github-button"
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { publicErrorMessage } from "@/server/action-state";
 import { getSession } from "@/server/auth-session";
-import { getGitHubAccessToken } from "@/server/github/access-token";
-import { githubAppInstallUrl } from "@/server/github/github-app";
-import { listAvailableRepos } from "@/server/github/github-connector";
+import { getGitHubAccessTokenState } from "@/server/github/access-token";
+import {
+  classifyConnectFailure,
+  type ConnectFailureCause,
+} from "@/server/github/connect-failure";
+import {
+  githubAppInstallUrl,
+  listAvailableRepos,
+} from "@/server/github/github-connector";
 import { connectedGitHubProjectsByFullName } from "@/server/workspace/connect-github";
 import { projectCapabilities } from "@/server/workspace/project-capabilities";
 import { getWorkspace } from "@/server/workspace/workspace";
+
+/**
+ * Classified repair banner: every known GitHub failure mode gets a repair
+ * path (install URL / reconnect / rename hint) instead of a generic error.
+ */
+function ConnectFailureRepair({
+  message,
+  cause,
+  appInstallUrl,
+}: {
+  message: string;
+  cause: ConnectFailureCause;
+  appInstallUrl?: string;
+}) {
+  if (cause === "unknown") {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>{message}</AlertDescription>
+      </Alert>
+    );
+  }
+  const repair =
+    cause === "no-installation" || cause === "repo-not-on-install" ? (
+      appInstallUrl ? (
+        <a
+          href={appInstallUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="font-medium text-foreground underline underline-offset-2"
+        >
+          Install the GitHub App on the target repositories, then refresh.
+        </a>
+      ) : (
+        <span>
+          Set <code className="font-mono text-xs">GITHUB_APP_SLUG</code> to
+          show an install link (see{" "}
+          <code className="font-mono text-xs">.env.example</code>).
+        </span>
+      )
+    ) : cause === "token-revoked" || cause === "token-missing" ? (
+      <span>Sign out and sign in again to reconnect your GitHub account.</span>
+    ) : (
+      <span>
+        The repository may have been renamed, transferred, or deleted — check
+        the name, or disconnect and connect it again.
+      </span>
+    );
+  return (
+    <Alert variant="destructive">
+      <AlertDescription className="flex flex-col gap-1.5">
+        <span>{message}</span>
+        <span className="text-foreground">{repair}</span>
+      </AlertDescription>
+    </Alert>
+  );
+}
 
 export async function ConnectProjectPanel({
   defaultOpen = true,
@@ -37,8 +99,9 @@ export async function ConnectProjectPanel({
   );
 
   let repos: Awaited<ReturnType<typeof listAvailableRepos>> = [];
-  let listError: string | null = null;
+  let listError: { message: string; cause: ConnectFailureCause } | null = null;
   const connectedByFullName: Record<string, string> = {};
+  const appInstallUrl = githubAppInstallUrl();
 
   if (configured && signedIn && userId && caps.canConnect) {
     const { projects, activeOrgId } = workspace;
@@ -51,15 +114,30 @@ export async function ConnectProjectPanel({
     // from /api/github/repos when the dialog actually opens (fetchOnMount).
     if (defaultOpen) {
       try {
-        const token = await getGitHubAccessToken();
-        if (!token) {
-          listError =
-            "Could not read your GitHub token. Sign out and sign in again.";
+        const tokenState = await getGitHubAccessTokenState();
+        if (tokenState.state === "revoked") {
+          listError = {
+            message:
+              "GitHub revoked this app's authorization. Sign out and sign in again to reconnect.",
+            cause: "token-revoked",
+          };
+        } else if (tokenState.state !== "valid") {
+          listError = {
+            message:
+              "Could not read your GitHub token. Sign out and sign in again.",
+            cause: "token-missing",
+          };
         } else {
-          repos = await listAvailableRepos({ accessToken: token, perPage: 30 });
+          repos = await listAvailableRepos({
+            accessToken: tokenState.token,
+            perPage: 30,
+          });
         }
       } catch (error) {
-        listError = publicErrorMessage(error);
+        listError = {
+          message: publicErrorMessage(error),
+          cause: classifyConnectFailure(error),
+        };
       }
     }
   }
@@ -101,14 +179,16 @@ export async function ConnectProjectPanel({
           <SignInWithGitHubButton />
         </div>
       ) : listError ? (
-        <Alert variant="destructive">
-          <AlertDescription>{listError}</AlertDescription>
-        </Alert>
+        <ConnectFailureRepair
+          message={listError.message}
+          cause={listError.cause}
+          appInstallUrl={appInstallUrl}
+        />
       ) : (
         <GitHubRepoPicker
           initialRepos={repos}
           connectedByFullName={connectedByFullName}
-          appInstallUrl={githubAppInstallUrl()}
+          appInstallUrl={appInstallUrl}
           fetchOnMount={!defaultOpen}
         />
       )}

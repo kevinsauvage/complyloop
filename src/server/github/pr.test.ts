@@ -247,6 +247,8 @@ describe("locateViolationInProject + PR apply", () => {
         span: { start: 0, end: 5 },
       };
     }
+    resolveProjectGitHubToken.mockResolvedValue("token");
+    githubPublicCloneUrl.mockReturnValue(root);
 
     const result = await preparePullRequest(
       project,
@@ -272,6 +274,8 @@ describe("locateViolationInProject + PR apply", () => {
     const { root, relative, project, control, finding, remediation } =
       await initRepo(initial);
     finding.fix = null;
+    resolveProjectGitHubToken.mockResolvedValue("token");
+    githubPublicCloneUrl.mockReturnValue(root);
 
     const result = await preparePullRequest(
       project,
@@ -361,6 +365,29 @@ describe("locateViolationInProject + PR apply", () => {
         body: expect.stringContaining("Repository tests run in GitHub CI"),
       }),
     );
+  });
+
+  it("fails loud when the GitHub token is unavailable", async () => {
+    const initial = `export const Hero = () => <button></button>;\n`;
+    const { relative, project, control, finding, remediation } =
+      await initRepo(initial);
+    finding.fix = null;
+    resolveProjectGitHubToken.mockResolvedValue(null);
+
+    await expect(
+      preparePullRequest(project, control, finding, remediation, {
+        description: "Add alt",
+        provenance: "ai",
+        edits: [
+          {
+            path: relative,
+            oldText: "<button></button>",
+            newText: '<button aria-label="Save"></button>',
+          },
+        ],
+        complyLoop: { passed: true, remaining: [] },
+      }),
+    ).rejects.toThrow(/token unavailable.*Nothing was pushed/);
   });
 
   it("fails loud when pushing the fix branch fails", async () => {

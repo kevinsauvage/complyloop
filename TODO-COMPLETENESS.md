@@ -17,175 +17,7 @@ what is missing before the project is genuinely usable, safe, and deployable.
 
 ---
 
-## P0 — Critical
-
-### [x] TODO-03: Production ops hardening — cron monitoring, `ops:check` gaps, provider backups
-
-> **Done 2026-09-17** (master TODO.md P0-1): `ops:check` requires all 7 prod
-> vars, fails on queue depth (`OPS_MAX_QUEUED_JOBS`, default 50) and evidence
-> size (`OPS_MAX_EVIDENCE_MB`, default 1024) via `pg_total_relation_size` +
-> `reltuples`; pure `evaluateOpsStatus` in `src/server/ops-thresholds.ts` with
-> unit tests; daily `.github/workflows/ops-check.yml`; thresholds + restore
-> runbook in `docs/vercel.md`. `/api/health` deliberately stays light.
-> **Still open:** restore drill date + owner (needs a real staging restore).
-
-**Why:**
-Prod drains via the GitHub Actions `assessment-worker` (dispatch on enqueue
-+ 15-min schedule backstop; Vercel worker-route self-fetch as degraded
-fallback). If the dispatch and the schedule both stop firing or start
-failing, web enqueues pile up with no alert. `ops:check` doesn't enforce
-what the deploy doc promises, and backups now depend entirely on the
-Postgres provider.
-
-**Where (verified 2026-09-16):**
-`.github/workflows/assessment-worker.yml`, `src/app/api/internal/jobs/run/route.ts`,
-`scripts/operations-check.ts`, `docs/vercel.md`
-
-**Current state:**
-
-- GH worker (dispatch + 15-min schedule, `limit=10&concurrency=2` on
-  `workflow_dispatch`); Vercel route `maxDuration=300`. Route authed
-  constant-time (`worker-auth.ts`); single `WORKER_SECRET` (no `CRON_SECRET`
-  coupling — there is no Vercel Cron: Hobby allows only daily schedules).
-- `ops:check` verifies `DATABASE_URL` + (prod) `AUTH_SECRET,SENTRY_DSN,
-GITHUB_WEBHOOK_SECRET` + `SELECT 1` + queued count (logged, never fails).
-- Backups are the provider's (Neon/Supabase point-in-time); no app-side dump.
-
-**Missing / Problem:**
-
-1. Nothing alerts when the dispatch/schedule stop draining (queue grows).
-   `docs/vercel.md` tells the operator to alert on queue depth, but that
-   alerting is manual prose, not code.
-2. `ops:check` doesn't require `AUTH_URL, GITHUB_APP_ID/PRIVATE_KEY,
-   WORKER_SECRET`; queued-depth growth is logged but never fails,
-   so it can't gate deploys/alerts.
-3. Provider backup + restore drill is documented in `docs/vercel.md` but the
-   date + owner line is still blank — nothing verifies it was ever tested.
-
-**Required change:**
-
-- Extend `ops:check`: require App/prod vars, fail (non-zero) on queue-depth above a
-  threshold and on `pg_total_relation_size('evidence')` above a threshold;
-  run it from a GitHub Actions scheduled workflow (sibling to
-  `assessment-worker.yml`) with failure alerting — this replaces the old worker healthcheck.
-- Document the provider restore drill with a date + owner in `docs/vercel.md`
-  after the first successful staging restore.
-
-**Completion impact:** Very High
-
-**Complexity:** Small
-
-**Evidence (verified 2026-09-16):**
-
-- `operations-check.ts:16-35` (no fail cases, App vars unchecked);
-  `src/app/api/health/route.ts:15-45` (queue depth returned, no threshold);
-  `docs/vercel.md:92-96,152-156` (manual alert prose), `:182` (blank restore-drill line).
-
----
-
 ## P1 — High
-
-### [ ] TODO-04: GitHub disconnect/reconnect repair flow — revoked App, deleted/renamed repo, expired tokens collapse to generic errors
-
-**Why:**
-Repo access breaks in normal ways (App uninstalled/suspended, repo
-deleted/renamed/transferred, OAuth revoked, installation-token mint failure)
-and the user gets a generic "sign out/in again" or list error with no
-"reinstall App / reconnect" repair path. For an agency with dozens of client
-repos this is the most common support ticket the product will generate.
-
-**Where (verified 2026-09-16):**
-`src/server/github/github-access.ts:25-62`, `src/server/github/github.ts:23-41`,
-`src/server/github/github-connector.ts:88-132`,
-`src/server/github/github-app.ts:132-179`,
-`src/server/actions/connect.ts:89-94,126-131`,
-`src/components/connect-project-panel.tsx:59,103-106`, `src/components/use-github-repo-connect.ts`
-
-**Current state:**
-
-- Covered: no-installation / repo-not-on-install errors, missing-token sign-out hint,
-  token-unreadable `PublicError`, non-TS-repo guard (`connect-github.ts:32-46`),
-  permission gating admin/owner (`rbac.ts:18-32`, `project-capabilities.ts:16-42`).
-- Disconnect works + retargets cookie (`actions/connect.ts:154-188`).
-
-**Missing / Problem:**
-
-No "reconnect/repair" action or banner. Duplicate-connect is an org-scoped block
-while the lower layer would no-op — no repair affordance. Revocation surfaces as
-generic `octokitErrorMessage(status + slice 300)` or warn-only check-run skip.
-Picker caps 30/page with no "not seeing your repo?" help. Partial credit only:
-the empty-picker state now links to the App install page and hints when
-`GITHUB_APP_SLUG` is unset (`github-repo-picker-empty.tsx:17-28`).
-
-**Required change:**
-
-- Detect classified failure causes (no installation, suspended, repo not found,
-  token mint failure) and render a repair banner with the App install URL +
-  one-click reconnect/disconnect+connect; distinguish revoked vs expired on the
-  token path instead of one generic message.
-
-**Completion impact:** High
-
-**Complexity:** Medium
-
-**Evidence (verified 2026-09-16):**
-
-- `github-access.ts:25-45` (token-or-null, no revoked/expired classification) + `:47-62` (generic `PublicError`); `github.ts:23-41` (generic slice-300);
-  `github-connector.ts:88-132` (warn-only skip); `connect.ts:89-94,126-131`;
-  `connect-project-panel.tsx:103-106` (generic destructive `Alert`), `:59` (30/page, no repo-missing help).
-
----
-
-### [ ] TODO-05: Org invite/member lifecycle — no username verification, no expiry, silent role overwrite, no leave guard
-
-**Why:**
-Product spec promises "invite by GitHub login". Typos today become silent
-pending invites that never resolve; re-invites silently overwrite roles with an
-"Invited" toast; members can't leave and self-removal edge cases are unguarded.
-Org sprawl + phantom invites is exactly what a multi-client agency hits first.
-
-**Where (verified 2026-09-16):**
-`src/server/actions/org.ts:128-203`, `src/server/workspace/org-membership.ts:60-102`,
-`src/server/workspace/personal-org.ts:7-17`, `src/components/invite-member-form.tsx:47-50`,
-`src/components/org-members-card.tsx:91-156`
-
-**Current state:**
-
-- Roles matrix + `ASSIGNABLE_ORG_ROLES` (excludes `owner`), owner-transfer
-  explicitly unsupported by design — correct.
-- Invite normalizes strip-`@`/lowercase, upserts existing as role-change,
-  claims on next sign-in — implemented.
-- Partial credit: the members table already separates "Revoke invite" vs
-  "Remove" copy with confirms (`org-members-card.tsx:129-143`), and the action
-  result distinguishes revoke vs remove (`org.ts:161-173) — but the *invite*
-  path still always toasts "Invited …" even when it mutated an existing row.
-
-**Missing / Problem (verified 2026-09-16 — all four sub-points still open):**
-
-1. No GitHub-username existence check (typo → silent pending invite, no feedback; form only notes claim-on-next-sign-in).
-2. No pending-invite expiry/cleanup (`createdAt` exists, no TTL, no prune).
-3. Re-invite of an existing member silently overwrites role ("Invited" toast).
-4. No self-removal/leave path (`removeOrgMember` requires actor `owner`/`admin`); last-member/orphan guard beyond owner protection missing.
-
-**Required change:**
-
-- Validate login against GitHub API at invite time (or confirm-and-create-pending
-  explicitly); add `createdAt`-based expiry + cleanup for unclaimed invites;
-  separate "Invite" vs "Change role" copy/paths; add leave action with
-  last-owner/last-member guard.
-
-**Completion impact:** High
-
-**Complexity:** Medium
-
-**Evidence (verified 2026-09-16):**
-
-- `org-membership.ts:60-73` (normalize + upsert-overwrite `:66-73`, no `getByUsername` lookup anywhere);
-  `:81` (`createdAt`, no TTL); `:86-102` (removal requires actor `owner`/`admin`, no self-leave);
-  `org.ts:128-148,150-174,176-203`; `invite-member-form.tsx:47-50`;
-  `org-members-card.tsx:91-156`.
-
----
 
 ### [ ] TODO-06: Rate-limit the expensive/unthrottled paths
 
@@ -276,56 +108,6 @@ guidance beyond "keep decision records forever, noise kinds are candidates".
 
 ---
 
-### [ ] TODO-08: PR failure paths — post a Check Run when the worker throws; fix the ephemeral-branch message
-
-**Why:**
-Two fail-closed paths mislead the user at the exact moment trust matters: a PR
-whose preview scan crashes shows "expected checks" forever (no failure signal),
-and a missing-token PR failure claims a local branch was created that was
-already deleted with the ephemeral checkout.
-
-**Where (verified 2026-09-16):**
-`src/server/assessment/assessment-worker.ts:176-189` (Check Run post, success-only)
-vs `:254-275` (failure catch),
-`src/server/github/github-connector.ts:88-132`,
-`src/server/github/github-checks.ts:71-103` (already supports `failure`),
-`src/server/github/pr.ts:214-220,260-267`, `src/server/actions/pr.ts:72-74`
-
-**Current state:**
-
-- Check-run failures never fail the job (warn + return) — correct.
-- PR guards (non-source reject, verified-patch required, clean-tree, branch restore,
-  force-push rationale, orphan-PR reconcile) — correct and well-handled.
-
-**Missing / Problem:**
-
-1. `runClaimedAssessmentJob` posts the Check Run only on success; worker exception
-   propagates before the post → PR gets no `failure`/`neutral` signal.
-2. `!fullName || !token` returns `{branch, prUrl:null}` describing a committed local
-   branch, but `withProjectCheckout` already discarded it; action surfaces "branch
-   was created" for a branch that doesn't exist remotely.
-
-**Required change:**
-
-- Wrap the preview-scan path so worker exceptions post a `failure` (or `neutral`
-  with error summary) Check Run before rethrowing.
-- Return/throw explicit "GitHub token unavailable, nothing pushed" instead of the
-  local-branch message.
-
-**Completion impact:** High
-
-**Complexity:** Small
-
-**Evidence (verified 2026-09-16):**
-
-- `assessment-worker.ts:176-189` (Check Run posted only on success — the
-  `:254-275` catch calls `failAssessmentJob` + failure evidence but never a
-  Check Run, although `github-checks.ts:71-103` already supports `failure`);
-  `pr.ts:214-220` (default "Branch created" message) + missing-token path with
-  no `else` (`:260-267`) + `actions/pr.ts:72-74` (surfaces it as `PublicError`).
-
----
-
 ### [ ] TODO-09: Site-level findings speak DOM — fix handoff + act copy for `site` locations
 
 **Why:**
@@ -367,55 +149,6 @@ now correctly call-site worded; only `site` is wrong.)
   `handoff.ts:65-76` (`site` takes the PR-steps `else`),
   `pr.ts:134-138` ("Runtime DOM findings…" though `site` is rejected identically),
   `remediation-verify.ts:193-223` (correct behavior to mirror in copy).
-
----
-
-### [ ] TODO-10: Auth session edges — explicit expiry, OAuth `Configuration` mapping, revoked-vs-expired tokens
-
-**Why:**
-Login/logout/core OAuth work, but session lifetime is implicit (NextAuth
-defaults, no `maxAge`/`updateAge`), a fresh sign-in with missing prod config
-throws a raw `Error` instead of the login page's `Configuration` copy, and token
-refresh failure collapses revoked vs expired into one "sign out/in again".
-
-**Where (verified 2026-09-16):**
-`src/auth.ts:46-57` (no `session.maxAge/updateAge`), `:88-93` (raw prod-config throw),
-`src/server/github/access-token.ts:32-41,72-90`,
-`src/server/github/github-tokens.ts:175-233` (single generic refresh error),
-`src/app/(marketing)/login/page.tsx:24-35`
-
-**Current state:**
-
-- Identity-only scopes, `sub = providerAccountId`, server-side AES-256-GCM token
-  store, refresh-then-clear-and-null, open-redirect guards in 3 places, OAuth
-  error copy for 4 cases — all implemented.
-
-**Missing / Problem (verified 2026-09-16 — all three sub-points still open):**
-
-1. No explicit `session.maxAge/updateAge` — expiry/rotation policy undocumented
-   (`auth.ts:46-57` has no `session` block; `maxAge` hits elsewhere are rate-limit only).
-2. `assertProductionGitHubAuth()` raw throw inside the `jwt` callback
-   (`auth.ts:91-93` via `access-token.ts:32-41` / `github-app.ts:41-56`)
-   bypasses the login page's `Configuration` copy (`login/page.tsx:24-32`).
-3. Refresh failure silent `null` (`access-token.ts:72-87`: catch-any → clear → null)
-   → generic reconnect hint; `github-tokens.ts:201-215` throws one generic
-   `Error` for every non-OK refresh (no `invalid_grant`/400-vs-5xx distinction),
-   so no revoked-vs-expired signal exists for the TODO-04 repair banner.
-
-**Required change:**
-
-- Set + document session lifetimes; map prod-config throw to `Configuration`
-  login copy; surface revoked vs transient refresh failures distinctly.
-
-**Completion impact:** Medium
-
-**Complexity:** Small
-
-**Evidence (verified 2026-09-16):**
-
-- `auth.ts:46-57` (no maxAge), `:88-93` (raw throw),
-  `access-token.ts:72-90` (silent null), `github-tokens.ts:175-233` (generic error),
-  `login/page.tsx:24-35` (copy exists, never reached on prod-config failure).
 
 ---
 
@@ -499,7 +232,7 @@ cannot perform; the only honest rotation doc is the decrypt-failure comment at
 
 **Required change:**
 Pick one: (a) introduce dedicated key with fallback + startup warning and key-id
-  envelope, or (b) replace the false "re-encrypts" note in `docs/vercel.md:103`
+envelope, or (b) replace the false "re-encrypts" note in `docs/vercel.md:103`
 with an honest statement that rotating `AUTH_SECRET` invalidates sessions AND
 stored tokens (reconnect required) + startup log when fallback is in use.
 Prefer (a) if a migration is acceptable. Either way the "re-encrypts"
@@ -750,7 +483,8 @@ function is pinned (`evidence.test.ts:13-23`, incl. the 12,001→5,000 boundary)
 - ~~Job lifecycle control (cancel/dedup/stuck recovery) — P0~~ — DONE (TODO-01).
 - ~~Prod worker/ops/backup hardening — P0 (TODO-03; GH-Actions topology, needs scheduled `ops:check` + restore drill).~~ — DONE 2026-09-17 (scheduled `ops:check` + restore runbook live; drill date/owner pending).
 - Disconnect/reconnect repair, invite lifecycle, rate-limit coverage, evidence
-  size alerting, PR failure signals, site copy, session edges — P1.
+  size alerting, PR failure signals, site copy, session edges — P1
+  (TODO-04, TODO-05, TODO-07, TODO-08, TODO-10 done; TODO-06, TODO-09 open).
 - Settings-to-assessment gap, secret dual-use, retention docs, TLS-bypass guard,
   docs-vs-reality copy — P2 (TODO-15 sub-points 1 and 4 resolved 2026-09-16).
 - Config-consistency polish + ops-path tests — P3 (TODO-16 Sentry-default bullet resolved 2026-09-16).
@@ -759,15 +493,15 @@ function is pinned (`evidence.test.ts:13-23`, incl. the 12,001→5,000 boundary)
 
 1. ~~**Worker/ops blindness (TODO-03)** — dispatch + schedule failures pile up
    silently; `ops:check` can't gate anything.~~ — DONE 2026-09-17.
-2. **No repair flow (TODO-04)** — every revoked App / renamed repo becomes a
-   generic-error support ticket.
-3. **Invite lifecycle (TODO-05)** — phantom invites + silent role overwrites at
-   agency scale.
+2. ~~**No repair flow (TODO-04)** — every revoked App / renamed repo becomes a
+   generic-error support ticket.~~ — DONE 2026-09-17.
+3. ~~**Invite lifecycle (TODO-05)** — phantom invites + silent role overwrites at
+   agency scale.~~ — DONE 2026-09-17.
 
 ## Recommended implementation order
 
 1. ~~TODO-03 (scheduled `ops:check` with fail cases + restore drill) — makes prod observable.~~ — DONE 2026-09-17 (drill date/owner pending).
-2. TODO-04 + TODO-05 (repair banner + invite validation) — kills top support tickets.
+2. ~~TODO-04 + TODO-05 (repair banner + invite validation) — kills top support tickets.~~ — DONE 2026-09-17.
 3. TODO-06 + TODO-07 (rate limits + evidence alert) — abuse/growth safety.
 4. TODO-08 + TODO-09 + TODO-10 (check-run on exception, site copy, session edges).
 5. TODO-11 … TODO-16 in order (TODO-01/02 done/removed; TODO-15.1, TODO-15.4, TODO-16 Sentry done).

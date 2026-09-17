@@ -172,6 +172,29 @@ export interface RefreshGitHubTokenResult {
   expiresAt: string;
 }
 
+/**
+ * Why a refresh failed. `revoked` (HTTP 400 + `invalid_grant`: user revoked
+ * the grant or the refresh token expired) means reconnect; `transient`
+ * (network/5xx/malformed) means keep the stored row and retry later.
+ */
+export type TokenRefreshFailureReason = "revoked" | "transient";
+
+export class TokenRefreshError extends Error {
+  readonly reason: TokenRefreshFailureReason;
+
+  constructor(reason: TokenRefreshFailureReason, message: string) {
+    super(message);
+    this.name = "TokenRefreshError";
+    this.reason = reason;
+  }
+}
+
+export function isTokenRefreshError(
+  error: unknown,
+): error is TokenRefreshError {
+  return error instanceof TokenRefreshError;
+}
+
 export async function refreshGitHubToken({
   userId,
   refreshToken,
@@ -199,7 +222,17 @@ export async function refreshGitHubToken({
   });
 
   if (!response.ok) {
-    throw new Error(
+    let failure: TokenRefreshFailureReason = "transient";
+    try {
+      const body = (await response.clone().json()) as { error?: unknown };
+      if (response.status === 400 && body.error === "invalid_grant") {
+        failure = "revoked";
+      }
+    } catch {
+      // Non-JSON error body — stays transient.
+    }
+    throw new TokenRefreshError(
+      failure,
       `GitHub token refresh failed with status ${response.status}`,
     );
   }
@@ -211,7 +244,10 @@ export async function refreshGitHubToken({
   };
 
   if (!data.access_token) {
-    throw new Error("GitHub token refresh returned no access_token.");
+    throw new TokenRefreshError(
+      "transient",
+      "GitHub token refresh returned no access_token.",
+    );
   }
 
   const now = new Date();

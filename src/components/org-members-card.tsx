@@ -16,6 +16,7 @@ import { roleTone, STATUS_TONE_BADGE } from "@/core/display";
 import { cn } from "@/lib/utils";
 import {
   changeOrgMemberRoleAction,
+  leaveOrgMemberAction,
   removeOrgMemberAction,
 } from "@/server/actions/org";
 
@@ -33,7 +34,11 @@ export function OrgMembersCard({
   /** Owners may change/remove admins; admins may not. */
   canAssignAdmin?: boolean;
 }) {
+  const isMember = members.some(
+    (membership) => membership.userId === currentUserId,
+  );
   return (
+    <>
     <Table className="min-w-[40rem]">
       <TableHeader>
         <TableRow className="hover:bg-transparent">
@@ -159,5 +164,21 @@ export function OrgMembersCard({
         })}
       </TableBody>
     </Table>
+    {isMember ? (
+      <div className="mt-4 flex justify-end">
+        <StatefulActionForm
+          action={leaveOrgMemberAction}
+          submitLabel="Leave organization"
+          pendingLabel="Leaving…"
+          variant="outline"
+          size="sm"
+          confirmTitle="Leave organization"
+          confirmMessage="Leave this organization? You will lose access to its projects (a manager can re-invite you)."
+        >
+          <input type="hidden" name="orgId" value={orgId} />
+        </StatefulActionForm>
+      </div>
+    ) : null}
+    </>
   );
 }

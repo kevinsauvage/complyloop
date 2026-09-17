@@ -1,9 +1,20 @@
 /**
  * GitHub connector facade — the single entry point for app/assessment code
- * that needs GitHub. Internal modules (`github.ts`, `github-app.ts`,
- * `github-access.ts`, `git.ts`, `pr.ts`, `github-checks.ts`,
- * `github-tokens.ts`, `webhook-deliveries.ts`) are leaves: Octokit details,
- * token cryptography, and git plumbing stay behind this facade.
+ * that needs GitHub *operations* (repo listing, install tokens, PRs, Check
+ * Runs). Internal modules (`github.ts`, `github-app.ts`, `github-access.ts`,
+ * `pr.ts`, `github-checks.ts`, `github-tokens.ts`, `webhook-deliveries.ts`)
+ * are leaves: Octokit details, token cryptography, and git plumbing stay
+ * behind this facade.
+ *
+ * Deliberate direct-leaf imports (not facade violations):
+ * - `github-tokens.ts` crypto + `access-token.ts` request vault (`next/*`):
+ *   the auth root (`src/auth.ts`), `access-token.ts` consumers, and token
+ *   seeding import these directly. The connector must stay worker-bundle-safe
+ *   (the GH action bundles it via `scripts/build-worker.mjs` — no `next/*`
+ *   imports allowed here), so the request-scoped token vault stays a leaf.
+ * - `webhook-deliveries.ts` idempotency: owned by the webhook route.
+ * - `assertProductionGitHubApp` in the auth root: composition-root config
+ *   gate, not an operation.
  *
  * Out of scope (different owners): ephemeral checkouts
  * (`assessment/repo-checkout.ts` composes token + clone), user-scoped App
@@ -25,9 +36,10 @@ import type { PatchCandidate } from "@/ai/verified-fix";
 
 import { reportWarning } from "../observability";
 import { fetchGitHubRepo, resolveProjectGitHubToken } from "./github-access";
-import { listReposViaInstallations } from "./github-app";
+import { githubAppInstallUrl, listReposViaInstallations } from "./github-app";
 import {
   postPullRequestCheckRun,
+  summarizeAssessmentFailureForCheckRun,
   summarizeAssessmentForCheckRun,
 } from "./github-checks";
 import type { GitHubRepoSummary } from "./github-types";
@@ -37,6 +49,9 @@ export type { GitHubRepoSummary };
 
 /** Installation token for clone / PR / Checks. Null when not App-connected. */
 export { resolveProjectGitHubToken as getProjectToken };
+
+/** Public install URL for the GitHub App (repair banner, picker empty state). */
+export { githubAppInstallUrl };
 
 /** Repositories available to connect for a signed-in user's access token. */
 export function listAvailableRepos(options: {
@@ -74,17 +89,17 @@ export function createProjectPullRequest(
 }
 
 /**
- * Post the assessment Check Run on a PR head commit. Resolves the project
- * token internally and warns (never throws) when posting is impossible, so
- * the worker stays on its load → run → apply shape.
+ * Shared Check Run post: resolves the project token internally and warns
+ * (never throws) when posting is impossible, so the worker stays on its
+ * load → run → apply shape.
  */
-export async function postAssessmentCheckRun(input: {
+async function postCheckRunSafely(input: {
   project: Project;
   jobId: string;
   headSha: string;
-  openViolations: number;
-  failedRequirements: number;
-  assessmentId: string;
+  conclusion: "success" | "failure" | "neutral";
+  title: string;
+  summary: string;
 }): Promise<void> {
   const { project, jobId, headSha } = input;
   try {
@@ -104,11 +119,9 @@ export async function postAssessmentCheckRun(input: {
       fullName: project.github.fullName,
       headSha,
       token,
-      ...summarizeAssessmentForCheckRun({
-        openViolations: input.openViolations,
-        failedRequirements: input.failedRequirements,
-        assessmentId: input.assessmentId,
-      }),
+      conclusion: input.conclusion,
+      title: input.title,
+      summary: input.summary,
     });
     if (!posted.ok) {
       reportWarning("Pull-request Check Run could not be posted.", {
@@ -130,4 +143,48 @@ export async function postAssessmentCheckRun(input: {
       },
     );
   }
+}
+
+/**
+ * Post the assessment Check Run on a PR head commit. Resolves the project
+ * token internally and warns (never throws) when posting is impossible, so
+ * the worker stays on its load → run → apply shape.
+ */
+export async function postAssessmentCheckRun(input: {
+  project: Project;
+  jobId: string;
+  headSha: string;
+  openViolations: number;
+  failedRequirements: number;
+  assessmentId: string;
+}): Promise<void> {
+  await postCheckRunSafely({
+    project: input.project,
+    jobId: input.jobId,
+    headSha: input.headSha,
+    ...summarizeAssessmentForCheckRun({
+      openViolations: input.openViolations,
+      failedRequirements: input.failedRequirements,
+      assessmentId: input.assessmentId,
+    }),
+  });
+}
+
+/**
+ * Post a `failure` Check Run when the worker itself crashes on a PR preview
+ * scan — otherwise the PR waits on "expected checks" forever. Terminal
+ * failures only; retries stay quiet. Never throws.
+ */
+export async function postAssessmentFailureCheckRun(input: {
+  project: Project;
+  jobId: string;
+  headSha: string;
+  error: unknown;
+}): Promise<void> {
+  await postCheckRunSafely({
+    project: input.project,
+    jobId: input.jobId,
+    headSha: input.headSha,
+    ...summarizeAssessmentFailureForCheckRun(input.error),
+  });
 }

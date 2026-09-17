@@ -4,7 +4,10 @@ import type { Finding } from "@complyloop/analysis-core/contract/entities";
 
 import type { AssessmentJobStage } from "@/core/assessment-jobs";
 
-import { postAssessmentCheckRun } from "../github/github-connector";
+import {
+  postAssessmentCheckRun,
+  postAssessmentFailureCheckRun,
+} from "../github/github-connector";
 import { reportError, reportEvent, reportWarning } from "../observability";
 import { loadProjectDb } from "../workspace/db";
 import { type AssessmentRunResult, runAssessment } from "./assessment";
@@ -262,6 +265,21 @@ export async function settleRunningAssessmentJob(
       error,
       phase: status === "failed" ? "failed" : "retrying",
     });
+    // A PR preview whose scan crashes terminally must still signal the PR —
+    // otherwise it waits on "expected checks" forever. Retries stay quiet
+    // (the verdict or a later terminal failure posts instead). Never masks
+    // the original failure.
+    if (
+      status === "failed" &&
+      effectiveJob.trigger === "webhook" &&
+      effectiveJob.payload.pullRequestHeadSha
+    ) {
+      await postFailureCheckRunForJob(
+        effectiveJob,
+        effectiveJob.payload.pullRequestHeadSha,
+        error,
+      );
+    }
     reportError(error, {
       code:
         status === "failed"
@@ -275,8 +293,40 @@ export async function settleRunningAssessmentJob(
   }
 }
 
-/** Claims and processes a single job; safe to run concurrently on many workers. */
-export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult> {
+/**
+ * Best-effort failure Check Run for a terminally crashed PR preview scan.
+ * Loads the project fresh (the run itself never produced one) and never
+ * throws — a missing check signal must not mask the recorded job failure.
+ */
+async function postFailureCheckRunForJob(
+  job: AssessmentJob,
+  headSha: string,
+  error: unknown,
+): Promise<void> {
+  try {
+    const db = await loadProjectDb(job.projectId);
+    const project = db.projects.find(
+      (candidate) => candidate.id === job.projectId,
+    );
+    if (!project) return;
+    await postAssessmentFailureCheckRun({
+      project,
+      jobId: job.id,
+      headSha,
+      error,
+    });
+  } catch (postError) {
+    reportWarning("Pull-request failure Check Run could not be posted.", {
+      code: "github_check_run_failed",
+      projectId: job.projectId,
+      jobId: job.id,
+      error:
+        postError instanceof Error ? postError.message : String(postError),
+    });
+  }
+}
+
+/** Claims and processes a single job; safe to run concurrently on many workers. */export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult> {
   const job = await claimNextAssessmentJob();
   if (!job) {
     return { kind: "idle" };

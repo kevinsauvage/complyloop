@@ -217,6 +217,15 @@ export async function preparePullRequest(
     const fullName = project.github?.fullName;
     const token = await resolveProjectGitHubToken(project);
 
+    // No silent fall-through: without a token nothing is pushed and the
+    // ephemeral checkout is discarded, so claiming a "created branch"
+    // below would describe a branch that exists nowhere.
+    if (!fullName || !token) {
+      throw new PublicError(
+        "GitHub token unavailable — reconnect the repository, then retry. Nothing was pushed.",
+      );
+    }
+
     if (fullName && token) {
       // Token travels per-request in the HTTP Authorization header, never in
       // a URL or child-process env.

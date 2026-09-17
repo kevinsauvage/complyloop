@@ -9,7 +9,9 @@ import { emptyWorkspaceSlice } from "@complyloop/db/types";
 
 import {
   changeOrgMemberRole,
+  findOrgMembershipByLogin,
   inviteOrgMember,
+  leaveOrgMember,
   removeOrgMember,
 } from "./org-membership";
 import {
@@ -325,5 +327,72 @@ describe("buildOrgMembershipIndex", () => {
     expect(index.byOrgId.get(orgB.id)).toEqual(filterByOrg(orgB.id));
     expect(index.byUserId.get("user-a")).toEqual(filterByUser("user-a"));
     expect(index.byUserId.get("user-b")).toEqual(filterByUser("user-b"));
+  });
+});
+
+describe("leaveOrgMember", () => {
+  it("returns the caller's membership id for removal", () => {
+    const db = emptyWorkspaceSlice();
+    const org = seedOwnerOrg(db, "user-a", "alice");
+    applyMembership(db, inviteOrgMember(db, org.id, "user-a", "bob", "member"));
+    claimInvite(db, "user-b", "bob");
+
+    expect(leaveOrgMember(db, org.id, "user-b")).toEqual({
+      removedMembershipId: expect.any(String),
+    });
+  });
+
+  it("blocks the last owner while other members remain", () => {
+    const db = emptyWorkspaceSlice();
+    const org = seedOwnerOrg(db, "user-a", "alice");
+    applyMembership(db, inviteOrgMember(db, org.id, "user-a", "bob", "member"));
+    claimInvite(db, "user-b", "bob");
+
+    expect(() => leaveOrgMember(db, org.id, "user-a")).toThrow(
+      /last owner/,
+    );
+  });
+
+  it("lets an owner leave when another owner remains", () => {
+    const db = emptyWorkspaceSlice();
+    const org = seedOwnerOrg(db, "user-a", "alice");
+    db.memberships.push({
+      id: "m-zoe",
+      orgId: org.id,
+      role: "owner",
+      userId: "user-zoe",
+      githubLogin: "zoe",
+      createdAt: new Date().toISOString(),
+    });
+
+    expect(leaveOrgMember(db, org.id, "user-a").removedMembershipId).toBe(
+      db.memberships[0]!.id,
+    );
+  });
+
+  it("blocks the sole member and strangers", () => {
+    const db = emptyWorkspaceSlice();
+    const org = seedOwnerOrg(db, "user-a", "alice");
+
+    expect(() => leaveOrgMember(db, org.id, "user-a")).toThrow(
+      /last member/,
+    );
+    expect(() => leaveOrgMember(db, org.id, "ghost")).toThrow(
+      /not a member/,
+    );
+  });
+});
+
+describe("findOrgMembershipByLogin", () => {
+  it("matches case-insensitively and tolerates @", () => {
+    const db = emptyWorkspaceSlice();
+    const org = seedOwnerOrg(db, "user-a", "alice");
+    applyMembership(
+      db,
+      inviteOrgMember(db, org.id, "user-a", "Bob", "member"),
+    );
+
+    expect(findOrgMembershipByLogin(db, org.id, "@BOB")?.role).toBe("member");
+    expect(findOrgMembershipByLogin(db, org.id, "carol")).toBeUndefined();
   });
 });

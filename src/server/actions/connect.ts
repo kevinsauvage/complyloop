@@ -6,7 +6,7 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 import type { ActionState } from "@/core/action-state";
 import { parseForm, requiredField } from "@/core/validate";
-import { getGitHubAccessToken } from "@/server/github/access-token";
+import { getGitHubAccessTokenState } from "@/server/github/access-token";
 
 import { runAction } from "../action-state";
 import {
@@ -87,12 +87,18 @@ export async function connectGitHubRepoAction(
     );
 
     await assertConnectRateLimit(userId);
-    const userAccessToken = await getGitHubAccessToken();
-    if (!userAccessToken) {
+    const tokenState = await getGitHubAccessTokenState();
+    if (tokenState.state === "revoked") {
+      throw new PublicError(
+        "GitHub revoked this app's authorization. Sign out and sign in again to reconnect.",
+      );
+    }
+    if (tokenState.state !== "valid") {
       throw new PublicError(
         "GitHub access token missing. Sign out and sign in again to grant repo access.",
       );
     }
+    const userAccessToken = tokenState.token;
 
     const installationId = await resolveUserInstallationForRepo({
       userAccessToken,

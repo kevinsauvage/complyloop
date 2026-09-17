@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { isGitHubAuthConfigured } from "@/auth";
+import { isProductionRuntime } from "@/auth-secret";
 import { SignInWithGitHubButton } from "@/components/sign-in-with-github-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getSession } from "@/server/auth-session";
+import { isGitHubAppConfigured } from "@/server/github/github-app";
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -61,6 +63,14 @@ export default async function LoginPage({
     }
   }
 
+  // A fresh sign-in with missing prod App config throws inside the jwt
+  // callback and never reaches the Configuration copy above — surface it
+  // proactively instead of letting the button explode.
+  const showConfigurationError =
+    isProductionRuntime() &&
+    isGitHubAuthConfigured() &&
+    !isGitHubAppConfigured();
+
   return (
     <div className="relative flex min-h-[calc(100vh-8rem)] items-center justify-center px-4 py-16 sm:px-6">
       <div
@@ -83,6 +93,13 @@ export default async function LoginPage({
             <Alert variant="destructive">
               <AlertDescription>
                 {AUTH_ERROR_COPY[authError] ?? FALLBACK_AUTH_ERROR_COPY}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {showConfigurationError ? (
+            <Alert variant="destructive">
+              <AlertDescription>
+                {AUTH_ERROR_COPY.Configuration}
               </AlertDescription>
             </Alert>
           ) : null}

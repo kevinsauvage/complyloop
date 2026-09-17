@@ -56,6 +56,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     : [],
   secret: authSecret,
   trustHost: true,
+  // Explicit session lifetimes (not NextAuth defaults): 30-day sessions with
+  // a daily refresh so active users keep a sliding window without re-login.
+  session: { maxAge: 30 * 24 * 60 * 60, updateAge: 24 * 60 * 60 },
   events: {
     async signIn(message) {
       // Without a DB adapter, Auth.js mints a random UUID as `user.id`. Identity

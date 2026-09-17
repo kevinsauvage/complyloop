@@ -159,6 +159,20 @@ export async function listMembershipsForOrgs(
   return rows.map((row) => row.payload);
 }
 
+/** Unclaimed invites older than this never resolve at sign-in (pruned on claim). */
+export const PENDING_INVITE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** True for unclaimed invite rows past the TTL. Fail-open on bad dates. */
+export function isUnclaimedInviteExpired(
+  payload: OrgMembership,
+  nowMs: number = Date.now(),
+): boolean {
+  if (payload.userId) return false;
+  const created = Date.parse(payload.createdAt);
+  if (!Number.isFinite(created)) return false;
+  return nowMs - created > PENDING_INVITE_TTL_MS;
+}
+
 export async function claimMembershipsForLogin(
   tx: DrizzleDb,
   userId: string,
@@ -176,6 +190,13 @@ export async function claimMembershipsForLogin(
       row.payload.githubLogin.toLowerCase() === login &&
       row.userId !== userId
     ) {
+      // Stale unclaimed invites never resolve: prune instead of granting a
+      // months-old role. Claimed rows (userId set) are never pruned here.
+      if (!row.userId && isUnclaimedInviteExpired(row.payload, Date.now())) {
+        await deleteMembership(tx, row.payload.id);
+        changed = true;
+        continue;
+      }
       const updated: OrgMembership = { ...row.payload, userId };
       await upsertMembership(tx, updated);
       changed = true;

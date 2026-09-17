@@ -13,19 +13,6 @@ There is exactly one P0 (a real dependency-direction violation); everything else
 
 ---
 
-## P0 — Critical
-
-- [x] **Fix persistence → actions layer inversion (`workspace-write` imports from `actions/shared`)** — DONE 2026-09-17: `requireOnFindingProject` lives in `workspace/project-visibility.ts`; `workspace-write.ts` + `remediation.ts` import from there; `requireFindingContext` deleted (zero callers).
-  - Why: the write/persistence layer depends upward on the mutation edge. `actions/*` already depend on `workspace-write`; the reverse edge creates a conceptual cycle (`workspace-write ↔ actions/shared` via `define-action.ts`) and lets persistence policy drift into action helpers. This is the only true dependency-direction violation found.
-  - Where: `src/server/workspace/workspace-write.ts:42` (`import { requireOnFindingProject } from "../actions/shared"`); consumed at `src/server/workspace/workspace-write.ts` (finding-scoped writes); the counterpart direction `src/server/actions/assessment.ts:24`, `src/server/actions/project-preset.ts:13`, `src/server/actions/connect.ts:36` (actions → workspace-write, correct).
-  - Current: `workspace-write.ts` imports `requireOnFindingProject` from `src/server/actions/shared.ts:60-71`, while `shared.ts:11` imports `project-visibility` and `define-action.ts:7-12` imports both sides.
-  - Change: move `requireOnFindingProject` (and its 2-line sibling `requireFindingContext` in `shared.ts:73-81`) down into `src/server/workspace/` (e.g. `project-visibility.ts` or `workspace.ts`) as pure workspace policy; `actions/shared.ts` and `workspace-write.ts` both import from there. Delete the upward import.
-  - Next.js principle: Next.js has no opinion here, but every React/Next layering guide agrees: persistence never imports from the mutation edge; Server Actions are the edge and depend inward.
-  - Impact: one-way dependency `actions → workspace → db/repo` is restored; the cycle risk disappears; future readers stop asking which side owns finding-scope resolution.
-  - Risk: medium (touches the write path; cover with existing `workspace.integration.test.ts` + action tests).
-
----
-
 ## P1 — High
 
 - [ ] **Split the 769-line `project-view.ts` god-loader per route**
@@ -59,22 +46,13 @@ There is exactly one P0 (a real dependency-direction violation); everything else
   - Risk: low.
 
 - [ ] **Stop shipping client JS to marketing pages (`TooltipProvider` + `Toaster` in root layout)**
-  - Why: `src/app/layout.tsx:49-59` wraps *every* route — including static `/`, `/login`, `/legal/*` — in `next-themes` + Radix tooltip + Sonner. Marketing pages pay client-JS cost for app-only interactivity. The repo already acknowledges this (`docs/ai/architecture.md:250-253`: "until marketing pages need zero client JS").
+  - Why: `src/app/layout.tsx:49-59` wraps _every_ route — including static `/`, `/login`, `/legal/*` — in `next-themes` + Radix tooltip + Sonner. Marketing pages pay client-JS cost for app-only interactivity. The repo already acknowledges this (`docs/ai/architecture.md:250-253`: "until marketing pages need zero client JS").
   - Where: `src/app/layout.tsx:49-59` (`ThemeProvider` at `:49-54`, `TooltipProvider` at `:55-58`, `Toaster` at `:57`); marketing shell `src/app/(marketing)/layout.tsx:8-30`, pages `src/app/(marketing)/page.tsx`, `src/app/(marketing)/login/page.tsx`, `src/app/(marketing)/legal/*/page.tsx`.
   - Current: one global provider shell for app + marketing.
   - Change: keep `ThemeProvider` in the root (it must stay high to avoid FOUC). Move `TooltipProvider` + `Toaster` into `src/app/(app)/layout.tsx` so only the authenticated shell ships them. Verify no marketing component uses `Tooltip`/`sonner` first (today: none — toasts live in `src/hooks/use-action-toast.ts`, used only by app forms).
   - Next.js principle: push client providers as far down as the routes that need them; keep the root layout server-only HTML shell.
   - Impact: marketing routes ship ~zero client JS; app behavior unchanged.
   - Risk: low (layout-only move; confirm with `next build` bundle + visual check of toasts/tooltips in `(app)`).
-
-- [ ] **Collapse the `github-connector.ts` facade or document it as the single boundary**
-  - Why: `src/server/github/github-connector.ts:1-12` declares itself a facade, and `:36-60` is pure delegation (`getProjectToken` alias, `listAvailableRepos → listReposViaInstallations`, `fetchRepo → fetchGitHubRepo`). Every caller (`src/components/connect-project-panel.tsx:14`, `src/app/api/github/repos/route.ts:7`) pays a double-hop to reach `github.ts:13-131`, `github-access.ts`, `github-app.ts`, `git-http.ts`, `pr.ts`, `github-checks.ts`, `github-tokens.ts`, `webhook-deliveries.ts`. Either the facade earns its keep as *the* boundary or it is indirection.
-  - Where: `src/server/github/github-connector.ts:36-60`; real logic in `src/server/github/github.ts:13-131` and siblings.
-  - Current: 4-way split (`github.ts` vs `github-connector.ts` vs `github-access.ts` vs `github-app.ts`) forces readers to chase delegation for every GitHub call.
-  - Change (pick one, do not half-do): (a) keep the facade but make it the *only* import surface for `app/` + `components/` (enforce with the existing ESLint boundary) and let `github.ts` internals stay private; or (b) delete the facade and import the real modules directly. Option (a) is recommended — the boundary value is real (token handling + install scoping), the cost is only the double-hop while reading.
-  - Next.js principle: prefer direct function calls over pass-through modules; when a boundary module exists, it should be the enforced entry point, not an optional hop.
-  - Impact: one obvious GitHub entry point; no more "which of the four github files do I import?" confusion.
-  - Risk: low (import-path-only change).
 
 ---
 
@@ -207,7 +185,7 @@ There is exactly one P0 (a real dependency-direction violation); everything else
 2. **Split `project-view.ts` per route + give settings its own loader** — the 769-line god-loader and its one exception (`settings/page.tsx:48`) are the biggest readability tax in the app layer.
 3. **`Promise.all` the independent loader awaits** — free latency win on every dashboard/findings/requirements/evidence load.
 4. **Move `TooltipProvider` + `Toaster` to `(app)/layout.tsx`** — marketing pages stop shipping app-only client JS; root stays a server shell.
-5. **Make `github-connector.ts` the enforced boundary or delete it** — ends the four-file "which github module?" chase.
+5. ~~**Make `github-connector.ts` the enforced boundary or delete it** — ends the four-file "which github module?" chase.~~ — DONE 2026-09-17 (documented boundary, not enforced).
 6. **Convert `GitHubRepoList` to RSC** — the biggest convertible client-bundle win; establishes the "forms don't need the directive" precedent.
 7. ~~**Consolidate the action-idiom trio + canonicalize the `ActionState` import** — the mutation path reads top-to-bottom instead of across three files and two import paths.~~ — DONE 2026-09-17 (trio kept by decision above; `ActionState` canonicalized).
 8. **Add the four missing segment `error.tsx` files; delete the Sentry demo** — scoped retries where they matter, and one fewer legacy-`Head` demo in prod.

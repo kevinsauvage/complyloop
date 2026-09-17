@@ -43,6 +43,19 @@ function assertCanManageTarget(
   }
 }
 
+/** Finds an org membership by GitHub login (case-insensitive, `@`-tolerant). */
+export function findOrgMembershipByLogin(
+  db: WorkspaceSlice,
+  orgId: string,
+  githubLogin: string,
+): OrgMembership | undefined {
+  const login = githubLogin.trim().replace(/^@/, "").toLowerCase();
+  if (!login) return undefined;
+  return membershipsForOrg(buildOrgMembershipIndex(db.memberships), orgId).find(
+    (membership) => membership.githubLogin.toLowerCase() === login,
+  );
+}
+
 /** Returns a new or updated membership; does not mutate `db`. */
 export function inviteOrgMember(
   db: WorkspaceSlice,
@@ -63,10 +76,7 @@ export function inviteOrgMember(
     throw new PublicError("Invalid role.");
   }
 
-  const existing = membershipsForOrg(index, orgId).find(
-    (membership) =>
-      membership.githubLogin.toLowerCase() === login.toLowerCase(),
-  );
+  const existing = findOrgMembershipByLogin(db, orgId, login);
   if (existing) {
     assertCanManageTarget(actorRole, existing.role, "change");
     return { ...existing, role };
@@ -99,6 +109,44 @@ export function removeOrgMember(
   );
   if (!target) throw new PublicError("Membership not found.");
   assertCanManageTarget(actorRole, target.role, "remove");
+}
+
+/**
+ * Self-removal: any member may leave their own org. Blocked when the actor
+ * is the last remaining owner while other members exist (would orphan
+ * admin), or the last member outright (delete the org instead). Returns the
+ * removed membership id; caller persists via `deleteMembershipIds`.
+ */
+export function leaveOrgMember(
+  db: WorkspaceSlice,
+  orgId: string,
+  actorUserId: string,
+): { removedMembershipId: string } {
+  const members = membershipsForOrg(
+    buildOrgMembershipIndex(db.memberships),
+    orgId,
+  );
+  const target = members.find(
+    (membership) => membership.userId === actorUserId,
+  );
+  if (!target) throw new PublicError("You are not a member of that organization.");
+  if (members.length <= 1) {
+    throw new PublicError(
+      "You are the last member — delete the organization instead of leaving it.",
+    );
+  }
+  if (target.role === "owner") {
+    const otherOwner = members.some(
+      (membership) =>
+        membership.role === "owner" && membership.userId !== actorUserId,
+    );
+    if (!otherOwner) {
+      throw new PublicError(
+        "You are the last owner — assign another owner before leaving.",
+      );
+    }
+  }
+  return { removedMembershipId: target.id };
 }
 
 /**
