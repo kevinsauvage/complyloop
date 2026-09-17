@@ -1,6 +1,5 @@
 "use client";
 
-import type { VariantProps } from "class-variance-authority";
 import { useEffect, useId, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 
@@ -14,10 +13,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Button, buttonVariants } from "@/components/ui/button";
-
-type ButtonVariant = VariantProps<typeof buttonVariants>["variant"];
-type ButtonSize = VariantProps<typeof buttonVariants>["size"];
+import type { ButtonSize, ButtonVariant } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 
 /** Pending label rule shared by every submit control. */
 function resolveSubmitLabel(

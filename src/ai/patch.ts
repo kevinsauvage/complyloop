@@ -28,7 +28,7 @@ const AI_PATCH_FAILED_MESSAGE =
   "AI patch generation failed. Re-run the assessment and try again, or use the developer handoff to fix it manually.";
 
 /** Total budget (chars) for all file contents in one patch prompt. */
-export const PATCH_PROMPT_FILE_BUDGET = 60_000;
+const PATCH_PROMPT_FILE_BUDGET = 60_000;
 
 const TRUNCATION_MARKER = "\n/* …truncated… */";
 const UNTRUSTED_CLOSE_TAG = "</untrusted-file>";
@@ -44,7 +44,7 @@ function escapeUntrustedCloseTag(text: string): string {
 }
 
 /** Shrink the largest files first until the contents fit the total budget. */
-export function fitFilesToBudget(
+function fitFilesToBudget(
   fileContents: Record<string, string>,
   budget: number = PATCH_PROMPT_FILE_BUDGET,
 ): Map<string, string> {
@@ -82,7 +82,7 @@ export function fitFilesToBudget(
 }
 
 /** Renders budgeted file contents with untrusted-data wrappers for the prompt. */
-export function filePromptSection(
+function filePromptSection(
   fileContents: Record<string, string>,
   budget: number = PATCH_PROMPT_FILE_BUDGET,
 ): string {

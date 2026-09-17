@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { humanizeReasonSlug } from "@/core/display";
 import { cn } from "@/lib/utils";
 import {
   clearRequirementExceptionAction,
@@ -83,7 +84,7 @@ export function RequirementRemediationActions({
         <Alert className="border-status-review/30 bg-status-review/10">
           <AlertTriangle className="size-4 text-status-review" aria-hidden />
           <AlertTitle className="text-status-review">
-            Exception: {requirement.exception.reason.replace(/_/g, " ")}
+            Exception: {humanizeReasonSlug(requirement.exception.reason)}
           </AlertTitle>
           <AlertDescription className="text-muted-foreground">
             {requirement.exception.note}

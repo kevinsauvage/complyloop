@@ -75,17 +75,23 @@ function footerMarkdown(): string[] {
   ];
 }
 
+function countRows<T extends string>(
+  statuses: readonly T[],
+  counts: Record<T, number>,
+  label: (status: T) => string,
+): string[] {
+  return statuses.map((status) => `| ${mdProse(label(status))} | ${counts[status]} |`);
+}
+
 function statusCountRows(counts: Record<RequirementStatus, number>): string[] {
-  return REQUIREMENT_STATUSES.map(
-    (status) =>
-      `| ${mdProse(requirementStatusDisplay(status).label)} | ${counts[status]} |`,
+  return countRows(REQUIREMENT_STATUSES, counts, (status) =>
+    requirementStatusDisplay(status).label,
   );
 }
 
 function findingCountRows(counts: Record<FindingStatus, number>): string[] {
-  return FINDING_STATUSES.map(
-    (status) =>
-      `| ${mdProse(findingStatusDisplay(status).label)} | ${counts[status]} |`,
+  return countRows(FINDING_STATUSES, counts, (status) =>
+    findingStatusDisplay(status).label,
   );
 }
 

@@ -388,8 +388,14 @@ export async function claimNextAssessmentJob(): Promise<AssessmentJob | null> {
   });
 }
 
-export async function completeAssessmentJob(job: AssessmentJob): Promise<void> {
-  const drizzle = await getDrizzle();
+function reportStaleLease(jobId: string): void {
+  reportWarning("Stale lease write rejected for assessment job", {
+    code: "assessment_job_stale_lease",
+    jobId,
+  });
+}
+
+export async function completeAssessmentJob(job: AssessmentJob): Promise<void> {  const drizzle = await getDrizzle();
   const now = new Date().toISOString();
   const result = await drizzle
     .update(assessmentJobs)
@@ -410,10 +416,7 @@ export async function completeAssessmentJob(job: AssessmentJob): Promise<void> {
     )
     .returning({ id: assessmentJobs.id });
   if (result.length === 0) {
-    reportWarning("Stale lease write rejected for assessment job", {
-      code: "assessment_job_stale_lease",
-      jobId: job.id,
-    });
+    reportStaleLease(job.id);
   }
 }
 
@@ -450,10 +453,7 @@ export async function failAssessmentJob(
     )
     .returning({ id: assessmentJobs.id });
   if (result.length === 0) {
-    reportWarning("Stale lease write rejected for assessment job", {
-      code: "assessment_job_stale_lease",
-      jobId: job.id,
-    });
+    reportStaleLease(job.id);
   }
   return status;
 }

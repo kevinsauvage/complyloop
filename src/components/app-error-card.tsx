@@ -49,11 +49,8 @@ export function AppErrorCard({
       if (error.digest) scope.setExtra("digest", error.digest);
       Sentry.captureException(error);
     });
-  }, [error, reportTag]);
-
-  useEffect(() => {
     headingRef.current?.focus();
-  }, []);
+  }, [error, reportTag]);
 
   const digest = error.digest;
 

@@ -23,7 +23,7 @@ export {
 export { applyFileEdits } from "./patch-apply";
 export { complyLoopGate } from "./patch-gate";
 
-export const PATCH_PR_SOURCE_ONLY_MESSAGE =
+const PATCH_PR_SOURCE_ONLY_MESSAGE =
   "Patch PRs are only available for source findings. Use the developer handoff for runtime DOM findings.";
 
 export interface GeneratePatchCandidateOptions {

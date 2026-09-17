@@ -1,11 +1,10 @@
 "use client";
 
-import type { VariantProps } from "class-variance-authority";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useActionState, useEffect, useId, useRef } from "react";
 
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { buttonVariants } from "@/components/ui/button";
+import type { ButtonSize, ButtonVariant } from "@/components/ui/button";
 import { type ActionState, initialActionState } from "@/core/action-state";
 import { useActionToast } from "@/hooks/use-action-toast";
 
@@ -28,9 +27,6 @@ function RefreshOnSuccess({ message }: { message: string }) {
 
   return null;
 }
-
-type ButtonVariant = VariantProps<typeof buttonVariants>["variant"];
-type ButtonSize = VariantProps<typeof buttonVariants>["size"];
 
 export function StatefulActionForm({
   action,

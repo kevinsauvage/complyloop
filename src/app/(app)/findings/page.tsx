@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import type {
-  Finding,
-  Remediation,
-} from "@complyloop/analysis-core/contract/entities";
+import type { Finding } from "@complyloop/analysis-core/contract/entities";
 
 import { toFindingListItems } from "@/components/findings/finding-list-items";
 import { FindingsBulkList } from "@/components/findings/findings-bulk-list";
@@ -83,7 +80,11 @@ export default async function FindingsPage({
     return toFindingListItems(
       withRemediation,
       (controlId) => displayControl(controlId, project),
-      (findingId) => remediationByFindingId.get(findingId) as Remediation,
+      (findingId) => {
+        const remediation = remediationByFindingId.get(findingId);
+        if (!remediation) throw new Error(`Missing remediation for ${findingId}`);
+        return remediation;
+      },
     );
   };
 

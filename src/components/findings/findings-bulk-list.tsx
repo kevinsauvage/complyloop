@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
@@ -136,12 +136,17 @@ export function FindingsBulkList({
   const selectAllId = useId();
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [showDismiss, setShowDismiss] = useState(false);
+  const selectAllRef = useRef<HTMLInputElement>(null);
 
   const allIds = items.map((item) => item.finding.id);
   const allSelected =
     allIds.length > 0 && allIds.every((id) => selected.has(id));
   const someSelected = selected.size > 0 && !allSelected;
   const selectedCount = selected.size;
+
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = someSelected;
+  }, [someSelected]);
   const approvableIds = items
     .filter((item) =>
       canBulkApproveRemediation(
@@ -184,9 +189,7 @@ export function FindingsBulkList({
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border/70 bg-muted/20 px-3 py-2.5">
           <div className="flex items-center gap-2">
             <input
-              ref={(el) => {
-                if (el) el.indeterminate = someSelected;
-              }}
+              ref={selectAllRef}
               id={selectAllId}
               type="checkbox"
               checked={allSelected}

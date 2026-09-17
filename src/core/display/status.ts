@@ -349,3 +349,8 @@ export function requirementStatusReportClass(
     "requirement status tone",
   );
 }
+
+/** Human label for an underscore reason slug (exception/dismissal reasons). */
+export function humanizeReasonSlug(reason: string): string {
+  return reason.replace(/_/g, " ");
+}

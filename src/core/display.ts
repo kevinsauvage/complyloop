@@ -31,6 +31,7 @@ export {
   determinationDisplay,
   engineDisplay,
   findingStatusDisplay,
+  humanizeReasonSlug,
   provenanceDisplay,
   remediationStatusDisplay,
   requirementStatusDisplay,

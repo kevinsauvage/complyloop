@@ -23,6 +23,7 @@ import { RuntimeCoverageChip } from "@/components/dashboard/runtime-coverage-chi
 import { FormattedDateTime } from "@/components/formatted-datetime";
 import { PageActionLink, PageSection } from "@/components/page-primitives";
 import { PermissionNotice } from "@/components/permission-notice";
+import { hasPreviewUrl } from "@/core/assessment-helpers";
 import { displayControl } from "@/server/reporting/report";
 import { loadDashboardView } from "@/server/workspace/dashboard-view";
 
@@ -184,7 +185,7 @@ export default async function DashboardPage() {
           >
             <UnableToVerifyRuntimeHint
               count={counts.unable_to_verify}
-              hasPreviewUrl={Boolean(project.runtimeBaseUrl?.trim())}
+              hasPreviewUrl={hasPreviewUrl(project)}
               runtimeError={latestAssessment.engines?.runtimeError}
             />
             <DashboardStatusCounts counts={counts} />

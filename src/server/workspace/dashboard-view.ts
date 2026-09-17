@@ -19,6 +19,7 @@ import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuse
 
 import {
   countByStatus,
+  hasPreviewUrl,
   latestAssessmentFor,
 } from "@/core/assessment-helpers";
 import {
@@ -128,7 +129,7 @@ export async function loadDashboardView(): Promise<DashboardView> {
   const failedCount = counts.failed;
   const passedCount = counts.passed;
   const totalRequirements = requirements.length;
-  const hasPreviewUrl = Boolean(project.runtimeBaseUrl?.trim());
+  const hasPreviewUrlValue = hasPreviewUrl(project);
   const showFirstRun = !latestAssessment && hasConnectedProject;
   const passRateValue =
     totalRequirements > 0
@@ -204,7 +205,7 @@ export async function loadDashboardView(): Promise<DashboardView> {
               cta: "Triage findings",
               href: "/findings?tab=open",
             }
-          : counts.unable_to_verify > 0 && !hasPreviewUrl
+          : counts.unable_to_verify > 0 && !hasPreviewUrlValue
             ? {
                 title: "Unlock live-page checks",
                 description: `${counts.unable_to_verify} requirement${counts.unable_to_verify === 1 ? "" : "s"} can't be verified without a preview URL — contrast, landmarks, and page structure stay unchecked.`,

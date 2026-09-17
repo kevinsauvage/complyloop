@@ -33,6 +33,7 @@ import { countByStatus } from "@/core/assessment-helpers";
 import {
   determinationDisplay,
   evidenceDisplay,
+  humanizeReasonSlug,
   remediationStatusDisplay,
   requirementStatusDisplay,
   severityDisplay,
@@ -257,7 +258,7 @@ function toAuditRequirementRow(
     updatedAt: requirement.updatedAt,
     exception: requirement.exception
       ? {
-          reason: requirement.exception.reason.replace(/_/g, " "),
+          reason: humanizeReasonSlug(requirement.exception.reason),
           note: requirement.exception.note || "(no note)",
           at: requirement.exception.at,
         }

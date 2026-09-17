@@ -21,7 +21,6 @@
     "test:db": "vitest run packages/db/src/alerts-upsert.test.ts packages/db/src/constraints.test.ts packages/db/src/evidence-append-only.test.ts packages/db/src/persist-project-rows.integration.test.ts src/server/workspace/workspace.integration.test.ts",
     "e2e:seed": "tsx --conditions=react-server scripts/e2e-seed.ts",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
     "playwright:install": "playwright install chromium",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --conditions=react-server scripts/db-migrate.ts",

@@ -27,7 +27,11 @@ import { scanChangedFiles, scanProject } from "@complyloop/analysis-core/scan";
 import type { RawFinding } from "@complyloop/analysis-core/types";
 import { resolveInside } from "@complyloop/analysis-core/workspace-path";
 
-import { countByStatus, latestAssessmentFor } from "@/core/assessment-helpers";
+import {
+  countByStatus,
+  hasPreviewUrl,
+  latestAssessmentFor,
+} from "@/core/assessment-helpers";
 import type { AssessmentJobStage } from "@/core/assessment-jobs";
 import { advanceRemediation } from "@/core/remediation-lifecycle";
 
@@ -451,7 +455,7 @@ export async function runAssessment(
       : null;
 
   // — Stage 4: runtime scan (only when a preview URL is configured). —
-  const runtimeConfigured = Boolean(project.runtimeBaseUrl?.trim());
+  const runtimeConfigured = hasPreviewUrl(project);
   const runtimeResult = await timed("runtime", () =>
     runtimeConfigured
       ? scanRuntime({
