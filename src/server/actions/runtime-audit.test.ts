@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
+import { initialActionState } from "@/core/action-state";
 import {
   actionWorkspaceMocks,
   clearProjectWritePayloads,
@@ -13,7 +14,6 @@ import {
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
 
-import { initialActionState } from "../action-state";
 import { updateRuntimeAuditAction } from "./runtime-audit";
 
 const { withProjectWrite } = actionWorkspaceMocks;

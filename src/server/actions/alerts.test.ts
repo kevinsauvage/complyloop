@@ -2,6 +2,7 @@ import "@/test-fixtures/register-action-workspace-mock";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { initialActionState } from "@/core/action-state";
 import {
   actionAuthMocks,
   actionWorkspaceMocks,
@@ -9,7 +10,6 @@ import {
 import { testMembership } from "@/test-fixtures/membership";
 import { testProject } from "@/test-fixtures/project";
 
-import { initialActionState } from "../action-state";
 import { markAlertReadAction } from "./alerts";
 
 const { withProjectLock, getWorkspace } = actionWorkspaceMocks;

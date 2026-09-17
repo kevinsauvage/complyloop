@@ -41,35 +41,6 @@ No queue, claim, lease, retry, or scan semantics change. Pure module-boundary mo
 
 ---
 
-### [x] P2-2 (implemented) — Give jobs real stage progress instead of derived checkoutMs + 3s status polling
-
-**Why:**
-Today the UI knows only `queued`/`running` (+ job history). Long scans are a black box: `checkoutMs` is _derived_ (`total − scan − apply`, `assessment-worker.ts:136-145`), in-scan splits live only in evidence/logs after completion, and a killed function leaves nothing but "the last progress line names the stall" (`assessment.ts:245-249`). Users refresh a Pipeline section that cannot answer "what is it doing".
-
-**Where:**
-`src/server/assessment/assessment-worker.ts` (timing L136–145), `src/server/assessment/assessment.ts` (`timed()` L244–255, `stageMs` L490), `src/components/dashboard/dashboard-pipeline-section.tsx` + `assessment-job-status-live` (polling UI), `src/app/api/projects/[projectId]/assessment-jobs/route.ts` (poll endpoint).
-
-**Current flow:**
-`console.info([progress] …)` markers → Vercel/GH logs. `stageMs` persisted post-hoc on `assessment_completed` evidence. UI polls job rows every 3s.
-
-**Problem:**
-Two progress systems (logs vs job status) with no shared representation; derived timings instead of measured ones (checkout hooks were avoided "to avoid hooks inside the checkout helper" — a hook parameter is cheap); no stage survives a crash.
-
-**Proposed simplification:**
-Add a lightweight progress update: `job.payload.stage` (`checkout` | `changedetection` | `ast` | `runtime` | `reconcile` | `apply`) + `stageStartedAt`, written fire-and-forget at each `timed()` boundary (best-effort, never fails the run — same posture as heartbeats). Measure checkout directly with a hook parameter on `withProjectCheckout` instead of deriving it. UI renders the stage string; logs keep the markers. Do **not** build an event system / websocket / separate progress table.
-
-**Why this is safe:**
-Payload-only, best-effort writes; claim/lease/complete logic untouched; stale payload writes are harmless (status column remains the source of truth).
-
-**Impact:** Medium (real UX progress; attributable production slowness)
-
-**Complexity:** Medium (payload schema + ~6 write sites + UI string).
-
-**Evidence:**
-`assessment-worker.ts:92-96` (comment explaining why checkout is derived, not measured); `:141` (`checkoutMs: Math.max(totalMs − scanMs − applyMs, 0)`); `assessment.ts:246-249` (crash leaves only log lines); `dashboard-pipeline-section.tsx` (polls job rows only).
-
----
-
 ### [ ] P2-3 — `reconcileControlFindings` re-filters all findings per control (O(C×F)×2); index once
 
 **Why:**
@@ -171,7 +142,7 @@ No AI, status, or verification logic changes. Stale suggestions become visible i
 ### [ ] P2-9 — Axe crash fails the whole runtime sub-scan while every other engine failure is contained
 
 **Why:**
-Engine containment is inconsistent: throwing custom probes are recorded on `probeFailures` and the pass continues; html-validate failures are non-fatal; but an axe throw escapes the per-page loop and the whole-scan catch discards already-collected pages (`findings: [], pagesScanned: 0`). Blast-radius note (verified 2026-09-16): at the *job* level this no longer fails anything — `assessment.ts` degrades to `unable_to_verify` and continues — so the loss is the runtime sub-scan's findings, not the job. One flaky page (axe OOM/timeout on a large DOM) still wipes the other pages' results.
+Engine containment is inconsistent: throwing custom probes are recorded on `probeFailures` and the pass continues; html-validate failures are non-fatal; but an axe throw escapes the per-page loop and the whole-scan catch discards already-collected pages (`findings: [], pagesScanned: 0`). Blast-radius note (verified 2026-09-16): at the _job_ level this no longer fails anything — `assessment.ts` degrades to `unable_to_verify` and continues — so the loss is the runtime sub-scan's findings, not the job. One flaky page (axe OOM/timeout on a large DOM) still wipes the other pages' results.
 
 **Where (verified 2026-09-16):**
 `packages/analysis-core/src/runtime/scan.ts` (page loop L374–492; unguarded axe call L401; html-validate guard L417–422; whole-scan catch L610–632), `scan-error.ts` (`classifyRuntimeScanError` L105–119), `docs/ai/architecture.md` L141–143 (documents the inconsistency), `src/server/assessment/assessment.ts` L471–498 (runtimeRan gate + non-fatal handling).
@@ -197,7 +168,7 @@ Status law already handles partial runtime data faithfully (authority gates degr
 Two schema-level sharp edges: (a) `upsertRequirements` conflicts on `(projectId, controlId)` but `SET id = excluded.id` — every concurrent writer mints a fresh UUID and _replaces_ the row id, so stable requirement identity doesn't exist across writers (any external reference, log, or future FK to requirement id dangles). (b) `findings.assessmentId → assessments ON DELETE CASCADE`: deleting an assessment row deletes findings (project reset/disconnect paths must be audited for data loss beyond intent).
 
 **Where (verified 2026-09-16 — refs confirmed current):**
-`packages/db/src/repo/requirements.ts` L33–68 (conflict target + `id: sql\`excluded.id\`` at L61), `packages/db/src/schema.ts` L181–206 (findings FK cascade L189–191), reset/disconnect actions (`project_reset` evidence kind — find the deleter).
+`packages/db/src/repo/requirements.ts` L33–68 (conflict target + `id: sql\`excluded.id\``at L61),`packages/db/src/schema.ts` L181–206 (findings FK cascade L189–191), reset/disconnect actions (`project_reset` evidence kind — find the deleter).
 
 **Proposed simplification:**
 (a) Stop overwriting `id` on conflict — keep the existing row id (`SET` payload/status only; fall back to deterministic ids `projectId:controlId`-derived if writers need convergence without a read). (b) Audit the reset/disconnect delete path; if assessment deletion is used for retention/reset, either scope the cascade deliberately (document) or null the FK. Both are verify-first, change-second.
@@ -212,6 +183,6 @@ Requirement identity is `(project, control)` everywhere in code (unique index al
 **Complexity:** Small–Medium.
 
 **Evidence (verified 2026-09-16):**
-`requirements.ts:61` (`id: sql\`excluded.id\`` still swaps identity); `schema.ts:189-191` (cascade intact); `assessment-status.ts:150` + `:282` (new requirements still `crypto.randomUUID()` — no deterministic-id change since the 2026-09-16 note below); `mappers.ts:56-62` (payload id passed through).
+`requirements.ts:61` (`id: sql\`excluded.id\``still swaps identity);`schema.ts:189-191`(cascade intact);`assessment-status.ts:150`+`:282`(new requirements still`crypto.randomUUID()`— no deterministic-id change since the 2026-09-16 note below);`mappers.ts:56-62` (payload id passed through).
 
 ---

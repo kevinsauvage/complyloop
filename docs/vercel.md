@@ -150,8 +150,22 @@ without it every runtime scan fails with `Cannot find module
    self-fetch bearer ≠ `WORKER_SECRET`, so fallback ticks never drain the
    queue (the GH worker is unaffected — it needs no bearer).
 - `npm run ops:check` (from any machine with `DATABASE_URL`) verifies DB +
-  prod env + queue depth. Run it on a schedule with failure alerting — it is
-  the replacement for the old worker healthcheck.
+  prod env (`AUTH_SECRET`, `AUTH_URL`, `GITHUB_APP_ID`/`GITHUB_APP_PRIVATE_KEY`,
+  `GITHUB_WEBHOOK_SECRET`, `WORKER_SECRET`, `SENTRY_DSN`) + queue depth +
+  evidence size. It exits non-zero on any breach so it gates deploys and
+  alerts. Thresholds via env (defaults are starting values — tighten after
+  the first prod signals):
+  | Variable | Default | Meaning |
+  | -------- | ------- | ------- |
+  | `OPS_MAX_QUEUED_JOBS` | `50` | Fail when queued+running jobs exceed this (drain stopped keeping up). |
+  | `OPS_MAX_EVIDENCE_MB` | `1024` | Fail when `pg_total_relation_size('evidence')` exceeds this. |
+  Run it on a schedule with failure alerting — the `ops-check` GitHub
+  Actions workflow (`.github/workflows/ops-check.yml`, daily 06:00 UTC +
+  manual dispatch) is that schedule; a red run means the 15-min
+  `assessment-worker` drain stopped firing/failing or evidence is outgrowing
+  the database. `/api/health` intentionally stays light (queue depth only):
+  it is an unauthenticated scrape target, so the heavy size query lives in
+  `ops:check`, not on the health path.
 - Sentry: unhandled exceptions, `assessment_job_failed` /
   `assessment_job_retrying`, `github_check_run_failed`, growing queue depth.
 
@@ -179,7 +193,12 @@ the newest 5000 rows and mark `truncated` — that bounds downloads, not the tab
 - [ ] Create a draft PR from a finding → branch pushed, PR opened
 - [ ] Cancel a queued/running job → status `cancelled`, nothing persisted
 - [ ] `/api/health` returns 200; Sentry receives a test issue
-- [ ] Provider DB backups enabled; restore drilled once to staging (record date + owner here when done: \_\_\_)
+- [ ] Provider DB backups enabled; restore drilled once to staging.
+  Drill runbook (point-in-time, provider console — no app-side dump exists):
+  1. create a staging branch/restore target at a recent timestamp;
+  2. point a staging deploy at it (`DATABASE_URL` override);
+  3. sign in, open dashboard + one finding, run `ops:check` against it;
+  4. record date + owner here when done: \_\_\_ (pending — not yet drilled).
 
 ## Decision log (Vercel migration, 2026-09-15)
 

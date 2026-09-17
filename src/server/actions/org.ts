@@ -6,13 +6,10 @@ import { ORG_ROLES } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { emptyWorkspaceSlice } from "@complyloop/db/types";
 
+import type { ActionState } from "@/core/action-state";
 import { parseEntityId, parseForm, requiredField } from "@/core/validate";
 
-import {
-  type ActionState,
-  publicErrorMessage,
-  runAction,
-} from "../action-state";
+import { publicErrorMessage, runAction } from "../action-state";
 import {
   clearActiveProjectCookie,
   writeActiveOrgCookie,

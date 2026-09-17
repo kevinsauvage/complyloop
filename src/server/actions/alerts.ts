@@ -8,14 +8,15 @@ import {
   markAllProjectAlertsRead,
 } from "@complyloop/db/repo/alerts";
 
+import type { ActionState } from "@/core/action-state";
 import { parseForm, requiredField } from "@/core/validate";
 
-import { type ActionState, runAction } from "../action-state";
+import { runAction } from "../action-state";
+import { withProjectLock } from "../workspace/db";
 import {
   requireAlertAccess,
   requireProjectAccess,
 } from "../workspace/workspace";
-import { withProjectLock } from "../workspace/workspace-write";
 import { refresh } from "./shared";
 
 const markAlertReadInput = z.object({

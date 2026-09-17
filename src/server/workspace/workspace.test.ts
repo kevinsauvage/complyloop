@@ -67,11 +67,11 @@ vi.mock("@complyloop/db/repo/findings", () => ({
   getFindingById: (...args: unknown[]) => getFindingById(...args),
 }));
 
+import { withProjectLock } from "./db";
 import {
   withConnectWrite,
   withFindingWrite,
   withOrgWrite,
-  withProjectLock,
   withProjectWrite,
 } from "./workspace-write";
 

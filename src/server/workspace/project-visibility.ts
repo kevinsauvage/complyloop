@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import type {
   Organization,
   OrgMembership,
@@ -8,6 +9,8 @@ import type {
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 import { canOnProject, type Permission } from "@/core/rbac";
+
+import type { Workspace } from "./workspace";
 
 export interface AccessContext {
   userId: string | null | undefined;
@@ -74,6 +77,25 @@ export function assertProjectPermission(
   if (!canOnProject(project, ctx.memberships, ctx.userId, permission)) {
     throw new PublicError(`Not allowed: missing permission ${permission}.`);
   }
+}
+
+/**
+ * Workspace policy: resolves the finding's project from the workspace and
+ * asserts the permission. Lives here (not in `actions/shared`) so the
+ * persistence layer (`workspace-write.ts`) never imports upward from the
+ * mutation edge — dependency flows `actions → workspace → db/repo` only.
+ */
+export function requireOnFindingProject(
+  workspace: Workspace,
+  finding: Finding,
+  permission: Parameters<typeof assertProjectPermission>[2],
+): Project {
+  const project = workspace.projects.find(
+    (candidate) => candidate.id === finding.projectId,
+  );
+  if (!project) throw new PublicError("Unknown project.");
+  assertProjectPermission(project, workspace.access, permission);
+  return project;
 }
 
 /** Validates the viewer can access `projectId` (active selection is cookie-scoped). */

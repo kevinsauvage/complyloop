@@ -61,8 +61,13 @@ Webhook (enqueue + after() dispatch) → assessment-worker (GH); 15-min schedule
   `assessment_snapshots` and load only for `runAssessment`. Evidence and
   findings pages load via `src/server/reporting/evidence-queries.ts` and
   `src/server/workspace/project-view.ts` (`loadFindingsView`).
-- **Writes (the write model)** — `withProjectWrite` / `withOrgWrite` /
-  `withConnectWrite` / `withProjectLock` in `src/server/workspace/workspace-write.ts`.
+- **Writes (the write model)** — `withProjectWrite` / `withFindingWrite` /
+  `withOrgWrite` / `withConnectWrite` in
+  `src/server/workspace/workspace-write.ts`; `withProjectLock` in
+  `src/server/workspace/db.ts`. Finding-scope permission
+  (`requireOnFindingProject`) lives in
+  `src/server/workspace/project-visibility.ts` so the write layer never
+  imports from the action edge.
   Project **compliance** mutations (findings, remediations, requirements,
   evidence) go through `withProjectWrite` / `withFindingWrite` so locking,
   stale-write guards, and evidence appends apply. Tenancy/org/connect

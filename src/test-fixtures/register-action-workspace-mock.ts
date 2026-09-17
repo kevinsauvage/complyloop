@@ -16,7 +16,7 @@ import type {
 } from "@complyloop/analysis-core/contract/entities";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
-import { requireOnFindingProject } from "@/server/actions/shared";
+import { requireOnFindingProject } from "@/server/workspace/project-visibility";
 import type { Permission } from "@/core/rbac";
 import type { ProjectWriteWorkspace } from "@/server/workspace/workspace";
 
@@ -71,9 +71,7 @@ vi.mock("@/server/workspace/workspace", async () => {
         (await actionWorkspaceMocks.getWorkspace()) as WriteSlice & {
           projects: Array<{ id: string }>;
         };
-      const project = workspace.projects.find(
-        (row) => row.id === projectId,
-      );
+      const project = workspace.projects.find((row) => row.id === projectId);
       if (!project) throw new PublicError("Unknown project.");
       requireOnFindingProject(
         workspace as Parameters<typeof requireOnFindingProject>[0],
@@ -110,13 +108,22 @@ vi.mock("@/server/workspace/workspace-write", async () => {
       ),
     withOrgWrite: (fn: Parameters<typeof actual.withOrgWrite>[0]) =>
       actionWorkspaceMocks.withOrgWrite(fn),
-    withProjectLock: (
-      projectId: Parameters<typeof actual.withProjectLock>[0],
-      fn: Parameters<typeof actual.withProjectLock>[1],
-    ) => actionWorkspaceMocks.withProjectLock(projectId, fn),
     withConnectWrite: (
       options: Parameters<typeof actual.withConnectWrite>[0],
       fn: Parameters<typeof actual.withConnectWrite>[1],
     ) => actionWorkspaceMocks.withConnectWrite(options, fn),
+  };
+});
+
+vi.mock("@/server/workspace/db", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/server/workspace/db")
+  >("@/server/workspace/db");
+  return {
+    ...actual,
+    withProjectLock: (
+      projectId: Parameters<typeof actual.withProjectLock>[0],
+      fn: Parameters<typeof actual.withProjectLock>[1],
+    ) => actionWorkspaceMocks.withProjectLock(projectId, fn),
   };
 });

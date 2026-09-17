@@ -12,6 +12,7 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 
+import type { ActionState } from "@/core/action-state";
 import {
   clearRequirementHumanDetermination,
   normalizeExpiryInstant,
@@ -19,7 +20,6 @@ import {
 } from "@/core/requirement-human-determination";
 import { parseEntityId, parseForm, requiredField } from "@/core/validate";
 
-import type { ActionState } from "../action-state";
 import { applyRequirementStatusRefresh } from "../assessment/assessment-status";
 import { appendEvidence, cloneProjectRows } from "../workspace/project-rows";
 import { controlById } from "../workspace/workspace";

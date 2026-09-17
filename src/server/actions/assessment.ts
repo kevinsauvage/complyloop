@@ -6,9 +6,10 @@ import { z } from "zod";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
+import type { ActionState } from "@/core/action-state";
 import { entityIdSchema, parseForm } from "@/core/validate";
 
-import { type ActionState, runAction } from "../action-state";
+import { runAction } from "../action-state";
 import {
   scheduleAssessmentDrain,
   shouldDrainAssessmentJobsInline,

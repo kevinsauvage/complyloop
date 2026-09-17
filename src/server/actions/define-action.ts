@@ -1,7 +1,7 @@
+import type { ActionState } from "@/core/action-state";
 import type { Permission } from "@/core/rbac";
 import { parseEntityId } from "@/core/validate";
 
-import type { ActionState } from "../action-state";
 import { runAction } from "../action-state";
 import type { ProjectWriteWorkspace } from "../workspace/workspace";
 import {

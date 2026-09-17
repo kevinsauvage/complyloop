@@ -19,7 +19,15 @@ what is missing before the project is genuinely usable, safe, and deployable.
 
 ## P0 — Critical
 
-### [ ] TODO-03: Production ops hardening — cron monitoring, `ops:check` gaps, provider backups
+### [x] TODO-03: Production ops hardening — cron monitoring, `ops:check` gaps, provider backups
+
+> **Done 2026-09-17** (master TODO.md P0-1): `ops:check` requires all 7 prod
+> vars, fails on queue depth (`OPS_MAX_QUEUED_JOBS`, default 50) and evidence
+> size (`OPS_MAX_EVIDENCE_MB`, default 1024) via `pg_total_relation_size` +
+> `reltuples`; pure `evaluateOpsStatus` in `src/server/ops-thresholds.ts` with
+> unit tests; daily `.github/workflows/ops-check.yml`; thresholds + restore
+> runbook in `docs/vercel.md`. `/api/health` deliberately stays light.
+> **Still open:** restore drill date + owner (needs a real staging restore).
 
 **Why:**
 Prod drains via the GitHub Actions `assessment-worker` (dispatch on enqueue
@@ -740,7 +748,7 @@ function is pinned (`evidence.test.ts:13-23`, incl. the 12,001→5,000 boundary)
 ## What is missing (triaged 2026-09-16 — every item re-verified open unless struck)
 
 - ~~Job lifecycle control (cancel/dedup/stuck recovery) — P0~~ — DONE (TODO-01).
-- Prod worker/ops/backup hardening — P0 (TODO-03; GH-Actions topology, needs scheduled `ops:check` + restore drill).
+- ~~Prod worker/ops/backup hardening — P0 (TODO-03; GH-Actions topology, needs scheduled `ops:check` + restore drill).~~ — DONE 2026-09-17 (scheduled `ops:check` + restore runbook live; drill date/owner pending).
 - Disconnect/reconnect repair, invite lifecycle, rate-limit coverage, evidence
   size alerting, PR failure signals, site copy, session edges — P1.
 - Settings-to-assessment gap, secret dual-use, retention docs, TLS-bypass guard,
@@ -749,8 +757,8 @@ function is pinned (`evidence.test.ts:13-23`, incl. the 12,001→5,000 boundary)
 
 ## Biggest blockers
 
-1. **Worker/ops blindness (TODO-03)** — dispatch + schedule failures pile up
-   silently; `ops:check` can't gate anything.
+1. ~~**Worker/ops blindness (TODO-03)** — dispatch + schedule failures pile up
+   silently; `ops:check` can't gate anything.~~ — DONE 2026-09-17.
 2. **No repair flow (TODO-04)** — every revoked App / renamed repo becomes a
    generic-error support ticket.
 3. **Invite lifecycle (TODO-05)** — phantom invites + silent role overwrites at
@@ -758,7 +766,7 @@ function is pinned (`evidence.test.ts:13-23`, incl. the 12,001→5,000 boundary)
 
 ## Recommended implementation order
 
-1. TODO-03 (scheduled `ops:check` with fail cases + restore drill) — makes prod observable.
+1. ~~TODO-03 (scheduled `ops:check` with fail cases + restore drill) — makes prod observable.~~ — DONE 2026-09-17 (drill date/owner pending).
 2. TODO-04 + TODO-05 (repair banner + invite validation) — kills top support tickets.
 3. TODO-06 + TODO-07 (rate limits + evidence alert) — abuse/growth safety.
 4. TODO-08 + TODO-09 + TODO-10 (check-run on exception, site copy, session edges).

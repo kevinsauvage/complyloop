@@ -18,6 +18,7 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 
+import type { ActionState } from "@/core/action-state";
 import {
   advanceRemediation,
   canBulkApproveRemediation,
@@ -28,7 +29,6 @@ import {
   parseForm,
 } from "@/core/validate";
 
-import type { ActionState } from "../action-state";
 import { runAction } from "../action-state";
 import { applyRequirementStatusRefresh } from "../assessment/assessment-status";
 import {
@@ -41,11 +41,12 @@ import {
   type ProjectRows,
   upsertFindingInRows,
 } from "../workspace/project-rows";
+import { requireOnFindingProject } from "../workspace/project-visibility";
 import { findingById, remediationForFinding } from "../workspace/workspace";
 import { withProjectWrite } from "../workspace/workspace-write";
 import { runFindingAction } from "./define-action";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
-import { refresh, replaceRemediation, requireOnFindingProject } from "./shared";
+import { refresh, replaceRemediation } from "./shared";
 
 const bulkApproveInput = z.object({
   findingIds: findingIdsField("Select at least one finding to approve."),

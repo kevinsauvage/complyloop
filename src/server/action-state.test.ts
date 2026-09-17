@@ -4,10 +4,10 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 import {
   initialActionState,
-  publicErrorMessage,
-  runAction,
   unexpectedActionMessage,
-} from "./action-state";
+} from "@/core/action-state";
+
+import { publicErrorMessage, runAction } from "./action-state";
 import { RateLimitError } from "./rate-limit";
 
 afterEach(() => {

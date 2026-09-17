@@ -1,6 +1,5 @@
 import { revalidatePath } from "next/cache";
 
-import { type Finding } from "@complyloop/analysis-core/contract/entities";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
@@ -55,27 +54,4 @@ export function requireOnActive(
     throw new PublicError("No project connected.");
   }
   assertProjectPermission(workspace.project, workspace.access, permission);
-}
-
-export function requireOnFindingProject(
-  workspace: Workspace,
-  finding: Finding,
-  permission: Parameters<typeof assertProjectPermission>[2],
-): Project {
-  const project = workspace.projects.find(
-    (candidate) => candidate.id === finding.projectId,
-  );
-  if (!project) throw new PublicError("Unknown project.");
-  assertProjectPermission(project, workspace.access, permission);
-  return project;
-}
-
-/** Preview-load + permission + project resolve for finding actions. */
-export function requireFindingContext(
-  workspace: Workspace,
-  finding: Finding,
-  permission: Parameters<typeof assertProjectPermission>[2],
-): { finding: Finding; project: Project } {
-  const project = requireOnFindingProject(workspace, finding, permission);
-  return { finding, project };
 }

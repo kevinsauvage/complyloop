@@ -7,6 +7,7 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 import { emptyWorkspaceSlice as emptyDbBase } from "@complyloop/db/types";
 
+import { initialActionState } from "@/core/action-state";
 import {
   actionAuthMocks,
   actionWorkspaceMocks,
@@ -15,7 +16,6 @@ import { testMembership } from "@/test-fixtures/membership";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
 
-import { initialActionState } from "../action-state";
 import type { ProjectWriteWorkspace } from "../workspace/workspace";
 import {
   changeOrgMemberRoleAction,

@@ -1,0 +1,36 @@
+# Ops check (replaces the old worker healthcheck).
+#
+# Runs `npm run ops:check` on a daily schedule: verifies prod env vars, DB
+# reachability, assessment-queue depth, and evidence-table growth. Any breach
+# exits non-zero so the workflow fails and stock Actions failure
+# notifications fire — a red run here means "dispatch/schedule stopped
+# draining" or "evidence is outgrowing the database".
+#
+# Required repository secrets: `DATABASE_URL` (pooled Postgres).
+# Optional vars: `OPS_MAX_QUEUED_JOBS` (default 50), `OPS_MAX_EVIDENCE_MB`
+# (default 1024) — tighten once the first prod signals are known.
+name: ops-check
+
+on:
+  schedule:
+    # Daily 06:00 UTC — cheaper than per-tick, faster than weekly for a
+    # queue that can pile up in hours when the drain stops firing.
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - name: Run ops check
+        run: npm run ops:check
+        env:
+          NODE_ENV: production
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

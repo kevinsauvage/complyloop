@@ -6,10 +6,11 @@ import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
 import { generateAiExplanation } from "@/ai/explainer";
 import { generateAiRemediation } from "@/ai/remediation";
+import type { ActionState } from "@/core/action-state";
 import { refreshSuggestion } from "@/core/remediation-lifecycle";
 import { parseEntityId } from "@/core/validate";
 
-import { type ActionState, runAction } from "../action-state";
+import { runAction } from "../action-state";
 import { getSession } from "../auth-session";
 import { reportError } from "../observability";
 import { assertAiRateLimit } from "../rate-limit";

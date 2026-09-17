@@ -6,9 +6,10 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { normalizeRoutes } from "@complyloop/analysis-core/runtime/routes";
 import { assertSafeRuntimeUrl } from "@complyloop/analysis-core/runtime/url-safety";
 
+import type { ActionState } from "@/core/action-state";
 import { parseForm } from "@/core/validate";
 
-import { type ActionState, runAction } from "../action-state";
+import { runAction } from "../action-state";
 import { withProjectWrite } from "../workspace/workspace-write";
 import { refresh, requireOnActive } from "./shared";
 

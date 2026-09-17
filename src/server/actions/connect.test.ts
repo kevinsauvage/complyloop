@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OrgMembership } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
+import { initialActionState } from "@/core/action-state";
 import {
   actionAuthMocks,
   actionWorkspaceMocks,
@@ -13,7 +14,6 @@ import { testMembership } from "@/test-fixtures/membership";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
 
-import { initialActionState } from "../action-state";
 import type { ConnectWriteContext } from "../workspace/workspace-write";
 import {
   connectGitHubRepoAction,

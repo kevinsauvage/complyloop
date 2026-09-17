@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Requirement } from "@complyloop/analysis-core/contract/entities";
 
+import { initialActionState } from "@/core/action-state";
 import {
   clearProjectWritePayloads,
   mockProjectWrite,
@@ -13,7 +14,6 @@ import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
 
-import { initialActionState } from "../action-state";
 import { dismissFindingAction } from "./remediation";
 import { clearRequirementExceptionAction } from "./requirements";
 

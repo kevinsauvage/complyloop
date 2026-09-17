@@ -39,10 +39,10 @@ import {
 
 import type { Permission } from "@/core/rbac";
 
-import { requireOnFindingProject } from "../actions/shared";
 import { getSession } from "../auth-session";
 import { orgsForUser } from "./org-queries";
 import { stampEvidenceActor } from "./project-rows";
+import { requireOnFindingProject } from "./project-visibility";
 import {
   prepareWorkspaceState,
   type ProjectWriteWorkspace,
@@ -62,6 +62,33 @@ export interface OrgWriteContext {
   userId: string;
   githubLogin: string | null;
   organizations: Organization[];
+}
+
+/**
+ * Shared commit tail for locked project writes: snapshot the loaded slice
+ * (before the handler mutates rows in place), run the handler, stamp the
+ * actor on new evidence, persist. Lock resolution stays in each caller —
+ * cookie-probe vs finding-preview follow different protocols.
+ */
+async function commitLockedProjectPayload(
+  tx: DrizzleDb,
+  projectId: string,
+  db: WorkspaceSlice,
+  actor: string | null | undefined,
+  payload: ProjectWritePayload | void,
+): Promise<void> {
+  // Clone before the handler mutates rows in place: persist compares against
+  // what was loaded, not the post-mutation state.
+  const loadedSlice = snapshotProjectSlice(
+    db.requirements,
+    db.findings,
+    db.remediations,
+    db.alerts,
+    projectId,
+  );
+  const resolved = payload ?? {};
+  stampEvidenceActor(resolved.evidence, actor);
+  await persistProjectRows(tx, resolved, { loadedSlice });
 }
 
 /**
@@ -127,18 +154,15 @@ export async function withProjectWrite(
     }
 
     // Clone before the handler mutates rows in place: persist compares against
-    // what was loaded, not the post-mutation state.
-    const loadedSlice = snapshotProjectSlice(
-      workspace.db.requirements,
-      workspace.db.findings,
-      workspace.db.remediations,
-      workspace.db.alerts,
+    // what was loaded, not the post-mutation state (see
+    // `commitLockedProjectPayload`).
+    await commitLockedProjectPayload(
+      tx,
       projectId,
+      workspace.db,
+      githubLogin ?? userId,
+      await fn(workspace),
     );
-    const payload = (await fn(workspace)) ?? {};
-    stampEvidenceActor(payload.evidence, githubLogin ?? userId);
-
-    await persistProjectRows(tx, payload, { loadedSlice });
   });
 }
 
@@ -185,22 +209,15 @@ export async function withFindingWrite(
     const finding = findingById(db, findingId);
     requireOnFindingProject(workspace, finding, permission);
 
-    const loadedSlice = snapshotProjectSlice(
-      workspace.db.requirements,
-      workspace.db.findings,
-      workspace.db.remediations,
-      workspace.db.alerts,
+    await commitLockedProjectPayload(
+      tx,
       projectId,
+      workspace.db,
+      githubLogin ?? userId,
+      await fn({ db, finding, workspace }),
     );
-    const payload = (await fn({ db, finding, workspace })) ?? {};
-    stampEvidenceActor(payload.evidence, githubLogin ?? userId);
-
-    await persistProjectRows(tx, payload, { loadedSlice });
   });
 }
-
-/** Re-exported so existing callers keep importing from here. */
-export { withProjectLock } from "./db";
 
 interface LockedTenancyContext {
   tx: DrizzleDb;

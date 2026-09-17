@@ -7,6 +7,7 @@ import type {
   Project,
 } from "@complyloop/analysis-core/contract/project-types";
 
+import { initialActionState } from "@/core/action-state";
 import {
   clearProjectWritePayloads,
   mockProjectWrite,
@@ -15,7 +16,6 @@ import {
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
 
-import { initialActionState } from "../action-state";
 import { setDefaultPresetAction } from "./project-preset";
 
 function formWith(presetId: string): FormData {

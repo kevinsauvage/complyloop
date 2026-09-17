@@ -3,10 +3,11 @@
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
+import type { ActionState } from "@/core/action-state";
 import { advanceRemediation } from "@/core/remediation-lifecycle";
 import { parseEntityId } from "@/core/validate";
 
-import { type ActionState, runAction } from "../action-state";
+import { runAction } from "../action-state";
 import { patchCandidateFromEvidence } from "../assessment/ai-fix";
 import {
   remediationEvidenceDetail,

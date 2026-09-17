@@ -4,10 +4,11 @@ import { z } from "zod";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
+import type { ActionState } from "@/core/action-state";
 import { parseForm, requiredField } from "@/core/validate";
 import { getGitHubAccessToken } from "@/server/github/access-token";
 
-import { type ActionState, runAction } from "../action-state";
+import { runAction } from "../action-state";
 import {
   createInstallationAccessToken,
   resolveUserInstallationForRepo,

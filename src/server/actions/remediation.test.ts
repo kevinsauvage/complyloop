@@ -2,6 +2,7 @@ import "@/test-fixtures/register-action-workspace-mock";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { initialActionState } from "@/core/action-state";
 import {
   clearProjectWritePayloads,
   mockProjectWrite,
@@ -12,7 +13,6 @@ import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
 import { testWorkspace } from "@/test-fixtures/workspace";
 
-import { initialActionState } from "../action-state";
 import { RateLimitError } from "../rate-limit";
 import { cancelAssessmentJobAction, runAssessmentAction } from "./assessment";
 import {
