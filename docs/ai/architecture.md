@@ -134,8 +134,9 @@ evidence, findings, remediations, requirements }`; the worker persists via
 Three deterministic engines. AI is separate and never authoritative.
 Stage entries and leaf rules: `packages/analysis-core/README.md`.
 
-**AST** (`checks/` + jsx-a11y) — 75 check ids from source. Safe auto-fixes
-and verified AI patches target AST findings.
+**AST** (`checks/` + jsx-a11y) — custom checks over source (full check-id
+list in `CHECK_REGISTRY`, `packages/analysis-core/src/check-registry.ts`).
+Safe auto-fixes and verified AI patches target AST findings.
 
 **Runtime** (when `runtimeBaseUrl` is set) — Playwright + axe from disk.
 Navigate with `domcontentloaded` + settle, not `networkidle`. Never add

@@ -58,6 +58,4 @@ If that loop does not work for one client, the product is not delivering.
 The loop above is live in production: GitHub App connect, queued assessments
 on the GitHub Actions worker (dispatch + 15-min backstop), finding →
 patch/PR → verify, append-only evidence with JSON/Markdown/HTML export, and
-webhook-driven re-assessment with PR Check Runs. Open gaps (repair flows,
-invite lifecycle, rate-limit coverage) are tracked in `TODO-COMPLETENESS.md`
-at the repo root.
+webhook-driven re-assessment with PR Check Runs.
