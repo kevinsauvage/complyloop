@@ -8,12 +8,12 @@ import {
   NavAttentionBadges,
   NavBadgeSkeletons,
 } from "@/components/nav-attention-badges";
+import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { WorkspaceContext } from "@/components/workspace-context";
 import { getSession } from "@/server/auth-session";
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  // Badge counts stream via <NavAttentionBadges> below — the shell and route
-  // content render without awaiting the counts query.
   const configured = isGitHubAuthConfigured();
   const session = configured ? await getSession() : null;
   const signedInUser = session?.user
@@ -28,18 +28,21 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     : null;
 
   return (
-    <AppShell
-      workspaceContext={<WorkspaceContext />}
-      authControls={
-        <AuthControls configured={configured} user={signedInUser} />
-      }
-      navLinks={
-        <Suspense fallback={<NavBadgeSkeletons />}>
-          <NavAttentionBadges />
-        </Suspense>
-      }
-    >
-      {children}
-    </AppShell>
+    <TooltipProvider>
+      <AppShell
+        workspaceContext={<WorkspaceContext />}
+        authControls={
+          <AuthControls configured={configured} user={signedInUser} />
+        }
+        navLinks={
+          <Suspense fallback={<NavBadgeSkeletons />}>
+            <NavAttentionBadges />
+          </Suspense>
+        }
+      >
+        {children}
+      </AppShell>
+      <Toaster />
+    </TooltipProvider>
   );
 }

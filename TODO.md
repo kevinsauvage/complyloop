@@ -2,20 +2,24 @@
 
 ## P2 — Medium
 
-- [x] **15. Remediation history + AI staleness (ASSESSMENT P2-5 + P2-6) — batch F**
-      Derive history view from evidence (stop writing `history[]`); stamp AI artifacts with `assessmentId`/`gitHead`, invalidate on re-detect, cap `explanations[]`.
 - [ ] **16. Axe containment (ASSESSMENT P2-9) — batch E**
       Per-page axe containment like custom probes; total outage still → `unable_to_verify`.
+
 - [ ] **17. Settings-to-assessment gap (TODO-11) — batch B**
       Save-and-run CTA, origin-only documented, confirm destructive clear, poll backoff + max duration, paginate 5-job history.
+
 - [ ] **18. Secret dual-use + URL/secret edges (TODO-12 + TODO-14) — batches C/I**
       Dedicated `GITHUB_TOKEN_ENCRYPTION_KEY` (or honest rotation doc + delete false "re-encrypts" note); `DATABASE_SSL_INSECURE` prod guard; scope `GITHUB_API_BASE_URL`; redaction unit test.
+
 - [ ] **19. Docs-vs-reality (TODO-15: incremental wording, orphan banner) — batches B/G**
       Document snapshot-diff + always-full-runtime, surface `scanMode`; fix orphan count vs `by_cause`.
+
 - [ ] **20. Error reporting + boundaries + demo delete (CODE-P1 + NEXTJS-P2 ×2) — batch D**
       One server + one tiny client reporter; fold `ReportedError` into `AppErrorCard`; delete `sentry-example-page/`; add 4 missing segment `error.tsx` (or record fallback intentional).
+
 - [ ] **21. Form stack + providers + RepoList RSC (CODE-P1 + NEXTJS-P1 providers + NEXTJS-P2 RepoList) — batch H**
       One `ActionForm` (confirm as prop), single toast helper, merge note-fields; move `TooltipProvider`+`Toaster` to `(app)/layout.tsx`; `GitHubRepoList` back to RSC.
+
 - [ ] **22. DB plumbing + workspace reads remainder (CODE-P1 ×2) — batches A/B**
       Collapse `mappers`/`apply`/`upsert-guard` toward direct Drizzle (behind `test:db`); finish single permission assert + single finding lookup.
 - [ ] **23. Catalog + AST helpers (CODE-P1 ×2) — batch E**
