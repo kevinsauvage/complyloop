@@ -28,11 +28,21 @@ export async function DashboardPipelineSection({
 
 export function DashboardPipelineSkeleton() {
   return (
-    <section aria-label="Pipeline">
+    <section aria-label="Pipeline" role="status" aria-busy="true">
       <p className="sr-only">Loading pipeline…</p>
       <div aria-hidden className="flex flex-col gap-2">
-        <div className="h-5 w-32 animate-pulse rounded-md bg-muted/60" />
-        <div className="h-16 animate-pulse rounded-xl border border-border/60 bg-card/40" />
+        <div className="h-5 w-32 rounded-md loading-shimmer" />
+        <div className="h-4 w-56 max-w-full rounded-md loading-shimmer" />
+        <div className="surface-panel flex items-center gap-3 rounded-2xl px-5 py-4">
+          <span className="relative flex size-2.5 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-signal opacity-60" />
+            <span className="relative inline-flex size-2.5 rounded-full bg-signal" />
+          </span>
+          <div className="flex flex-1 flex-col gap-2">
+            <div className="h-4 w-1/2 rounded-md loading-shimmer" />
+            <div className="h-3.5 w-1/3 rounded-md loading-shimmer" />
+          </div>
+        </div>
       </div>
     </section>
   );
