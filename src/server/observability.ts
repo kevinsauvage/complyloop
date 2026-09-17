@@ -6,8 +6,8 @@ import { redactSecrets } from "./redact";
 
 /**
  * Thin leveled logging over `console` plus Sentry capture. `error`/`warning`
- * always emit; `info`/`debug` are development-only. Call sites keep using the
- * stable `reportError` / `reportWarning` / `reportInfo` / `reportDebug` names.
+ * always emit; `reportEvent` is console-only for high-volume happy paths.
+ * Call sites keep using the stable `reportError` / `reportWarning` names.
  */
 export interface ReportContext {
   /** Stable machine-readable code for dashboards/alerts. */
@@ -18,10 +18,6 @@ export interface ReportContext {
   /** Next.js error digest (error boundary). */
   digest?: string;
   [key: string]: unknown;
-}
-
-function isProduction(): boolean {
-  return process.env.NODE_ENV === "production";
 }
 
 function applyReportContext(
@@ -89,12 +85,6 @@ export function reportWarning(message: string, context?: ReportContext): void {
   });
 }
 
-/** Informational (dev-visible in development, silenced in production logs). */
-export function reportInfo(message: string, context?: ReportContext): void {
-  if (isProduction()) return;
-  console.info(`[info] ${message}`, context ?? "");
-}
-
 /**
  * Lifecycle event, visible in production logs (Vercel captures stdout).
  * Console-only — never sent to Sentry — for high-volume happy paths the
@@ -103,10 +93,4 @@ export function reportInfo(message: string, context?: ReportContext): void {
  */
 export function reportEvent(message: string, context?: ReportContext): void {
   console.info(`[event] ${redactSecrets(message)}`, context ?? "");
-}
-
-/** Verbose dev-only logging. Silenced entirely in production. */
-export function reportDebug(message: string, context?: ReportContext): void {
-  if (isProduction()) return;
-  console.debug(`[debug] ${message}`, context ?? "");
 }

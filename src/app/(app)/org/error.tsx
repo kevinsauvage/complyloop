@@ -1,6 +1,6 @@
 "use client";
 
-import { ReportedError } from "@/components/reported-error";
+import { AppErrorCard } from "@/components/app-error-card";
 
 export default function OrgError({
   error,
@@ -10,10 +10,10 @@ export default function OrgError({
   retry: () => void;
 }) {
   return (
-    <ReportedError
+    <AppErrorCard
       error={error}
-      retry={retry}
-      tag="org_error_boundary"
+      onReset={retry}
+      reportTag="org_error_boundary"
       title="Organization couldn't load"
       description="The organization could not be loaded. Memberships and projects are unchanged — try again, or continue working from your dashboard."
       secondaryHref="/dashboard"

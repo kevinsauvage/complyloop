@@ -5,9 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   reportAppError,
-  reportDebug,
   reportError,
-  reportInfo,
   reportWarning,
 } from "./observability";
 
@@ -16,7 +14,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-type ConsoleMethod = "error" | "warn" | "info" | "debug";
+type ConsoleMethod = "error" | "warn";
 
 /** Raw text written through a console method during `callback`. */
 function captureConsole(method: ConsoleMethod, callback: () => void): string {
@@ -61,28 +59,6 @@ describe("observability", () => {
       "token decrypt failed",
       "warning",
     );
-  });
-
-  it("logs info/debug in development", () => {
-    vi.stubEnv("NODE_ENV", "development");
-    const info = captureConsole("info", () =>
-      reportInfo("assessment started", { code: "assessment_started" }),
-    );
-    const debug = captureConsole("debug", () =>
-      reportDebug("page evaluate", { url: "/" }),
-    );
-    expect(info).toContain("[info] assessment started");
-    expect(debug).toContain("[debug] page evaluate");
-  });
-
-  it("silences info/debug in production", () => {
-    vi.stubEnv("NODE_ENV", "production");
-    const info = vi.spyOn(console, "info").mockImplementation(() => {});
-    const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
-    reportInfo("should not appear", {});
-    reportDebug("should not appear", {});
-    expect(info).not.toHaveBeenCalled();
-    expect(debug).not.toHaveBeenCalled();
   });
 
   it("reportAppError forwards digest and code", () => {

@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { RotateCcw, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
@@ -14,7 +15,8 @@ import {
 import { cn } from "@/lib/utils";
 
 export function AppErrorCard({
-  digest,
+  error,
+  reportTag,
   title = "Something went wrong",
   description,
   onReset,
@@ -22,7 +24,8 @@ export function AppErrorCard({
   secondaryLabel = "Back to dashboard",
   className,
 }: {
-  digest?: string;
+  error: Error & { digest?: string };
+  reportTag: string;
   title?: string;
   description: string;
   onReset: () => void;
@@ -32,12 +35,27 @@ export function AppErrorCard({
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
 
-  // Move keyboard + screen-reader focus to the error heading on mount
-  // (ux: focusable error summary, focus states). role="alert" announces,
-  // focus gives keyboard users a predictable starting point.
+  // Report once to the browser Sentry SDK + move keyboard/screen-reader
+  // focus to the error heading on mount (role="alert" announces, focus gives
+  // keyboard users a predictable starting point). Client components must not
+  // import `@/server/observability` (it pulls `node:*` into the client
+  // bundle), so reporting lives here instead of a separate module.
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") {
+      console.error(`[${reportTag}]`, error);
+    }
+    Sentry.withScope((scope) => {
+      scope.setTag("code", reportTag);
+      if (error.digest) scope.setExtra("digest", error.digest);
+      Sentry.captureException(error);
+    });
+  }, [error, reportTag]);
+
   useEffect(() => {
     headingRef.current?.focus();
   }, []);
+
+  const digest = error.digest;
 
   return (
     <Card

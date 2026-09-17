@@ -1,6 +1,6 @@
 "use client";
 
-import { ReportedError } from "@/components/reported-error";
+import { AppErrorCard } from "@/components/app-error-card";
 
 export default function SettingsError({
   error,
@@ -10,10 +10,10 @@ export default function SettingsError({
   retry: () => void;
 }) {
   return (
-    <ReportedError
+    <AppErrorCard
       error={error}
-      retry={retry}
-      tag="settings_error_boundary"
+      onReset={retry}
+      reportTag="settings_error_boundary"
       title="Settings couldn't load"
       description="Settings could not be loaded. Your configuration is unchanged — try again, or continue working from your dashboard."
       secondaryHref="/dashboard"

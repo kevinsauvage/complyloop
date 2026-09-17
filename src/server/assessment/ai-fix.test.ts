@@ -29,8 +29,6 @@ const { reportWarningMock } = vi.hoisted(() => ({
 vi.mock("../observability", () => ({
   reportWarning: reportWarningMock,
   reportError: vi.fn(),
-  reportDebug: vi.fn(),
-  reportInfo: vi.fn(),
 }));
 
 const tempDirs: string[] = [];

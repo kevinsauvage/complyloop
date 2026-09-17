@@ -1,6 +1,6 @@
 "use client";
 
-import { ReportedError } from "@/components/reported-error";
+import { AppErrorCard } from "@/components/app-error-card";
 
 export default function FindingDetailError({
   error,
@@ -10,10 +10,10 @@ export default function FindingDetailError({
   retry: () => void;
 }) {
   return (
-    <ReportedError
+    <AppErrorCard
       error={error}
-      retry={retry}
-      tag="finding_detail_error_boundary"
+      onReset={retry}
+      reportTag="finding_detail_error_boundary"
       description="This finding could not be loaded. Remediation and evidence are unchanged — try again or pick another item from the queue."
     />
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { ReportedError } from "@/components/reported-error";
+import { AppErrorCard } from "@/components/app-error-card";
 
 export default function EvidenceError({
   error,
@@ -10,10 +10,10 @@ export default function EvidenceError({
   retry: () => void;
 }) {
   return (
-    <ReportedError
+    <AppErrorCard
       error={error}
-      retry={retry}
-      tag="evidence_error_boundary"
+      onReset={retry}
+      reportTag="evidence_error_boundary"
       title="Evidence couldn't load"
       description="The evidence trail could not be loaded. Stored evidence is unchanged — try again, or continue working from your findings."
       secondaryHref="/findings"

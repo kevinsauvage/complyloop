@@ -1,6 +1,6 @@
 "use client";
 
-import { ReportedError } from "@/components/reported-error";
+import { AppErrorCard } from "@/components/app-error-card";
 
 export default function RequirementsError({
   error,
@@ -10,10 +10,10 @@ export default function RequirementsError({
   retry: () => void;
 }) {
   return (
-    <ReportedError
+    <AppErrorCard
       error={error}
-      retry={retry}
-      tag="requirements_error_boundary"
+      onReset={retry}
+      reportTag="requirements_error_boundary"
       title="Requirements couldn't load"
       description="The requirements could not be loaded. Recent assessments and findings are unchanged — try again, or continue working from your findings."
       secondaryHref="/findings"

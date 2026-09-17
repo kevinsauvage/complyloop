@@ -1,6 +1,6 @@
 "use client";
 
-import { ReportedError } from "@/components/reported-error";
+import { AppErrorCard } from "@/components/app-error-card";
 
 export default function DashboardError({
   error,
@@ -10,10 +10,10 @@ export default function DashboardError({
   retry: () => void;
 }) {
   return (
-    <ReportedError
+    <AppErrorCard
       error={error}
-      retry={retry}
-      tag="dashboard_error_boundary"
+      onReset={retry}
+      reportTag="dashboard_error_boundary"
       title="Dashboard couldn't load"
       description="The dashboard could not be loaded. Recent assessments and findings are unchanged — try again, or continue working from your findings."
       secondaryHref="/findings"

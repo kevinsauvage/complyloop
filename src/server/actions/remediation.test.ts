@@ -47,8 +47,6 @@ vi.mock("@/ai/remediation", () => ({
 vi.mock("../observability", () => ({
   reportError: vi.fn(),
   reportWarning: vi.fn(),
-  reportDebug: vi.fn(),
-  reportInfo: vi.fn(),
   reportEvent: vi.fn(),
   reportAppError: vi.fn(),
 }));

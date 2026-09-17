@@ -1,6 +1,6 @@
 "use client";
 
-import { ReportedError } from "@/components/reported-error";
+import { AppErrorCard } from "@/components/app-error-card";
 
 export default function FindingsError({
   error,
@@ -10,10 +10,10 @@ export default function FindingsError({
   retry: () => void;
 }) {
   return (
-    <ReportedError
+    <AppErrorCard
       error={error}
-      retry={retry}
-      tag="findings_error_boundary"
+      onReset={retry}
+      reportTag="findings_error_boundary"
       description="The findings list could not be loaded. Filters and remediation states are unchanged — try again."
     />
   );
