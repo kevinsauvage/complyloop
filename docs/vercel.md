@@ -8,14 +8,14 @@ anywhere — checkouts use pure-JS git (isomorphic-git).
 
 ## How it runs
 
-| Concern       | Behavior                                                                                                                                                                                                                                                                                                                                                           |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Web/API**   | Vercel Fluid functions, `next build` with zero config                                                                                                                                                                                                                                                                                                              |
+| Concern       | Behavior                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Web/API**   | Vercel Fluid functions, `next build` with zero config                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | **Jobs**      | Manual and webhook runs enqueue in Postgres (`enqueueAssessmentJob`). Trigger sites schedule a drain in `after()`: the GitHub Actions `assessment-worker` workflow (`.github/workflows/assessment-worker.yml`) executes the batch with Playwright Chromium — immediately via `repository_dispatch` (`assessment-drain`), every 15 min on schedule as the orphan/expired-lease backstop, or manually via `workflow_dispatch`. Unconfigured/failed dispatch falls back to self-fetching the single-scan worker route (`POST /api/internal/jobs/run?limit=1`, Vercel browser stack, degraded path). Serial per project in the queue, 3 attempts with backoff, 30-min lease renewed by a 5-min heartbeat |
-| **Checkouts** | Ephemeral isomorphic-git shallow clone per job into `/tmp`; deleted after                                                                                                                                                                                                                                                                                          |
-| **Browsers**  | Playwright Chromium (`npx playwright install chromium`, lockfile-pinned so CI matches local dev); `@sparticuz/chromium` behind `ASSESSMENT_RUNTIME_BROWSER=serverless` remains only for the degraded Vercel worker-route path                                                                                                                                          |
-| **State**     | Postgres only; evidence append-only (`prepare: false` is already set, so pooled/transaction-mode connections work)                                                                                                                                                                                                                                                 |
-| **Backups**   | Postgres provider point-in-time (no app-side dump)                                                                                                                                                                                                                                                                                                                 |
+| **Checkouts** | Ephemeral isomorphic-git shallow clone per job into `/tmp`; deleted after                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| **Browsers**  | Playwright Chromium (`npx playwright install chromium`, lockfile-pinned so CI matches local dev); `@sparticuz/chromium` behind `ASSESSMENT_RUNTIME_BROWSER=serverless` remains only for the degraded Vercel worker-route path                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| **State**     | Postgres only; evidence append-only (`prepare: false` is already set, so pooled/transaction-mode connections work)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| **Backups**   | Postgres provider point-in-time (no app-side dump)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 ## 1. Database
 
@@ -97,25 +97,25 @@ and `assessment_opportunistic_drain_failed`) plus the Actions run logs.
 
 ## 3. Environment variables (Vercel dashboard)
 
-| Variable                                      | Value                                                                                                               |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`                                | Pooled Postgres URL with `sslmode=require`                                                                          |
-| `AUTH_SECRET`                                 | `openssl rand -base64 32` (stable — rotation invalidates sessions AND stored GitHub tokens, reconnect required; see TODO-12) |
-| `AUTH_URL`                                    | `https://<vercel-app>` (**required** in production)                                                                 |
-| `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET`       | GitHub App OAuth client                                                                                             |
-| `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY`    | Installation-token repo access                                                                                      |
-| `GITHUB_APP_SLUG` / `GITHUB_WEBHOOK_SECRET`   | Install link + webhook verification                                                                                 |
-| `WORKER_SECRET`                               | Bearer for the worker-route fallback (self-fetch secret, ≥16 chars)                                                             |
+| Variable                                      | Value                                                                                                                                                                                          |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                | Pooled Postgres URL with `sslmode=require`                                                                                                                                                     |
+| `AUTH_SECRET`                                 | `openssl rand -base64 32` (stable — rotation invalidates sessions AND stored GitHub tokens, reconnect required; see TODO-12)                                                                   |
+| `AUTH_URL`                                    | `https://<vercel-app>` (**required** in production)                                                                                                                                            |
+| `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET`       | GitHub App OAuth client                                                                                                                                                                        |
+| `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY`    | Installation-token repo access                                                                                                                                                                 |
+| `GITHUB_APP_SLUG` / `GITHUB_WEBHOOK_SECRET`   | Install link + webhook verification                                                                                                                                                            |
+| `WORKER_SECRET`                               | Bearer for the worker-route fallback (self-fetch secret, ≥16 chars)                                                                                                                            |
 | `GH_WORKER_DISPATCH_TOKEN`                    | Fine-grained PAT (Actions write on the app repo) so the app can fire `repository_dispatch`; target repo from `APP_REPO_FULL_NAME` or Vercel's `VERCEL_GIT_REPO_OWNER` / `VERCEL_GIT_REPO_SLUG` |
-| `APP_REPO_FULL_NAME`                          | `owner/repo` of the app repo (dispatch target fallback)                                                                         |
-| `ASSESSMENT_RUNTIME_BROWSER`                  | `serverless` (Vercel) — unset locally                                                                               |
-| `ASSESSMENT_MAX_CHECKOUT_BYTES`               | `100000000` (100 MB — `/tmp` caps at ~500 MB)                                                                       |
-| `ASSESSMENT_MAX_CHECKOUT_FILES`               | `10000`                                                                                                             |
-| `ASSESSMENT_MAX_RUNTIME_PAGES`                | `10` (fewer pages per serverless run)                                                                               |
-| `SENTRY_DSN` (+ `NEXT_PUBLIC_SENTRY_DSN`)     | Required by `ops:check` in production                                                                               |
-| `BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD` | Private preview gate (Basic Auth on every page; unset = open). Set both on the deployed project until public launch |
-| `COMPLYLOOP_SUPPORT_EMAIL`                    | Shown on the Organization page                                                                                      |
-| `AI_GATEWAY_API_KEY`                          | Optional — AI explanations/patches                                                                                  |
+| `APP_REPO_FULL_NAME`                          | `owner/repo` of the app repo (dispatch target fallback)                                                                                                                                        |
+| `ASSESSMENT_RUNTIME_BROWSER`                  | `serverless` (Vercel) — unset locally                                                                                                                                                          |
+| `ASSESSMENT_MAX_CHECKOUT_BYTES`               | `100000000` (100 MB — `/tmp` caps at ~500 MB)                                                                                                                                                  |
+| `ASSESSMENT_MAX_CHECKOUT_FILES`               | `10000`                                                                                                                                                                                        |
+| `ASSESSMENT_MAX_RUNTIME_PAGES`                | `10` (fewer pages per serverless run)                                                                                                                                                          |
+| `SENTRY_DSN` (+ `NEXT_PUBLIC_SENTRY_DSN`)     | Required by `ops:check` in production                                                                                                                                                          |
+| `BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD` | Private preview gate (Basic Auth on every page; unset = open). Set both on the deployed project until public launch                                                                            |
+| `COMPLYLOOP_SUPPORT_EMAIL`                    | Shown on the Organization page                                                                                                                                                                 |
+| `AI_GATEWAY_API_KEY`                          | Optional — AI explanations/patches                                                                                                                                                             |
 
 **Never set:** `E2E_*` (the harness swaps real checkouts for fixtures and skips
 prod GitHub enforcement), `DATABASE_SSL_INSECURE`.
@@ -144,11 +144,11 @@ without it every runtime scan fails with `Cannot find module
   Use it as the Vercel/dead-man check. A job stuck in `queued` with no
   worker activity shows up here as a growing `assessmentJobs` count.
 - Lifecycle events (`[event] assessment job enqueued/claimed/completed`,
-   `worker_batch_started/finished`, `worker_unauthorized`) log to stdout in
-   production — filter Vercel logs for `[event]` to trace a stuck job from
-   enqueue to claim. A `worker_unauthorized` line means the fallback
-   self-fetch bearer ≠ `WORKER_SECRET`, so fallback ticks never drain the
-   queue (the GH worker is unaffected — it needs no bearer).
+  `worker_batch_started/finished`, `worker_unauthorized`) log to stdout in
+  production — filter Vercel logs for `[event]` to trace a stuck job from
+  enqueue to claim. A `worker_unauthorized` line means the fallback
+  self-fetch bearer ≠ `WORKER_SECRET`, so fallback ticks never drain the
+  queue (the GH worker is unaffected — it needs no bearer).
 - `npm run ops:check` (from any machine with `DATABASE_URL`) verifies DB +
   prod env (`AUTH_SECRET`, `AUTH_URL`, `GITHUB_APP_ID`/`GITHUB_APP_PRIVATE_KEY`,
   `GITHUB_WEBHOOK_SECRET`, `WORKER_SECRET`, `SENTRY_DSN`) + queue depth +
@@ -181,11 +181,11 @@ the newest 5000 rows and mark `truncated` — that bounds downloads, not the tab
 
 ### What "delete" keeps
 
-| Action | Findings / remediations / requirements | Evidence | GitHub tokens |
-| ------ | -------------------------------------- | -------- | ------------- |
-| Disconnect repo | Dropped with the project (FK cascade); only the `project_disconnected` row survives. Returning clients start fresh. | Retained (FK-less by design) | Untouched (per-user scope) |
-| Delete project | Dropped with the project | Retained | Untouched |
-| Delete org | Dropped with the org's projects | Retained — the UI toast says "Evidence history was retained for audit." | **Survive by design**: `github_tokens` rows are per-user with no org/project FK, so they stay usable for the user's other orgs. |
+| Action          | Findings / remediations / requirements                                                                              | Evidence                                                                | GitHub tokens                                                                                                                   |
+| --------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Disconnect repo | Dropped with the project (FK cascade); only the `project_disconnected` row survives. Returning clients start fresh. | Retained (FK-less by design)                                            | Untouched (per-user scope)                                                                                                      |
+| Delete project  | Dropped with the project                                                                                            | Retained                                                                | Untouched                                                                                                                       |
+| Delete org      | Dropped with the org's projects                                                                                     | Retained — the UI toast says "Evidence history was retained for audit." | **Survive by design**: `github_tokens` rows are per-user with no org/project FK, so they stay usable for the user's other orgs. |
 
 In short: evidence is forever (until a superuser prune); project-scoped compliance state follows the project; tokens follow the user.
 
@@ -204,30 +204,8 @@ In short: evidence is forever (until a superuser prune); project-scoped complian
 - [ ] Cancel a queued/running job → status `cancelled`, nothing persisted
 - [ ] `/api/health` returns 200; Sentry receives a test issue
 - [ ] Provider DB backups enabled; restore drilled once to staging.
-  Drill runbook (point-in-time, provider console — no app-side dump exists):
+      Drill runbook (point-in-time, provider console — no app-side dump exists):
   1. create a staging branch/restore target at a recent timestamp;
   2. point a staging deploy at it (`DATABASE_URL` override);
   3. sign in, open dashboard + one finding, run `ops:check` against it;
   4. record date + owner here when done: \_\_\_ (pending — not yet drilled).
-
-## Decision log (Vercel migration, 2026-09-15)
-
-- **Deleted:** `scripts/run-assessment-worker.ts` (the GitHub Actions `assessment-worker` workflow owns draining),
-  `Dockerfile` / `docker-compose.yml` / `.dockerignore`, `docs/deploy.md`,
-  `scripts/backup-postgres.sh`, `src/server/github/git.ts` (+ tests),
-  `simple-git` and `playwright` library deps, `worker`/`ops:backup` scripts,
-  the `DOCKER_BUILD` standalone branch.
-- **`git` CLI → isomorphic-git** (verified: not shipped in the function
-  runtime). Single sink `withRepoCheckout` + PR branch/commit/force-push all
-  pure-JS; token travels per-request in the `Authorization` header. Full
-  40-hex SHAs fetch by hash (verified live against GitHub); short SHAs need
-  the full hash or a branch/tag name. Fix-branch commits now carry an explicit
-  `ComplyLoop` author (the old CLI path silently depended on host gitconfig).
-- **Chromium → `@sparticuz/chromium`** (exact pin) behind
-  `ASSESSMENT_RUNTIME_BROWSER=serverless`; `playwright-core` is the direct
-  dep, `playwright` lib removed (`playwright:install` still works via
-  `@playwright/test` for local dev/e2e).
-- **Poolers:** no code change — `prepare: false` was already set.
-- **Not live-verified here** (needs a real deployment): sparticuz launch on
-  Vercel infra, isomorphic-git force-push with an installation token, worker
-  end-to-end. The checklist above covers each.2
