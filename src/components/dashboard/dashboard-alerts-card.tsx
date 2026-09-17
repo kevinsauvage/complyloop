@@ -76,7 +76,7 @@ export function DashboardAlertsCard({
 
   return (
     <section
-      className="surface-panel rounded-2xl border-destructive/30 bg-destructive/5 p-4 sm:p-5"
+      className="surface-panel rounded-xl border-destructive/30 bg-destructive/5 p-4 sm:p-5"
       aria-labelledby="regression-alerts-heading"
     >
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">

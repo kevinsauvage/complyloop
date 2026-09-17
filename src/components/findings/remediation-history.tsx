@@ -91,6 +91,10 @@ export function RemediationHistory({
               Current status:
               <RemediationStatusBadge status={remediation.status} />
             </span>
+            <span className="basis-full text-xs">
+              Generate guidance or approve a suggestion from the panel above to
+              start the trail.
+            </span>
           </div>
         ) : (
           <ol

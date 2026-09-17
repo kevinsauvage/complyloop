@@ -150,7 +150,7 @@ export default async function FindingPage({
               </p>
             </EmptyState>
           ) : (
-            <div className="surface-panel rounded-2xl p-4">
+            <div className="surface-panel rounded-xl p-4">
               <p className="mb-3 text-xs text-muted-foreground">Newest first</p>
               <ol className="relative flex flex-col gap-0 border-l border-border/70 pl-4">
                 {evidence.slice(0, 5).map((record, index) => (

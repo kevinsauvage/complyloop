@@ -20,7 +20,7 @@ const statusCopy: Record<AssessmentJob["status"], string> = {
 
 const statusIndicator: Record<AssessmentJob["status"], string> = {
   queued: "bg-muted-foreground/50",
-  running: "bg-signal animate-pulse",
+  running: "bg-signal",
   succeeded: "bg-status-passed",
   failed: "bg-status-failed",
   cancelled: "bg-muted-foreground/40",

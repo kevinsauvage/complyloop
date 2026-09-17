@@ -76,8 +76,8 @@ function FindingsBulkRowContent({
   return (
     <div
       className={cn(
-        "group flex gap-3 rounded-xl border border-border/70 bg-card/80 p-3 shadow-none transition-[background-color,border-color,box-shadow]",
-        "hover:border-signal/40 hover:bg-accent/30 hover:shadow-sm",
+        "group flex gap-3 rounded-xl border border-border/70 bg-card p-3 shadow-none transition-[background-color,border-color]",
+        "hover:border-signal/40 hover:bg-accent/30",
         isSelected && "border-signal/50 bg-signal/5",
       )}
     >

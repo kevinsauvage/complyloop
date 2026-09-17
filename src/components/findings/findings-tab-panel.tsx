@@ -57,12 +57,12 @@ export function FindingsTabPanel({
             title={
               tab === "resolved"
                 ? "All clear — nothing resolved yet"
-                : "No findings"
+                : "No dismissed findings yet"
             }
             variant={tab === "resolved" ? "all-clear" : "default"}
             action={emptyAction}
           >
-            {emptyMessage} Nothing to triage here.
+            {emptyMessage}
           </EmptyState>
         )
       ) : (

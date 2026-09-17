@@ -14,6 +14,7 @@ export default function FindingsError({
       error={error}
       onReset={retry}
       reportTag="findings_error_boundary"
+      title="Findings could not be loaded"
       description="The findings list could not be loaded. Filters and remediation states are unchanged — try again."
     />
   );

@@ -47,6 +47,7 @@
   --color-signal: var(--signal);
   --color-signal-foreground: var(--signal-foreground);
   --color-status-passed: var(--status-passed);
+  --color-status-passed-foreground: var(--status-passed-foreground);
   --color-status-failed: var(--status-failed);
   --color-status-review: var(--status-review);
   --color-status-na: var(--status-na);
@@ -85,6 +86,7 @@
   --signal: oklch(0.47 0.15 42);
   --signal-foreground: oklch(0.99 0.01 40);
   --status-passed: oklch(0.42 0.13 155);
+  --status-passed-foreground: oklch(1 0 0);
   --status-failed: oklch(0.45 0.2 25);
   --status-review: oklch(0.44 0.12 75);
   --status-na: oklch(0.46 0.02 240);
@@ -131,6 +133,7 @@
   --signal: oklch(0.75 0.15 55);
   --signal-foreground: oklch(0.18 0.02 45);
   --status-passed: oklch(0.8 0.16 155);
+  --status-passed-foreground: oklch(0.2 0.03 155);
   --status-failed: oklch(0.78 0.18 25);
   --status-review: oklch(0.86 0.14 85);
   --status-na: oklch(0.76 0.03 240);

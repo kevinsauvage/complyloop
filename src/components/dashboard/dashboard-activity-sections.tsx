@@ -46,7 +46,7 @@ function ActivityCard({
   return (
     <Card
       className={cn(
-        "h-full border-border/70 bg-card/80 shadow-none",
+        "h-full border-border/70 shadow-none",
         className,
       )}
     >
@@ -109,7 +109,7 @@ export function DashboardActivitySections({
     <div className="grid gap-4 lg:grid-cols-12">
       {!hideRegressions && regressions.length > 0 ? (
         <section
-          className="surface-panel rounded-2xl border-destructive/30 bg-destructive/5 p-4 sm:p-5 lg:col-span-12"
+          className="surface-panel rounded-xl border-destructive/30 bg-destructive/5 p-4 sm:p-5 lg:col-span-12"
           aria-labelledby="recent-regressions-heading"
         >
           <div className="mb-4 flex items-start gap-3">

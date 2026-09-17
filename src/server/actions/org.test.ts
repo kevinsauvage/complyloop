@@ -353,7 +353,7 @@ describe("org lifecycle actions", () => {
       throw new Error("ECONNREFUSED 127.0.0.1:5432");
     });
     await expect(exportOrgDataAction("org-1")).resolves.toEqual({
-      error: "Something went wrong. Reference: aaaaaaaabbbb",
+      error: "The action could not be completed. Reference: aaaaaaaabbbb",
       json: null,
     });
   });

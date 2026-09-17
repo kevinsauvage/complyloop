@@ -216,8 +216,8 @@ export function findingAct(input: FindingActInput): FindingActView {
         beat: "source_review",
         title: "Review patch",
         description: input.githubConnected
-          ? "ComplyLoop passed. Create a draft pull request to apply this patch on GitHub."
-          : "ComplyLoop passed. Connect a GitHub repository to open a draft pull request.",
+          ? "Deterministic check passed. Create a draft pull request to apply this patch on GitHub."
+          : "Deterministic check passed. Connect a GitHub repository to open a draft pull request.",
         showCreatePr: input.githubConnected,
         showReplacePatch: canGenerateSourcePatch(
           input.finding,

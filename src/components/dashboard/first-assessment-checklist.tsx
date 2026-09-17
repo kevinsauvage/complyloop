@@ -29,7 +29,7 @@ function StepIndicator({
       className={cn(
         "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
         done
-          ? "bg-status-passed text-white"
+          ? "bg-status-passed text-status-passed-foreground"
           : optional
             ? "border border-dashed border-border bg-muted/40 text-muted-foreground"
             : "bg-signal/15 text-signal",
@@ -67,7 +67,7 @@ export function FirstAssessmentChecklist({
   );
 
   return (
-    <Card className="border-border/70 bg-card/80 shadow-none">
+    <Card className="border-border/70 shadow-none">
       <CardHeader>
         <CardTitle>First assessment checklist</CardTitle>
         <CardDescription>

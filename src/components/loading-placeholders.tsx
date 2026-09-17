@@ -48,11 +48,7 @@ export function RouteLoadingStatus({
       aria-busy="true"
       aria-label={label}
     >
-      <span className="relative flex size-12 items-center justify-center rounded-full border border-signal/25 bg-signal/10">
-        <span
-          aria-hidden
-          className="absolute inline-flex size-12 animate-ping rounded-full bg-signal/20"
-        />
+      <span className="flex size-12 items-center justify-center rounded-full border border-signal/25 bg-signal/10">
         <ShieldCheck className="relative size-5 text-signal" aria-hidden />
       </span>
       <div aria-hidden className="flex flex-col items-center gap-3">

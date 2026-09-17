@@ -18,7 +18,7 @@ export const initialActionState: ActionState = {
   message: null,
 };
 
-const UNEXPECTED_ACTION_MESSAGE = "Something went wrong.";
+const UNEXPECTED_ACTION_MESSAGE = "The action could not be completed.";
 
 export function unexpectedActionMessage(errorRef: string): string {
   return `${UNEXPECTED_ACTION_MESSAGE} Reference: ${errorRef}`;

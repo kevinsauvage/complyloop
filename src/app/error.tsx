@@ -14,6 +14,7 @@ export default function AppError({
       error={error}
       onReset={retry}
       reportTag="app_error_boundary"
+      title="This page could not be loaded"
       description="An unexpected error occurred while handling your request."
     />
   );

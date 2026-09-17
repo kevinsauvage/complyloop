@@ -36,7 +36,7 @@ function PatchPreview({ candidate }: { candidate: PatchCandidate }) {
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">{candidate.description}</p>
       <p className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-xs font-medium text-status-passed">
-        ComplyLoop passed
+        Deterministic check passed
       </p>
       {candidate.edits.map((edit, index) => (
         <CodeBlock key={`${edit.path}-${index}`} filename={edit.path}>
@@ -263,7 +263,7 @@ export function FindingNextStepPanel({
         {act.showDismiss ? (
           <>
             <p className="text-xs text-muted-foreground">
-              Not a real failure? Dismiss it with a documented reason — the
+              Not actually a finding? Dismiss it with a documented reason — the
               decision is kept as evidence.
             </p>
             <SecondaryFindingActions

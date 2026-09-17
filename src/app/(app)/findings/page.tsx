@@ -29,7 +29,7 @@ import { FindingsStatusNav } from "./_components/status-nav";
 export const metadata: Metadata = {
   title: "Findings",
   description:
-    "Every failure with its reason, location, remediation state, and evidence.",
+    "Every finding with its reason, location, remediation state, and evidence.",
 };
 
 export default async function FindingsPage({
@@ -42,7 +42,7 @@ export default async function FindingsPage({
     return (
       <NoProjectNotice
         title="Findings"
-        description="Every failure with its reason, location, remediation state, and evidence."
+        description="Every finding with its reason, location, remediation state, and evidence."
         hint="Connect a repository from the dashboard to see findings."
       />
     );
@@ -104,7 +104,7 @@ export default async function FindingsPage({
           description="One finding = one instance of a failed requirement. Fix it to Verified — every step is kept as evidence."
         />
         <EmptyState
-          title="No findings yet"
+          title="No accessibility findings yet"
           variant="first-run"
           action={
             <PageActionLink href="/dashboard">
@@ -203,7 +203,7 @@ export default async function FindingsPage({
             listParams={listParams}
             filtersActive={filtersActive}
             items={dismissedItems}
-            emptyMessage="No dismissed findings."
+            emptyMessage="No dismissed findings yet. Dismissed findings are documented exceptions with a reason — they appear here once recorded."
             emptyAction={
               <PageActionLink href={findingsListHref({ tab: "open" })}>
                 Review open findings

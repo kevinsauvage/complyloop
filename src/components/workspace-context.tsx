@@ -18,7 +18,7 @@ function ContextStrip({
   return (
     <div
       className={cn(
-        "surface-panel mb-6 flex flex-col gap-2 px-3 py-2.5 text-sm text-muted-foreground backdrop-blur-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-3",
+        "surface-panel mb-6 flex flex-col gap-2 rounded-xl px-3 py-2.5 text-sm text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center sm:gap-3",
         className,
       )}
     >

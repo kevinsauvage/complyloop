@@ -12,9 +12,6 @@ import {
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-const PAGE_HERO_GLOW =
-  "pointer-events-none absolute inset-x-0 top-0 h-20 bg-[radial-gradient(ellipse_80%_70%_at_50%_-40%,color-mix(in_oklch,var(--signal)_12%,transparent),transparent)]";
-
 export function PageHeader({
   title,
   description,
@@ -35,16 +32,12 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        variant === "panel" &&
-          "surface-panel relative mb-6 overflow-hidden rounded-2xl",
+        variant === "panel" && "surface-panel relative mb-6 rounded-xl",
         variant === "plain" && "relative",
         className,
       )}
     >
-      {variant === "panel" ? (
-        <div aria-hidden className={PAGE_HERO_GLOW} />
-      ) : null}
-      <div className="relative z-[1] flex flex-wrap items-start justify-between gap-4 p-5 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-4 p-5 sm:p-6">
         <div className="min-w-0 space-y-1">
           {eyebrow ? (
             <div className="flex flex-wrap items-center gap-2">{eyebrow}</div>

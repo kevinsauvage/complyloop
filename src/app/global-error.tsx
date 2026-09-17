@@ -22,6 +22,7 @@ export default function GlobalError({
           error={error}
           onReset={retry}
           reportTag="app_global_error_boundary"
+          title="The application could not be loaded"
           description="An unexpected error occurred while loading the application."
           className="mx-auto max-w-lg"
         />

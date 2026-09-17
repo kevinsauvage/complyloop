@@ -183,7 +183,7 @@ export function persistPatchCandidate(
   const location = formatLocationRef(finding.location);
   appendEvidence(payload, {
     kind: "ai_patch_ready",
-    summary: `Patch ready for ${finding.checkId} at ${location} (ComplyLoop passed).`,
+    summary: `Patch ready for ${finding.checkId} at ${location} (deterministic check passed).`,
     projectId: finding.projectId,
     controlId: finding.controlId,
     findingId: finding.id,

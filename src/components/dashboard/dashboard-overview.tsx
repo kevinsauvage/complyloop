@@ -26,7 +26,7 @@ function statToneClass(tone: DashboardQuickStat["tone"]): string {
       return "border-border/50 bg-muted/30";
     case "default":
     default:
-      return "border-border/60 bg-card/60";
+      return "border-border/60 bg-card";
   }
 }
 
@@ -64,7 +64,7 @@ function QuickStatTile({ stat }: { stat: DashboardQuickStat }) {
     "surface-panel group block w-full min-w-0 rounded-xl px-4 py-3 transition-[border-color,background-color] duration-200",
     statToneClass(stat.tone),
     linked
-      ? "hover:border-signal/30 hover:bg-card/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      ? "hover:border-signal/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       : "cursor-default",
   );
 
@@ -99,8 +99,8 @@ export function DashboardOverview({
   actions?: ReactNode;
 }) {
   return (
-    <section className="surface-panel card-sheen relative overflow-hidden rounded-2xl backdrop-blur-sm">
-      <div className="relative z-[1]">
+    <section className="surface-panel relative rounded-xl">
+      <div>
         <PageHeader
           title={title}
           description={description}

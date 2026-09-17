@@ -72,13 +72,8 @@ export default async function LoginPage({
     !isGitHubAppConfigured();
 
   return (
-    <div className="relative flex min-h-[calc(100vh-8rem)] items-center justify-center px-4 py-16 sm:px-6">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_0%,color-mix(in_oklch,var(--signal)_18%,transparent),transparent)]"
-      />
-
-      <Card className="relative w-full max-w-md border-border/80 bg-card/90 card-sheen backdrop-blur-sm">
+    <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center px-4 py-16 sm:px-6">
+      <Card className="w-full max-w-md border-border/80 shadow-none">
         <CardHeader className="text-center">
           <CardTitle level={1} className="text-2xl">
             Sign in to ComplyLoop

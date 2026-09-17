@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 export function AppErrorCard({
   error,
   reportTag,
-  title = "Something went wrong",
+  title,
   description,
   onReset,
   secondaryHref = "/dashboard",
@@ -26,7 +26,7 @@ export function AppErrorCard({
 }: {
   error: Error & { digest?: string };
   reportTag: string;
-  title?: string;
+  title: string;
   description: string;
   onReset: () => void;
   secondaryHref?: string;

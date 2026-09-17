@@ -1,7 +1,10 @@
 import type { EvidenceKind } from "@complyloop/analysis-core/contract/entities";
 
 import { EvidenceKindBadge } from "@/components/badges";
-import { FilterChipList } from "@/components/filter-chip-list";
+import {
+  FilterChipList,
+  HiddenCategoriesNote,
+} from "@/components/filter-chip-list";
 import {
   EVIDENCE_KIND_FILTER_ORDER,
   evidenceKindHref,
@@ -59,10 +62,7 @@ export function EvidenceKindChips({
         </p>
       ) : null}
       {zeroHidden > 0 ? (
-        <p className="text-xs text-muted-foreground">
-          No evidence entries in {zeroHidden} categor
-          {zeroHidden === 1 ? "y" : "ies"} yet
-        </p>
+        <HiddenCategoriesNote count={zeroHidden} noun="evidence" />
       ) : null}
     </div>
   );

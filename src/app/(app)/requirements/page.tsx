@@ -66,7 +66,7 @@ export default async function RequirementsPage({
     <>
       <PageHeader
         title="Requirements"
-        description={`"${project.name}" — ${targetLabel}. Each requirement states what you must do; findings are its individual failures; evidence is the proof.`}
+        description={`"${project.name}" — ${targetLabel}. Each requirement states what you must do; findings are its individual instances; evidence is the proof.`}
       />
 
       <PageContent>

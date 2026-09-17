@@ -14,6 +14,7 @@ export default function FindingDetailError({
       error={error}
       onReset={retry}
       reportTag="finding_detail_error_boundary"
+      title="This finding could not be loaded"
       description="This finding could not be loaded. Remediation and evidence are unchanged — try again or pick another item from the queue."
     />
   );

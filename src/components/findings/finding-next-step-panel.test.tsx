@@ -176,7 +176,7 @@ describe("FindingNextStepPanel", () => {
       screen.getByRole("heading", { name: "Review patch" }),
     ).toBeInTheDocument();
     expect(screen.getByText("a.tsx")).toBeInTheDocument();
-    expect(screen.getByText("ComplyLoop passed")).toBeInTheDocument();
+    expect(screen.getByText("Deterministic check passed")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Create draft pull request" }),
     ).toBeInTheDocument();
@@ -238,7 +238,7 @@ describe("FindingNextStepPanel", () => {
     expect(
       screen.getByRole("heading", { name: "Verified" }),
     ).toBeInTheDocument();
-    expect(screen.queryByText("Not a real failure?")).not.toBeInTheDocument();
+    expect(screen.queryByText("Not actually a finding?")).not.toBeInTheDocument();
   });
 
   it("offers Approve for a runtime Finding and never Create draft PR", () => {

@@ -24,7 +24,7 @@ describe("app error and not-found pages", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: "Something went wrong" }),
+      screen.getByRole("heading", { name: "This page could not be loaded" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent(
       "An unexpected error occurred while handling your request. Reference: abc",

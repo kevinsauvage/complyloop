@@ -72,3 +72,19 @@ export function FilterChipList({
     </nav>
   );
 }
+
+/** Shared "N empty categories" note for chip filters (§21: explain what is empty). */
+export function HiddenCategoriesNote({
+  count,
+  noun,
+}: {
+  count: number;
+  noun: string;
+}) {
+  if (count <= 0) return null;
+  return (
+    <p className="text-xs text-muted-foreground">
+      No {noun} entries in {count} {count === 1 ? "category" : "categories"} yet
+    </p>
+  );
+}

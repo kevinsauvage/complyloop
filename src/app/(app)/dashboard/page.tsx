@@ -151,7 +151,7 @@ export default async function DashboardPage() {
           {nextAction ? (
             <section
               aria-labelledby="next-action-heading"
-              className="surface-panel rounded-2xl border-signal/30 bg-signal/5 p-5 sm:p-6"
+              className="surface-panel rounded-xl border-signal/30 bg-signal/5 p-5 sm:p-6"
             >
               <p className="text-xs font-semibold uppercase tracking-wider text-signal">
                 Next action

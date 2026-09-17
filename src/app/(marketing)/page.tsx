@@ -45,7 +45,7 @@ const FEATURES = [
   {
     title: "Engineer-native Findings",
     description:
-      "Every failure explains what broke, why it matters, where it lives, and how to fix it — in language your team already uses.",
+      "Every finding explains what broke, why it matters, where it lives, and how to fix it — in language your team already uses.",
     icon: FileSearch,
   },
   {
@@ -83,12 +83,7 @@ const PRINCIPLES = [
 
 export default function HomePage() {
   return (
-    <div className="relative overflow-hidden">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[520px] bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,color-mix(in_oklch,var(--signal)_22%,transparent),transparent)]"
-      />
-
+    <div className="relative">
       <section className="relative mx-auto max-w-6xl px-4 pb-20 pt-16 sm:px-6 sm:pt-24 lg:pt-28">
         <div className="mx-auto max-w-3xl text-center">
           <p className="mb-4 inline-flex items-center rounded-full border border-signal/25 bg-signal/10 px-3 py-1 text-xs font-medium text-signal">
@@ -120,7 +115,7 @@ export default function HomePage() {
 
         <div
           id="how-it-works"
-          className="mt-20 scroll-mt-24 rounded-2xl border border-border/80 bg-card/60 p-6 card-sheen backdrop-blur-sm sm:p-8"
+          className="mt-20 scroll-mt-24 rounded-xl border border-border/80 bg-card p-6 sm:p-8"
         >
           <h2 className="text-center text-sm font-medium uppercase tracking-wider text-muted-foreground">
             The compliance loop
@@ -131,7 +126,7 @@ export default function HomePage() {
               return (
                 <li
                   key={step.label}
-                  className="relative flex flex-col items-center rounded-xl border border-border/60 bg-background/70 px-4 py-5 text-center"
+                  className="relative flex flex-col items-center rounded-xl border border-border/60 bg-background px-4 py-5 text-center"
                 >
                   <span className="mb-3 flex size-10 items-center justify-center rounded-lg bg-signal/15 text-signal">
                     <Icon className="size-5" aria-hidden />
@@ -180,7 +175,7 @@ export default function HomePage() {
               const Icon = feature.icon;
               return (
                 <li key={feature.title}>
-                  <Card className="h-full border-border/70 bg-card/80 card-sheen transition-[border-color,box-shadow] duration-200 hover:border-signal/30 hover:shadow-[0_8px_30px_color-mix(in_oklch,var(--signal)_8%,transparent)]">
+                  <Card className="h-full border-border/70 shadow-none transition-[border-color] duration-200 hover:border-signal/30">
                     <CardHeader>
                       <div className="mb-2 flex size-9 items-center justify-center rounded-lg bg-signal/12 text-signal">
                         <Icon className="size-4.5" aria-hidden />
@@ -225,14 +220,14 @@ export default function HomePage() {
             </div>
 
             <div
-              className="rounded-2xl border border-border/80 bg-card/70 p-5 card-sheen sm:p-6"
+              className="rounded-xl border border-border/80 bg-card p-5 sm:p-6"
               aria-label="Sample evidence trail"
             >
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Sample evidence trail
               </p>
               <ol className="mt-4 flex flex-col gap-2">
-                <li className="flex items-start gap-3 rounded-lg border border-border/60 bg-background/60 px-3 py-2.5">
+                <li className="flex items-start gap-3 rounded-lg border border-border/60 bg-background px-3 py-2.5">
                   <span
                     aria-hidden
                     className="mt-1.5 size-2.5 shrink-0 rounded-full bg-status-passed"
@@ -244,7 +239,7 @@ export default function HomePage() {
                     </p>
                   </div>
                 </li>
-                <li className="flex items-start gap-3 rounded-lg border border-border/60 bg-background/60 px-3 py-2.5">
+                <li className="flex items-start gap-3 rounded-lg border border-border/60 bg-background px-3 py-2.5">
                   <span
                     aria-hidden
                     className="mt-1.5 size-2.5 shrink-0 rounded-full bg-status-failed"
@@ -256,7 +251,7 @@ export default function HomePage() {
                     </p>
                   </div>
                 </li>
-                <li className="flex items-start gap-3 rounded-lg border border-border/60 bg-background/60 px-3 py-2.5">
+                <li className="flex items-start gap-3 rounded-lg border border-border/60 bg-background px-3 py-2.5">
                   <span
                     aria-hidden
                     className="mt-1.5 size-2.5 shrink-0 rounded-full bg-status-passed"
@@ -314,7 +309,7 @@ export default function HomePage() {
               </ul>
             </div>
 
-            <div className="rounded-2xl border border-border/80 bg-card/70 p-8 card-sheen">
+            <div className="rounded-xl border border-border/80 bg-card p-8">
               <p className="text-sm font-medium text-signal">
                 For French agencies
               </p>

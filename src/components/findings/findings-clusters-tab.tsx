@@ -51,7 +51,7 @@ export function FindingsClustersTab({
           <li key={cluster.id}>
             <Link
               href={findingsListHref({ tab: "open", cluster: cluster.id })}
-              className="block rounded-xl border border-border/70 bg-card/80 p-4 shadow-none outline-none transition-[background-color,border-color,box-shadow] hover:border-signal/40 hover:bg-accent/30 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring"
+              className="block rounded-xl border border-border/70 bg-card p-4 shadow-none outline-none transition-[background-color,border-color] hover:border-signal/40 hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-ring"
             >
               <p className="text-sm font-medium">{cluster.label}</p>
               <p className="mt-1 font-mono text-xs text-muted-foreground">
