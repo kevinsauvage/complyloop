@@ -75,10 +75,22 @@ export default defineConfig({
         // Page loaders (findings/dashboard/requirements/evidence views) — Postgres
         // reads composed for RSC pages; covered via test:e2e page runs.
         "src/server/workspace/project-view.ts", // test:e2e
+        "src/server/workspace/findings-view.ts", // test:e2e
+        "src/server/workspace/finding-detail-view.ts", // test:e2e
+        "src/server/workspace/requirements-view.ts", // test:e2e
+        "src/server/workspace/evidence-view.ts", // test:e2e
+        "src/server/workspace/dashboard-view.ts", // test:e2e
+        "src/server/workspace/settings-view.ts", // test:e2e
+        "src/server/workspace/active-project-page.ts", // test:e2e
+        // Reporting loaders (needs Postgres); covered via test:e2e page runs.
+        "src/server/reporting/evidence-queries.ts", // test:e2e
+        "src/server/reporting/nav-attention.ts", // test:e2e
         // Thin Next Auth / cookie glue — covered via test:e2e.
         "src/server/workspace/active-cookies.ts", // test:e2e
         "src/server/workspace/db.ts", // test:e2e
         // Live GitHub/git checkout I/O — e2e + fixture paths cover the contract.
+        "src/server/github/access-token.ts", // test:e2e (cookie + token vault I/O)
+        "src/server/github/github-access.ts", // test:e2e (thin auth glue)
         "src/server/assessment/repo-checkout.ts", // test:e2e
         "src/server/github/github-tokens.ts", // test:e2e
         "src/server/github/github-app.ts", // test:e2e

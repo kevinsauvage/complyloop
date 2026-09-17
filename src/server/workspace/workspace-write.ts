@@ -19,6 +19,7 @@ import {
 } from "@complyloop/db/postgres";
 import {
   persistProjectRows,
+  type ProjectSlice,
   type ProjectWritePayload,
   snapshotProjectSlice,
 } from "@complyloop/db/repo/apply";
@@ -65,30 +66,36 @@ export interface OrgWriteContext {
 }
 
 /**
- * Shared commit tail for locked project writes: snapshot the loaded slice
- * (before the handler mutates rows in place), run the handler, stamp the
- * actor on new evidence, persist. Lock resolution stays in each caller —
- * cookie-probe vs finding-preview follow different protocols.
+ * Shared commit tail for locked project writes: persists the handler payload
+ * against a pre-handler snapshot. Callers MUST snapshot before invoking the
+ * handler — `persistProjectRows` diffs payload against `loadedSlice`, so a
+ * snapshot taken after in-place mutation diffs to empty and silently drops
+ * the write. Lock resolution stays in each caller — cookie-probe vs
+ * finding-preview follow different protocols.
  */
 async function commitLockedProjectPayload(
   tx: DrizzleDb,
-  projectId: string,
-  db: WorkspaceSlice,
+  loadedSlice: ProjectSlice,
   actor: string | null | undefined,
   payload: ProjectWritePayload | void,
 ): Promise<void> {
-  // Clone before the handler mutates rows in place: persist compares against
-  // what was loaded, not the post-mutation state.
-  const loadedSlice = snapshotProjectSlice(
+  const resolved = payload ?? {};
+  stampEvidenceActor(resolved.evidence, actor);
+  await persistProjectRows(tx, resolved, { loadedSlice });
+}
+
+/**
+ * Snapshots the loaded slice before the handler mutates rows in place:
+ * persist compares against what was loaded, not the post-mutation state.
+ */
+function snapshotLoadedSlice(db: WorkspaceSlice, projectId: string): ProjectSlice {
+  return snapshotProjectSlice(
     db.requirements,
     db.findings,
     db.remediations,
     db.alerts,
     projectId,
   );
-  const resolved = payload ?? {};
-  stampEvidenceActor(resolved.evidence, actor);
-  await persistProjectRows(tx, resolved, { loadedSlice });
 }
 
 /**
@@ -153,15 +160,16 @@ export async function withProjectWrite(
       throw new PublicError("The active project changed. Try again.");
     }
 
-    // Clone before the handler mutates rows in place: persist compares against
-    // what was loaded, not the post-mutation state (see
+    // Snapshot before the handler mutates rows in place: persist compares
+    // against what was loaded, not the post-mutation state (see
     // `commitLockedProjectPayload`).
+    const loadedSlice = snapshotLoadedSlice(workspace.db, projectId);
+    const payload = await fn(workspace);
     await commitLockedProjectPayload(
       tx,
-      projectId,
-      workspace.db,
+      loadedSlice,
       githubLogin ?? userId,
-      await fn(workspace),
+      payload,
     );
   });
 }
@@ -209,12 +217,13 @@ export async function withFindingWrite(
     const finding = findingById(db, findingId);
     requireOnFindingProject(workspace, finding, permission);
 
+    const loadedSlice = snapshotLoadedSlice(workspace.db, projectId);
+    const payload = await fn({ db, finding, workspace });
     await commitLockedProjectPayload(
       tx,
-      projectId,
-      workspace.db,
+      loadedSlice,
       githubLogin ?? userId,
-      await fn({ db, finding, workspace }),
+      payload,
     );
   });
 }
