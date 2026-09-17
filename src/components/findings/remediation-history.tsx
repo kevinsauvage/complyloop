@@ -1,21 +1,77 @@
-import type { Remediation } from "@complyloop/analysis-core/contract/entities";
+import type {
+  EvidenceRecord,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
+import type { RemediationStatus } from "@complyloop/analysis-core/contract/statuses";
 
 import { RemediationStatusBadge } from "@/components/badges";
 import { FormattedDateTime } from "@/components/formatted-datetime";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
+type HistoryEntry = {
+  status: RemediationStatus;
+  at: string;
+  note?: string;
+};
+
 /**
- * Visualizes the `RemediationHistoryEntry` timeline on a finding so teams can
- * see who approved / implemented / verified what, and when. Rendered newest
- * first (history is appended oldest → newest by the domain model).
+ * Remediation lifecycle kinds that belong on the timeline, mapped to the
+ * status they record. `remediation_verification_failed` changes nothing, so
+ * it renders under the remediation's current status.
+ */
+const HISTORY_STATUS_BY_KIND: Record<string, RemediationStatus | "current"> = {
+  remediation_suggested: "suggested",
+  ai_remediation_suggested: "suggested",
+  ai_patch_ready: "suggested",
+  remediation_approved: "approved",
+  remediation_implemented: "implemented",
+  remediation_verified: "verified",
+  remediation_manually_verified: "verified",
+  remediation_verification_failed: "current",
+};
+
+function stringField(detail: unknown, key: string): string | undefined {
+  if (typeof detail !== "object" || detail === null) return undefined;
+  const value = (detail as Record<string, unknown>)[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function historyEntriesFor(
+  remediation: Remediation,
+  evidence: readonly EvidenceRecord[],
+): HistoryEntry[] {
+  // `evidence` arrives newest-first (`listEvidenceForFinding` orders by
+  // `at` desc), matching the newest-first timeline below.
+  const entries: HistoryEntry[] = [];
+  for (const record of evidence) {
+    const mapped = HISTORY_STATUS_BY_KIND[record.kind];
+    if (mapped === undefined) continue;
+    entries.push({
+      status: mapped === "current" ? remediation.status : mapped,
+      at: record.at,
+      note:
+        stringField(record.detail, "note") ??
+        stringField(record.detail, "description"),
+    });
+  }
+  return entries;
+}
+
+/**
+ * Visualizes the remediation timeline on a finding so teams can see who
+ * approved / implemented / verified what, and when. Derived from the
+ * finding's evidence (the append-only audit trail) — `Remediation.history`
+ * is legacy write data for old rows only. Rendered newest first.
  */
 export function RemediationHistory({
   remediation,
+  evidence,
 }: {
   remediation: Remediation;
+  evidence: readonly EvidenceRecord[];
 }) {
-  const history = [...remediation.history].reverse();
+  const history = historyEntriesFor(remediation, evidence);
 
   return (
     <Card className="shadow-none" id="remediation-history">

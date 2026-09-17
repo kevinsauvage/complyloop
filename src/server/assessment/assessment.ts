@@ -256,21 +256,16 @@ export function verifyRemediationOnResolve(
   // evidence); `implemented` advances straight to `verified`.
   const wasApproved = remediation.status === "approved";
   const implemented = wasApproved
-    ? advanceRemediation(
-        remediation,
-        "implemented",
-        "No longer detected by deterministic reassessment after approval",
-      )
+    ? advanceRemediation(remediation, "implemented")
     : remediation;
-  const verified = advanceRemediation(
-    implemented,
-    "verified",
-    "Verified by deterministic reassessment",
-  );
+  const verified = advanceRemediation(implemented, "verified");
   rows.remediations[remediationIndex] = verified;
   const detail = remediationEvidenceDetail({
     determination: "automated",
     method: "deterministic_reassessment",
+    note: wasApproved
+      ? "No longer detected by deterministic reassessment after approval"
+      : "Verified by deterministic reassessment",
   });
   if (wasApproved) {
     appendEvidence(rows, {

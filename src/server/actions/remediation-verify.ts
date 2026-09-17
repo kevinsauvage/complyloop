@@ -9,6 +9,7 @@ import {
   type Finding,
   type Remediation,
 } from "@complyloop/analysis-core/contract/entities";
+import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   runtimeViolationStillPresent,
@@ -18,10 +19,7 @@ import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 
 import type { ActionState } from "@/core/action-state";
-import {
-  advanceRemediation,
-  appendRemediationHistory,
-} from "@/core/remediation-lifecycle";
+import { advanceRemediation } from "@/core/remediation-lifecycle";
 import { optionalNoteSchema, parseEntityId, parseForm } from "@/core/validate";
 
 import { runAction } from "../action-state";
@@ -129,16 +127,21 @@ async function scanSiteFindingForVerify(input: {
 
 function recordStillFailing(
   payload: ProjectWritePayload,
+  finding: Finding,
   remediation: Remediation,
 ): void {
-  replaceRemediation(
-    payload,
-    appendRemediationHistory(
-      remediation,
-      remediation.status,
-      "Verification failed: the violation is still detected on the page.",
-    ),
-  );
+  const note = "Verification failed: the violation is still detected on the page.";
+  replaceRemediation(payload, remediation);
+  // History alone would not survive the evidence-derived timeline (P2-5):
+  // record the failed verification as evidence too.
+  appendEvidence(payload, {
+    kind: "remediation_verification_failed",
+    summary: `Verification failed for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
+    projectId: finding.projectId,
+    controlId: finding.controlId,
+    findingId: finding.id,
+    detail: remediationEvidenceDetail({ note }),
+  });
 }
 
 function markVerified(
@@ -175,7 +178,7 @@ function markVerified(
     db.requirements,
     project.id,
   );
-  const verifiedRemediation = advanceRemediation(remediation, "verified", note);
+  const verifiedRemediation = advanceRemediation(remediation, "verified");
   const updatedFinding: Finding = {
     ...live,
     status: "resolved",
@@ -188,7 +191,7 @@ function markVerified(
     projectId: live.projectId,
     controlId: live.controlId,
     findingId: live.id,
-    detail: remediationEvidenceDetail({ engine }),
+    detail: remediationEvidenceDetail({ engine, note }),
   });
   applyRequirementStatusRefresh(rows, project, {
     controlIds: [live.controlId],
@@ -317,7 +320,7 @@ export async function verifyRemediationAction(
         const payload: ProjectWritePayload = {};
         if (present) {
           stillFailing = true;
-          recordStillFailing(payload, remediation);
+          recordStillFailing(payload, live, remediation);
           return payload;
         }
         return markVerified(
@@ -366,7 +369,7 @@ export async function markRemediationImplementedAction(
 
       replaceRemediation(
         payload,
-        advanceRemediation(remediation, "implemented", note),
+        advanceRemediation(remediation, "implemented"),
       );
       appendEvidence(payload, {
         kind: "remediation_implemented",

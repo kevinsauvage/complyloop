@@ -62,6 +62,7 @@ export default async function FindingPage({
     handoff,
     queuePosition,
     listParams,
+    suggestionStale,
   } = view;
 
   return (
@@ -129,9 +130,10 @@ export default async function FindingPage({
           remediation={remediation}
           canRemediate={caps.canRemediate}
           patchState={patchState}
+          suggestionStale={suggestionStale}
         />
 
-        <RemediationHistory remediation={remediation} />
+        <RemediationHistory remediation={remediation} evidence={evidence} />
 
         {handoff ? (
           <PageSection id="copy-handoff" title="Copy patch / PR body">

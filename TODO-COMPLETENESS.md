@@ -1,70 +1,6 @@
 # Project Completeness TODO
 
-> **Status (2026-09-16): triaged against current code — every item re-verified.**
-> Result: all items stay open except three resolved sub-points (TODO-15.1
-> check counts, TODO-15.4 export wording, TODO-16 Sentry default). Refs to
-> `vercel.json` cron, `docs/deploy.md`, and `npm run worker` are historical
-> (production drains via the GitHub Actions `assessment-worker` — see
-> `docs/vercel.md`). Refs refreshed to current `file:line` throughout.
-
-Evidence-based audit (2026-09-15). Method: `graft build` (wiring refreshed) + `graft ask` /
-`graft callers` for flow tracing + direct source reads. Documentation was verified
-against code — nothing below is trusted from docs alone. Prior quality audit
-(`docs/ai/project-quality-audit-2026-09-15.md`, 80/100) covers code-quality/refactor
-concerns (god modules, client-JS budget, coverage exclusions); those are
-intentionally **not** repeated here. This file covers only **product completeness**:
-what is missing before the project is genuinely usable, safe, and deployable.
-
----
-
 ## P1 — High
-
-### [x] TODO-06: Rate-limit the expensive/unthrottled paths
-
-> **Done 2026-09-17** (master TODO.md #7): per-domain helpers on the Postgres bucket primitive (remediation/requirements 30/m, runtime-audit 20/m, org-create 5/h, org-invite 20/m, export 10/m); health 10s healthy-response cache instead of a bucket (unauthenticated scrape target; 503s never cached).
-
-**Why:**
-`assess`/`connect`/`ai`/`webhook` are limited, but the other expensive or abusable
-mutations (runtime Playwright saves, remediation/requirements writes, org
-create/invite spam, full-org export) are not.
-
-**Where (verified 2026-09-16):**
-`src/server/rate-limit.ts:48-60`, `src/server/actions/runtime-audit.ts`,
-`src/server/actions/remediation.ts`, `src/server/actions/requirements.ts`,
-`src/server/actions/org.ts:96-250`, `src/app/(app)/evidence/export/route.ts`,
-`src/app/api/health/route.ts`
-
-**Current state:**
-
-- Covered: `connect` 10/m, `assess` 6/m, `ai` 20/m, `webhook:{project}` 60/m,
-  `worker-run` 120/m. Export caps `MAX_EXPORT_PROJECTS=50`.
-- Prune runs once per `runAssessmentJobBatch` (every Cron tick + inline drain) —
-  resolved in the Vercel migration; no deployment topology skips it.
-
-**Missing / Problem (verified 2026-09-16 — no path gained a limit):**
-
-No `assert*` on runtime-audit, remediation, requirements, org create/invite,
-org/project export (`src/app/(app)/evidence/export/route.ts` — export capped
-at `MAX_EXPORT_PROJECTS=50` in breadth, not rate); health probe
-unauthenticated + unthrottled per scrape.
-
-**Required change:**
-
-- Add limits to runtime-audit, remediation/requirements, org create/invite, export;
-  throttle or cache health probe.
-
-**Completion impact:** High
-
-**Complexity:** Small
-
-**Evidence (verified 2026-09-16):**
-
-- `rate-limit.ts:48-60` (still exactly three helpers: connect 10/m, assess 6/m,
-  ai 20/m) vs zero `assert*` imports in `runtime-audit.ts`, `remediation.ts`,
-  `requirements.ts`, `org.ts`, `evidence/export/route.ts`;
-  covered-pattern examples: `webhook.ts:227` (webhook 60/m), `internal/jobs/run/route.ts:90-104` (worker-run 120/m).
-
----
 
 ### [ ] TODO-07: Evidence growth observability — wire the size alert the deploy doc recommends
 
@@ -107,50 +43,6 @@ guidance beyond "keep decision records forever, noise kinds are candidates".
   `operations-check.ts:30-35` (only `SELECT 1` + queued count);
   `health/route.ts:15-29` (only `queuedJobs` + `latencyMs`);
   `evidence.ts:33` (limit bounds reads, not the table).
-
----
-
-### [ ] TODO-09: Site-level findings speak DOM — fix handoff + act copy for `site` locations
-
-**Why:**
-Functionally reachable but textually wrong: `site` findings route through
-runtime/DOM wording ("fix at the call site", "create a draft PR … merge …
-re-run") when there is no file to PR and verification is a site re-audit. Users
-following the instructions do the wrong thing.
-
-**Where (verified 2026-09-16):**
-`src/core/finding-act.ts:81-125,190-219`, `src/server/assessment/handoff.ts:65-76`,
-`src/server/github/pr.ts:134-138`,
-`src/components/findings/finding-next-step-panel.tsx:67-197`
-
-**Current state:**
-
-- Verify switch is exhaustive and correct (`remediation-verify.ts:177-229`):
-  source throws by design, `dom` re-checks the violation, `site` re-runs
-  `scanRuntime` with fail-closed preview-down/0-pages handling. AI guidance +
-  approve → implement → verify path works for site.
-
-**Missing / Problem (verified 2026-09-16 — copy only):**
-`finding-act.ts:219` falls `site` into `runtimeAct` (call-site wording);
-`handoff.ts:66` gives `site` the `else` arm (source PR steps); `pr.ts:134-138`
-rejection names "DOM" only. (The `dom` handoff arm at `handoff.ts:67-71` is
-now correctly call-site worded; only `site` is wrong.)
-
-**Required change:**
-
-- Branch `site` explicitly in `findingAct`/`runtimeAct` copy, `handoff.ts` steps
-  (re-audit, not PR), and the PR rejection message. No logic change.
-
-**Completion impact:** Medium (high confusion, low risk)
-
-**Complexity:** Small
-
-**Evidence (verified 2026-09-16):**
-
-- `finding-act.ts:190,219` + `runtimeAct :81-125` (no `site` arm),
-  `handoff.ts:65-76` (`site` takes the PR-steps `else`),
-  `pr.ts:134-138` ("Runtime DOM findings…" though `site` is rejected identically),
-  `remediation-verify.ts:193-223` (correct behavior to mirror in copy).
 
 ---
 
@@ -443,7 +335,7 @@ function is pinned (`evidence.test.ts:13-23`, incl. the 12,001→5,000 boundary)
 - ~~Prod worker/ops/backup hardening — P0 (TODO-03; GH-Actions topology, needs scheduled `ops:check` + restore drill).~~ — DONE 2026-09-17 (scheduled `ops:check` + restore runbook live; drill date/owner pending).
 - Disconnect/reconnect repair, invite lifecycle, rate-limit coverage, evidence
   size alerting, PR failure signals, site copy, session edges — P1
-  (TODO-04, TODO-05, TODO-06, TODO-07, TODO-08, TODO-10, TODO-13 done; TODO-09 open).
+  (TODO-04, TODO-05, TODO-06, TODO-07, TODO-08, TODO-09, TODO-10, TODO-13 done).
 - Settings-to-assessment gap, secret dual-use, retention docs, TLS-bypass guard,
   docs-vs-reality copy — P2 (TODO-15 sub-points 1 and 4 resolved 2026-09-16).
 - Config-consistency polish + ops-path tests — P3 (TODO-16 Sentry-default bullet resolved 2026-09-16).
@@ -462,7 +354,7 @@ function is pinned (`evidence.test.ts:13-23`, incl. the 12,001→5,000 boundary)
 1. ~~TODO-03 (scheduled `ops:check` with fail cases + restore drill) — makes prod observable.~~ — DONE 2026-09-17 (drill date/owner pending).
 2. ~~TODO-04 + TODO-05 (repair banner + invite validation) — kills top support tickets.~~ — DONE 2026-09-17.
 3. ~~TODO-06 + TODO-07 (rate limits + evidence alert) — abuse/growth safety.~~ — DONE 2026-09-17.
-4. TODO-08 + TODO-09 + TODO-10 (check-run on exception, site copy, session edges).
+4. ~~TODO-08 + TODO-09 + TODO-10 (check-run on exception, site copy, session edges).~~ — DONE 2026-09-17.
 5. TODO-11 … TODO-16 in order (TODO-01/02 done/removed; TODO-15.1, TODO-15.4, TODO-16 Sentry done).
 
 ## Definition of Done

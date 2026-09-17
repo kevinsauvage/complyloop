@@ -55,9 +55,19 @@ export async function generateAiExplanationAction(
     }
     await withFindingWrite(findingId, "project.view", async ({ finding }) => {
       // Persist onto the live row — the preview above may be stale.
+      // Cap growth: deterministic baseline (index 0) + latest AI additions.
+      // Every append rewrites the whole finding row, so unbounded clicks
+      // would bloat it forever.
+      const explanations = [...finding.explanations, explanation];
       return {
         findings: [
-          { ...finding, explanations: [...finding.explanations, explanation] },
+          {
+            ...finding,
+            explanations:
+              explanations.length > 6
+                ? [explanations[0]!, ...explanations.slice(-5)]
+                : explanations,
+          },
         ],
       };
     });
@@ -148,13 +158,7 @@ export async function generateAiRemediationAction(
 
         replaceRemediation(
           payload,
-          refreshSuggestion(
-            remediation,
-            result.suggestion,
-            remediation.status === "detected"
-              ? `AI suggestion: ${result.suggestion.description}`
-              : `AI suggestion refreshed: ${result.suggestion.description}`,
-          ),
+          refreshSuggestion(remediation, result.suggestion),
         );
 
         appendEvidence(payload, {
@@ -168,6 +172,11 @@ export async function generateAiRemediationAction(
             model: result.suggestion.model,
             confidence: result.suggestion.confidence,
             description: result.suggestion.description,
+            // Staleness anchor: the finding's `assessmentId` is write-once
+            // (creation assessment) so it cannot signal recency — the
+            // suggestion-time location can. The finding page badges the
+            // suggestion stale when the finding's location moved on.
+            locationRef: formatLocationRef(finding.location),
           },
         });
         return payload;

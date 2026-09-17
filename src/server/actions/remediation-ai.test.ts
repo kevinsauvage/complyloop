@@ -127,6 +127,56 @@ describe("generateAiExplanationAction", () => {
     expect(projectWritePayload()?.findings?.[0]?.explanations).toHaveLength(1);
   });
 
+  it("caps explanations at baseline plus latest AI additions", async () => {
+    const baseline = {
+      whyItFailed: "base",
+      impact: "base",
+      howToFix: "base",
+      provenance: "deterministic" as const,
+      generatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const olds = Array.from({ length: 6 }, (_, index) => ({
+      ...baseline,
+      provenance: "ai" as const,
+      whyItFailed: `old-${index}`,
+    }));
+    const workspace = testWorkspace({
+      role: "member",
+      project,
+      findings: [
+        { ...finding, explanations: [baseline, ...olds], fix: finding.fix },
+      ],
+      remediations: [
+        testRemediation({ status: "detected", suggestion: null, history: [] }),
+      ],
+      db: {},
+    });
+    mockProjectWrite(workspace);
+    actionWorkspaceMocks.getWorkspace.mockResolvedValue(workspace);
+    assertAiRateLimit.mockResolvedValue(undefined);
+    generateAiExplanation.mockResolvedValue({
+      whyItFailed: "fresh",
+      impact: "fresh",
+      howToFix: "fresh",
+      provenance: "ai",
+      model: "test-model",
+      confidence: "medium",
+      generatedAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    const result = await generateAiExplanationAction(
+      "f1",
+      initialActionState,
+      new FormData(),
+    );
+
+    expect(result.message).toBe("AI explanation added.");
+    const explanations = projectWritePayload()?.findings?.[0]?.explanations;
+    expect(explanations).toHaveLength(6);
+    expect(explanations?.[0]?.whyItFailed).toBe("base");
+    expect(explanations?.[5]?.whyItFailed).toBe("fresh");
+  });
+
   it("errors when AI explanation is unavailable", async () => {
     const workspace = workspaceFor("member");
     mockProjectWrite(workspace);
@@ -216,11 +266,14 @@ describe("generateAiRemediationAction", () => {
     expect(projectWritePayload()?.findings?.[0]?.fix).toMatchObject({
       value: "Cart icon",
     });
-    expect(
-      projectWritePayload()?.evidence?.some(
-        (row) => row.kind === "ai_remediation_suggested",
-      ),
-    ).toBe(true);
+    const suggestionEvidence = projectWritePayload()?.evidence?.find(
+      (row) => row.kind === "ai_remediation_suggested",
+    );
+    expect(suggestionEvidence).toBeDefined();
+    // Staleness anchor for the finding page.
+    expect(suggestionEvidence?.detail).toMatchObject({
+      locationRef: expect.any(String),
+    });
   });
 
   it("refreshes an existing suggested remediation", async () => {
@@ -246,9 +299,12 @@ describe("generateAiRemediationAction", () => {
 
     expect(result.message).toBe("AI remediation suggestion saved.");
     expect(projectWritePayload()?.remediations?.[0]?.status).toBe("suggested");
+    // The refresh note lives on the evidence row now, not in history[].
     expect(
-      projectWritePayload()?.remediations?.[0]?.history.at(-1)?.note,
-    ).toMatch(/AI suggestion refreshed/);
+      projectWritePayload()?.evidence?.find(
+        (row) => row.kind === "ai_remediation_suggested",
+      )?.detail,
+    ).toMatchObject({ description: "Refined alt" });
   });
 
   it("errors when AI remediation is unavailable", async () => {

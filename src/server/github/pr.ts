@@ -133,7 +133,7 @@ export async function preparePullRequest(
   const location = finding.location;
   if (!isSourceLocation(location)) {
     throw new PublicError(
-      "Runtime DOM findings cannot be committed automatically — open a manual PR from the handoff text.",
+      "Runtime DOM and site findings cannot be committed automatically — open a manual PR from the handoff text.",
     );
   }
   if (!candidate?.complyLoop.passed || candidate.edits.length === 0) {

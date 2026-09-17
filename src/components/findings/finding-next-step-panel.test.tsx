@@ -107,6 +107,7 @@ function renderPanel({
   aiAvailable = true,
   githubConnected = true,
   patchState = { status: "idle" as const },
+  suggestionStale = false,
 }: {
   finding?: Finding;
   remediation: Remediation;
@@ -115,6 +116,7 @@ function renderPanel({
   aiAvailable?: boolean;
   githubConnected?: boolean;
   patchState?: PatchUiState;
+  suggestionStale?: boolean;
 }) {
   const act = findingAct({
     finding: findingOverride,
@@ -132,6 +134,7 @@ function renderPanel({
       remediation={remediation}
       canRemediate={canRemediate}
       patchState={patchState}
+      suggestionStale={suggestionStale}
     />,
   );
 }
@@ -267,6 +270,52 @@ describe("FindingNextStepPanel", () => {
     expect(
       screen.queryByRole("button", { name: "Generate patch" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("warns when the suggestion predates the latest scan", () => {
+    useActionStateMock.mockReturnValue([
+      { error: null, message: null },
+      vi.fn(),
+      false,
+    ]);
+    renderPanel({
+      finding: {
+        ...finding,
+        location: {
+          kind: "dom",
+          url: "https://example.com/login",
+          selector: "input#email",
+          snippet: "<input id='email'>",
+        },
+      },
+      remediation: rem,
+      suggestionStale: true,
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent(/predates the latest scan/);
+    expect(screen.getByRole("button", { name: "Approve" })).toBeInTheDocument();
+  });
+
+  it("shows no staleness warning for a fresh suggestion", () => {
+    useActionStateMock.mockReturnValue([
+      { error: null, message: null },
+      vi.fn(),
+      false,
+    ]);
+    renderPanel({
+      finding: {
+        ...finding,
+        location: {
+          kind: "dom",
+          url: "https://example.com/login",
+          selector: "input#email",
+          snippet: "<input id='email'>",
+        },
+      },
+      remediation: rem,
+    });
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("offers Verify for an implemented runtime Finding", () => {

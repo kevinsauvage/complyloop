@@ -187,7 +187,11 @@ export function persistPatchCandidate(
     projectId: finding.projectId,
     controlId: finding.controlId,
     findingId: finding.id,
-    detail: patchCandidateToDetail(candidate),
+    detail: {
+      ...patchCandidateToDetail(candidate),
+      // Staleness anchor (see remediation-ai.ts): suggestion-time location.
+      locationRef: location,
+    },
   });
   const remediation = db.remediations.find(
     (row) => row.findingId === finding.id,
@@ -223,12 +227,6 @@ export function persistPatchCandidate(
   }
   payload.remediations = [
     ...(payload.remediations ?? []),
-    refreshSuggestion(
-      remediation,
-      suggestion,
-      remediation.status === "detected"
-        ? `Patch ready: ${candidate.description}`
-        : `Patch refreshed: ${candidate.description}`,
-    ),
+    refreshSuggestion(remediation, suggestion),
   ];
 }

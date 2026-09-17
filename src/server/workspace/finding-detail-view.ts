@@ -13,6 +13,7 @@ import type {
   Finding,
   Remediation,
 } from "@complyloop/analysis-core/contract/entities";
+import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 
 import { aiAvailable as isAiAvailable } from "@/ai/ai-call";
@@ -67,6 +68,13 @@ export type FindingDetailView =
       queueIds: string[];
       queuePosition: ReturnType<typeof findingQueuePosition>;
       listParams: FindingListParams;
+      /**
+       * True when the stored AI suggestion was generated for a different
+       * location than the finding has now (re-scan moved it). The approve
+       * step must show this — approving against outdated code is the failure
+       * mode. Unknown (unstamped legacy rows) reads as fresh, never stale.
+       */
+      suggestionStale: boolean;
     };
 
 /**
@@ -146,6 +154,25 @@ export async function loadFindingDetailView(
   );
   const queuePosition = findingQueuePosition(queueIds, finding.id);
 
+  // Staleness anchor: the latest AI suggestion/patch evidence stamps the
+  // location it was generated for. A re-scan that moved the finding leaves
+  // the stored suggestion describing old code.
+  const suggestionEvidence = [...evidence]
+    .reverse()
+    .find(
+      (record) =>
+        (record.kind === "ai_remediation_suggested" ||
+          record.kind === "ai_patch_ready") &&
+        typeof record.detail?.locationRef === "string",
+    );
+  const stampedLocation =
+    suggestionEvidence?.detail?.locationRef as string | undefined;
+  const suggestionStale = Boolean(
+    remediation.suggestion &&
+      stampedLocation &&
+      stampedLocation !== formatLocationRef(finding.location),
+  );
+
   return {
     finding,
     project,
@@ -162,5 +189,6 @@ export async function loadFindingDetailView(
     queueIds,
     queuePosition,
     listParams,
+    suggestionStale,
   };
 }

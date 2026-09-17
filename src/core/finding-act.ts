@@ -2,7 +2,10 @@ import type {
   Finding,
   Remediation,
 } from "@complyloop/analysis-core/contract/entities";
-import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
+import {
+  isSiteLocation,
+  isSourceLocation,
+} from "@complyloop/analysis-core/contract/location";
 
 import {
   hasSafeDeterministicFix,
@@ -79,14 +82,19 @@ function chrome(input: FindingActInput): {
 }
 
 function runtimeAct(input: FindingActInput): FindingActView {
+  // Site findings have no call site and no PR: verification is a site
+  // re-audit. Beats stay shared with DOM (the actions are identical); only
+  // the wording branches.
+  const site = isSiteLocation(input.finding.location);
   switch (input.remediation.status) {
     case "detected":
       return {
         ...chrome(input),
         beat: "runtime_generate",
-        title: "Fix at the call site",
-        description:
-          "Propose a fix where this element is rendered — not a generic change to a shared component.",
+        title: site ? "Fix across the site" : "Fix at the call site",
+        description: site
+          ? "Propose a fix for this site-wide pattern — it appears on multiple pages, not one element."
+          : "Propose a fix where this element is rendered — not a generic change to a shared component.",
         canGenerate: input.aiAvailable,
       };
     case "suggested":
@@ -101,14 +109,18 @@ function runtimeAct(input: FindingActInput): FindingActView {
         ...chrome(input),
         beat: "runtime_implement",
         title: "Implemented outside ComplyLoop",
-        description: "After you ship the call-site fix, mark it implemented.",
+        description: site
+          ? "After you ship the site-wide fix, mark it implemented."
+          : "After you ship the call-site fix, mark it implemented.",
       };
     case "implemented":
       return {
         ...chrome(input),
         beat: "runtime_verify",
-        title: "Confirm the page is fixed",
-        description: "Re-run the runtime audit to confirm the page is fixed.",
+        title: site ? "Confirm the site is fixed" : "Confirm the page is fixed",
+        description: site
+          ? "Re-run the runtime audit to confirm the pattern is gone site-wide."
+          : "Re-run the runtime audit to confirm the page is fixed.",
       };
     case "verified":
       return {

@@ -83,11 +83,7 @@ export async function createPullRequestAction(
           const payload: ProjectWritePayload = {};
           if (liveRemediation.status === "suggested") {
             replaceRemediation(payload, {
-              ...advanceRemediation(
-                liveRemediation,
-                "approved",
-                "Approved by creating a draft pull request",
-              ),
+              ...advanceRemediation(liveRemediation, "approved"),
               approvalAction: "create_draft_pull_request",
             });
             appendEvidence(payload, {
@@ -98,6 +94,7 @@ export async function createPullRequestAction(
               findingId: liveFinding.id,
               detail: remediationEvidenceDetail({
                 approvalAction: "create_draft_pull_request",
+                note: "Approved by creating a draft pull request",
               }),
             });
           }

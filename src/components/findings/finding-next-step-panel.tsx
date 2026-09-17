@@ -53,12 +53,14 @@ function ActControls({
   remediation,
   canRemediate,
   patchState,
+  suggestionStale,
 }: {
   act: FindingActView;
   finding: Finding;
   remediation: Remediation;
   canRemediate: boolean;
   patchState: PatchUiState;
+  suggestionStale: boolean;
 }) {
   if (!canRemediate) {
     return null;
@@ -138,6 +140,15 @@ function ActControls({
         <>
           {remediation.suggestion ? (
             <div className="space-y-2">
+              {suggestionStale ? (
+                <p
+                  role="alert"
+                  className="rounded-lg border border-signal/30 bg-signal/10 px-3 py-2 text-xs font-medium text-foreground"
+                >
+                  This suggestion predates the latest scan — the finding
+                  moved. Generate fresh guidance before approving.
+                </p>
+              ) : null}
               <p className="text-sm text-muted-foreground">
                 {remediation.suggestion.description}
               </p>
@@ -203,12 +214,14 @@ export function FindingNextStepPanel({
   remediation,
   canRemediate,
   patchState = { status: "idle" },
+  suggestionStale = false,
 }: {
   act: FindingActView;
   finding: Finding;
   remediation: Remediation;
   canRemediate: boolean;
   patchState?: PatchUiState;
+  suggestionStale?: boolean;
 }) {
   const isTerminalBeat =
     act.beat === "verified" ||
@@ -245,6 +258,7 @@ export function FindingNextStepPanel({
           remediation={remediation}
           canRemediate={canRemediate}
           patchState={patchState}
+          suggestionStale={suggestionStale}
         />
         {act.showDismiss ? (
           <>

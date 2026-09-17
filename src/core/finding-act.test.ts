@@ -180,6 +180,42 @@ describe("findingAct", () => {
       remediation: rem("implemented"),
     });
     expect(view.beat).toBe("runtime_verify");
+    if (view.beat !== "runtime_verify") return;
+    expect(view.title).toBe("Confirm the site is fixed");
+    expect(view.description).toMatch(/site-wide/);
+  });
+
+  it("words site findings as site findings, not call sites", () => {
+    const detected = act({
+      finding: {
+        ...sourceFinding,
+        location: {
+          kind: "site",
+          pages: ["/"],
+          detail: "Nav labels differ",
+        },
+      },
+    });
+    expect(detected.beat).toBe("runtime_generate");
+    if (detected.beat !== "runtime_generate") return;
+    expect(detected.title).toBe("Fix across the site");
+    expect(detected.description).not.toMatch(/call site/);
+
+    const approved = act({
+      finding: {
+        ...sourceFinding,
+        location: {
+          kind: "site",
+          pages: ["/"],
+          detail: "Nav labels differ",
+        },
+      },
+      remediation: rem("approved"),
+    });
+    expect(approved.beat).toBe("runtime_implement");
+    if (approved.beat !== "runtime_implement") return;
+    expect(approved.description).toMatch(/site-wide fix/);
+    expect(approved.description).not.toMatch(/call-site/);
   });
 
   it("offers Verify for an implemented runtime Finding", () => {

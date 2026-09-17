@@ -33,58 +33,41 @@ function canTransition(
   }
 }
 
+/**
+ * Advance a remediation's status. Writes no `history[]`: every transition
+ * site records the event once, as evidence (a `remediation_*` row carrying
+ * the note), and the timeline UI reads evidence. `history` stays on the type
+ * for old rows only.
+ */
 export function advanceRemediation(
   remediation: Remediation,
   to: RemediationStatus,
-  note?: string,
 ): Remediation {
   if (!canTransition(remediation.status, to)) {
     throw new Error(
       `Invalid remediation transition: ${remediation.status} → ${to}`,
     );
   }
-  return appendRemediationHistory(remediation, to, note);
-}
-
-/** Append a history entry without changing status (e.g. failed verification). */
-export function appendRemediationHistory(
-  remediation: Remediation,
-  status: RemediationStatus,
-  note?: string,
-): Remediation {
-  return {
-    ...remediation,
-    status,
-    history: [
-      ...remediation.history,
-      { status, at: new Date().toISOString(), note },
-    ],
-  };
+  return { ...remediation, status: to };
 }
 
 /**
  * Sets or replaces a remediation suggestion before approval.
  * `detected` → `suggested` via the normal transition; `suggested` stays
- * `suggested` with a history note (refresh, not a status change).
+ * `suggested` with the suggestion replaced (refresh, not a status change).
+ * Writes no `history[]` — the suggestion event is recorded as evidence
+ * (`ai_remediation_suggested` / `ai_patch_ready` / `remediation_suggested`)
+ * by the caller.
  */
 export function refreshSuggestion(
   remediation: Remediation,
   suggestion: RemediationSuggestion,
-  note: string,
 ): Remediation {
   switch (remediation.status) {
     case "detected":
-      return advanceRemediation(
-        { ...remediation, suggestion },
-        "suggested",
-        note,
-      );
+      return advanceRemediation({ ...remediation, suggestion }, "suggested");
     case "suggested":
-      return appendRemediationHistory(
-        { ...remediation, suggestion },
-        "suggested",
-        note,
-      );
+      return { ...remediation, suggestion };
     case "approved":
     case "implemented":
     case "verified":

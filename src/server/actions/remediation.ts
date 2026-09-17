@@ -76,7 +76,7 @@ function approveRemediationInPayload(
 ): void {
   replaceRemediation(
     payload,
-    advanceRemediation(remediation, "approved", options.approvalNote),
+    advanceRemediation(remediation, "approved"),
   );
   appendEvidence(payload, {
     kind: "remediation_approved",
@@ -87,6 +87,7 @@ function approveRemediationInPayload(
     detail: remediationEvidenceDetail({
       ...(options.bulk ? { bulk: true } : {}),
       ...(finding.fix ? { fix: { ...finding.fix } } : {}),
+      note: options.approvalNote,
     }),
   });
 }

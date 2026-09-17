@@ -26,6 +26,11 @@ const EVIDENCE_DISPLAY: Record<EvidenceKind, EvidenceDisplay> = {
   remediation_implemented: { label: "Remediation implemented", tone: "signal" },
   remediation_verified: { label: "Remediation verified", tone: "pass" },
   remediation_manually_verified: { label: "Manually verified", tone: "pass" },
+  remediation_suggested: { label: "Remediation suggested", tone: "signal" },
+  remediation_verification_failed: {
+    label: "Verification failed",
+    tone: "fail",
+  },
   ai_remediation_suggested: { label: "AI suggestion", tone: "signal" },
   ai_patch_ready: { label: "Patch ready", tone: "pass" },
   requirement_status_changed: { label: "Requirement status", tone: "review" },

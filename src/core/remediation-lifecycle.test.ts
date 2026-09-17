@@ -47,18 +47,10 @@ describe("advanceRemediation", () => {
     ).toBe("verified");
   });
 
-  it("appends a history entry on a valid transition", () => {
-    const advanced = advanceRemediation(
-      remediation("suggested"),
-      "approved",
-      "ok",
-    );
+  it("advances status without appending history (evidence is the log)", () => {
+    const advanced = advanceRemediation(remediation("suggested"), "approved");
     expect(advanced.status).toBe("approved");
-    expect(advanced.history).toHaveLength(2);
-    expect(advanced.history[1]).toMatchObject({
-      status: "approved",
-      note: "ok",
-    });
+    expect(advanced.history).toHaveLength(1);
   });
 
   it("rejects skipping stages or moving backwards", () => {
@@ -79,20 +71,13 @@ describe("advanceRemediation", () => {
 
 describe("refreshSuggestion", () => {
   it("advances detected → suggested with the new suggestion", () => {
-    const updated = refreshSuggestion(
-      remediation("detected"),
-      suggestion,
-      "Patch ready: Add an alt attribute",
-    );
+    const updated = refreshSuggestion(remediation("detected"), suggestion);
     expect(updated.status).toBe("suggested");
     expect(updated.suggestion).toEqual(suggestion);
-    expect(updated.history.at(-1)).toMatchObject({
-      status: "suggested",
-      note: "Patch ready: Add an alt attribute",
-    });
+    expect(updated.history).toHaveLength(1);
   });
 
-  it("keeps suggested status and appends history when refreshing", () => {
+  it("keeps suggested status and replaces the suggestion when refreshing", () => {
     const base = {
       ...remediation("suggested"),
       suggestion: {
@@ -101,30 +86,22 @@ describe("refreshSuggestion", () => {
         provenance: "deterministic" as const,
       },
     };
-    const updated = refreshSuggestion(
-      base,
-      suggestion,
-      "AI suggestion refreshed: Add an alt attribute",
-    );
+    const updated = refreshSuggestion(base, suggestion);
     expect(updated.status).toBe("suggested");
     expect(updated.suggestion).toEqual(suggestion);
-    expect(updated.history).toHaveLength(2);
-    expect(updated.history[1]).toMatchObject({
-      status: "suggested",
-      note: "AI suggestion refreshed: Add an alt attribute",
-    });
+    expect(updated.history).toHaveLength(1);
   });
 
   it("rejects refresh after approval", () => {
+    expect(() => refreshSuggestion(remediation("approved"), suggestion)).toThrow(
+      /before approval/,
+    );
     expect(() =>
-      refreshSuggestion(remediation("approved"), suggestion, "too late"),
+      refreshSuggestion(remediation("implemented"), suggestion),
     ).toThrow(/before approval/);
-    expect(() =>
-      refreshSuggestion(remediation("implemented"), suggestion, "too late"),
-    ).toThrow(/before approval/);
-    expect(() =>
-      refreshSuggestion(remediation("verified"), suggestion, "too late"),
-    ).toThrow(/before approval/);
+    expect(() => refreshSuggestion(remediation("verified"), suggestion)).toThrow(
+      /before approval/,
+    );
   });
 });
 

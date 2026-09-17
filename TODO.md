@@ -2,7 +2,7 @@
 
 ## P2 — Medium
 
-- [ ] **15. Remediation history + AI staleness (ASSESSMENT P2-5 + P2-6) — batch F**
+- [x] **15. Remediation history + AI staleness (ASSESSMENT P2-5 + P2-6) — batch F**
       Derive history view from evidence (stop writing `history[]`); stamp AI artifacts with `assessmentId`/`gitHead`, invalidate on re-detect, cap `explanations[]`.
 - [ ] **16. Axe containment (ASSESSMENT P2-9) — batch E**
       Per-page axe containment like custom probes; total outage still → `unable_to_verify`.

@@ -140,6 +140,8 @@ describe("evidenceDisplay", () => {
       "remediation_implemented",
       "remediation_verified",
       "remediation_manually_verified",
+      "remediation_suggested",
+      "remediation_verification_failed",
       "ai_remediation_suggested",
       "ai_patch_ready",
       "requirement_status_changed",

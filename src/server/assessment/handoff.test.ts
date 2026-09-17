@@ -104,4 +104,47 @@ describe("developer handoff", () => {
     );
     expect(handoff.diff).toContain("Hero.tsx");
   });
+
+  it("gives site findings re-audit steps, not PR steps", () => {
+    const project = testProject({
+      name: "shop",
+      createdAt: new Date().toISOString(),
+    });
+    const control: Control = {
+      id: "ctl-site",
+      frameworkId: "fw",
+      code: "RGAA 8.2",
+      secondaryCode: "WCAG 1.1.1",
+      title: "Site check",
+      description: "Site-wide pattern.",
+      checkId: "site-check" as never,
+    };
+    const finding: Finding = {
+      id: "f-site",
+      projectId: project.id,
+      controlId: control.id,
+      assessmentId: "a1",
+      checkId: "site-check" as never,
+      status: "open",
+      kind: "violation",
+      severity: "serious",
+      confidence: "high",
+      reason: "Pattern differs across pages",
+      location: { kind: "site", pages: ["/", "/about"], detail: "Nav" },
+      fix: null,
+      explanations: [],
+      detectedAt: new Date().toISOString(),
+    };
+    const remediation: Remediation = {
+      id: "r-site",
+      findingId: finding.id,
+      status: "suggested",
+      suggestion: null,
+      history: [],
+    };
+
+    const handoff = buildDeveloperHandoff(project, control, finding, remediation);
+    expect(handoff.body).toMatch(/site-wide/);
+    expect(handoff.body).not.toMatch(/draft pull request/);
+  });
 });

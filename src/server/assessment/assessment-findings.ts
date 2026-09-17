@@ -398,12 +398,10 @@ export function createFinding(
     findingId: finding.id,
     status: suggestion ? "suggested" : "detected",
     suggestion,
-    history: suggestion
-      ? [
-          { status: "detected", at: now },
-          { status: "suggested", at: now, note: suggestion.description },
-        ]
-      : [{ status: "detected", at: now }],
+    // No seeded `history[]`: the detected/suggested events are recorded as
+    // evidence below, and the timeline UI reads evidence (P2-5). The field
+    // stays on the type for old rows.
+    history: [],
   };
   rows.remediations.push(remediation);
 
@@ -431,4 +429,18 @@ export function createFinding(
         : {}),
     },
   });
+  if (suggestion) {
+    // The detected→suggested transition writes history nowhere else: without
+    // this row the evidence-derived remediation timeline would start at
+    // approval and lose the suggestion.
+    appendEvidence(rows, {
+      kind: "remediation_suggested",
+      summary: `Remediation suggested for ${raw.checkId} at ${formatLocationRef(raw.location)}`,
+      projectId: project.id,
+      controlId,
+      findingId: finding.id,
+      assessmentId,
+      detail: { note: suggestion.description },
+    });
+  }
 }

@@ -181,8 +181,14 @@ describe("runAssessment", () => {
     await assess();
 
     expect(db.remediations[0]?.status).toBe("verified");
-    expect(db.remediations[0]?.history.map((entry) => entry.status)).toEqual(
-      expect.arrayContaining(["implemented", "verified"]),
+    const kinds = db.evidence
+      .filter((record) => record.findingId === finding.id)
+      .map((record) => record.kind);
+    expect(kinds).toEqual(
+      expect.arrayContaining([
+        "remediation_implemented",
+        "remediation_verified",
+      ]),
     );
     expect(
       db.evidence.find(
@@ -228,7 +234,11 @@ describe("runAssessment", () => {
     );
     expect(db.remediations[0]?.status).toBe("approved");
     expect(
-      db.remediations[0]?.history.some((entry) => entry.status === "verified"),
+      db.evidence.some(
+        (record) =>
+          record.kind === "remediation_verified" &&
+          record.findingId === finding.id,
+      ),
     ).toBe(false);
   });
 

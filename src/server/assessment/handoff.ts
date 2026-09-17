@@ -12,6 +12,7 @@ import type { ProposedFix } from "@complyloop/analysis-core/contract/finding-typ
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 import {
   formatLocationRef,
+  isSiteLocation,
   isSourceLocation,
   locationSnippet,
 } from "@complyloop/analysis-core/contract/location";
@@ -69,11 +70,17 @@ export function buildDeveloperHandoff(
           `2. Re-run the runtime audit on \`${finding.location.url}\` — the \`${finding.checkId}\` Finding at \`${finding.location.selector}\` must be gone.`,
           `3. Keep the evidence trail (assessment + remediation history) for audit.`,
         ]
-      : [
-          `1. Create a draft pull request from this Finding page on GitHub.`,
-          `2. Merge the PR, then re-run assessment — the \`${finding.checkId}\` check must no longer fail at this location.`,
-          `3. Keep the evidence trail (assessment + remediation history) for audit.`,
-        ];
+      : isSiteLocation(finding.location)
+        ? [
+            `1. Fix the site-wide pattern described above (it spans pages — there is no single file to patch and no PR to open).`,
+            `2. Re-run the runtime audit — the \`${finding.checkId}\` Finding must be gone site-wide.`,
+            `3. Keep the evidence trail (assessment + remediation history) for audit.`,
+          ]
+        : [
+            `1. Create a draft pull request from this Finding page on GitHub.`,
+            `2. Merge the PR, then re-run assessment — the \`${finding.checkId}\` check must no longer fail at this location.`,
+            `3. Keep the evidence trail (assessment + remediation history) for audit.`,
+          ];
 
   const body = [
     `## Requirement`,

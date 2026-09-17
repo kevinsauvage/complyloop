@@ -135,6 +135,11 @@ export interface Remediation {
   findingId: string;
   status: RemediationStatus;
   suggestion: RemediationSuggestion | null;
+  /**
+   * Legacy write data: new transitions are NOT appended here (the timeline
+   * UI reads finding evidence — see P2-5). Kept so old rows still parse;
+   * new rows persist it empty.
+   */
   history: RemediationHistoryEntry[];
   /** Local to the payload so reassessment can verify without evidence history. */
   approvalAction?: "create_draft_pull_request";
@@ -215,6 +220,8 @@ export type EvidenceKind =
   | "remediation_implemented"
   | "remediation_verified"
   | "remediation_manually_verified"
+  | "remediation_suggested"
+  | "remediation_verification_failed"
   | "ai_remediation_suggested"
   | "ai_patch_ready"
   | "requirement_status_changed"
