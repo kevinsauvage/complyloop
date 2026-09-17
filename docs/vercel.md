@@ -179,6 +179,16 @@ dismissals) forever; only noise kinds (`assessment_completed`,
 `assessment_job`, `monitoring_changes_detected`) are candidates. Exports take
 the newest 5000 rows and mark `truncated` — that bounds downloads, not the table.
 
+### What "delete" keeps
+
+| Action | Findings / remediations / requirements | Evidence | GitHub tokens |
+| ------ | -------------------------------------- | -------- | ------------- |
+| Disconnect repo | Dropped with the project (FK cascade); only the `project_disconnected` row survives. Returning clients start fresh. | Retained (FK-less by design) | Untouched (per-user scope) |
+| Delete project | Dropped with the project | Retained | Untouched |
+| Delete org | Dropped with the org's projects | Retained — the UI toast says "Evidence history was retained for audit." | **Survive by design**: `github_tokens` rows are per-user with no org/project FK, so they stay usable for the user's other orgs. |
+
+In short: evidence is forever (until a superuser prune); project-scoped compliance state follows the project; tokens follow the user.
+
 ## Pre-launch checklist
 
 - [ ] Remote Postgres reachable; `db:migrate` applied from local machine

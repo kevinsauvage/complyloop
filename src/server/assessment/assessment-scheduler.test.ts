@@ -12,7 +12,7 @@ vi.mock("../rate-limit", () => ({
   pruneRateLimitBuckets: (...args: unknown[]) => pruneRateLimitBuckets(...args),
 }));
 
-import { runAssessmentJobBatch } from "./assessment-runner";
+import { runAssessmentJobBatch } from "./assessment-scheduler";
 
 describe("runAssessmentJobBatch", () => {
   beforeEach(() => {

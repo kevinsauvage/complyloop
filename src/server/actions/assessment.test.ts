@@ -19,11 +19,11 @@ vi.mock("../observability", () => ({
 }));
 
 import {
-  drainAssessmentJobQueue,
   drainAssessmentJobsInline,
+  drainQueue,
   scheduleAssessmentDrain,
   shouldDrainAssessmentJobsInline,
-} from "../assessment/assessment-job-inline";
+} from "../assessment/assessment-scheduler";
 import { processNextAssessmentJob } from "../assessment/assessment-worker";
 
 const processNext = vi.mocked(processNextAssessmentJob);
@@ -64,22 +64,22 @@ describe("shouldDrainAssessmentJobsInline", () => {
   });
 });
 
-describe("drainAssessmentJobQueue", () => {
+describe("drainQueue", () => {
   it("stops when the queue is idle", async () => {
     processNext
       .mockResolvedValueOnce({ kind: "succeeded", jobId: "j1" })
       .mockResolvedValueOnce({ kind: "idle" });
 
-    const outcome = await drainAssessmentJobQueue();
+    const outcome = await drainQueue();
 
     expect(processNext).toHaveBeenCalledTimes(2);
     expect(outcome).toEqual({ ran: 1, failed: 0, retrying: 0, cancelled: 0 });
   });
 
-  it("respects maxJobs", async () => {
+  it("respects the limit", async () => {
     processNext.mockResolvedValue({ kind: "succeeded", jobId: "j1" });
 
-    const outcome = await drainAssessmentJobQueue(3);
+    const outcome = await drainQueue({ limit: 3 });
 
     expect(processNext).toHaveBeenCalledTimes(3);
     expect(outcome).toEqual({ ran: 3, failed: 0, retrying: 0, cancelled: 0 });
@@ -92,7 +92,7 @@ describe("drainAssessmentJobQueue", () => {
       .mockResolvedValueOnce({ kind: "succeeded", jobId: "j3" })
       .mockResolvedValueOnce({ kind: "idle" });
 
-    const outcome = await drainAssessmentJobQueue();
+    const outcome = await drainQueue();
 
     expect(outcome).toEqual({ ran: 1, failed: 1, retrying: 1, cancelled: 0 });
   });
@@ -102,7 +102,7 @@ describe("drainAssessmentJobQueue", () => {
       .mockResolvedValueOnce({ kind: "cancelled", jobId: "j1" })
       .mockResolvedValueOnce({ kind: "idle" });
 
-    const outcome = await drainAssessmentJobQueue();
+    const outcome = await drainQueue();
 
     expect(outcome).toEqual({ ran: 0, failed: 0, retrying: 0, cancelled: 1 });
   });

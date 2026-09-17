@@ -25,6 +25,17 @@ import {
 } from "./requirements";
 
 const applyRequirementStatusRefresh = vi.hoisted(() => vi.fn());
+const assertRequirementsRateLimit = vi.hoisted(() => vi.fn());
+
+vi.mock("../rate-limit", async () => {
+  const actual =
+    await vi.importActual<typeof import("../rate-limit")>("../rate-limit");
+  return {
+    ...actual,
+    assertRequirementsRateLimit: (...args: unknown[]) =>
+      assertRequirementsRateLimit(...args),
+  };
+});
 
 vi.mock("../observability", () => ({
   reportError: vi.fn(),
@@ -135,6 +146,7 @@ describe("requirement decision actions", () => {
     );
 
     expect(result.message).toBe("Exception recorded.");
+    expect(assertRequirementsRateLimit).toHaveBeenCalled();
     expect(projectWritePayload()?.requirements?.[0]?.status).toBe("failed");
     expect(
       projectWritePayload()?.requirements?.[0]?.exception?.expiresAt,

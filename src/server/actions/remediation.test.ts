@@ -28,6 +28,7 @@ const cancelAssessmentJob = vi.hoisted(() => vi.fn());
 const scheduleAssessmentDrain = vi.hoisted(() => vi.fn());
 const shouldDrainAssessmentJobsInline = vi.hoisted(() => vi.fn());
 const assertAssessRateLimit = vi.hoisted(() => vi.fn());
+const assertRemediationRateLimit = vi.hoisted(() => vi.fn());
 const applyRequirementStatusRefresh = vi.hoisted(() => vi.fn());
 const afterFn = vi.hoisted(() => vi.fn());
 
@@ -63,7 +64,7 @@ vi.mock("../assessment/assessment-jobs", () => ({
   cancelAssessmentJob: (...args: unknown[]) => cancelAssessmentJob(...args),
 }));
 
-vi.mock("../assessment/assessment-job-inline", () => ({
+vi.mock("../assessment/assessment-scheduler", () => ({
   scheduleAssessmentDrain: (...args: unknown[]) =>
     scheduleAssessmentDrain(...args),
   shouldDrainAssessmentJobsInline: (...args: unknown[]) =>
@@ -77,6 +78,8 @@ vi.mock("../rate-limit", async () => {
     ...actual,
     assertAssessRateLimit: (...args: unknown[]) =>
       assertAssessRateLimit(...args),
+    assertRemediationRateLimit: (...args: unknown[]) =>
+      assertRemediationRateLimit(...args),
   };
 });
 
@@ -135,6 +138,7 @@ describe("remediation action authz", () => {
       message: "Remediation approved.",
     });
     expect(projectWritePayload()?.remediations?.[0]?.status).toBe("approved");
+    expect(assertRemediationRateLimit).toHaveBeenCalled();
   });
 
   it("denies dismiss for viewers", async () => {

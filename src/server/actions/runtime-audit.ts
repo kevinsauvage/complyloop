@@ -10,6 +10,7 @@ import type { ActionState } from "@/core/action-state";
 import { parseForm } from "@/core/validate";
 
 import { runAction } from "../action-state";
+import { assertRuntimeAuditRateLimit } from "../rate-limit";
 import { withProjectWrite } from "../workspace/workspace-write";
 import { refresh, requireOnActive } from "./shared";
 
@@ -55,6 +56,9 @@ export async function updateRuntimeAuditAction(
 
     await withProjectWrite(async (workspace) => {
       requireOnActive(workspace, "project.connect");
+      if (workspace.userId) {
+        await assertRuntimeAuditRateLimit(workspace.userId);
+      }
       const { project } = workspace;
 
       if (normalized == null) {

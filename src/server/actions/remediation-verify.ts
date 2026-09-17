@@ -31,6 +31,7 @@ import {
   remediationEvidenceDetail,
   remediationEvidenceSummary,
 } from "../assessment/remediation-evidence";
+import { assertRemediationRateLimit } from "../rate-limit";
 import {
   appendEvidence,
   cloneProjectRows,
@@ -298,7 +299,10 @@ export async function verifyRemediationAction(
     await withFindingWrite(
       findingId,
       "project.remediate",
-      async ({ db, finding: live }) => {
+      async ({ db, finding: live, workspace }) => {
+        if (workspace.userId) {
+          await assertRemediationRateLimit(workspace.userId);
+        }
         // The "still present?" proof was computed outside the lock from
         // preview data. Re-validate the live row before trusting it: the
         // finding must still be open and at the same instance that was
@@ -346,7 +350,10 @@ export async function markRemediationImplementedAction(
   return runFindingAction(
     findingIdRaw,
     "project.remediate",
-    async ({ db, finding }) => {
+    async ({ db, finding, workspace }) => {
+      if (workspace.userId) {
+        await assertRemediationRateLimit(workspace.userId);
+      }
       const { note: parsedNote } = parseForm(markImplementedInput, formData);
       const remediation = remediationForFinding(db, finding.id);
       if (remediation.status !== "approved") {

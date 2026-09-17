@@ -1,7 +1,7 @@
 import { after } from "next/server";
 import { z } from "zod";
 
-import { scheduleAssessmentDrain } from "@/server/assessment/assessment-job-inline";
+import { scheduleAssessmentDrain } from "@/server/assessment/assessment-scheduler";
 import {
   handleGitHubWebhookEvent,
   isWebhookConfigured,

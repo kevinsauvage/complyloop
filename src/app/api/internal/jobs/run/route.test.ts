@@ -7,7 +7,7 @@ const isWorkerAuthConfigured = vi.hoisted(() => vi.fn());
 const isWorkerRequestAuthorized = vi.hoisted(() => vi.fn());
 const assertRateLimit = vi.hoisted(() => vi.fn());
 
-vi.mock("@/server/assessment/assessment-runner", () => ({
+vi.mock("@/server/assessment/assessment-scheduler", () => ({
   runAssessmentJobBatch: (...args: unknown[]) =>
     runAssessmentJobBatch(...args),
 }));

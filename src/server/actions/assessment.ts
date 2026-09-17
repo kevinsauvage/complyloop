@@ -11,15 +11,15 @@ import { entityIdSchema, parseForm } from "@/core/validate";
 
 import { runAction } from "../action-state";
 import {
-  scheduleAssessmentDrain,
-  shouldDrainAssessmentJobsInline,
-} from "../assessment/assessment-job-inline";
-import {
   activeAssessmentJobForProject,
   type AssessmentJob,
   cancelAssessmentJob,
   enqueueAssessmentJob,
 } from "../assessment/assessment-jobs";
+import {
+  scheduleAssessmentDrain,
+  shouldDrainAssessmentJobsInline,
+} from "../assessment/assessment-scheduler";
 import { assertAssessRateLimit } from "../rate-limit";
 import { appendEvidence } from "../workspace/project-rows";
 import { withProjectWrite } from "../workspace/workspace-write";

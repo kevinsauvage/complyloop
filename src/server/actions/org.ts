@@ -13,6 +13,10 @@ import { publicErrorMessage, runAction } from "../action-state";
 import { getGitHubAccessToken } from "../github/access-token";
 import { lookupGitHubUser } from "../github/github";
 import {
+  assertOrgCreateRateLimit,
+  assertOrgInviteRateLimit,
+} from "../rate-limit";
+import {
   clearActiveProjectCookie,
   readActiveOrgCookie,
   writeActiveOrgCookie,
@@ -106,6 +110,7 @@ export async function createOrgAction(
     if (!githubLogin) {
       throw new PublicError("Sign in with GitHub to create an organization.");
     }
+    await assertOrgCreateRateLimit(userId);
     const { name } = parseForm(createOrgInput, formData);
 
     const org = await withOrgWrite((workspace) => {
@@ -139,6 +144,7 @@ export async function inviteOrgMemberAction(
       inviteOrgMemberInput,
       formData,
     );
+    await assertOrgInviteRateLimit(userId);
 
     // Typo guard: verify the login exists when the inviter has a token.
     // Unverifiable (GitHub outage) proceeds as before — never block a

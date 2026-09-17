@@ -18,7 +18,18 @@ import { updateRuntimeAuditAction } from "./runtime-audit";
 
 const { withProjectWrite } = actionWorkspaceMocks;
 const assertSafeRuntimeUrl = vi.hoisted(() => vi.fn());
+const assertRuntimeAuditRateLimit = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
+
+vi.mock("../rate-limit", async () => {
+  const actual =
+    await vi.importActual<typeof import("../rate-limit")>("../rate-limit");
+  return {
+    ...actual,
+    assertRuntimeAuditRateLimit: (...args: unknown[]) =>
+      assertRuntimeAuditRateLimit(...args),
+  };
+});
 
 vi.mock("@complyloop/analysis-core/runtime/url-safety", () => ({
   assertSafeRuntimeUrl: (...args: unknown[]) => assertSafeRuntimeUrl(...args),
@@ -70,6 +81,7 @@ describe("updateRuntimeAuditAction", () => {
     expect(projectWritePayload()?.project?.runtimeBaseUrl).toBeUndefined();
     expect(projectWritePayload()?.project?.runtimeRoutes).toBeUndefined();
     expect(assertSafeRuntimeUrl).not.toHaveBeenCalled();
+    expect(assertRuntimeAuditRateLimit).toHaveBeenCalled();
   });
 
   it("normalizes the origin and routes for owners", async () => {

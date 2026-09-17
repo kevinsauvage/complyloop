@@ -1,3 +1,4 @@
+import { assertExportRateLimit } from "@/server/rate-limit";
 import { loadEvidenceExport } from "@/server/reporting/evidence-queries";
 import { frameworkForProject } from "@/server/reporting/report";
 import {
@@ -7,10 +8,11 @@ import {
 import { getWorkspace } from "@/server/workspace/workspace";
 
 export async function GET(): Promise<Response> {
-  const { project } = await getWorkspace();
+  const { project, userId } = await getWorkspace();
   if (!project) {
     return new Response("No project connected.", { status: 404 });
   }
+  if (userId) await assertExportRateLimit(userId);
   const { exported, requirements } = await loadEvidenceExport(project.id);
   const payload = {
     exportedAt: new Date().toISOString(),

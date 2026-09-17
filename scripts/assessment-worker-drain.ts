@@ -17,9 +17,10 @@
 import path from "node:path";
 
 import {
+  ASSESSMENT_DRAIN_DEFAULTS,
   closeAssessmentWorker,
   runAssessmentJobBatch,
-} from "../src/server/assessment/assessment-runner";
+} from "../src/server/assessment/assessment-scheduler";
 import { loadLocalEnv } from "./env";
 
 function numeric(name: string, fallback: number): number {
@@ -40,8 +41,11 @@ export async function main(): Promise<void> {
   if (missing.length > 0) {
     throw new Error(`Missing required env: ${missing.join(", ")}.`);
   }
-  const limit = numeric("ASSESSMENT_WORKER_LIMIT", 10);
-  const concurrency = numeric("ASSESSMENT_WORKER_CONCURRENCY", 2);
+  const limit = numeric("ASSESSMENT_WORKER_LIMIT", ASSESSMENT_DRAIN_DEFAULTS.limit);
+  const concurrency = numeric(
+    "ASSESSMENT_WORKER_CONCURRENCY",
+    ASSESSMENT_DRAIN_DEFAULTS.concurrency,
+  );
 
   const startedAt = Date.now();
   const results = await runAssessmentJobBatch({ limit, concurrency });

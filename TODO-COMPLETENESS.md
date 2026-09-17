@@ -19,7 +19,9 @@ what is missing before the project is genuinely usable, safe, and deployable.
 
 ## P1 — High
 
-### [ ] TODO-06: Rate-limit the expensive/unthrottled paths
+### [x] TODO-06: Rate-limit the expensive/unthrottled paths
+
+> **Done 2026-09-17** (master TODO.md #7): per-domain helpers on the Postgres bucket primitive (remediation/requirements 30/m, runtime-audit 20/m, org-create 5/h, org-invite 20/m, export 10/m); health 10s healthy-response cache instead of a bucket (unauthenticated scrape target; 503s never cached).
 
 **Why:**
 `assess`/`connect`/`ai`/`webhook` are limited, but the other expensive or abusable
@@ -250,49 +252,6 @@ parenthetical must go — it describes code that does not exist.
 
 ---
 
-### [ ] TODO-13: Decide and document project-history retention on disconnect/delete; `github_tokens` outlive org delete
-
-**Why:**
-Disconnect cascades scoped rows so only the disconnect evidence row survives —
-per-project finding history is gone, while org-delete explicitly promises
-"evidence retained". The asymmetry is undocumented, and per-user `github_tokens`
-(no FK/cascade) survive org/project delete by design without a note. Operators
-and users can't reason about what "delete" keeps.
-
-**Where (verified 2026-09-16):**
-`src/server/workspace/connect-github.ts:201-246`,
-`src/server/workspace/orgs.ts:134-156`,
-`packages/db/src/schema.ts:75,110,132,275-289`, `src/server/actions/org.ts:265-287`
-
-**Current state (verified 2026-09-16):**
-Disconnect returns `{deleteProjectId, evidence, nextProjectId}` (`connect-github.ts:201-246`,
-"scoped rows drop via the project FK cascade" at `:202`) — only the
-`project_disconnected` evidence row survives. Org delete (`orgs.ts:134-156`,
-`actions/org.ts:265-287`) promises "Evidence history was retained for audit."
-(`org.ts:286`) — but only in a toast, not in docs. Cascades correct via FK;
-evidence FK-less + retained by design. Token clearing on sign-out works.
-
-**Missing / Problem:**
-No documented retention rule for disconnect (history loss surprises returning
-clients); no note that per-user tokens (FK-less, `schema.ts:275-289`) remain
-usable for other orgs after one org is deleted.
-
-**Required change:**
-Document the retention matrix (disconnect vs project delete vs org delete ×
-findings/remediations/evidence/tokens) in `docs/vercel.md` or the org UI;
-confirm token survival is intended (likely yes — per-user scope) with one line.
-
-**Completion impact:** Medium
-
-**Complexity:** Small (docs + one confirmation test for cascade-keeps-evidence)
-
-**Evidence (verified 2026-09-16):**
-
-- `connect-github.ts:201-246` vs `org.ts:265-287`; `orgs.ts:134-156`;
-  `schema.ts:75,110,132,275-289` (tokens FK-less).
-
----
-
 ### [ ] TODO-14: Harden URL/secret edges — `DATABASE_SSL_INSECURE` prod guard, `GITHUB_API_BASE_URL` scope, secret-redaction coverage
 
 **Why:**
@@ -484,7 +443,7 @@ function is pinned (`evidence.test.ts:13-23`, incl. the 12,001→5,000 boundary)
 - ~~Prod worker/ops/backup hardening — P0 (TODO-03; GH-Actions topology, needs scheduled `ops:check` + restore drill).~~ — DONE 2026-09-17 (scheduled `ops:check` + restore runbook live; drill date/owner pending).
 - Disconnect/reconnect repair, invite lifecycle, rate-limit coverage, evidence
   size alerting, PR failure signals, site copy, session edges — P1
-  (TODO-04, TODO-05, TODO-07, TODO-08, TODO-10 done; TODO-06, TODO-09 open).
+  (TODO-04, TODO-05, TODO-06, TODO-07, TODO-08, TODO-10, TODO-13 done; TODO-09 open).
 - Settings-to-assessment gap, secret dual-use, retention docs, TLS-bypass guard,
   docs-vs-reality copy — P2 (TODO-15 sub-points 1 and 4 resolved 2026-09-16).
 - Config-consistency polish + ops-path tests — P3 (TODO-16 Sentry-default bullet resolved 2026-09-16).
@@ -502,7 +461,7 @@ function is pinned (`evidence.test.ts:13-23`, incl. the 12,001→5,000 boundary)
 
 1. ~~TODO-03 (scheduled `ops:check` with fail cases + restore drill) — makes prod observable.~~ — DONE 2026-09-17 (drill date/owner pending).
 2. ~~TODO-04 + TODO-05 (repair banner + invite validation) — kills top support tickets.~~ — DONE 2026-09-17.
-3. TODO-06 + TODO-07 (rate limits + evidence alert) — abuse/growth safety.
+3. ~~TODO-06 + TODO-07 (rate limits + evidence alert) — abuse/growth safety.~~ — DONE 2026-09-17.
 4. TODO-08 + TODO-09 + TODO-10 (check-run on exception, site copy, session edges).
 5. TODO-11 … TODO-16 in order (TODO-01/02 done/removed; TODO-15.1, TODO-15.4, TODO-16 Sentry done).
 

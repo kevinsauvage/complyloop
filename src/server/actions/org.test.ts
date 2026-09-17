@@ -36,6 +36,20 @@ const writeActiveOrgCookie = vi.hoisted(() => vi.fn());
 const writeActiveProjectCookie = vi.hoisted(() => vi.fn());
 const clearActiveProjectCookie = vi.hoisted(() => vi.fn());
 const readActiveOrgCookie = vi.hoisted(() => vi.fn());
+const assertOrgCreateRateLimit = vi.hoisted(() => vi.fn());
+const assertOrgInviteRateLimit = vi.hoisted(() => vi.fn());
+
+vi.mock("../rate-limit", async () => {
+  const actual =
+    await vi.importActual<typeof import("../rate-limit")>("../rate-limit");
+  return {
+    ...actual,
+    assertOrgCreateRateLimit: (...args: unknown[]) =>
+      assertOrgCreateRateLimit(...args),
+    assertOrgInviteRateLimit: (...args: unknown[]) =>
+      assertOrgInviteRateLimit(...args),
+  };
+});
 const refresh = vi.hoisted(() => vi.fn());
 const listFindingsForProjects = vi.hoisted(() => vi.fn());
 const listRemediationsForProjects = vi.hoisted(() => vi.fn());
@@ -455,6 +469,7 @@ describe("org member management actions", () => {
     form.set("role", "member");
     const result = await inviteOrgMemberAction(initialActionState, form);
     expect(result.message).toMatch(/Invited @bob as member/);
+    expect(assertOrgInviteRateLimit).toHaveBeenCalledWith("user-1");
   });
 
   it("rejects a misspelled GitHub username when the inviter has a token", async () => {

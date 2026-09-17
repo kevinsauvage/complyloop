@@ -58,3 +58,33 @@ export function assertAssessRateLimit(userId: string): Promise<void> {
 export function assertAiRateLimit(userId: string): Promise<void> {
   return assertRateLimit(`ai:${userId}`, 20, 60_000);
 }
+
+/** Remediation writes (approve/implement/verify/dismiss, incl. bulk): 30 per user per minute. */
+export function assertRemediationRateLimit(userId: string): Promise<void> {
+  return assertRateLimit(`remediation:${userId}`, 30, 60_000);
+}
+
+/** Requirement writes (exceptions, human verification): 30 per user per minute. */
+export function assertRequirementsRateLimit(userId: string): Promise<void> {
+  return assertRateLimit(`requirements:${userId}`, 30, 60_000);
+}
+
+/** Runtime audit config saves: 20 per user per minute. */
+export function assertRuntimeAuditRateLimit(userId: string): Promise<void> {
+  return assertRateLimit(`runtime-audit:${userId}`, 20, 60_000);
+}
+
+/** Org creation: 5 per user per hour (org sprawl is the abuse mode). */
+export function assertOrgCreateRateLimit(userId: string): Promise<void> {
+  return assertRateLimit(`org-create:${userId}`, 5, 3_600_000);
+}
+
+/** Org invites: 20 per user per minute (invite spam). */
+export function assertOrgInviteRateLimit(userId: string): Promise<void> {
+  return assertRateLimit(`org-invite:${userId}`, 20, 60_000);
+}
+
+/** Full-org evidence export: 10 per user per minute (5000-row reads). */
+export function assertExportRateLimit(userId: string): Promise<void> {
+  return assertRateLimit(`export:${userId}`, 10, 60_000);
+}

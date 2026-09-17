@@ -35,6 +35,7 @@ import {
   remediationEvidenceDetail,
   remediationEvidenceSummary,
 } from "../assessment/remediation-evidence";
+import { assertRemediationRateLimit } from "../rate-limit";
 import {
   appendEvidence,
   cloneProjectRows,
@@ -188,7 +189,10 @@ export async function approveRemediationAction(
   return runFindingAction(
     findingIdRaw,
     "project.remediate",
-    async ({ db, finding }) => {
+    async ({ db, finding, workspace }) => {
+      if (workspace.userId) {
+        await assertRemediationRateLimit(workspace.userId);
+      }
       const remediation = remediationForFinding(db, finding.id);
       const payload: ProjectWritePayload = {};
 
@@ -211,6 +215,9 @@ export async function bulkApproveRemediationsAction(
     let approved = 0;
 
     await withProjectWrite(async (workspace) => {
+      if (workspace.userId) {
+        await assertRemediationRateLimit(workspace.userId);
+      }
       const { db } = workspace;
       const payload: ProjectWritePayload = {};
       for (const findingId of findingIds) {
@@ -253,7 +260,10 @@ export async function dismissFindingAction(
   return runFindingAction(
     findingIdRaw,
     "project.remediate",
-    async ({ db, finding }) => {
+    async ({ db, finding, workspace }) => {
+      if (workspace.userId) {
+        await assertRemediationRateLimit(workspace.userId);
+      }
       const { reason, note } = parseForm(dismissFindingInput, formData);
       const project = db.projects.find(
         (candidate) => candidate.id === finding.projectId,
@@ -281,6 +291,9 @@ export async function bulkDismissFindingsAction(
     let dismissed = 0;
 
     await withProjectWrite(async (workspace) => {
+      if (workspace.userId) {
+        await assertRemediationRateLimit(workspace.userId);
+      }
       const { db } = workspace;
       const project = workspace.project;
       if (!project) throw new PublicError("Select a project first.");

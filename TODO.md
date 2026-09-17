@@ -1,56 +1,9 @@
 # TODO — Master priority list (unified)
 
-> Connects the four audit files into one execution order.
-> Sources: `TODO-COMPLETENESS.md` (product completeness), `TODO-ASSESSMENT-FLOW.md`
-> (assessment/scan), `TODO-NEXTJS-ARCHITECTURE.md` (App Router/layers),
-> `TODO-CODE-REDUCTION.md` (code deletion/simplification).
-> Priority merge rule: Completeness P0 > Architecture P0 > anything P1 > P2 > P3.
-> Within a level, user-facing / prod-risk beats pure cleanup.
-> "Do with" = touch the same files — implement together or back-to-back in one branch,
-> otherwise you will conflict with yourself. Per `AGENTS.md`, any batch touching
->
-> > 2 files needs a short plan + approval before editing.
-
-## Batch map — what to treat at the same time
-
-| Batch                                        | Items (do together)                                                                                                                                                                                                                                                                                 | Why one branch                                                                                                                                                                                                                                                   |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **A. Write pipeline + action idiom**         | NEXTJS-P0 (workspace-write→actions inversion) · NEXTJS-P1 action-trio · NEXTJS-P1 ActionState import · CODE-P0 write-unify · CODE-P0 action-chain · CODE-P3 payload/context types                                                                                                                   | Same 6 files: `workspace-write.ts`, `actions/shared.ts`, `actions/define-action.ts`, `actions/refresh-routes.ts`, `action-state.ts`, `core/action-state.ts`. Splitting guarantees rebase conflicts.                                                              |
-| **B. Loader / read layer + settings**        | NEXTJS-P1 project-view split · NEXTJS-P1 settings loader · NEXTJS-P1 Promise.all · CODE-P1 workspace reads · COMPLETENESS TODO-11 (settings gap) · COMPLETENESS TODO-15 (scanMode/orphan)                                                                                                           | Same file: `project-view.ts` (769 lines) + `settings/page.tsx` + `assessment-job-status-live.tsx`. Split the god-loader first, then land the settings/save-and-run/poll fixes on top.                                                                            |
-| **C. GitHub boundary + repair + PR signals** | NEXTJS-P1 github-connector · COMPLETENESS TODO-04 (repair flow) · TODO-08 (PR check-run + branch msg) · TODO-10.3 (revoked-vs-expired) · COMPLETENESS TODO-12 (AUTH_SECRET dual-use)                                                                                                                | Same modules: `github*.ts`, `github-connector.ts`, `connect.ts`, `connect-project-panel.tsx`, picker hooks. Connector decision (facade vs delete) must land before the repair banner; revoked-vs-expired classification feeds the TODO-04 banner.                |
-| **D. Ops / scheduler / error reporting**     | COMPLETENESS TODO-03 (ops hardening) · TODO-07 (evidence size) · TODO-16 (ops-path tests) · ASSESSMENT P2-1 (scheduler collapse) · CODE-P2 test/harness leftovers (`build-worker.mjs`) · CODE-P1 error-reporting + NEXTJS-P2 sentry demo + NEXTJS-P2 error boundaries                               | Same surface: `assessment-worker.yml`, `jobs/run/route.ts`, `operations-check.ts`, `health/route.ts`, `assessment-{runner,inline,dispatch,worker}.ts`, `observability.ts`, `sentry-example-page/`. Unify the drain + fail-case `ops:check` + health in one pass. |
-| **E. Scan hot loop + runtime**               | ASSESSMENT P2-3 (reconcile index) · P2-4 (checkout walks) · P2-9 (axe containment) · CODE-P0 probe sprawl · CODE-P1 catalog trees · CODE-P1 AST helpers                                                                                                                                             | Same tree: `assessment*.ts`, `analysis-core/runtime/**`, `catalog/*`. Index + walk-fold + probe harness share tests (`custom-checks`, `catalog-coverage`, `check-authority`).                                                                                    |
-| **F. Remediation / AI / finding copy**       | ASSESSMENT P2-5 (history dual-write) · P2-6 (stale AI) · COMPLETENESS TODO-09 (site copy) · NEXTJS-P3 ai naming · COMPLETENESS TODO-13 (retention docs) · ASSESSMENT P2-11 (requirement id/cascade)                                                                                                 | Same domain: `remediation-*.ts`, `finding-act.ts`, `handoff.ts`, `pr.ts`, `finding-next-step-panel.tsx`, `remediation-history.tsx`. Decide "evidence is the log" once, then fix copy + staleness on top.                                                         |
-| **G. Report / display / evidence UI**        | CODE-P0 report stack · CODE-P0 display tower · CODE-P1 micro-barrels · CODE-P2 date split · CODE-P3 caches/types/nits · NEXTJS-P3 generic-component audit · COMPLETENESS TODO-15.1/15.4 (already done — verify only)                                                                                | Same tables: `reporting/*`, `core/display/*`, `badges.tsx`, `formatted-datetime.tsx`, `page-primitives.tsx`. One badge/model pass; snapshot-test reports before/after.                                                                                           |
-| **H. Forms / client bundle / validation**    | NEXTJS-P1 providers move · NEXTJS-P2 GitHubRepoList RSC · NEXTJS-P3 role-select/tiny-modules/hooks-relocate/validation-mirror · CODE-P1 form stack · CODE-P1 UI primitives · CODE-P2 memo/defensive/validation-fold · COMPLETENESS TODO-05 (invite lifecycle) · TODO-06 rate-limit (form/org paths) | Same bundle: `components/*`, `hooks/*`, `core/validate.ts`, `invite-member-form.tsx`, `org-members-card.tsx`. RSC-ify + fold + invite-copy + rate-limit in one form-system pass.                                                                                 |
-
----
-
 ## P1 — High (user-facing + high-value simplification)
 
 - [ ] **4. Loader split + settings loader + parallelize (NEXTJS-P1 ×3 + CODE-P1 workspace reads) — batch B**
       Split `project-view.ts` per route (`view-shared.ts` for shared bits); add `loadSettingsView()`; `Promise.all` independent awaits in loaders + `ConnectProjectPanel`.
-
-- [x] **5. Repair flow + PR failure signals (TODO-04 + TODO-08) — batch C**
-      Classified failure causes → repair banner (install URL + reconnect); post Check Run `failure`/`neutral` on worker exception; fix ephemeral-branch message. Requires TODO-10.3 signal (below).
-
-- [x] **6. Invite lifecycle (TODO-05) — batch H**
-      GitHub-login verification, invite expiry/cleanup, Invite-vs-Change-role copy, leave action with last-owner guard.
-
-- [ ] **7. Rate limits (TODO-06) — batches H/I**
-      Limits on runtime-audit, remediation/requirements, org create/invite, export; throttle/cache health probe.
-
-- [ ] **8. Evidence alert (TODO-07) + retention docs (TODO-13) — batch D/F**
-      Evidence size + row count in `ops:check` (warn/fail) ± health; retention matrix (disconnect vs project vs org delete × findings/evidence/tokens).
-
-- [ ] **9. Scheduler collapse (ASSESSMENT P2-1) — batch D**
-      One `assessment-scheduler.ts`, one limit default, evaluate deleting `build-worker.mjs`. After dispatch topology stabilizes; same branch as #1.
-
-- [x] **10. GitHub boundary decision (NEXTJS-P1 connector) — batch C**
-      Facade-as-enforced-boundary (recommended) or delete. Land before #5.
-
-- [x] **11. Auth session edges (TODO-10) — batches C/I**
-      Explicit `session.maxAge/updateAge`; map prod-config throw to `Configuration` login copy; revoked-vs-expired refresh signal (feeds #5).
 
 - [ ] **12. Site-copy fix (TODO-09) — batch F**
       Branch `site` explicitly in `findingAct`/`handoff.ts`/PR rejection (re-audit wording, not PR).

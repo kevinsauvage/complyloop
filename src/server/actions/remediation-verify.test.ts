@@ -28,6 +28,17 @@ const locateViolationInProject = vi.hoisted(() => vi.fn());
 const runtimeViolationStillPresent = vi.hoisted(() => vi.fn());
 const scanRuntime = vi.hoisted(() => vi.fn());
 const applyRequirementStatusRefresh = vi.hoisted(() => vi.fn());
+const assertRemediationRateLimit = vi.hoisted(() => vi.fn());
+
+vi.mock("../rate-limit", async () => {
+  const actual =
+    await vi.importActual<typeof import("../rate-limit")>("../rate-limit");
+  return {
+    ...actual,
+    assertRemediationRateLimit: (...args: unknown[]) =>
+      assertRemediationRateLimit(...args),
+  };
+});
 
 vi.mock("../assessment/repo-checkout", () => ({
   withProjectCheckout: async (
@@ -225,6 +236,7 @@ describe("verifyRemediationAction", () => {
     });
     expect(projectWritePayload()?.remediations?.[0]?.status).toBe("verified");
     expect(projectWritePayload()?.findings?.[0]?.status).toBe("resolved");
+    expect(assertRemediationRateLimit).toHaveBeenCalled();
     expect(applyRequirementStatusRefresh).toHaveBeenCalledWith(
       expect.any(Object),
       expect.objectContaining({ id: "p1" }),

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import { z } from "zod";
 
-import { runAssessmentJobBatch } from "@/server/assessment/assessment-runner";
+import { runAssessmentJobBatch } from "@/server/assessment/assessment-scheduler";
 import {
   isWorkerAuthConfigured,
   isWorkerRequestAuthorized,

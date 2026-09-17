@@ -21,6 +21,7 @@ import {
 import { parseEntityId, parseForm, requiredField } from "@/core/validate";
 
 import { applyRequirementStatusRefresh } from "../assessment/assessment-status";
+import { assertRequirementsRateLimit } from "../rate-limit";
 import { appendEvidence, cloneProjectRows } from "../workspace/project-rows";
 import { controlById } from "../workspace/workspace";
 import { runProjectAction } from "./define-action";
@@ -154,6 +155,9 @@ export async function markRequirementExceptionAction(
     const requirementId = parseEntityId(requirementIdRaw);
     const parsed = parseForm(markExceptionInput, formData);
     requireOnActive(workspace, "project.remediate");
+    if (workspace.userId) {
+      await assertRequirementsRateLimit(workspace.userId);
+    }
     const { db, project } = workspace;
     const requirement = requireRequirement(db, project.id, requirementId);
 
@@ -216,6 +220,9 @@ export async function markRequirementPassedAction(
     const requirementId = parseEntityId(requirementIdRaw);
     const { note } = parseForm(markPassedInput, formData);
     requireOnActive(workspace, "project.remediate");
+    if (workspace.userId) {
+      await assertRequirementsRateLimit(workspace.userId);
+    }
     const { db, project } = workspace;
     const requirement = requireRequirement(db, project.id, requirementId);
 
@@ -298,6 +305,9 @@ async function clearRequirementOverrideAction(
   return runProjectAction(async (workspace) => {
     const requirementId = parseEntityId(requirementIdRaw);
     requireOnActive(workspace, "project.remediate");
+    if (workspace.userId) {
+      await assertRequirementsRateLimit(workspace.userId);
+    }
     const { db, project } = workspace;
     const requirement = requireRequirement(db, project.id, requirementId);
     return clearRequirementOverride(db, project, requirement, field);

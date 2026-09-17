@@ -1,45 +1,6 @@
 # Assessment Flow Audit — Simplify, Improve, Strengthen
 
-> **Status (2026-09-16): triaged against current code — all open items
-> confirmed still applicable, refs refreshed.** Production drains via the
-> GitHub Actions `assessment-worker` (dispatch on enqueue + 15-min schedule;
-> P1-2 self-fetch deletion has landed). Verify refs again before implementing;
-> see `docs/vercel.md` for current topology.
-
----
-
-## P0 — Critical
-
 ## P2 — Medium
-
-### [ ] P2-1 — Collapse the five-file drain orchestration (runner + inline + dispatch + route glue) into one scheduler module
-
-**Why:**
-Queue → run spans `assessment-runner.ts` (batch loop + teardown), `assessment-job-inline.ts` (drain + schedule + self-fetch), `assessment-job-dispatch.ts` (dispatch), `assessment-worker.ts` (claim→run→settle), and `api/internal/jobs/run/route.ts` (batch parsing). A new developer must read five files to answer "how does a job run". After P1-2 (delete self-fetch), runner + inline are thin wrappers around each other.
-
-**Where:**
-`src/server/assessment/assessment-runner.ts` (`runAssessmentJobBatch` L50–89), `assessment-job-inline.ts` (`drainAssessmentJobQueue` L28–45, `scheduleAssessmentDrain` L93–99), `assessment-job-dispatch.ts` (`dispatchAssessmentWorker` L42–69), `assessment-worker.ts` (`processNextAssessmentJob` L279–284 → `settleRunningAssessmentJob` L214–276 → `runClaimedAssessmentJob` L42), `src/app/api/internal/jobs/run/route.ts` (schemas L27–43), `scripts/assessment-worker-drain.ts` (defaults L43–44), `scripts/build-worker.mjs` (bundle + `__name` tripwire), `.github/workflows/assessment-worker.yml` (inputs L31–37, schedule backstop L27–29).
-
-**Current flow (verified 2026-09-16):**
-Route parses `limit`/`concurrency` (`route.ts:27-43` schemas, `:45-60` parse, `:106-115` batch call) → `runAssessmentJobBatch` (prune + sequential/pool, `assessment-runner.ts:50-89`, pool calls `processNextAssessmentJob` at `:76`) → `processNextAssessmentJob` (claim, `assessment-worker.ts:279-284`) → `settleRunningAssessmentJob` (`:214-276`) → `runClaimedAssessmentJob` (`:42`, still private). Inline path: `scheduleAssessmentDrain` (`assessment-job-inline.ts:93-99`, now two-branch: inline vs dispatch — P1-2 self-fetch deleted) → `drainAssessmentJobsInline` (`:53-71`) → `drainAssessmentJobQueue` (`:28-45`, dynamic `import("./assessment-runner")` at `:31`) → `runAssessmentJobBatch`. The dynamic import exists only to keep trigger sites from statically reaching the scan stack.
-
-**Problem:**
-Two batch loops (`runAssessmentJobBatch` vs `drainAssessmentJobQueue` wrapper counting by kind), two drain entry points, dynamic import dance, three disagreeing default limits (20 inline / 1 route-default capped at 10 / 10+2 GH workflow + `assessment-worker-drain.ts:43-44` fallbacks), and a bespoke esbuild worker bundle — for claim → run → settle.
-
-**Proposed simplification:**
-One `assessment-scheduler.ts`: `scheduleAssessmentDrain()` (inline-or-dispatch decision), `drainQueue({limit, concurrency})` (single batch loop returning counts), re-exported worker-result types. Keep `assessment-worker.ts` (claim→run→settle) and `assessment-jobs.ts` (SQL) as-is — they have real cohesion. Unify the limit default in one constant consumed by the route, inline path, and workflow docs. Keep the dynamic-import boundary but document it once. Evaluate deleting `build-worker.mjs` (run the drain via `tsx` like `db:migrate` does — one fewer build artifact).
-
-**Why this is safe:**
-No queue, claim, lease, retry, or scan semantics change. Pure module-boundary move + dead-path deletion (after P1-2).
-
-**Impact:** Medium (est. −2 files, ~150 lines, one default, one build script)
-
-**Complexity:** Medium.
-
-**Evidence (verified 2026-09-16):**
-`assessment-job-inline.ts:28-45` (`drainAssessmentJobQueue` wraps `runAssessmentJobBatch` to recount by kind); `:93-99` (two-branch scheduler — inline vs dispatch; P1-2 self-fetch deleted); `assessment-job-inline.ts:48-52` (stale "Production self-fetches" comment — fix with this item); `assessment-runner.ts:50-89` (pool loop); `route.ts:27-43` (limit default 1/cap 10, concurrency default 1/cap 4); `assessment-worker.yml:31-37` + `assessment-worker-drain.ts:43-44` (GH-side 10/2 defaults).
-
----
 
 ### [ ] P2-3 — `reconcileControlFindings` re-filters all findings per control (O(C×F)×2); index once
 

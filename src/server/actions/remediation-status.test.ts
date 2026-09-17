@@ -17,6 +17,21 @@ import { testWorkspace } from "@/test-fixtures/workspace";
 import { dismissFindingAction } from "./remediation";
 import { clearRequirementExceptionAction } from "./requirements";
 
+const assertRemediationRateLimit = vi.hoisted(() => vi.fn());
+const assertRequirementsRateLimit = vi.hoisted(() => vi.fn());
+
+vi.mock("../rate-limit", async () => {
+  const actual =
+    await vi.importActual<typeof import("../rate-limit")>("../rate-limit");
+  return {
+    ...actual,
+    assertRemediationRateLimit: (...args: unknown[]) =>
+      assertRemediationRateLimit(...args),
+    assertRequirementsRateLimit: (...args: unknown[]) =>
+      assertRequirementsRateLimit(...args),
+  };
+});
+
 const project = testProject({ orgId: "org-1" });
 const controlId = "ctl-img-alt";
 

@@ -197,6 +197,10 @@ export async function connectGitHubRepo(
  * Disconnects a GitHub project when the actor has `project.connect`.
  * Returns what to persist (scoped rows drop via the project FK cascade) plus
  * the next visible project id for the cookie. Does not mutate `db`.
+ *
+ * Retention: disconnecting drops the project's findings/remediations/
+ * requirements — only the `project_disconnected` evidence row survives
+ * (evidence is FK-less and retained by design; see docs/vercel.md §6).
  */
 export function disconnectGitHubRepo(
   db: WorkspaceSlice,
