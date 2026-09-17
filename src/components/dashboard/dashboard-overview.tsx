@@ -44,7 +44,7 @@ function QuickStatTile({ stat }: { stat: DashboardQuickStat }) {
           linked && "group-hover:text-signal",
         )}
       >
-        {stat.value}
+        <span className="min-w-0 truncate">{stat.value}</span>
         {linked ? (
           <ArrowUpRight className="size-4 shrink-0 opacity-60" aria-hidden />
         ) : null}
@@ -108,10 +108,10 @@ export function DashboardOverview({
           eyebrow={
             repoLabel || meta ? (
               <>
-                {repoLabel ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/50 px-2.5 py-1 font-mono text-xs text-muted-foreground">
+                {repoLabel && repoLabel !== title ? (
+                  <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/60 bg-background/50 px-2.5 py-1 font-mono text-xs text-muted-foreground">
                     <GitBranch className="size-3.5 shrink-0" aria-hidden />
-                    {repoLabel}
+                    <span className="min-w-0 truncate">{repoLabel}</span>
                   </span>
                 ) : null}
                 {meta}
@@ -122,7 +122,10 @@ export function DashboardOverview({
           {actions}
         </PageHeader>
         {stats.length > 0 ? (
-          <ul className="grid grid-cols-2 gap-3 px-5 pb-5 sm:grid-cols-4 sm:px-6 sm:pb-6">
+          <ul
+            aria-label="Key compliance metrics"
+            className="grid grid-cols-2 gap-3 px-5 pb-5 sm:grid-cols-4 sm:px-6 sm:pb-6"
+          >
             {stats.map((stat) => (
               <li key={stat.label} className="min-w-0">
                 <QuickStatTile stat={stat} />

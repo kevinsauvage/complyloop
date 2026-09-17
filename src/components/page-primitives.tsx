@@ -89,10 +89,7 @@ export function PageSection({
   return (
     <section
       id={id}
-      className={cn(
-        "flex flex-col gap-4 border-t border-border/50 pt-8 first:border-t-0 first:pt-0",
-        className,
-      )}
+      className={cn("flex flex-col gap-4 pt-8 first:pt-0", className)}
     >
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0 space-y-1">
