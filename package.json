@@ -89,6 +89,7 @@
   },
   "overrides": {
     "esbuild": "$esbuild",
+    "@sentry/core": "^10.74.0",
     "nanoid": "^3.3.18"
   }
 }
