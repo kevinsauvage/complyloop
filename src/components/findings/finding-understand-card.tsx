@@ -1,16 +1,21 @@
-import { MapPin } from "lucide-react";
+import { ExternalLink, MapPin } from "lucide-react";
 
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import type { Explanation } from "@complyloop/analysis-core/contract/finding-types";
 import {
-  domLocationDetails,
   formatLocationRef,
   isDomLocation,
+  isSourceLocation,
   locationSnippet,
 } from "@complyloop/analysis-core/contract/location";
+import {
+  describeAxeElement,
+  visibleTextOf,
+} from "@complyloop/analysis-core/runtime/dom-location";
 
 import { ConfidenceBadge, ProvenanceBadge } from "@/components/badges";
 import { CodeBlock } from "@/components/code-block";
+import { CopyButton } from "@/components/copy-button";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { generateAiExplanationAction } from "@/server/actions/remediation-ai";
@@ -23,14 +28,99 @@ function baselineExplanation(finding: Finding): Explanation | undefined {
   );
 }
 
+/**
+ * Rendered-page location block. Axe findings historically carried no
+ * `elementLabel`, so derive `tag "visible text"` from the stored snippet —
+ * existing rows become readable without a re-scan. The selector stays as a
+ * copyable DevTools locator, never the headline.
+ */
+function DomElementBlock({ finding }: { finding: Finding }) {
+  if (!isDomLocation(finding.location)) return null;
+  const location = finding.location;
+  const snippet = locationSnippet(finding.location);
+  const label =
+    location.elementLabel ?? describeAxeElement(snippet, location.selector);
+  const visibleText = visibleTextOf(snippet);
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2 text-sm">
+      <div className="grid gap-0.5">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Element
+        </p>
+        <p className="text-sm font-semibold text-foreground">{label}</p>
+        {visibleText && !label.includes(visibleText) ? (
+          <p className="text-sm text-muted-foreground">
+            Reads: &ldquo;{visibleText}&rdquo;
+          </p>
+        ) : null}
+      </div>
+      <div className="grid gap-0.5">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Page
+        </p>
+        <p>
+          <a
+            href={location.url}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-foreground underline underline-offset-2 hover:text-signal break-all"
+          >
+            {location.url}
+            <ExternalLink className="size-3 shrink-0" aria-hidden />
+          </a>
+        </p>
+      </div>
+      {location.selector && location.selector !== "(unknown)" ? (
+        <div className="grid gap-0.5">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Selector
+          </p>
+          <p className="font-mono text-xs text-foreground break-all">
+            {location.selector}
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <CopyButton label="Copy selector" text={location.selector} />
+          </div>
+        </div>
+      ) : null}
+      {location.context ? (
+        <div className="grid gap-0.5">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Context
+          </p>
+          <p className="text-foreground">{location.context}</p>
+        </div>
+      ) : null}
+      <ol className="list-decimal space-y-0.5 pl-5 text-[13px] text-muted-foreground">
+        <li>
+          Open the live page above — this is what visitors experience, not
+          source code.
+        </li>
+        <li>
+          In DevTools press Cmd/Ctrl+F, paste the selector, and the failing{" "}
+          {label.split(" ")[0]} highlights — then trace to the component
+          that renders it (rendered text often comes from props or
+          template expressions, not literal source).
+        </li>
+      </ol>
+    </div>
+  );
+}
+
 export function FindingUnderstandCard({
   finding,
   canRemediate,
   aiAvailable,
+  githubFullName,
+  defaultBranch = "main",
 }: {
   finding: Finding;
   canRemediate: boolean;
   aiAvailable: boolean;
+  /** `owner/repo` — enables the exact-line GitHub blob link. */
+  githubFullName?: string;
+  defaultBranch?: string;
 }) {
   const baseline = baselineExplanation(finding);
   const aiExplanations = finding.explanations.filter(
@@ -52,36 +142,31 @@ export function FindingUnderstandCard({
           </p>
         ) : null}
         {isDomLocation(finding.location) ? (
-          <dl className="flex flex-col gap-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2 text-sm">
-            {domLocationDetails(finding.location).map((detail) => (
-              <div key={detail.term} className="grid gap-0.5">
-                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {detail.term}
-                </dt>
-                <dd
-                  className={
-                    detail.term === "Selector"
-                      ? "font-mono text-xs text-foreground break-all"
-                      : "text-foreground"
-                  }
+          <DomElementBlock finding={finding} />
+        ) : isSourceLocation(finding.location) ? (
+          <div className="flex flex-col gap-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2 text-sm">
+            <p className="font-mono text-xs text-foreground break-all">
+              {formatLocationRef(finding.location)}
+            </p>
+            {githubFullName ? (
+              <p>
+                <a
+                  href={`https://github.com/${githubFullName}/blob/${defaultBranch}/${finding.location.filePath}#L${finding.location.line}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-foreground underline underline-offset-2 hover:text-signal"
                 >
-                  {detail.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
+                  Open exact line on GitHub
+                  <ExternalLink className="size-3" aria-hidden />
+                </a>
+              </p>
+            ) : null}
+          </div>
         ) : (
           <p className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2 font-mono text-xs text-foreground">
             {formatLocationRef(finding.location)}
           </p>
         )}
-        {isDomLocation(finding.location) ? (
-          <p className="text-sm text-muted-foreground">
-            Live-page finding on the site as visitors experience it. Tab to the
-            element above on the live page, or search your codebase for the link
-            text / selector.
-          </p>
-        ) : null}
         <CodeBlock>{locationSnippet(finding.location)}</CodeBlock>
         {baseline ? (
           <div className="flex flex-col gap-2 text-sm leading-relaxed">

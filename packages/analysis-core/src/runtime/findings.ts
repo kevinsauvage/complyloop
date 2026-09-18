@@ -9,7 +9,11 @@ import { dedupeRuntimeFindings } from "../merge-findings.ts";
 import type { RawFinding } from "../types.ts";
 import type { ApplicabilityObservation } from "./applicability.ts";
 import { checkIdForAxeRule } from "./axe-map.ts";
-import { htmlSnippet, selectorFromTarget } from "./dom-location.ts";
+import {
+  describeAxeElement,
+  htmlSnippet,
+  selectorFromTarget,
+} from "./dom-location.ts";
 import { rawFindingFromDom } from "./raw-finding-from-dom.ts";
 import { normalizeRoutes } from "./routes.ts";
 import { runSiteLevelChecks } from "./site-level/checks.ts";
@@ -112,6 +116,10 @@ function findingsFromAxeHits(
     const asReview =
       kind === "warning" || violation.id === "frame-tested" || heuristic;
     for (const node of violation.nodes) {
+      // Derive from the full node HTML before truncation: class-heavy
+      // markup (Tailwind) pushes the visible text past the 200-char
+      // snippet limit, so deriving after would lose the identity.
+      const selector = selectorFromTarget(node.target);
       findings.push(
         rawFindingFromDom({
           checkId,
@@ -122,9 +130,10 @@ function findingsFromAxeHits(
           confidence: asReview ? "medium" : confidence,
           reason: `${violation.help} ${violation.description}`.trim(),
           url: page.url,
-          selector: selectorFromTarget(node.target),
+          selector,
           snippet: htmlSnippet(node.html),
-          elementLabel: node.elementLabel,
+          elementLabel:
+            node.elementLabel ?? describeAxeElement(node.html, selector),
           context: node.failureSummary,
           analyzerId: "axe",
           analyzerRuleId: violation.id,

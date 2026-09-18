@@ -62,16 +62,24 @@ export async function getProjectById(
   return rows[0]?.payload;
 }
 
-/** Look up a GitHub-connected project by owner/repo full name (webhooks). */
-export async function findProjectByGithubFullName(
+/**
+ * Look up GitHub-connected projects by owner/repo full name (webhooks).
+ * Uniqueness is per-org, so the same public repo may be connected in several
+ * orgs — returns every match in deterministic id order and lets the caller
+ * disambiguate by installation id. Never `.limit(1)` here: picking an
+ * arbitrary row is a cross-tenant mutation bug.
+ */
+export async function findProjectsByGithubFullName(
   drizzle: DrizzleDb,
   fullName: string,
-): Promise<{
-  id: string;
-  orgId: string;
-  defaultBranch?: string;
-  installationId?: number;
-} | null> {
+): Promise<
+  Array<{
+    id: string;
+    orgId: string;
+    defaultBranch?: string;
+    installationId?: number;
+  }>
+> {
   const normalized = fullName.toLowerCase();
   const rows = await drizzle
     .select({
@@ -88,18 +96,21 @@ export async function findProjectByGithubFullName(
     .where(
       sql`lower((${projects.payload}->'github'->>'fullName')) = ${normalized}`,
     )
-    .limit(1);
-  const row = rows[0];
-  if (!row?.orgId) return null;
-  return {
-    id: row.id,
-    orgId: row.orgId,
-    ...(typeof row.githubDefaultBranch === "string"
-      ? { defaultBranch: row.githubDefaultBranch }
-      : {}),
-    ...(typeof row.githubInstallationId === "string" &&
-    row.githubInstallationId.length > 0
-      ? { installationId: Number(row.githubInstallationId) }
-      : {}),
-  };
+    .orderBy(projects.id);
+  return rows.flatMap((row) => {
+    if (!row?.orgId) return [];
+    return [
+      {
+        id: row.id,
+        orgId: row.orgId,
+        ...(typeof row.githubDefaultBranch === "string"
+          ? { defaultBranch: row.githubDefaultBranch }
+          : {}),
+        ...(typeof row.githubInstallationId === "string" &&
+        row.githubInstallationId.length > 0
+          ? { installationId: Number(row.githubInstallationId) }
+          : {}),
+      },
+    ];
+  });
 }

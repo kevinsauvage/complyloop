@@ -1,14 +1,17 @@
 # Ops check (replaces the old worker healthcheck).
 #
-# Runs `npm run ops:check` on a daily schedule: verifies prod env vars, DB
-# reachability, assessment-queue depth, and evidence-table growth. Any breach
-# exits non-zero so the workflow fails and stock Actions failure
-# notifications fire — a red run here means "dispatch/schedule stopped
-# draining" or "evidence is outgrowing the database".
+# Runs `npm run ops:check` on a daily schedule: verifies DB reachability,
+# assessment-queue depth, and evidence-table growth (missing prod env vars
+# degrade the report instead of failing it). Any breach exits non-zero so the
+# workflow fails and stock Actions failure notifications fire — a red run
+# here means "dispatch/schedule stopped draining" or "evidence is outgrowing
+# the database".
 #
 # Required repository secrets: `DATABASE_URL` (pooled Postgres).
 # Optional vars: `OPS_MAX_QUEUED_JOBS` (default 50), `OPS_MAX_EVIDENCE_MB`
 # (default 1024) — tighten once the first prod signals are known.
+# Optional secrets: `SLACK_WEBHOOK_URL` (failure posts), `HEALTH_URL`
+# (unauthenticated GET of the app `/api/health` endpoint).
 name: ops-check
 
 on:
@@ -34,3 +37,22 @@ jobs:
         env:
           NODE_ENV: production
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      - name: Ping app health
+        # Optional: set repository secret HEALTH_URL to the /api/health URL.
+        # The endpoint is an unauthenticated scrape target; non-200 fails.
+        if: env.HEALTH_URL != ''
+        env:
+          HEALTH_URL: ${{ secrets.HEALTH_URL }}
+        run: |
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "$HEALTH_URL") || code="000"
+          echo "health HTTP $code"
+          [ "$code" = "200" ]
+      - name: Notify on failure
+        # Optional: set repository secret SLACK_WEBHOOK_URL to post failures.
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -fsS -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\"${{ github.workflow }} failed on ${{ github.ref_name }} — ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            "$SLACK_WEBHOOK_URL"

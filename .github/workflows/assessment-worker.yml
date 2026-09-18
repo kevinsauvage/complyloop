@@ -53,7 +53,23 @@ jobs:
           node-version: "24"
           cache: npm
       - run: npm ci
+      - name: Check queue depth
+        id: gate
+        # Scheduled ticks are the backstop: skip the browser cache/install
+        # and the drain entirely when nothing is queued or running. Explicit
+        # drains (repository_dispatch, workflow_dispatch) always run.
+        run: |
+          depth=$(npx tsx --conditions=react-server scripts/queue-depth.ts | tail -n 1)
+          echo "depth=$depth" >> "$GITHUB_OUTPUT"
+          if [ "$depth" = "0" ] && [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "empty=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "empty=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
       - name: Cache Playwright browsers
+        if: steps.gate.outputs.empty != 'true'
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
@@ -61,7 +77,9 @@ jobs:
           # browser always matches the runner code — same build as local dev.
           key: playwright-${{ hashFiles('package-lock.json') }}
       - run: npx playwright install chromium --with-deps
+        if: steps.gate.outputs.empty != 'true'
       - name: Drain assessment queue
+        if: steps.gate.outputs.empty != 'true'
         # A healthy batch takes minutes; a hung browser/teardown must fail
         # fast instead of burning to the job timeout (lease recovery
         # requeues whatever was claimed).
@@ -73,3 +91,13 @@ jobs:
           GITHUB_APP_PRIVATE_KEY: ${{ secrets.COMPLYLOOP_APP_PRIVATE_KEY }}
           ASSESSMENT_WORKER_LIMIT: ${{ inputs.limit || '10' }}
           ASSESSMENT_WORKER_CONCURRENCY: ${{ inputs.concurrency || '2' }}
+      - name: Notify on failure
+        # Optional: set repository secret SLACK_WEBHOOK_URL to post failures.
+        # No-op when unset — stock Actions notifications still apply.
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -fsS -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\"${{ github.workflow }} failed on ${{ github.ref_name }} — ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            "$SLACK_WEBHOOK_URL"

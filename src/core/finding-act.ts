@@ -178,10 +178,10 @@ export function findingAct(input: FindingActInput): FindingActView {
     };
   }
 
-  if (
-    input.finding.status === "resolved" ||
-    input.remediation.status === "verified"
-  ) {
+  // The beat follows the remediation, not the finding: a resolved finding
+  // with an unverified remediation still needs its verify call-to-action
+  // (runtime_verify etc. below), instead of masquerading as "Verified".
+  if (input.remediation.status === "verified") {
     return {
       ...chrome(input),
       beat: "verified",

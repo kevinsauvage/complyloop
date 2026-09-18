@@ -26,8 +26,9 @@ exhausts direct connections):
 - Supabase: the pooler URL (transaction mode works — `prepare: false` is set
   in `packages/db/src/postgres.ts`).
 
-Migrations run **from your machine** against the remote DB before first deploy
-and on every schema change:
+Migrations run **on every deploy**: Vercel picks up the `vercel-build` script
+(`db:migrate && build`), so the schema is current before the app starts.
+For the very first deploy (or a wiped database), run once from your machine:
 
 ```bash
 DATABASE_URL="<remote-url>" npm run db:migrate

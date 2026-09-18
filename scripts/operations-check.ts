@@ -30,22 +30,24 @@ function toNumber(value: unknown): number {
 }
 
 async function main(): Promise<void> {
-  const failures = [required("DATABASE_URL")];
-  if (process.env.NODE_ENV === "production") {
-    failures.push(
-      required("AUTH_SECRET"),
-      required("AUTH_URL"),
-      required("GITHUB_APP_ID"),
-      required("GITHUB_APP_PRIVATE_KEY"),
-      required("GITHUB_WEBHOOK_SECRET"),
-      required("WORKER_SECRET"),
-      required("SENTRY_DSN"),
-    );
-  }
-  const missing = failures.filter((failure): failure is string =>
-    Boolean(failure),
-  );
-  if (missing.length > 0) throw new Error(missing.join(" "));
+  // DATABASE_URL is the only hard requirement: without it no check can run.
+  // Missing prod env vars degrade the report (warn) instead of failing the
+  // run — otherwise the daily check fails for a false reason and masks real
+  // queue/evidence breaches.
+  const dbMissing = required("DATABASE_URL");
+  if (dbMissing) throw new Error(dbMissing);
+  const envIssues =
+    process.env.NODE_ENV === "production"
+      ? [
+          required("AUTH_SECRET"),
+          required("AUTH_URL"),
+          required("GITHUB_APP_ID"),
+          required("GITHUB_APP_PRIVATE_KEY"),
+          required("GITHUB_WEBHOOK_SECRET"),
+          required("WORKER_SECRET"),
+          required("SENTRY_DSN"),
+        ].filter((failure): failure is string => Boolean(failure))
+      : [];
 
   const drizzle = await getDrizzle();
   await drizzle.execute(sql`SELECT 1`);
@@ -86,9 +88,13 @@ async function main(): Promise<void> {
       evidenceBytes,
       evidenceRowsEstimate,
       thresholds,
+      envIssues,
       at: new Date().toISOString(),
     }),
   );
+  if (envIssues.length > 0) {
+    console.warn(`prod env incomplete: ${envIssues.join(" ")}`);
+  }
   if (!evaluation.ok) throw new Error(evaluation.failures.join(" "));
 }
 

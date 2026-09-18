@@ -51,6 +51,7 @@ export default async function FindingPage({
 
   const {
     finding,
+    project,
     caps,
     remediation,
     control,
@@ -122,6 +123,8 @@ export default async function FindingPage({
           finding={finding}
           canRemediate={caps.canRemediate}
           aiAvailable={aiAvailable}
+          githubFullName={project.github?.fullName}
+          defaultBranch={project.github?.defaultBranch ?? "main"}
         />
 
         <FindingNextStepPanel

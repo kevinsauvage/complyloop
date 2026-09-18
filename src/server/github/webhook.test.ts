@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { handleGitHubWebhookEvent, verifyGitHubSignature } from "./webhook";
 
-const findProjectByGithubFullName = vi.hoisted(() => vi.fn());
+const findProjectsByGithubFullName = vi.hoisted(() => vi.fn());
 const getProjectById = vi.hoisted(() => vi.fn());
 const drizzleExecute = vi.hoisted(() => vi.fn());
 const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
@@ -16,8 +16,8 @@ vi.mock("@complyloop/db/postgres", () => ({
   }),
 }));
 vi.mock("@complyloop/db/repo/projects", () => ({
-  findProjectByGithubFullName: (...args: unknown[]) =>
-    findProjectByGithubFullName(...args),
+  findProjectsByGithubFullName: (...args: unknown[]) =>
+    findProjectsByGithubFullName(...args),
   getProjectById: (...args: unknown[]) => getProjectById(...args),
 }));
 vi.mock("../assessment/assessment-jobs", () => ({ enqueueAssessmentJob }));
@@ -57,11 +57,11 @@ describe("verifyGitHubSignature", () => {
 
 describe("handleGitHubWebhookEvent", () => {
   it("enqueues an idempotent push assessment without cloning in the request path", async () => {
-    findProjectByGithubFullName.mockResolvedValue({
+    findProjectsByGithubFullName.mockResolvedValue([{
       id: "p1",
       orgId: "org-1",
       defaultBranch: "main",
-    });
+    }]);
     enqueueAssessmentJob.mockResolvedValue({ id: "job-1" });
 
     const result = await handleGitHubWebhookEvent(
@@ -93,11 +93,11 @@ describe("handleGitHubWebhookEvent", () => {
   });
 
   it("ignores push events to a non-default branch", async () => {
-    findProjectByGithubFullName.mockResolvedValue({
+    findProjectsByGithubFullName.mockResolvedValue([{
       id: "p1",
       orgId: "org-1",
       defaultBranch: "main",
-    });
+    }]);
 
     const result = await handleGitHubWebhookEvent(
       "push",
@@ -116,7 +116,7 @@ describe("handleGitHubWebhookEvent", () => {
   });
 
   it("retains the PR head SHA for the worker Check Run", async () => {
-    findProjectByGithubFullName.mockResolvedValue({ id: "p1", orgId: "org-1" });
+    findProjectsByGithubFullName.mockResolvedValue([{ id: "p1", orgId: "org-1" }]);
     enqueueAssessmentJob.mockResolvedValue({ id: "job-2" });
     const headSha = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 
@@ -137,12 +137,12 @@ describe("handleGitHubWebhookEvent", () => {
   });
 
   it("accepts a webhook with a matching installation id", async () => {
-    findProjectByGithubFullName.mockResolvedValue({
+    findProjectsByGithubFullName.mockResolvedValue([{
       id: "p1",
       orgId: "org-1",
       defaultBranch: "main",
       installationId: 12345,
-    });
+    }]);
     enqueueAssessmentJob.mockResolvedValue({ id: "job-install-match" });
 
     const result = await handleGitHubWebhookEvent(
@@ -161,12 +161,12 @@ describe("handleGitHubWebhookEvent", () => {
   });
 
   it("rejects a webhook with a foreign installation id on a same-named project", async () => {
-    findProjectByGithubFullName.mockResolvedValue({
+    findProjectsByGithubFullName.mockResolvedValue([{
       id: "p1",
       orgId: "org-1",
       defaultBranch: "main",
       installationId: 12345,
-    });
+    }]);
 
     const result = await handleGitHubWebhookEvent(
       "push",
@@ -184,8 +184,76 @@ describe("handleGitHubWebhookEvent", () => {
     expect(enqueueAssessmentJob).not.toHaveBeenCalled();
   });
 
+  it("routes a shared repo to the project bound to the delivery installation", async () => {
+    findProjectsByGithubFullName.mockResolvedValue([
+      { id: "p1", orgId: "org-1", installationId: 11111 },
+      { id: "p2", orgId: "org-2", installationId: 22222 },
+    ]);
+    enqueueAssessmentJob.mockResolvedValue({ id: "job-2" });
+
+    const result = await handleGitHubWebhookEvent(
+      "push",
+      {
+        installation: { id: 22222 },
+        repository: { full_name: "acme/app", default_branch: "main" },
+        ref: "refs/heads/main",
+        after: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
+      "delivery-shared",
+    );
+
+    expect(result.handled).toBe(true);
+    expect(enqueueAssessmentJob).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: "p2" }),
+    );
+  });
+
+  it("rejects an installation-less delivery for a repo connected in two orgs", async () => {
+    findProjectsByGithubFullName.mockResolvedValue([
+      { id: "p1", orgId: "org-1", installationId: 11111 },
+      { id: "p2", orgId: "org-2" },
+    ]);
+
+    const result = await handleGitHubWebhookEvent(
+      "push",
+      {
+        repository: { full_name: "acme/app" },
+        ref: "refs/heads/main",
+        after: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
+      "delivery-ambiguous",
+    );
+
+    expect(result.handled).toBe(false);
+    expect(result.message).toMatch(/Ambiguous project/);
+    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
+  });
+
+  it("rejects a delivery whose installation matches an unbound same-named row", async () => {
+    // Old code picked the arbitrary row and skipped the installation check
+    // when it had no installationId — scanning the wrong tenant.
+    findProjectsByGithubFullName.mockResolvedValue([
+      { id: "p1", orgId: "org-1" },
+    ]);
+
+    const result = await handleGitHubWebhookEvent(
+      "push",
+      {
+        installation: { id: 99999 },
+        repository: { full_name: "acme/app" },
+        ref: "refs/heads/main",
+        after: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
+      "delivery-unbound",
+    );
+
+    expect(result.handled).toBe(false);
+    expect(result.message).toMatch(/Installation id mismatch/);
+    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
+  });
+
   it("ignores pull_request events with a non-SHA head.sha", async () => {
-    findProjectByGithubFullName.mockResolvedValue({ id: "p1", orgId: "org-1" });
+    findProjectsByGithubFullName.mockResolvedValue([{ id: "p1", orgId: "org-1" }]);
 
     const result = await handleGitHubWebhookEvent("pull_request", {
       action: "opened",
@@ -198,11 +266,11 @@ describe("handleGitHubWebhookEvent", () => {
   });
 
   it("enqueues a push to the live default branch and persists a rename", async () => {
-    findProjectByGithubFullName.mockResolvedValue({
+    findProjectsByGithubFullName.mockResolvedValue([{
       id: "p1",
       orgId: "org-1",
       defaultBranch: "main",
-    });
+    }]);
     drizzleExecute.mockResolvedValue([]);
     getProjectById.mockResolvedValue({
       id: "p1",
@@ -233,11 +301,11 @@ describe("handleGitHubWebhookEvent", () => {
   });
 
   it("ignores a push to the stale stored default after GitHub renamed it", async () => {
-    findProjectByGithubFullName.mockResolvedValue({
+    findProjectsByGithubFullName.mockResolvedValue([{
       id: "p1",
       orgId: "org-1",
       defaultBranch: "main",
-    });
+    }]);
     drizzleExecute.mockResolvedValue([]);
     getProjectById.mockResolvedValue({
       id: "p1",
@@ -267,11 +335,11 @@ describe("handleGitHubWebhookEvent", () => {
   });
 
   it("skips the conditional write when the stored branch already matches", async () => {
-    findProjectByGithubFullName.mockResolvedValue({
+    findProjectsByGithubFullName.mockResolvedValue([{
       id: "p1",
       orgId: "org-1",
       defaultBranch: "main",
-    });
+    }]);
     enqueueAssessmentJob.mockResolvedValue({ id: "job-same" });
 
     const result = await handleGitHubWebhookEvent(
@@ -336,7 +404,7 @@ describe("handleGitHubWebhookEvent", () => {
   });
 
   it("ignores repositories with no connected project", async () => {
-    findProjectByGithubFullName.mockResolvedValue(null);
+    findProjectsByGithubFullName.mockResolvedValue([]);
     await expect(
       handleGitHubWebhookEvent(
         "push",

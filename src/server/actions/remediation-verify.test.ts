@@ -19,6 +19,7 @@ import { testWorkspace } from "@/test-fixtures/workspace";
 
 import type { Workspace } from "../workspace/workspace";
 import {
+  attestRemediationVerifiedAction,
   markRemediationImplementedAction,
   verifyRemediationAction,
 } from "./remediation-verify";
@@ -394,6 +395,200 @@ describe("verifyRemediationAction", () => {
     expect(projectWritePayload()?.remediations?.[0]?.status).toBe(
       "implemented",
     );
+  });
+
+  it("verifies a resolved runtime finding when the DOM re-audit is clean", async () => {
+    const resolvedFinding = testFinding({
+      status: "resolved",
+      resolvedNote: "No longer detected by the latest assessment.",
+      location: {
+        kind: "dom",
+        url: "https://preview.test/",
+        selector: "img",
+        snippet: "<img>",
+      },
+    });
+    const workspace = baseWorkspace({
+      findings: [resolvedFinding],
+    });
+    getWorkspace.mockResolvedValue(workspace);
+    mockProjectWrite(workspace);
+    runtimeViolationStillPresent.mockResolvedValue(false);
+
+    const result = await verifyRemediationAction(
+      "f1",
+      initialActionState,
+      new FormData(),
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      message: "Fix verified by automated re-check.",
+    });
+    expect(projectWritePayload()?.remediations?.[0]?.status).toBe("verified");
+    // The resolution stands — the finding row is untouched by the verify.
+    expect(projectWritePayload()?.findings?.[0]?.status).toBe("resolved");
+  });
+
+  it("re-opens a resolved finding when the re-audit still detects it", async () => {
+    const resolvedFinding = testFinding({
+      status: "resolved",
+      resolvedNote: "No longer detected by the latest assessment.",
+      location: {
+        kind: "dom",
+        url: "https://preview.test/",
+        selector: "img",
+        snippet: "<img>",
+      },
+    });
+    const workspace = baseWorkspace({
+      findings: [resolvedFinding],
+    });
+    getWorkspace.mockResolvedValue(workspace);
+    mockProjectWrite(workspace);
+    runtimeViolationStillPresent.mockResolvedValue(true);
+
+    const result = await verifyRemediationAction(
+      "f1",
+      initialActionState,
+      new FormData(),
+    );
+
+    expect(result.message).toMatch(/still failing|still detected/i);
+    expect(projectWritePayload()?.findings?.[0]?.status).toBe("open");
+  });
+
+  it("rejects verify for a dismissed finding", async () => {
+    const workspace = baseWorkspace({
+      findings: [
+        testFinding({
+          status: "dismissed",
+          dismissal: {
+            reason: "false_positive",
+            note: "decorative",
+            at: "2026-01-01T00:00:00.000Z",
+          },
+          location: {
+            kind: "dom",
+            url: "https://preview.test/",
+            selector: "img",
+            snippet: "<img>",
+          },
+        }),
+      ],
+    });
+    getWorkspace.mockResolvedValue(workspace);
+    mockProjectWrite(workspace);
+    runtimeViolationStillPresent.mockResolvedValue(false);
+
+    const result = await verifyRemediationAction(
+      "f1",
+      initialActionState,
+      new FormData(),
+    );
+
+    expect(result.ok ? null : result.message).toMatch(/no longer open/i);
+    expect(projectWritePayload()).toBeUndefined();
+  });
+});
+
+describe("attestRemediationVerifiedAction", () => {
+  function noteForm(note: string): FormData {
+    const form = new FormData();
+    form.set("note", note);
+    return form;
+  }
+
+  it("marks a resolved finding verified with manual confirmation", async () => {
+    const resolvedFinding = testFinding({
+      status: "resolved",
+      resolvedNote: "No longer detected by the latest assessment.",
+      location: {
+        kind: "dom",
+        url: "https://preview.test/",
+        selector: "img",
+        snippet: "<img>",
+      },
+    });
+    const workspace = baseWorkspace({
+      findings: [resolvedFinding],
+    });
+    getWorkspace.mockResolvedValue(workspace);
+    mockProjectWrite(workspace);
+
+    const result = await attestRemediationVerifiedAction(
+      "f1",
+      initialActionState,
+      noteForm("Confirmed fixed on the staging deploy."),
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      message: "Fix marked verified with manual confirmation.",
+    });
+    expect(projectWritePayload()?.remediations?.[0]?.status).toBe("verified");
+    const evidence = projectWritePayload()?.evidence ?? [];
+    expect(
+      evidence.some(
+        (item) => item.kind === "remediation_manually_verified",
+      ),
+    ).toBe(true);
+    expect(runtimeViolationStillPresent).not.toHaveBeenCalled();
+  });
+
+  it("requires a confirmation note", async () => {
+    const workspace = baseWorkspace({
+      findings: [testFinding({ status: "resolved" })],
+    });
+    getWorkspace.mockResolvedValue(workspace);
+
+    const result = await attestRemediationVerifiedAction(
+      "f1",
+      initialActionState,
+      new FormData(),
+    );
+
+    expect(result.ok ? null : result.message).toMatch(/note/i);
+    expect(projectWritePayload()).toBeUndefined();
+  });
+
+  it("refuses attestation for open findings and source locations", async () => {
+    const openDom = baseWorkspace({
+      findings: [
+        testFinding({
+          location: {
+            kind: "dom",
+            url: "https://preview.test/",
+            selector: "img",
+            snippet: "<img>",
+          },
+        }),
+      ],
+    });
+    getWorkspace.mockResolvedValue(openDom);
+
+    const openResult = await attestRemediationVerifiedAction(
+      "f1",
+      initialActionState,
+      noteForm("Looks fixed."),
+    );
+    expect(openResult.ok ? null : openResult.message).toMatch(
+      /resolved findings/,
+    );
+
+    const sourceResolved = baseWorkspace({
+      findings: [testFinding({ status: "resolved" })],
+    });
+    getWorkspace.mockResolvedValue(sourceResolved);
+    const sourceResult = await attestRemediationVerifiedAction(
+      "f1",
+      initialActionState,
+      noteForm("Looks fixed."),
+    );
+    expect(sourceResult.ok ? null : sourceResult.message).toMatch(
+      /draft pull request/i,
+    );
+    expect(projectWritePayload()).toBeUndefined();
   });
 });
 

@@ -26,6 +26,7 @@ import { generateAiFixAction } from "@/server/actions/ai-fix";
 import { approveRemediationAction } from "@/server/actions/remediation";
 import { generateAiRemediationAction } from "@/server/actions/remediation-ai";
 import {
+  attestRemediationVerifiedAction,
   markRemediationImplementedAction,
   verifyRemediationAction,
 } from "@/server/actions/remediation-verify";
@@ -190,12 +191,45 @@ function ActControls({
       );
     case "runtime_verify":
       return (
-        <StatefulActionForm
-          action={verifyRemediationAction.bind(null, finding.id)}
-          submitLabel="Verify fix (automated re-check)"
-          pendingLabel="Verifying…"
-          variant="default"
-        />
+        <div className="flex flex-col gap-2">
+          <StatefulActionForm
+            action={verifyRemediationAction.bind(null, finding.id)}
+            submitLabel="Verify fix (automated re-check)"
+            pendingLabel="Verifying…"
+            variant="default"
+          />
+          {finding.status === "resolved" ? (
+            <StatefulActionForm
+              action={attestRemediationVerifiedAction.bind(null, finding.id)}
+              submitLabel="Mark verified (manual confirmation)"
+              pendingLabel="Confirming…"
+              variant="secondary"
+              className="flex flex-col gap-2"
+            >
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="attest-verify-note">
+                  Confirmation note
+                </Label>
+                <Input
+                  id="attest-verify-note"
+                  type="text"
+                  name="note"
+                  required
+                  maxLength={2000}
+                  className="max-w-md"
+                  aria-describedby="attest-verify-note-hint"
+                />
+                <p
+                  id="attest-verify-note-hint"
+                  className="text-xs text-muted-foreground"
+                >
+                  Required — how you confirmed the fix (re-audit is
+                  unavailable or inconclusive for this finding).
+                </p>
+              </div>
+            </StatefulActionForm>
+          ) : null}
+        </div>
       );
     case "verified":
     case "dismissed":

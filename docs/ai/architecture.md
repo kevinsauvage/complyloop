@@ -108,6 +108,15 @@ evidence, findings, remediations, requirements }`; the worker persists via
   decision.
 - **Latest assessment** — `latestAssessmentFor` compares `completedAt`.
   Do not use `.at(-1)` (loaders return newest-first).
+- **Verification loop** — every finding type reaches `verified`: source via
+  PR merge + re-assessment auto-verify; runtime/site via on-demand re-audit
+  (works on open and resolved findings, re-opens on re-detection) or manual
+  attestation with a required note (`remediation_manually_verified`).
+  The finding-page beat follows the remediation status, never the finding.
+- **Webhooks** — same repo may be connected in several orgs: deliveries
+  resolve via `findProjectsByGithubFullName` (all matches, id order) pinned
+  by installation id; ambiguous or foreign-installation deliveries are
+  rejected, never run against an arbitrary row.
 - **Validation** — shared zod primitives (`entityIdSchema`,
   `requiredField`, `parseForm` / `parseInput` / `parseEntityId`) live in
   `src/core/validate.ts`; action- and route-specific schemas stay next to

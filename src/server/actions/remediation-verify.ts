@@ -20,7 +20,7 @@ import type { WorkspaceSlice } from "@complyloop/db/types";
 
 import type { ActionState } from "@/core/action-state";
 import { advanceRemediation } from "@/core/remediation-lifecycle";
-import { optionalNoteSchema, parseEntityId, parseForm } from "@/core/validate";
+import { optionalNoteSchema, parseEntityId, parseForm, requiredField } from "@/core/validate";
 
 import { runAction } from "../action-state";
 import { sameInstance } from "../assessment/assessment-findings";
@@ -132,6 +132,18 @@ function recordStillFailing(
 ): void {
   const note = "Verification failed: the violation is still detected on the page.";
   replaceRemediation(payload, remediation);
+  if (finding.status === "resolved") {
+    // A resolved finding proven live again must not stay closed: re-open it
+    // so the loop reflects reality instead of a stale resolution.
+    payload.findings = [
+      ...(payload.findings ?? []),
+      {
+        ...finding,
+        status: "open",
+        resolvedNote: undefined,
+      },
+    ];
+  }
   // History alone would not survive the evidence-derived timeline (P2-5):
   // record the failed verification as evidence too.
   appendEvidence(payload, {
@@ -159,10 +171,11 @@ function markVerified(
   if (!project) throw new PublicError("Unknown project.");
 
   // Re-check inside the write lock: a concurrent write may have advanced the
-  // remediation between the preview load and this transaction. Never resolve
-  // a finding that is no longer open, and never verify against a location
-  // that drifted since the preview scan.
-  if (live.status !== "open") {
+  // remediation between the preview load and this transaction. Dismissed
+  // findings are never verifiable; resolved findings are (their re-audit
+  // proof is identical) — but never verify against a location that drifted
+  // since the preview scan.
+  if (live.status !== "open" && live.status !== "resolved") {
     throw new PublicError("Finding is no longer open.");
   }
   if (preview && !sameInstance(preview, live)) {
@@ -179,12 +192,15 @@ function markVerified(
     project.id,
   );
   const verifiedRemediation = advanceRemediation(remediation, "verified");
-  const updatedFinding: Finding = {
-    ...live,
-    status: "resolved",
-    resolvedNote: "Fix verified by re-running the runtime audit.",
-  };
-  upsertFindingInRows(rows, updatedFinding);
+  const alreadyResolved = live.status === "resolved";
+  const updatedFinding: Finding = alreadyResolved
+    ? live
+    : {
+        ...live,
+        status: "resolved",
+        resolvedNote: "Fix verified by re-running the runtime audit.",
+      };
+  if (!alreadyResolved) upsertFindingInRows(rows, updatedFinding);
   appendEvidence(rows, {
     kind: "remediation_verified",
     summary: remediationEvidenceSummary("verified", live),
@@ -307,10 +323,10 @@ export async function verifyRemediationAction(
           await assertRemediationRateLimit(workspace.userId);
         }
         // The "still present?" proof was computed outside the lock from
-        // preview data. Re-validate the live row before trusting it: the
-        // finding must still be open and at the same instance that was
-        // scanned, otherwise the stale verdict must not decide the write.
-        if (live.status !== "open") {
+        // preview data. Re-validate the live row before trusting it: dismissed
+        // findings are never verifiable; resolved findings keep their
+        // resolution and only advance the remediation below.
+        if (live.status !== "open" && live.status !== "resolved") {
           throw new PublicError("Finding is no longer open.");
         }
         if (!sameInstance(previewFinding, live)) {
@@ -383,4 +399,82 @@ export async function markRemediationImplementedAction(
     },
     "Marked as implemented.",
   );
+}
+
+const attestVerifiedInput = z.object({
+  note: requiredField(
+    "Add a note describing how the fix was confirmed.",
+    2000,
+  ),
+});
+
+const ATTEST_REQUIRES_RESOLVED_MESSAGE =
+  "Manual confirmation is only available for resolved findings — verify open findings with the automated re-check.";
+
+/**
+ * Manually confirms a fix the automated paths cannot prove: the finding
+ * already resolved (re-assessment no longer flags it) with the remediation
+ * implemented, but no re-audit or re-scan verified it — the DOM case that
+ * used to freeze at `implemented` forever. Writes
+ * `remediation_manually_verified` (previously never written) with the
+ * engineer's note as the provenance. Source findings are excluded: they
+ * verify through PR merge + re-assessment.
+ */
+export async function attestRemediationVerifiedAction(
+  findingIdRaw: string,
+  previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  void previous;
+  return runAction(async () => {
+    const findingId = parseEntityId(findingIdRaw);
+    const { note } = parseForm(attestVerifiedInput, formData);
+    const finding = await requireFinding(findingId);
+    if (finding.location.kind === "source") {
+      throw new PublicError(SOURCE_VERIFY_MESSAGE);
+    }
+    if (finding.status !== "resolved") {
+      throw new PublicError(ATTEST_REQUIRES_RESOLVED_MESSAGE);
+    }
+    const previewRemediation = await requireRemediationForFinding(findingId);
+    if (previewRemediation.status !== "implemented") {
+      throw new PublicError(VERIFY_REQUIRES_IMPLEMENTED_MESSAGE);
+    }
+    await requireProjectAccess(finding.projectId, "project.remediate");
+    await withFindingWrite(
+      findingId,
+      "project.remediate",
+      async ({ db, finding: live, workspace }) => {
+        if (workspace.userId) {
+          await assertRemediationRateLimit(workspace.userId);
+        }
+        if (live.status !== "resolved") {
+          throw new PublicError(ATTEST_REQUIRES_RESOLVED_MESSAGE);
+        }
+        if (!sameInstance(finding, live)) {
+          throw new PublicError("Finding changed since load. Re-assess.");
+        }
+        const remediation = remediationForFinding(db, findingId);
+        if (remediation.status !== "implemented") {
+          throw new PublicError(VERIFY_REQUIRES_IMPLEMENTED_MESSAGE);
+        }
+        const payload: ProjectWritePayload = {};
+        replaceRemediation(
+          payload,
+          advanceRemediation(remediation, "verified"),
+        );
+        appendEvidence(payload, {
+          kind: "remediation_manually_verified",
+          summary: remediationEvidenceSummary("verified", live),
+          projectId: live.projectId,
+          controlId: live.controlId,
+          findingId: live.id,
+          detail: remediationEvidenceDetail({ manual: true, note }),
+        });
+        return payload;
+      },
+    );
+    refresh(...COMPLIANCE_LOOP_ROUTES);
+    return "Fix marked verified with manual confirmation.";
+  });
 }

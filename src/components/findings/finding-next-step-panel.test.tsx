@@ -31,6 +31,7 @@ vi.mock("@/server/actions/remediation", () => ({
 vi.mock("@/server/actions/remediation-verify", () => ({
   verifyRemediationAction: vi.fn(),
   markRemediationImplementedAction: vi.fn(),
+  attestRemediationVerifiedAction: vi.fn(),
 }));
 
 const useActionStateMock = vi.fn();
@@ -346,6 +347,39 @@ describe("FindingNextStepPanel", () => {
     expect(
       screen.queryByRole("button", { name: "Generate patch" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("offers automated re-check and manual confirmation for a resolved Finding", () => {
+    useActionStateMock.mockReturnValue([
+      { error: null, message: null },
+      vi.fn(),
+      false,
+    ]);
+    renderPanel({
+      finding: {
+        ...finding,
+        status: "resolved",
+        location: {
+          kind: "dom",
+          url: "https://example.com/login",
+          selector: "input#email",
+          snippet: "<input id='email'>",
+        },
+      },
+      remediation: { ...rem, status: "implemented", suggestion: null },
+    });
+
+    expect(
+      screen.getByRole("heading", { name: "Confirm the page is fixed" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Verify fix (automated re-check)" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "Mark verified (manual confirmation)",
+      }),
+    ).toBeInTheDocument();
   });
 
   it("links Generate guidance to the copy-handoff section", () => {

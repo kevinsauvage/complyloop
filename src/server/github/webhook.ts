@@ -6,7 +6,7 @@ import { sql } from "drizzle-orm";
 
 import { type DrizzleDb, getDrizzle } from "@complyloop/db/postgres";
 import {
-  findProjectByGithubFullName,
+  findProjectsByGithubFullName,
   getProjectById,
 } from "@complyloop/db/repo/projects";
 
@@ -184,20 +184,47 @@ export async function handleGitHubWebhookEvent(
   if (!fullName) return { handled: false, message: "No repository in payload" };
 
   const drizzle = await getDrizzle();
-  const project = await findProjectByGithubFullName(drizzle, fullName);
-  if (!project) {
+  // Uniqueness is per-org: the same public repo may be connected in several
+  // orgs. Resolve by installation id — never an arbitrary row. A delivery
+  // that cannot be pinned to exactly one project is rejected instead of
+  // scanning or mutating the wrong tenant.
+  const candidates = await findProjectsByGithubFullName(drizzle, fullName);
+  if (candidates.length === 0) {
     return { handled: false, message: `No connected project for ${fullName}` };
   }
 
   const payloadInstallationId = installationIdFromPayload(parsed.event.payload);
-  if (
-    project.installationId &&
-    payloadInstallationId !== project.installationId
-  ) {
+  let project: (typeof candidates)[number] | null = null;
+  if (payloadInstallationId !== undefined) {
+    // Pinned delivery: only the project bound to this installation may run.
+    // An unbound row never matches, so a foreign installation cannot
+    // commandeer another tenant's project through a shared repo name.
+    project =
+      candidates.find(
+        (candidate) => candidate.installationId === payloadInstallationId,
+      ) ?? null;
+    if (!project) {
+      return {
+        handled: false,
+        message: `Installation id mismatch for ${fullName}.`,
+      };
+    }
+  } else if (candidates.length > 1) {
     return {
       handled: false,
-      message: `Installation id mismatch for ${fullName}.`,
+      message: `Ambiguous project for ${fullName}: connected in ${candidates.length} organizations without a delivery installation id.`,
     };
+  } else {
+    // Exactly one candidate (empty was returned above). A bound project with
+    // an installation-less delivery is the same mismatch as before; an
+    // unbound single project keeps the legacy accept.
+    project = candidates[0]!;
+    if (project.installationId !== undefined) {
+      return {
+        handled: false,
+        message: `Installation id mismatch for ${fullName}.`,
+      };
+    }
   }
 
   const payloadDefaultBranch = repositoryDefaultBranch(parsed.event);

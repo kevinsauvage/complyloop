@@ -114,6 +114,104 @@ describe("FindingUnderstandCard", () => {
     expect(screen.getByText('a[href="/contact"]')).toBeInTheDocument();
   });
 
+  it("derives a readable headline for axe findings without a stored label", () => {
+    useActionStateMock.mockReturnValue([
+      { error: null, message: null },
+      vi.fn(),
+      false,
+    ]);
+    const contrastFinding: Finding = {
+      ...finding,
+      checkId: "color-contrast",
+      location: {
+        kind: "dom",
+        url: "https://www.kevin-sauvage.com/",
+        selector: ".space-y-16 > .space-y-8.text-center > h2",
+        snippet: "<h2>Build accessible experiences</h2>",
+        context:
+          "Fix any of the following: Element's background color could not be determined due to a background gradient",
+      },
+    };
+    render(
+      <FindingUnderstandCard
+        finding={contrastFinding}
+        canRemediate
+        aiAvailable
+      />,
+    );
+
+    expect(
+      screen.getByText("h2 \u201cBuild accessible experiences\u201d"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Copy selector" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /https:\/\/www.kevin-sauvage.com\// }),
+    ).toHaveAttribute("href", "https://www.kevin-sauvage.com/");
+  });
+
+  it("links source findings to the exact line on GitHub", () => {
+    useActionStateMock.mockReturnValue([
+      { error: null, message: null },
+      vi.fn(),
+      false,
+    ]);
+    render(
+      <FindingUnderstandCard
+        finding={finding}
+        canRemediate
+        aiAvailable
+        githubFullName="acme/shop"
+        defaultBranch="main"
+      />,
+    );
+    expect(
+      screen.getByRole("link", { name: /Open exact line on GitHub/ }),
+    ).toHaveAttribute(
+      "href",
+      "https://github.com/acme/shop/blob/main/Header.tsx#L13",
+    );
+  });
+
+  it("shows no code link for DOM findings — rendered text is often dynamic", () => {
+    useActionStateMock.mockReturnValue([
+      { error: null, message: null },
+      vi.fn(),
+      false,
+    ]);
+    const iconLink: Finding = {
+      ...finding,
+      checkId: "color-contrast",
+      location: {
+        kind: "dom",
+        url: "https://www.kevin-sauvage.com/",
+        selector: 'a[aria-label="Go to Home section"]',
+        snippet:
+          '<a aria-label="Go to Home section" class="fixed bottom-6"><svg class="size-5"></svg></a>',
+        context:
+          "Fix any of the following: Element's background color could not be determined due to a background gradient",
+      },
+    };
+    render(
+      <FindingUnderstandCard
+        finding={iconLink}
+        canRemediate
+        aiAvailable
+        githubFullName="kevinsauvage/next-portfolio"
+      />,
+    );
+
+    // Rendered names like `Go to ${label} section` come from template
+    // expressions, so a GitHub code search can't find the call site.
+    expect(
+      screen.queryByRole("link", { name: /GitHub/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Copy selector" }),
+    ).toBeInTheDocument();
+  });
+
   it("keeps AI explanation behind a disclosure", () => {
     useActionStateMock.mockReturnValue([
       { error: null, message: null },

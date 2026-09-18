@@ -245,6 +245,24 @@ describe("findingAct", () => {
     expect(view.title).toBe("Verified");
   });
 
+  it("offers Verify (not Verified) for a resolved Finding with an unverified remediation", () => {
+    const view = act({
+      finding: { ...domFinding, status: "resolved" },
+      remediation: rem("implemented"),
+    });
+    expect(view.beat).toBe("runtime_verify");
+    expect(view.title).toBe("Confirm the page is fixed");
+  });
+
+  it("shows Verified beat for a resolved Finding with a verified remediation", () => {
+    const view = act({
+      finding: { ...domFinding, status: "resolved" },
+      remediation: rem("verified"),
+    });
+    expect(view.beat).toBe("verified");
+    expect(view.title).toBe("Verified");
+  });
+
   it("shows view_only for users who cannot remediate", () => {
     const view = act({ canRemediate: false });
     expect(view.beat).toBe("view_only");

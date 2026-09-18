@@ -58,7 +58,7 @@ describe("findingsFromAxePages", () => {
       url: "https://app.example/login",
       selector: "input[type=email]",
       snippet: '<input type="email">',
-      elementLabel: undefined,
+      elementLabel: "input (input[type=email])",
       context: undefined,
     });
     expect(findings[0]?.fix).toBeNull();
@@ -96,6 +96,58 @@ describe("findingsFromAxePages", () => {
       elementLabel: "link “Go”",
       context: "Covered by `header.sticky` at the top-left of the focus ring",
       selector: 'a[href="/x"]',
+    });
+  });
+
+  it("derives a readable label from heading text before snippet truncation", () => {
+    const findings = findingsFromAxePages([
+      {
+        url: "https://www.kevin-sauvage.com/",
+        violations: [
+          {
+            id: "color-contrast",
+            impact: "serious",
+            description:
+              "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+            help: "Elements must meet minimum color contrast ratio thresholds",
+            nodes: [
+              {
+                html: '<h2 class="animate-gradient bg-[length:200%_auto] text-4xl md:text-5xl">Build accessible experiences</h2>',
+                target: [".space-y-16 > .space-y-8.text-center > h2"],
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+    expect(findings[0]?.location).toMatchObject({
+      selector: ".space-y-16 > .space-y-8.text-center > h2",
+      elementLabel: "h2 \u201cBuild accessible experiences\u201d",
+    });
+  });
+
+  it("falls back to a naming attribute when the node has no text", () => {
+    const findings = findingsFromAxePages([
+      {
+        url: "https://app.example/",
+        violations: [
+          {
+            id: "color-contrast",
+            impact: "serious",
+            description: "contrast",
+            help: "contrast",
+            nodes: [
+              {
+                html: '<img src="/hero.png" alt="Team photo">',
+                target: [".hero > img"],
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+    expect(findings[0]?.location).toMatchObject({
+      elementLabel: "img \u201cTeam photo\u201d",
     });
   });
 
