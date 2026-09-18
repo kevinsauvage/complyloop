@@ -11,6 +11,7 @@ import {
   isNull,
   lte,
   or,
+  sql,
 } from "drizzle-orm";
 
 import type {
@@ -61,6 +62,29 @@ export async function insertEvidenceRecords(
 ): Promise<void> {
   if (records.length === 0) return;
   await tx.insert(evidence).values(records.map(evidenceToRow));
+}
+
+/**
+ * Tenant erasure: deletes every evidence row for an org's projects. The
+ * append-only trigger forbids DELETE unless the transaction-scoped
+ * `complyloop.allow_evidence_erase` flag is set — this helper is the only
+ * writer allowed to set it (SET LOCAL, so the bypass dies with the
+ * transaction). Callers must be owner-gated (org deletion); project
+ * disconnect and all other paths keep audit retention.
+ */
+export async function deleteEvidenceForOrg(
+  tx: DrizzleDb,
+  orgId: string,
+): Promise<number> {
+  await tx.execute(
+    sql`SELECT set_config('complyloop.allow_evidence_erase', 'on', true)`,
+  );
+  const deleted = await tx.execute(sql`
+    DELETE FROM evidence
+    WHERE project_id IN (SELECT id FROM projects WHERE org_id = ${orgId})
+    RETURNING id
+  `);
+  return Array.isArray(deleted) ? deleted.length : 0;
 }
 
 /** Text/date/author narrowing for the evidence page. */

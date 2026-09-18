@@ -108,6 +108,14 @@ evidence, findings, remediations, requirements }`; the worker persists via
   decision.
 - **Latest assessment** — `latestAssessmentFor` compares `completedAt`.
   Do not use `.at(-1)` (loaders return newest-first).
+- **Retention/erasure** — evidence is append-only (trigger) with one gated
+  exception: org deletion erases tenant evidence via `deleteEvidenceForOrg`
+  (transaction-scoped `complyloop.allow_evidence_erase` flag); project
+  disconnect keeps retention. Snapshots dedup identical hash maps
+  (`hashes_unchanged`, reader fallback); `webhook_deliveries` prunes to 10k
+  per batch tick. Patch evidence keeps full edit texts — they are
+  load-bearing for `applyFileEdits` PR apply; identical candidates dedup on
+  write instead.
 - **Verification loop** — every finding type reaches `verified`: source via
   PR merge + re-assessment auto-verify; runtime/site via on-demand re-audit
   (works on open and resolved findings, re-opens on re-detection) or manual

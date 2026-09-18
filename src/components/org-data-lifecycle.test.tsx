@@ -32,7 +32,7 @@ beforeEach(() => {
   deleteOrgAction.mockReset();
   deleteOrgAction.mockImplementation(async () => ({
     error: null,
-    message: "Organization deleted. Evidence history was retained for audit.",
+    message: "Organization deleted, including its evidence history.",
   }));
 });
 

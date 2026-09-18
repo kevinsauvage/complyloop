@@ -1,4 +1,4 @@
-import { desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import type {
   Assessment,
@@ -15,10 +15,31 @@ export async function insertAssessment(
   snapshot: AssessmentSnapshot,
 ): Promise<void> {
   await tx.insert(assessments).values(assessmentToRow(assessment));
+  // Dedup: consecutive runs over an unchanged tree would re-store the full
+  // file-hash map every time. When the hashes are identical to the latest
+  // stored map, persist the run metadata with an empty map instead —
+  // readers fall back to the latest full map (see
+  // getLatestAssessmentSnapshot).
+  const previous = await getLatestAssessmentSnapshot(tx, assessment.projectId);
+  const unchanged =
+    previous !== undefined &&
+    sameFileHashes(previous.fileHashes, snapshot.fileHashes);
   await tx.insert(assessmentSnapshots).values({
     assessmentId: assessment.id,
-    snapshot,
+    snapshot: unchanged ? { ...snapshot, fileHashes: {} } : snapshot,
+    hashesUnchanged: unchanged,
   });
+}
+
+/** Canonical form for file-hash map comparison (insertion order varies). */
+function sameFileHashes(
+  a: Record<string, string>,
+  b: Record<string, string>,
+): boolean {
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  return aKeys.every((key) => a[key] === b[key]);
 }
 
 /** Full assessment history for many projects (org export only). */
@@ -63,18 +84,41 @@ export async function getLatestAssessmentSnapshot(
   drizzle: DrizzleDb,
   projectId: string,
 ): Promise<AssessmentSnapshot | undefined> {
-  const rows = await drizzle
-    .select({ snapshot: assessmentSnapshots.snapshot })
+  const order = [
+    desc(sql`${assessments.payload}->>'completedAt'`),
+    desc(sql`${assessments.payload}->>'startedAt'`),
+  ];
+  const [latest] = await drizzle
+    .select({
+      snapshot: assessmentSnapshots.snapshot,
+      hashesUnchanged: assessmentSnapshots.hashesUnchanged,
+    })
     .from(assessments)
     .innerJoin(
       assessmentSnapshots,
       eq(assessmentSnapshots.assessmentId, assessments.id),
     )
     .where(eq(assessments.projectId, projectId))
-    .orderBy(
-      desc(sql`${assessments.payload}->>'completedAt'`),
-      desc(sql`${assessments.payload}->>'startedAt'`),
-    )
+    .orderBy(...order)
     .limit(1);
-  return rows[0]?.snapshot;
+  if (!latest) return undefined;
+  if (!latest.hashesUnchanged) return latest.snapshot;
+  // Dedup marker row: resolve the latest full hash map for the project.
+  const [full] = await drizzle
+    .select({ snapshot: assessmentSnapshots.snapshot })
+    .from(assessments)
+    .innerJoin(
+      assessmentSnapshots,
+      eq(assessmentSnapshots.assessmentId, assessments.id),
+    )
+    .where(
+      and(
+        eq(assessments.projectId, projectId),
+        eq(assessmentSnapshots.hashesUnchanged, false),
+      ),
+    )
+    .orderBy(...order)
+    .limit(1);
+  if (!full) return latest.snapshot;
+  return { ...latest.snapshot, fileHashes: full.snapshot.fileHashes };
 }

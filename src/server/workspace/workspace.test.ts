@@ -20,7 +20,10 @@ const deleteMembership = vi.hoisted(() => vi.fn());
 const deleteOrganizationRow = vi.hoisted(() => vi.fn());
 const insertProject = vi.hoisted(() => vi.fn());
 const deleteProject = vi.hoisted(() => vi.fn());
+const getProjectById = vi.hoisted(() => vi.fn());
+const listMembershipsForOrgs = vi.hoisted(() => vi.fn());
 const insertEvidenceRecords = vi.hoisted(() => vi.fn());
+const deleteEvidenceForOrg = vi.hoisted(() => vi.fn());
 const getFindingById = vi.hoisted(() => vi.fn());
 
 vi.mock("@/auth", () => ({ auth }));
@@ -54,14 +57,19 @@ vi.mock("@complyloop/db/repo/orgs", () => ({
   upsertMembership: (...args: unknown[]) => upsertMembership(...args),
   deleteMembership: (...args: unknown[]) => deleteMembership(...args),
   deleteOrganizationRow: (...args: unknown[]) => deleteOrganizationRow(...args),
+  listMembershipsForOrgs: (...args: unknown[]) =>
+    listMembershipsForOrgs(...args),
 }));
 vi.mock("@complyloop/db/repo/projects", () => ({
   insertProject: (...args: unknown[]) => insertProject(...args),
   deleteProject: (...args: unknown[]) => deleteProject(...args),
+  getProjectById: (...args: unknown[]) => getProjectById(...args),
 }));
 vi.mock("@complyloop/db/repo/evidence", () => ({
   WORKSPACE_EVIDENCE_LIMIT: 100,
   insertEvidenceRecords: (...args: unknown[]) => insertEvidenceRecords(...args),
+  deleteEvidenceForOrg: (...args: unknown[]) =>
+    deleteEvidenceForOrg(...args),
 }));
 vi.mock("@complyloop/db/repo/findings", () => ({
   getFindingById: (...args: unknown[]) => getFindingById(...args),
@@ -340,6 +348,10 @@ describe("withFindingWrite", () => {
           ? testFinding({ id: "f1", projectId: "p1" })
           : undefined,
     );
+    getProjectById.mockResolvedValue(structuredClone(project));
+    listMembershipsForOrgs.mockResolvedValue([
+      testMembership("owner", { userId, orgId }),
+    ]);
     loadTenancyDb.mockResolvedValue({
       ...emptyWorkspaceSlice(),
       organizations: [
@@ -391,6 +403,14 @@ describe("withFindingWrite", () => {
     await expect(
       withFindingWrite("f1", "project.remediate", async () => ({})),
     ).rejects.toThrow(/Not allowed/);
+  });
+
+  it("rejects non-members before taking the project lock", async () => {
+    listMembershipsForOrgs.mockResolvedValue([]);
+    await expect(
+      withFindingWrite("f1", "project.remediate", async () => ({})),
+    ).rejects.toThrow(/Not allowed/);
+    expect(acquireNamedPostgresAdvisoryLock).not.toHaveBeenCalled();
   });
 });
 
@@ -465,6 +485,7 @@ describe("withOrgWrite and withConnectWrite", () => {
     );
     expect(upsertMembership).toHaveBeenCalled();
     expect(deleteMembership).toHaveBeenCalledWith(tx, "m-gone");
+    expect(deleteEvidenceForOrg).toHaveBeenCalledWith(tx, "org-gone");
     expect(deleteOrganizationRow).toHaveBeenCalledWith(tx, "org-gone");
   });
 

@@ -170,11 +170,13 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS evidence_no_update ON evidence;
 CREATE TRIGGER evidence_no_update
   BEFORE UPDATE ON evidence
   FOR EACH ROW
   EXECUTE PROCEDURE complyloop_reject_evidence_mutation();
 
+DROP TRIGGER IF EXISTS evidence_no_delete ON evidence;
 CREATE TRIGGER evidence_no_delete
   BEFORE DELETE ON evidence
   FOR EACH ROW

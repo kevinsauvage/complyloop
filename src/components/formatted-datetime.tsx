@@ -1,20 +1,15 @@
-"use client";
-
-import { formatDateTime } from "@/core/datetime";
+import { formatDateTimeWithZone } from "@/core/datetime";
 import { cn } from "@/lib/utils";
 
 /**
- * Hydration-safe locale timestamp for interactive UI.
+ * Zone-qualified timestamp for viewer UI (server component — no client
+ * boundary, no hydration mismatch).
  *
- * `formatDateTime` is local-time-only (`toLocaleString`), so the server
- * (UTC on Vercel) and the browser (viewer TZ) render different strings.
- * Rendering it as a bare text node throws React hydration error #418 and
- * forces a client-side remount of the whole tree. The `time` element below
- * carries `suppressHydrationWarning` so React keeps the client string
- * silently — the standard Next.js pattern for dates.
- *
- * Use this instead of calling `formatDateTime` directly in JSX. Compliance
- * artifacts (reports, exports) keep using `formatDateTimeWithZone`.
+ * The previous client-side `toLocaleString` rendered UTC on hard loads
+ * (Vercel server TZ, kept by `suppressHydrationWarning`) and local time on
+ * client navigations — inconsistent instants in a compliance product.
+ * `formatDateTimeWithZone` appends the renderer offset (e.g. "+02:00"), so
+ * the printed instant is unambiguous everywhere, matching reports/exports.
  */
 export function FormattedDateTime({
   iso,
@@ -24,12 +19,8 @@ export function FormattedDateTime({
   className?: string;
 }) {
   return (
-    <time
-      dateTime={iso}
-      suppressHydrationWarning
-      className={cn(className)}
-    >
-      {formatDateTime(iso)}
+    <time dateTime={iso} className={cn(className)}>
+      {formatDateTimeWithZone(iso)}
     </time>
   );
 }

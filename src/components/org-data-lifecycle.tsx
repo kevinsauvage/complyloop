@@ -216,8 +216,8 @@ export function OrgDataLifecycle({
                       <AlertDialogDescription>
                         This cannot be undone from the product UI. Type{" "}
                         <code className="text-xs text-foreground">DELETE</code>{" "}
-                        to confirm permanent deletion of projects and mutable
-                        records. Evidence history is retained for audit.
+                        to confirm permanent deletion of projects, mutable
+                        records, and the organization&apos;s evidence history.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <div className="flex flex-col gap-1.5 py-2">

@@ -17,6 +17,9 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      # Browser install for the runtime/DOM scanner suites: without Chromium
+      # 80+ assertions skip and the differentiating engine has no CI signal.
+      - run: npx playwright install chromium --with-deps
       - run: npm run test:coverage
       - run: npm run build
 
@@ -64,6 +67,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run db:migrate
+      # Schema↔migration drift gate: fails when schema.ts drifts from the
+      # applied migrations (recreates its meta snapshot on the fly).
+      - run: npx drizzle-kit check
       - run: npm run test:db
 
   e2e:

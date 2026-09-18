@@ -13,7 +13,9 @@ import {
   remediationEvidenceDetail,
   remediationEvidenceSummary,
 } from "../assessment/remediation-evidence";
+import { getSession } from "../auth-session";
 import { createProjectPullRequest } from "../github/github-connector";
+import { assertPrRateLimit } from "../rate-limit";
 import { listEvidenceForFindingScoped } from "../reporting/evidence-queries";
 import { appendEvidence } from "../workspace/project-rows";
 import {
@@ -50,6 +52,10 @@ export async function createPullRequestAction(
     );
     const control = controlById(finding.controlId);
     const remediation = await requireRemediationForFinding(findingId);
+    // Force-pushes + PR/Checks API calls are irreversible and expensive:
+    // throttle per user before any GitHub I/O.
+    const sessionUserId = (await getSession())?.user?.id;
+    if (sessionUserId) await assertPrRateLimit(sessionUserId);
     if (!project.github?.fullName) {
       throw new PublicError(
         "Connect a GitHub repository before creating a draft pull request.",

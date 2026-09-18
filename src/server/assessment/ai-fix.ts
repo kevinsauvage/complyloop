@@ -181,18 +181,30 @@ export function persistPatchCandidate(
   payload: ProjectWritePayload,
 ): void {
   const location = formatLocationRef(finding.location);
-  appendEvidence(payload, {
-    kind: "ai_patch_ready",
-    summary: `Patch ready for ${finding.checkId} at ${location} (deterministic check passed).`,
-    projectId: finding.projectId,
-    controlId: finding.controlId,
-    findingId: finding.id,
-    detail: {
-      ...patchCandidateToDetail(candidate),
-      // Staleness anchor (see remediation-ai.ts): suggestion-time location.
-      locationRef: location,
-    },
-  });
+  const detail = {
+    ...patchCandidateToDetail(candidate),
+    // Staleness anchor (see remediation-ai.ts): suggestion-time location.
+    locationRef: location,
+  };
+  // Evidence is append-only: repeated clicks with an identical candidate
+  // would stack byte-identical full-file rows forever. Skip the append when
+  // the finding already carries this exact patch evidence.
+  const duplicate = db.evidence.some(
+    (row) =>
+      row.kind === "ai_patch_ready" &&
+      row.findingId === finding.id &&
+      JSON.stringify(row.detail) === JSON.stringify(detail),
+  );
+  if (!duplicate) {
+    appendEvidence(payload, {
+      kind: "ai_patch_ready",
+      summary: `Patch ready for ${finding.checkId} at ${location} (deterministic check passed).`,
+      projectId: finding.projectId,
+      controlId: finding.controlId,
+      findingId: finding.id,
+      detail,
+    });
+  }
   const remediation = db.remediations.find(
     (row) => row.findingId === finding.id,
   );

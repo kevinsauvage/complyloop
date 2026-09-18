@@ -38,6 +38,7 @@ const clearActiveProjectCookie = vi.hoisted(() => vi.fn());
 const readActiveOrgCookie = vi.hoisted(() => vi.fn());
 const assertOrgCreateRateLimit = vi.hoisted(() => vi.fn());
 const assertOrgInviteRateLimit = vi.hoisted(() => vi.fn());
+const assertExportRateLimit = vi.hoisted(() => vi.fn());
 
 vi.mock("../rate-limit", async () => {
   const actual =
@@ -48,6 +49,8 @@ vi.mock("../rate-limit", async () => {
       assertOrgCreateRateLimit(...args),
     assertOrgInviteRateLimit: (...args: unknown[]) =>
       assertOrgInviteRateLimit(...args),
+    assertExportRateLimit: (...args: unknown[]) =>
+      assertExportRateLimit(...args),
   };
 });
 const refresh = vi.hoisted(() => vi.fn());
@@ -264,6 +267,13 @@ describe("org lifecycle actions", () => {
     });
   });
 
+  it("rate-limits organization export per user", async () => {
+    exportOrgData.mockReturnValue({ organization: org, projects: [project] });
+    const result = await exportOrgDataAction("org-1");
+    expect(result.error).toBeNull();
+    expect(assertExportRateLimit).toHaveBeenCalledWith("user-1");
+  });
+
   it("loads org rows with one set-based query per entity type", async () => {
     const projects = [0, 1, 2].map((index) =>
       testProject({ id: `p-${index}`, orgId: "org-1", ownerUserId: "user-1" }),
@@ -374,7 +384,7 @@ describe("org lifecycle actions", () => {
     formData.set("confirm", "DELETE");
     const result = await deleteOrgAction(initialActionState, formData);
     expect(result.ok ? null : result.message).toBeNull();
-    expect(result.message).toMatch(/Evidence history was retained/);
+    expect(result.message).toMatch(/including its evidence history/);
     expect(deleteOrganization).toHaveBeenCalledWith(
       expect.anything(),
       "org-1",

@@ -44,10 +44,10 @@ export default function PrivacyPage() {
             <h2 className="text-lg font-semibold text-foreground">Retention</h2>
             <p className="mt-2">
               Evidence is append-only and retained for audit history.
-              Disconnecting a GitHub project or deleting an organization removes
-              project-scoped mutable records (requirements, assessments,
-              findings, remediations, alerts); evidence rows remain unless an
-              operator purges them outside the app role.
+              Disconnecting a GitHub project removes project-scoped mutable
+              records (requirements, assessments, findings, remediations,
+              alerts) while its evidence rows remain. Deleting an organization
+              erases everything, including its evidence history.
             </p>
           </section>
           <section>

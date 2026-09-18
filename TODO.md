@@ -2,62 +2,6 @@
 
 Audit of the actual code (not docs). Ordered by value; grouped so related root causes are one task.
 
----
-
-## P1 — High
-
-### [ ] Render timestamps correctly for the viewer
-
-**Why:** `FormattedDateTime` relies on `suppressHydrationWarning`, which (per the Next docs shipped in-repo) keeps the **server** DOM — so on hard loads every assessment/evidence/verification timestamp shows UTC (Vercel server TZ), while client navigations show local time. In a compliance product, "when was this verified" is core. There is already a zone-qualified formatter used by reports.
-
-**Where:** `src/components/formatted-datetime.tsx`, `src/core/datetime.ts` (`formatDateTimeWithZone`), report renderers.
-
-**Change:** Format server-side with `formatDateTimeWithZone` (or adopt the documented inline-script hydration pattern); this also removes a client boundary mounted on every row.
-
-**Impact:** High — user-visible wrong data + smaller client graph.
-
-### [ ] Close authorization and rate-limit gaps on mutating actions
-
-**Why:** The AI-explanation action writes the finding row but only requires `project.view`, so a read-only viewer can mutate findings and spend AI credits via direct action invocation (`remediation-ai.ts:43,56`); `createPullRequestAction` force-pushes and creates PRs with no rate limit (`actions/pr.ts`, `github/pr.ts:237-246`); full-org export loads 50 projects of history with no rate limit although `assertExportRateLimit` exists and is used for project export (`actions/org.ts:268-305`). `withFindingWrite` also locks/loads another tenant's project before the membership check (`workspace-write.ts:191-218`).
-
-**Where:** `src/server/actions/remediation-ai.ts`, `src/server/actions/pr.ts`, `src/server/github/pr.ts`, `src/server/actions/org.ts`, `src/server/workspace/workspace-write.ts`.
-
-**Change:** Require `project.remediate` for AI explanation writes; add rate limits to PR creation and org export; resolve the finding within the membership-scoped workspace before taking the lock. Add tests that a viewer is denied.
-
-**Impact:** High — privilege bypass and unthrottled expensive/irreversible operations.
-
-### [ ] Bound evidence/data growth and add a retention/erasure path
-
-**Why:** Evidence is append-only by trigger with no prune or tenant-erasure path, so it grows forever and a deletion request cannot be honored (`drizzle/0000_init.sql:163-181`, no delete helper in `repo/evidence.ts`); `webhook_deliveries` is never pruned; every assessment re-inserts the full file-hash snapshot (`repo/assessments.ts:18-21`) even when unchanged; every patch candidate stores entire source files in evidence (`ai-fix.ts:66-71,184-195`). Storage growth is only watched by the currently-broken `ops:check`.
-
-**Where:** `packages/db/src/repo/evidence.ts`, `repo/assessments.ts`, `src/server/assessment/ai-fix.ts`, `src/server/ops-thresholds.ts`, `drizzle/`, `docs/vercel.md`.
-
-**Change:** Store snapshots only when the hash map changed; persist patches as compact diffs rather than whole files; add a documented, superuser/DPA-gated evidence prune + org-erasure procedure; prune `webhook_deliveries` in the batch tick.
-
-**Impact:** High — cost, performance, and data-protection compliance.
-
-### [ ] Make CI exercise the runtime engine and the untested boundaries
-
-**Why:** 30 test files / 83 assertions are `it.skipIf(!chromiumExecutableAvailable())`; the CI quality job runs `test:coverage` without installing Chromium (`ci.yml:12-20`) and the e2e job only runs Playwright specs, so the runtime/DOM scanner never runs green in CI. The coverage gate covers ~29% of source (components/app excluded; view loaders and `workspace.ts` excluded but never instrumented). The hot polling route `GET /api/projects/[projectId]/assessment-jobs` and `GET /api/github/repos` have no tests, so an authz regression on the polling endpoint is invisible. `verify:gate` omits coverage, `test:db`, and e2e, so local "done" can break CI.
-
-**Where:** `.github/workflows/ci.yml`, `vitest.config.mts`, `scripts/verify-gate.sh`, `src/app/api/projects/[projectId]/assessment-jobs/route.ts`, `src/app/api/github/repos/route.ts`.
-
-**Change:** Install Chromium in the unit/coverage job (or a dedicated browser job) and add a runtime scan test; add route/authz tests for the polling and repos endpoints; include `src/components`/`src/app` and the `*-view.ts` loaders in coverage or stop asserting them as covered; align `verify:gate` with CI.
-
-**Impact:** High — the differentiating engine currently has no regression net.
-
-### [ ] Fix Drizzle tooling and migration hygiene
-
-**Why:** `drizzle.config.ts:11` points at a non-existent `./src/server/db-store/schema.ts`, so `db:generate`/`db:studio` are broken and schema↔migration drift is undetectable. The single squashed migration is not re-run safe (`CREATE TRIGGER` without `IF EXISTS` handling) and has one index-direction drift vs `schema.ts` (`evidence_finding_at_idx`).
-
-**Where:** `drizzle.config.ts`, `drizzle/0000_init.sql`, `packages/db/src/schema.ts`, `scripts/db-migrate.ts`.
-
-**Change:** Point Drizzle at `packages/db/src/schema.ts`; make migration replay idempotent (drop/guard triggers, record-then-DDL ordering); add a drift check to CI; reconcile the index direction.
-
-**Impact:** Medium-High — future schema changes are currently unsafe to produce or verify.
-
----
-
 ## P2 — Medium
 
 ### [ ] Reconcile the worker topology and delete the dead serverless path

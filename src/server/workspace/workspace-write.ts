@@ -23,7 +23,10 @@ import {
   type ProjectWritePayload,
   snapshotProjectSlice,
 } from "@complyloop/db/repo/apply";
-import { insertEvidenceRecords } from "@complyloop/db/repo/evidence";
+import {
+  deleteEvidenceForOrg,
+  insertEvidenceRecords,
+} from "@complyloop/db/repo/evidence";
 import { getFindingById } from "@complyloop/db/repo/findings";
 import {
   deleteMembership,
@@ -49,7 +52,7 @@ import {
   type ProjectWriteWorkspace,
   readViewerSession,
 } from "./workspace";
-import { findingById } from "./workspace";
+import { findingById, requireProjectAccess } from "./workspace";
 
 export interface OrgWritePayload {
   insertOrgs?: Organization[];
@@ -187,6 +190,15 @@ export async function withFindingWrite(
   const { userId, githubLogin, preferredOrgId } = await readViewerSession();
 
   const drizzle = await getDrizzle();
+  // Membership gate BEFORE the lock: resolve the finding's project and check
+  // access without holding anything, so a non-member can neither probe
+  // another tenant's project lock nor force a full locked load. The in-lock
+  // `requireOnFindingProject` below stays as the enforcement (covers
+  // revoke-between-check-and-lock).
+  const previewAccess = await getFindingById(drizzle, findingId);
+  if (!previewAccess) throw new PublicError("Unknown finding.");
+  await requireProjectAccess(previewAccess.projectId, permission);
+
   return drizzle.transaction(async (tx) => {
     const preview = await getFindingById(tx, findingId);
     if (!preview) throw new PublicError("Unknown finding.");
@@ -294,6 +306,9 @@ export async function withOrgWrite<T>(
         await deleteMembership(tx, id);
       }
       for (const id of deleteOrgIds ?? []) {
+        // Tenant erasure precedes the row deletes: org deletion honors data
+        // erasure (owner-gated upstream); project disconnect keeps retention.
+        await deleteEvidenceForOrg(tx, id);
         await deleteOrganizationRow(tx, id);
       }
 

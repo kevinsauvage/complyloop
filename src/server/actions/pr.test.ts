@@ -23,6 +23,16 @@ const preparePullRequest = vi.hoisted(() => vi.fn());
 const getDrizzle = vi.hoisted(() => vi.fn());
 const listEvidenceForFinding = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
+const assertPrRateLimit = vi.hoisted(() => vi.fn());
+const getSession = vi.hoisted(() => vi.fn());
+
+vi.mock("../auth-session", () => ({
+  getSession: (...args: unknown[]) => getSession(...args),
+}));
+
+vi.mock("../rate-limit", () => ({
+  assertPrRateLimit: (...args: unknown[]) => assertPrRateLimit(...args),
+}));
 
 vi.mock("../github/pr", () => ({
   preparePullRequest: (...args: unknown[]) => preparePullRequest(...args),
@@ -86,6 +96,7 @@ afterEach(() => {
 
 beforeEach(() => {
   getDrizzle.mockResolvedValue({});
+  getSession.mockResolvedValue({ user: { id: "user-1" } });
   listEvidenceForFinding.mockResolvedValue([
     {
       kind: "ai_patch_ready",
@@ -164,6 +175,7 @@ describe("createPullRequestAction", () => {
       message: "Opened pull request.",
       prUrl: "https://github.com/acme/shop/pull/1",
     });
+    expect(assertPrRateLimit).toHaveBeenCalledWith("user-1");
     expect(
       projectWritePayload()?.evidence?.some(
         (row) => row.kind === "pull_request_prepared",

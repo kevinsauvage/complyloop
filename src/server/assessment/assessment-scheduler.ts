@@ -71,9 +71,18 @@ export async function runAssessmentJobBatch(
 ): Promise<AssessmentWorkerResult[]> {
   try {
     await pruneRateLimitBuckets();
+    // Webhook delivery idempotency keys accumulate forever otherwise: keep
+    // the last 10k (far beyond any redelivery window) via dynamic import so
+    // this module's static graph stays dispatch + harness + rate-limit +
+    // observability (see the boundary contract above).
+    const { pruneWebhookDeliveryRows } = await import(
+      "@complyloop/db/repo/webhook-deliveries"
+    );
+    const { getDrizzle } = await import("@complyloop/db/postgres");
+    await pruneWebhookDeliveryRows(await getDrizzle(), 10_000);
   } catch (error) {
-    reportWarning("Rate-limit bucket prune failed.", {
-      code: "rate_limit_prune_failed",
+    reportWarning("Batch prune failed.", {
+      code: "batch_prune_failed",
       error: error instanceof Error ? error.message : String(error),
     });
   }

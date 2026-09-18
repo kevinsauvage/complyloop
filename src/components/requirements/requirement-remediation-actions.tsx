@@ -6,7 +6,6 @@ import { useState } from "react";
 import type { Requirement } from "@complyloop/analysis-core/contract/entities";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 
-import { FormattedDateTime } from "@/components/formatted-datetime";
 import { ReasonNoteFields } from "@/components/reason-note-fields";
 import { StatefulActionForm } from "@/components/stateful-action-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -31,10 +30,17 @@ export function RequirementRemediationActions({
   control,
   requirement,
   canRemediate,
+  humanPassAtLabel,
+  exceptionAtLabel,
+  exceptionExpiresAtLabel,
 }: {
   control: Control;
   requirement: Requirement;
   canRemediate: boolean;
+  /** Server-formatted zone-qualified stamps (this file is client-rendered). */
+  humanPassAtLabel?: string;
+  exceptionAtLabel?: string;
+  exceptionExpiresAtLabel?: string;
 }) {
   // Drives the conditional `required` on the expiry date (server enforces it
   // too — this just surfaces the requirement before submit).
@@ -59,8 +65,11 @@ export function RequirementRemediationActions({
           <AlertDescription className="text-muted-foreground">
             {requirement.humanPass.note}
             <span className="mt-1 block text-xs text-muted-foreground">
-              Set <FormattedDateTime iso={requirement.humanPass.at} /> — sticky
-              until cleared (assessments will not overwrite).
+              Set{" "}
+              <time dateTime={requirement.humanPass.at}>
+                {humanPassAtLabel ?? requirement.humanPass.at}
+              </time>{" "}
+              — sticky until cleared (assessments will not overwrite).
             </span>
             {canRemediate ? (
               <span className="mt-2 block">
@@ -89,14 +98,18 @@ export function RequirementRemediationActions({
           <AlertDescription className="text-muted-foreground">
             {requirement.exception.note}
             <span className="mt-1 block text-xs text-muted-foreground">
-              Set <FormattedDateTime iso={requirement.exception.at} />
+              Set{" "}
+              <time dateTime={requirement.exception.at}>
+                {exceptionAtLabel ?? requirement.exception.at}
+              </time>
               {requirement.exception.expiresAt ? (
                 <>
                   {" "}
                   — expires{" "}
-                  <FormattedDateTime
-                    iso={requirement.exception.expiresAt}
-                  />
+                  <time dateTime={requirement.exception.expiresAt}>
+                    {exceptionExpiresAtLabel ??
+                      requirement.exception.expiresAt}
+                  </time>
                 </>
               ) : (
                 " — sticky until cleared (assessments will not overwrite)"

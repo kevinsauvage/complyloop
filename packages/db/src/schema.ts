@@ -176,6 +176,10 @@ export const assessmentSnapshots = pgTable("assessment_snapshots", {
     .primaryKey()
     .references(() => assessments.id, { onDelete: "cascade" }),
   snapshot: jsonb("snapshot").$type<AssessmentSnapshot>().notNull(),
+  // Dedup marker: when a run's file hashes are byte-identical to the previous
+  // stored map, the row keeps gitHead/scope but stores an empty fileHashes
+  // map. Readers fall back to the latest row with hashesUnchanged = false.
+  hashesUnchanged: boolean("hashes_unchanged").notNull().default(false),
 });
 
 export const findings = pgTable(
@@ -262,7 +266,7 @@ export const evidence = pgTable(
   (table) => [
     index("evidence_at_idx").on(table.at),
     index("evidence_project_at_idx").on(table.projectId, table.at),
-    index("evidence_finding_at_idx").on(table.findingId, table.at),
+    index("evidence_finding_at_idx").on(table.findingId, table.at.desc()),
     index("evidence_project_kind_at_idx").on(
       table.projectId,
       table.kind,

@@ -133,7 +133,8 @@ export interface DeleteOrganizationResult {
 
 /**
  * Validates owner delete and returns membership ids to remove. Does not mutate
- * `db` — DB FK cascade handles projects; evidence remains append-only.
+ * `db` — DB FK cascade handles projects; `withOrgWrite` erases the org's
+ * evidence first (tenant erasure via deleteEvidenceForOrg).
  */
 export function deleteOrganization(
   db: WorkspaceSlice,

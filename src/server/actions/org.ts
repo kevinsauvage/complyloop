@@ -13,6 +13,7 @@ import { publicErrorMessage, runAction } from "../action-state";
 import { getGitHubAccessToken } from "../github/access-token";
 import { lookupGitHubUser } from "../github/github";
 import {
+  assertExportRateLimit,
   assertOrgCreateRateLimit,
   assertOrgInviteRateLimit,
 } from "../rate-limit";
@@ -272,6 +273,7 @@ export async function exportOrgDataAction(
     const { userId } = await requireSignedIn(
       "Sign in to export organization data.",
     );
+    await assertExportRateLimit(userId);
     const orgId = parseEntityId(orgIdRaw);
     const { organizations, projects, access } = await getWorkspace();
     const orgProjects = projects.filter((project) => project.orgId === orgId);
@@ -346,6 +348,6 @@ export async function deleteOrgAction(
       await writeActiveOrgCookie(nextOrgId);
     }
     refresh();
-    return "Organization deleted. Evidence history was retained for audit.";
+    return "Organization deleted, including its evidence history.";
   });
 }

@@ -40,7 +40,10 @@ export async function generateAiExplanationAction(
     // writer for this project. Preview reads are single-row (finding) + the
     // light project guard — no tenancy load.
     const previewFinding = await requireFinding(findingId);
-    await requireProjectAccess(previewFinding.projectId, "project.view");
+    // Writes the finding row below: remediate, not view — otherwise a
+    // read-only viewer could mutate findings and spend AI credits by invoking
+    // the action directly (the UI already gates the button on canRemediate).
+    await requireProjectAccess(previewFinding.projectId, "project.remediate");
     const sessionUserId = (await getSession())?.user?.id;
     if (sessionUserId) await assertAiRateLimit(sessionUserId);
     const control = controlById(previewFinding.controlId);
@@ -53,7 +56,7 @@ export async function generateAiExplanationAction(
         "AI explanation unavailable. Check AI credentials or try again.",
       );
     }
-    await withFindingWrite(findingId, "project.view", async ({ finding }) => {
+    await withFindingWrite(findingId, "project.remediate", async ({ finding }) => {
       // Persist onto the live row — the preview above may be stale.
       // Cap growth: deterministic baseline (index 0) + latest AI additions.
       // Every append rewrites the whole finding row, so unbounded clicks

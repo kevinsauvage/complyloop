@@ -100,6 +100,22 @@ describe("generateAiExplanationAction", () => {
     expect(actionWorkspaceMocks.withProjectWrite).not.toHaveBeenCalled();
   });
 
+  it("denies viewers with membership: explaining writes the finding row", async () => {
+    const workspace = workspaceFor("viewer");
+    mockProjectWrite(workspace);
+    actionWorkspaceMocks.getWorkspace.mockResolvedValue(workspace);
+    assertAiRateLimit.mockResolvedValue(undefined);
+
+    const result = await generateAiExplanationAction(
+      "f1",
+      initialActionState,
+      new FormData(),
+    );
+    expect(result.ok ? null : result.message).toMatch(/Not allowed/);
+    expect(generateAiExplanation).not.toHaveBeenCalled();
+    expect(actionWorkspaceMocks.withProjectWrite).not.toHaveBeenCalled();
+  });
+
   it("adds an explanation when the model returns one", async () => {
     const workspace = workspaceFor("member");
     mockProjectWrite(workspace);
