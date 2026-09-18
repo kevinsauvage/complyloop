@@ -563,6 +563,34 @@ export async function runAssessment(
                 }),
       });
     }
+    // Orphan reconcile: a preset/scope change can drop controls the previous
+    // run assessed. Their open findings would otherwise sit open forever —
+    // no in-scope control ever matches or resolves them. Resolve with
+    // provenance; remediations are left untouched (no confirmed fix, so no
+    // auto-verify). Preview runs build rows that are discarded on apply, so
+    // this is safe to do unconditionally in-memory.
+    const scopedControlIds = new Set(scoped.map((control) => control.id));
+    for (const finding of rows.findings) {
+      if (
+        finding.projectId !== project.id ||
+        finding.status !== "open" ||
+        scopedControlIds.has(finding.controlId)
+      ) {
+        continue;
+      }
+      finding.status = "resolved";
+      finding.resolvedNote =
+        "Control removed from the assessment scope; no longer evaluated.";
+      appendEvidence(rows, {
+        kind: "finding",
+        summary: `${finding.checkId}: control ${finding.controlId} out of scope — finding closed`,
+        projectId,
+        controlId: finding.controlId,
+        findingId: finding.id,
+        assessmentId,
+        detail: { event: "resolved", reason: "control_out_of_scope" },
+      });
+    }
     applyRequirementStatusRefresh(rows, project, {
       assessmentId,
       changeContext,

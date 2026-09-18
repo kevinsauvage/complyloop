@@ -244,6 +244,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS "assessment_jobs_idempotency_uidx"
   ON "assessment_jobs" ("idempotency_key")
   WHERE "idempotency_key" IS NOT NULL;
 
+-- Serial-per-project backstop: the claim-time NOT EXISTS guard cannot see a
+-- concurrent uncommitted `running` row under READ COMMITTED, so the database
+-- rejects a second concurrent claim for the same project (23505 → null).
+CREATE UNIQUE INDEX IF NOT EXISTS "assessment_jobs_running_project_uidx"
+  ON "assessment_jobs" ("project_id") WHERE "status" = 'running';
+
 CREATE TABLE IF NOT EXISTS "rate_limit_buckets" (
   "key" text PRIMARY KEY NOT NULL,
   "window_started_at" timestamptz NOT NULL,

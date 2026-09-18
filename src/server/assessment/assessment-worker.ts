@@ -35,6 +35,22 @@ function openViolationCount(findings: ReadonlyArray<Finding>): number {
   ).length;
 }
 
+/**
+ * Explicit scan authority: only a manual assessment or a webhook push of the
+ * default branch may derive the persistent compliance state. Anything else —
+ * PR previews, unknown events, malformed payloads that slipped past the
+ * claim gate — is preview-only and must not resolve findings, flip statuses,
+ * or auto-verify remediations. Fail closed, never `!pullRequestHeadSha`.
+ */
+export function resolveJobAuthoritative(job: AssessmentJob): boolean {
+  if (job.trigger === "manual") return true;
+  if (job.trigger !== "webhook") return false;
+  return (
+    job.payload.eventName === "push" &&
+    job.payload.pullRequestHeadSha == null
+  );
+}
+
 function failedRequirementCount(
   requirements: AssessmentRunResult["requirements"],
 ): number {
@@ -59,7 +75,7 @@ async function runClaimedAssessmentJob(
   // authoritative for the project's compliance state. A webhook pull-request
   // scan assesses a proposed change: it posts a Check Run but must not
   // resolve findings, flip statuses, or auto-verify remediations.
-  const authoritative = !job.payload.pullRequestHeadSha;
+  const authoritative = resolveJobAuthoritative(job);
 
   // Lease heartbeat: long scans (large clone + Playwright) must never expire
   // mid-run and get double-executed by lease recovery. A heartbeat that finds

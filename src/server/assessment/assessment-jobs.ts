@@ -90,6 +90,19 @@ function parseJobPayload(value: unknown): AssessmentJobPayload {
   return parsed.success ? parsed.data : {};
 }
 
+/**
+ * Fail-closed payload gate: scan authority is derived from the payload, so a
+ * corrupt row must never degrade to `{}` (which scans as authoritative).
+ * NULL/undefined (legacy rows) and schema-valid objects pass; anything else
+ * (arrays, scalars, wrong-typed fields) is malformed and the claim
+ * terminal-fails the job instead of handing it to a worker.
+ */
+export function isJobPayloadWellFormed(value: unknown): boolean {
+  if (value === null || value === undefined) return true;
+  if (!isPlainObject(value)) return false;
+  return assessmentJobPayloadSchema.safeParse(value).success;
+}
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -327,10 +340,11 @@ export async function claimNextAssessmentJob(): Promise<AssessmentJob | null> {
     // NOT EXISTS keeps one assessment per project without rescanning the table
     // (served by assessment_jobs_ready_idx + assessment_jobs_project_idx).
     // `attempts` and `project_id` are read in the same lock to avoid a second
-    // round trip. The final UPDATE re-checks NOT EXISTS atomically: under
-    // READ COMMITTED two workers claiming different queued jobs for the same
-    // project could both see "no running" in SELECT, so the UPDATE guard is
-    // what enforces serial-per-project. Zero rows → lost the race → null.
+    // round trip. The final UPDATE re-checks NOT EXISTS, and the partial
+    // unique index assessment_jobs_running_project_uidx is the real backstop:
+    // under READ COMMITTED two workers claiming different queued jobs for the
+    // same project can both see "no running", so the loser gets 23505 and
+    // this function returns null. Zero rows → lost the race → null.
     const locked = await tx.execute<{
       id: string;
       attempts: number;
@@ -361,30 +375,57 @@ export async function claimNextAssessmentJob(): Promise<AssessmentJob | null> {
     const leaseExpiresAt = new Date(
       Date.now() + DEFAULT_LEASE_MS,
     ).toISOString();
-    const [claimed] = await tx
-      .update(assessmentJobs)
-      .set({
-        status: "running",
-        attempts: Number(row.attempts) + 1,
-        startedAt: now,
-        leaseExpiresAt,
-        error: null,
-        updatedAt: now,
-      })
-      .where(
-        and(
-          eq(assessmentJobs.id, candidateId),
-          eq(assessmentJobs.status, "queued"),
-          sql`NOT EXISTS (
+    let claimed;
+    try {
+      [claimed] = await tx
+        .update(assessmentJobs)
+        .set({
+          status: "running",
+          attempts: Number(row.attempts) + 1,
+          startedAt: now,
+          leaseExpiresAt,
+          error: null,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(assessmentJobs.id, candidateId),
+            eq(assessmentJobs.status, "queued"),
+            sql`NOT EXISTS (
             SELECT 1 FROM assessment_jobs AS running
             WHERE running.status = 'running'
               AND running.project_id = ${candidateProjectId}
               AND running.id <> ${candidateId}
           )`,
-        ),
-      )
-      .returning();
-    return claimed ? jobFromRow(claimed) : null;
+          ),
+        )
+        .returning();
+    } catch (error) {
+      // Lost the race: a concurrent claim for the same project committed
+      // first and the partial unique index
+      // (assessment_jobs_running_project_uidx) rejected this UPDATE. Zero
+      // rows would mean the same thing — no scan, just null.
+      if (isUniqueViolation(error)) return null;
+      throw error;
+    }
+    if (!claimed) return null;
+    if (!isJobPayloadWellFormed(claimed.payload)) {
+      // Fail closed: never hand a corrupt row to a worker (lenient parsing
+      // would degrade it to `{}` and scan as authoritative). Terminal, not a
+      // retry — re-running would fail identically.
+      await tx
+        .update(assessmentJobs)
+        .set({
+          status: "failed",
+          completedAt: now,
+          leaseExpiresAt: null,
+          updatedAt: now,
+          error: "Malformed job payload; refusing to scan.",
+        })
+        .where(eq(assessmentJobs.id, claimed.id));
+      return null;
+    }
+    return jobFromRow(claimed);
   });
 }
 

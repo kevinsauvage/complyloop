@@ -441,7 +441,11 @@ describe("settleRunningAssessmentJob", () => {
       settleRunningAssessmentJob(
         job({
           trigger: "webhook",
-          payload: { ref: "abc123", supersededRefs: ["def456"] },
+          payload: {
+            ref: "abc123",
+            eventName: "push",
+            supersededRefs: ["def456"],
+          },
         }),
       ),
     ).resolves.toEqual({ kind: "succeeded", jobId: "job-1" });

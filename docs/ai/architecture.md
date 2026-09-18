@@ -96,7 +96,13 @@ evidence, findings, remediations, requirements }`; the worker persists via
   `buildAssessmentApplyPayload`).
 - **Locks** — job claim `FOR UPDATE SKIP LOCKED`; interactive project writes
   and apply take `project-write:{projectId}`; org and connect writes take the
-  user-scoped org lock. Requirement, finding and remediation
+  user-scoped org lock. Serial-per-project is enforced by the database, not
+  just the claim query: the partial unique index
+  `assessment_jobs_running_project_uidx` (`project_id` where `running`,
+  drizzle/0000_init) rejects a second concurrent claim (23505 → claim returns
+  null). Corrupt job payloads terminal-fail at claim time instead of
+  scanning; scan authority is explicit (`resolveJobAuthoritative`: manual, or
+  webhook push without a PR SHA). Requirement, finding and remediation
   upserts skip rows whose DB `updatedAt` is newer than the loaded slice
   (`repo/upsert-guard.ts`), so a stale apply cannot revert a concurrent human
   decision.

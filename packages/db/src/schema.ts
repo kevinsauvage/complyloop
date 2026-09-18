@@ -347,6 +347,12 @@ export const assessmentJobs = pgTable(
     index("assessment_jobs_running_lease_idx")
       .on(table.leaseExpiresAt)
       .where(sql`${table.status} = 'running'`),
+    // Serial-per-project backstop (drizzle/0000_init): the claim-time NOT EXISTS
+    // guard cannot see a concurrent uncommitted `running` row under READ
+    // COMMITTED, so the database rejects a second concurrent claim (23505).
+    uniqueIndex("assessment_jobs_running_project_uidx")
+      .on(table.projectId)
+      .where(sql`${table.status} = 'running'`),
     uniqueIndex("assessment_jobs_idempotency_uidx")
       .on(table.idempotencyKey)
       .where(sql`${table.idempotencyKey} IS NOT NULL`),

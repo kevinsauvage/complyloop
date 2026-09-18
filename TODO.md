@@ -6,16 +6,6 @@ Audit of the actual code (not docs). Ordered by value; grouped so related root c
 
 ## P0 — Critical
 
-### [ ] Make per-project assessment execution actually serial
-
-**Why:** The documented "serial per project" guarantee is not enforced. The claim guard is a `NOT EXISTS ... status='running'` inside an `UPDATE` (`assessment-jobs.ts:378-383`) under READ COMMITTED, which cannot see a concurrent uncommitted `running` row, and there is no partial unique index on `(project_id) WHERE status='running'`. With worker concurrency 2, two queued jobs for one project (manual + webhook, push + PR) both claim and scan; the second apply then sees the first run's UUID-keyed findings as new and inserts duplicates. A malformed payload also fails open into an authoritative scan (`parseJobPayload` returns `{}`, so `!pullRequestHeadSha` is true) and preset changes orphan findings/requirements (reconcile only iterates in-scope controls).
-
-**Where:** `src/server/assessment/assessment-jobs.ts` (claim/enqueue/recovery), `packages/db/src/schema.ts` + `drizzle/` (new partial unique index), `src/server/assessment/monitor.ts`/`assessment.ts` (scan plan, orphan reconcile), `src/server/assessment/assessment-worker.ts`.
-
-**Change:** Add a DB-level partial unique index (or `pg_advisory_xact_lock` in the claim tx) so only one `running` job per project can exist; make the job payload schema explicit (`authoritative`/`pullRequest` fields, terminal-fail unknown payloads); reconcile findings for controls removed from scope. Add a concurrency regression test (two claims, one project).
-
-**Impact:** High — prevents duplicate findings/assessments and silent state corruption.
-
 ### [ ] Close the runtime remediation verification loop
 
 **Why:** Runtime/DOM and site findings are resolved by re-assessment when `runtimeRan` (`assessment-findings.ts:231-232`), but auto-verify explicitly skips non-source locations (`assessment.ts:166`), and the only manual verify action requires an open finding (`remediation-verify.ts:313`). A DOM remediation therefore freezes at `implemented` forever; the UI masks it via `finding-act.ts:181-183`. The `remediation_manually_verified` evidence kind exists but is never written. `verified` is the only status that closes the loop, so requirement/report counts are wrong.
