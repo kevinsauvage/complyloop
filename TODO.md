@@ -4,46 +4,6 @@ Audit of the actual code (not docs). Ordered by value; grouped so related root c
 
 ---
 
-## P0 — Critical
-
-### [x] Close the runtime remediation verification loop
-
-**Status (2026-09-18): done.** Beat driven off remediation status (`finding-act.ts`); re-audit verify works on resolved findings + re-opens on re-detected violation; new `attestRemediationVerifiedAction` writes `remediation_manually_verified` with required note (source excluded); panel shows both actions for resolved findings. Auto-verify stays source-only (runtime proof is page-count coarse).
-
-**Why:** Runtime/DOM and site findings are resolved by re-assessment when `runtimeRan` (`assessment-findings.ts:231-232`), but auto-verify explicitly skips non-source locations (`assessment.ts:166`), and the only manual verify action requires an open finding (`remediation-verify.ts:313`). A DOM remediation therefore freezes at `implemented` forever; the UI masks it via `finding-act.ts:181-183`. The `remediation_manually_verified` evidence kind exists but is never written. `verified` is the only status that closes the loop, so requirement/report counts are wrong.
-
-**Where:** `src/server/assessment/assessment.ts`, `src/server/assessment/assessment-findings.ts`, `src/server/actions/remediation-verify.ts`, `src/core/finding-act.ts`, `packages/analysis-core/src/contract/entities.ts`.
-
-**Change:** Give runtime findings a deterministic verification path (re-audit proof forwarded into `verified`, or a manual verify/note action that works on resolved findings and writes `remediation_manually_verified`). Drive the finding-page beat off remediation status, not `finding.status === "resolved"`.
-
-**Impact:** High — a core-loop stage is currently unreachable for half the finding types.
-
-### [x] Make deploys and production monitoring reliable
-
-**Status (2026-09-18): done.** `vercel-build` runs `db:migrate` before build; ops-check warns on missing prod env but fails only on DB/queue/evidence breaches; worker skips browser install + drain on empty scheduled ticks (`scripts/queue-depth.ts` gate); optional `SLACK_WEBHOOK_URL` failure notify + `HEALTH_URL` ping (no-op when unset). Deviations: no dedicated short-schedule health poller (daily ops-check + optional ping); stock Actions notifications retained.
-
-**Why:** Three independent production holes: (1) migration is an out-of-band laptop step (`docs/vercel.md:29-34`) with no deploy hook — a release expecting a new column will crash against an un-migrated DB; (2) the only scheduled alert, `ops:check`, runs with `NODE_ENV=production` and only `DATABASE_URL`, so it throws at `operations-check.ts:48` before ever checking queue/evidence and fails daily for a false reason; (3) nothing polls `/api/health` or the queue depth, and no workflow failure notification is wired, so a stopped drain is invisible.
-
-**Where:** `package.json`/`vercel.json` (add a `vercel-build` running `db:migrate`), `.github/workflows/ops-check.yml` + `scripts/operations-check.ts` (split env completeness from DB/queue checks), `.github/workflows/assessment-worker.yml` (failure notifier, queue-depth gate before `npm ci`), `src/app/api/health/route.ts`.
-
-**Change:** Add migrate-on-deploy; make `ops:check` evaluate DB/queue/evidence even when env is incomplete; add an uptime/queue monitor (external or short-schedule workflow) and a Slack/email failure notification. Also gate the 15-min worker tick on queue depth (it currently installs Chromium 96×/day regardless).
-
-**Impact:** High — releases and the safety net that catches every other failure.
-
-### [x] Fix cross-tenant webhook project resolution
-
-**Status (2026-09-18): done.** `findProjectsByGithubFullName` returns all per-org matches in id order; webhook pins by installation id, rejects ambiguous (multi-org, no installation) and foreign-installation deliveries. Deviation: single unbound legacy projects keep the old accept (rejecting them would outage existing connections with no migration path); unit + test:db two-org tests added.
-
-**Why:** `findProjectByGithubFullName` filters only by lower(fullName), `.limit(1)` with no `ORDER BY` (`packages/db/src/repo/projects.ts:66-104`), while uniqueness is per-org (`(org_id, lower(fullName))`). Two orgs may connect the same public repo; the webhook then picks an arbitrary row and either rejects the real owner (installation mismatch) or, when the picked row has no `installationId`, scans/updates the wrong tenant's project (`webhook.ts:192-213`).
-
-**Where:** `packages/db/src/repo/projects.ts`, `src/server/github/webhook.ts`, `packages/db/src/schema.ts`.
-
-**Change:** Scope webhook project lookup by installation id (and deterministic tie-break); reject deliveries for projects without a bound installation rather than skipping the check; add a test with the same repo connected in two orgs.
-
-**Impact:** High — cross-tenant correctness/data mutation.
-
----
-
 ## P1 — High
 
 ### [ ] Render timestamps correctly for the viewer
