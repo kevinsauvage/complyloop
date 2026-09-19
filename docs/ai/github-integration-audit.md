@@ -48,7 +48,7 @@ Key architectural facts that constrain every proposal:
 
 ### Docs-vs-code discrepancies (minor)
 
-- `architecture.md` says "`POST /api/internal/jobs/run` stays for schedulers" — correct, but it reads as co-primary; in reality it is the **degraded fallback** (`route.ts:67-140`, `maxDuration=300`), the GH worker is primary.
+- ~~`architecture.md` says "`POST /api/internal/jobs/run` stays for schedulers" — correct, but it reads as co-primary; in reality it is the **degraded fallback** (`route.ts:67-140`, `maxDuration=300`), the GH worker is primary.~~ **Fixed Sep 2026:** `src/app/api/` now holds only `auth/`, `github/`, `health/`, `projects/` — the `POST /api/internal/jobs/run` route no longer exists. The GitHub Actions `assessment-worker` workflow (dispatch + 15-min schedule backstop) is the sole executor; remove any remaining `architecture.md` reference to the internal route.
 - `.env.example:37` / `README.md:46` document App permissions (`Contents R/W, Pull requests R/W, Checks R/W, Metadata R`) — these are prose, not code-enforced. Any permission addition must update those two files plus the App registration manually.
 - No stale TODOs in the GitHub/worker surface (grep clean); limitations live as documented prose instead.
 

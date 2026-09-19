@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
-import { aiCall, type AiErrorReport } from "./ai-call";
+import { AI_MODEL, aiCall, type AiErrorReport, resolveAiModel } from "./ai-call";
 
 const NoObjectGeneratedError = vi.hoisted(
   () =>
@@ -187,5 +187,32 @@ describe("aiCall", () => {
       }),
     ).resolves.toBeNull();
     expect(hook.calls).toHaveLength(1);
+  });
+});
+
+describe("resolveAiModel", () => {
+  it("defaults to the pinned free-tier model", () => {
+    vi.stubEnv("AI_MODEL", "");
+    expect(resolveAiModel()).toBe(AI_MODEL);
+    vi.unstubAllEnvs();
+  });
+
+  it("is overridable via the AI_MODEL env var", () => {
+    vi.stubEnv("AI_MODEL", "acme/pro-model");
+    expect(resolveAiModel()).toBe("acme/pro-model");
+    vi.unstubAllEnvs();
+  });
+
+  it("passes the resolved model to the gateway", async () => {
+    vi.stubEnv("AI_MODEL", "acme/pro-model");
+    try {
+      generate.mockResolvedValue({ object: { value: "ok" } } as never);
+      await aiCall({ schema, available: true, prompt: "hi", code: "ai_test" });
+      expect(generate).toHaveBeenCalledWith(
+        expect.objectContaining({ model: "acme/pro-model" }),
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });

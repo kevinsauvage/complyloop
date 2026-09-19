@@ -125,6 +125,14 @@ vi.mock("../github/github-checks", () => ({
     title: "failed",
     summary: "failed",
   }),
+  summarizeQueuedCheckRun: (jobId: string) => ({
+    title: "queued",
+    summary: `queued ${jobId}`,
+  }),
+  summarizeInProgressCheckRun: (jobId: string) => ({
+    title: "in progress",
+    summary: `in progress ${jobId}`,
+  }),
 }));
 
 import { ASSESSMENT_JOB_HEARTBEAT_MS } from "./assessment-jobs";
@@ -324,8 +332,18 @@ describe("settleRunningAssessmentJob", () => {
         }),
       ),
     ).resolves.toEqual({ kind: "retrying", jobId: "job-1" });
-    expect(postPullRequestCheckRun).not.toHaveBeenCalled();
+    // The claim-time in_progress signal posts, but no failure verdict —
+    // retries stay quiet and post the real verdict later.
+    expect(postPullRequestCheckRun).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "in_progress" }),
+    );
+    const verdictCalls = postPullRequestCheckRun.mock.calls.filter(
+      ([input]) =>
+        (input as { conclusion?: string }).conclusion === "failure",
+    );
+    expect(verdictCalls).toHaveLength(0);
 
+    postPullRequestCheckRun.mockClear();
     failAssessmentJob.mockResolvedValue("failed");
     await expect(
       settleRunningAssessmentJob(job({ attempts: 3 })),

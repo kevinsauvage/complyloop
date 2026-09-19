@@ -1,12 +1,14 @@
 import "server-only";
 
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
+import type { Severity } from "@complyloop/analysis-core/contract/statuses";
 
 import type { AssessmentJobStage } from "@/core/assessment/assessment-jobs";
 
 import {
   postAssessmentCheckRun,
   postAssessmentFailureCheckRun,
+  postInProgressCheckRunForPreview,
 } from "../github/github-connector";
 import { reportError, reportEvent, reportWarning } from "../observability";
 import { loadProjectDb } from "../workspace/db";
@@ -57,6 +59,24 @@ function failedRequirementCount(
     .length;
 }
 
+function severityBreakdown(
+  findings: ReadonlyArray<Finding>,
+): Partial<Record<Severity, number>> {
+  const breakdown: Partial<Record<Severity, number>> = {};
+  for (const finding of findings) {
+    if (finding.status !== "open" || finding.kind !== "violation") continue;
+    const level: Severity = finding.severity;
+    breakdown[level] = (breakdown[level] ?? 0) + 1;
+  }
+  return breakdown;
+}
+
+function isPreviewJob(job: AssessmentJob): string | null {
+  if (job.trigger !== "webhook") return null;
+  const sha = job.payload.pullRequestHeadSha;
+  return typeof sha === "string" && sha.length > 0 ? sha : null;
+}
+
 async function runClaimedAssessmentJob(
   job: AssessmentJob,
   onLeaseRenewed?: (leaseExpiresAt: string) => void,
@@ -75,6 +95,19 @@ async function runClaimedAssessmentJob(
   // scan assesses a proposed change: it posts a Check Run but must not
   // resolve findings, flip statuses, or auto-verify remediations.
   const authoritative = resolveJobAuthoritative(job);
+  const previewHeadSha = isPreviewJob(job);
+
+  // Claim-time progress signal: queued was posted on enqueue, so move the
+  // Check to in_progress now. Warn-never-throw — a GitHub outage must not
+  // fail the assessment.
+  if (previewHeadSha) {
+    await postInProgressCheckRunForPreview({
+      project,
+      jobId: job.id,
+      headSha: previewHeadSha,
+      startedAt: job.startedAt,
+    });
+  }
 
   // Lease heartbeat: long scans (large clone + Playwright) must never expire
   // mid-run and get double-executed by lease recovery. A heartbeat that finds
@@ -173,6 +206,7 @@ async function runClaimedAssessmentJob(
           assessment,
           openViolations: openViolationCount(run.findings),
           failedRequirements: failedRequirementCount(run.requirements),
+          severity: severityBreakdown(run.findings),
         };
       },
       job.payload.ref,
@@ -203,6 +237,9 @@ async function runClaimedAssessmentJob(
         openViolations: result.openViolations,
         failedRequirements: result.failedRequirements,
         assessmentId: result.assessment.id,
+        severity: result.severity,
+        startedAt: job.startedAt,
+        completedAt: new Date().toISOString(),
       });
     }
     return { cancelled: cancelledRemotely };

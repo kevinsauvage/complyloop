@@ -12,10 +12,14 @@ import {
 
 import { enqueueAssessmentJob } from "../assessment/assessment-jobs";
 import { githubWebhookSecret } from "../env";
+import { reportWarning } from "../observability";
 import { assertRateLimit } from "../rate-limit";
+import { CHECK_RUN_NAME } from "./github-checks";
+import { postQueuedCheckRunForPreview } from "./github-connector";
 
 type PushPayload = EmitterWebhookEvent<"push">["payload"];
 type PullRequestPayload = EmitterWebhookEvent<"pull_request">["payload"];
+type CheckRunPayload = EmitterWebhookEvent<"check_run">["payload"];
 
 type WithInstallation = {
   installation?: {
@@ -24,7 +28,7 @@ type WithInstallation = {
 };
 
 function installationIdFromPayload(
-  payload: PushPayload | PullRequestPayload,
+  payload: PushPayload | PullRequestPayload | CheckRunPayload,
 ): number | undefined {
   const withInstallation = payload as WithInstallation;
   return typeof withInstallation.installation?.id === "number"
@@ -62,7 +66,12 @@ type HandledWebhookEvent =
       kind: "pull_request";
       payload: PullRequestPayload;
       action: HandledPrAction;
-    };
+    }
+  | { kind: "check_run_rerequest"; payload: CheckRunPayload; headSha: string };
+
+function isValidHexSha(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{40}$/i.test(value);
+}
 
 function parseHandledWebhookEvent(
   eventName: string,
@@ -92,6 +101,29 @@ function parseHandledWebhookEvent(
         payload: prPayload,
         action: prPayload.action,
       },
+    };
+  }
+  if (eventName === "check_run") {
+    const runPayload = payload as CheckRunPayload & {
+      action?: unknown;
+      check_run?: { name?: unknown; head_sha?: unknown };
+    };
+    if (runPayload.action !== "rerequested") {
+      return { ok: false, message: `Ignored event ${eventName}` };
+    }
+    // Self-serve Re-run: only our own check name. Runs from other apps
+    // (different check names) are ignored — re-running those would enqueue
+    // scans for signals we never posted.
+    if (runPayload.check_run?.name !== CHECK_RUN_NAME) {
+      return { ok: false, message: `Ignored event ${eventName}` };
+    }
+    const headSha = runPayload.check_run?.head_sha;
+    if (!isValidHexSha(headSha)) {
+      return { ok: false, message: "Ignored check_run without a valid head SHA" };
+    }
+    return {
+      ok: true,
+      event: { kind: "check_run_rerequest", payload: payload as CheckRunPayload, headSha },
     };
   }
   return { ok: false, message: `Ignored event ${eventName}` };
@@ -139,6 +171,9 @@ function checkoutRef(event: HandledWebhookEvent): string | undefined {
     return typeof after === "string" && /^[0-9a-f]{40}$/i.test(after)
       ? after
       : undefined;
+  }
+  if (event.kind === "check_run_rerequest") {
+    return event.headSha;
   }
   const sha = event.payload.pull_request?.head?.sha;
   return typeof sha === "string" && /^[0-9a-f]{40}$/i.test(sha)
@@ -260,20 +295,63 @@ export async function handleGitHubWebhookEvent(
     };
   }
   const pullRequestHeadSha =
-    parsed.event.kind === "pull_request" ? ref : undefined;
+    parsed.event.kind === "pull_request" ||
+    parsed.event.kind === "check_run_rerequest"
+      ? ref
+      : undefined;
   const job = await enqueueAssessmentJob({
     projectId: project.id,
     trigger: "webhook",
     idempotencyKey: deliveryId,
     payload: {
       ref,
-      eventName: parsed.event.kind,
+      // The job-payload schema (`src/core/assessment/assessment-jobs.ts`)
+      // only knows push/pull_request: a check-run re-request is a PR preview
+      // re-run, so it enqueues as pull_request (preview semantics preserved
+      // via pullRequestHeadSha; no src/core change needed).
+      eventName:
+        parsed.event.kind === "push" ? "push" : "pull_request",
       pullRequestHeadSha,
     },
   });
+  if (pullRequestHeadSha) {
+    // Progress signal: move the PR Check to `queued` now (the worker moves
+    // it to `in_progress` on claim). Fire-and-forget — warn-only, never
+    // delays or fails the delivery response.
+    void fireQueuedPreviewCheck(project.id, job.id, pullRequestHeadSha);
+  }
   return {
     handled: true,
     message: `Queued re-assessment of ${fullName}.`,
     jobId: job.id,
   };
+}
+
+/**
+ * Best-effort `queued` Check post for a PR preview enqueue. Loads the full
+ * project (the webhook row is a slim id/org/branch tuple) and delegates to
+ * the warn-never-throw connector — a GitHub outage must not fail deliveries.
+ */
+async function fireQueuedPreviewCheck(
+  projectId: string,
+  jobId: string,
+  headSha: string,
+): Promise<void> {
+  try {
+    const drizzle = await getDrizzle();
+    const full = await getProjectById(drizzle, projectId);
+    if (!full?.github?.fullName) return;
+    await postQueuedCheckRunForPreview({
+      project: full,
+      jobId,
+      headSha,
+    });
+  } catch (error) {
+    reportWarning("Pull-request queued Check Run could not be posted.", {
+      code: "github_check_run_failed",
+      projectId,
+      jobId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }

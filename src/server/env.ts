@@ -52,6 +52,16 @@ export function aiGatewayApiKey(): string | undefined {
   return trimmed("AI_GATEWAY_API_KEY");
 }
 
+/**
+ * Vercel AI Gateway model id (`provider/model`). Overridable per deploy;
+ * defaults to the free-tier model. `src/ai` reads `process.env.AI_MODEL`
+ * directly (it must stay free of `@/server/*` imports) — this getter is the
+ * server-side accessor for the same var.
+ */
+export function aiModel(): string {
+  return trimmed("AI_MODEL") ?? "poolside/laguna-s-2.1-free";
+}
+
 /** Support email shown on the org page (null when unconfigured). */
 export function supportEmail(): string | null {
   return trimmed("COMPLYLOOP_SUPPORT_EMAIL") ?? null;

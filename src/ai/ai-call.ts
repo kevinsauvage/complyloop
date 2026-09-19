@@ -26,8 +26,19 @@ export interface AiErrorReport {
  */
 export type AiCallOnError = (error: unknown, report: AiErrorReport) => void;
 
-/** Vercel AI Gateway model id (`provider/model`). */
+/** Default Vercel AI Gateway model id (`provider/model`). */
 export const AI_MODEL = "poolside/laguna-s-2.1-free";
+
+/**
+ * Resolved gateway model id. Overridable via the `AI_MODEL` env var so
+ * production can upgrade off the free-tier default without a code change.
+ * Reads `process.env` directly (not via `@/server/env`): `src/ai` must stay
+ * importable without `@/server/*` (client-bundle/edge boundary, ESLint) —
+ * same precedent as `aiAvailable()`.
+ */
+export function resolveAiModel(): string {
+  return process.env.AI_MODEL?.trim() || AI_MODEL;
+}
 
 /** True when AI gateway credentials are configured. */
 export function aiAvailable(): boolean {
@@ -123,7 +134,7 @@ export async function aiCall<TSchema extends z.ZodType>(
   };
   try {
     const { object } = await generateObject({
-      model: AI_MODEL,
+      model: resolveAiModel(),
       schema: input.schema,
       prompt,
     });
@@ -172,7 +183,7 @@ async function generateTextFallback<TSchema extends z.ZodType>(
 ): Promise<z.infer<TSchema>> {
   const keys = schemaKeys(input.schema);
   const { text } = await generateText({
-    model: AI_MODEL,
+    model: resolveAiModel(),
     prompt: [
       prompt,
       "Respond with ONLY a JSON object (no prose, no code fences).",

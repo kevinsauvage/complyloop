@@ -6,12 +6,12 @@ import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type { Confidence } from "@complyloop/analysis-core/contract/statuses";
 
 import {
-  AI_MODEL,
   aiAvailable,
   aiCall,
   type AiCallOnError,
   confidenceSchema,
   findingPromptContext,
+  resolveAiModel,
 } from "./ai-call";
 
 const remediationSchema = z.object({
@@ -64,7 +64,7 @@ export async function generateAiRemediation(
       proposedSnippet: object.proposedSnippet,
       provenance: "ai",
       confidence,
-      model: AI_MODEL,
+      model: resolveAiModel(),
       generatedAt: new Date().toISOString(),
     },
     attributeValue: object.attributeValue?.trim() || undefined,

@@ -6,10 +6,10 @@ import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 import {
-  AI_MODEL,
   AI_PATCH_UNAVAILABLE_MESSAGE,
   aiCall,
   type AiCallOnError,
+  resolveAiModel,
 } from "./ai-call";
 import {
   assertSingleFileEdits,
@@ -150,7 +150,7 @@ export async function proposeFixEdits(
   return {
     description: object.description,
     provenance: "ai",
-    model: AI_MODEL,
+    model: resolveAiModel(),
     edits: object.edits,
   };
 }

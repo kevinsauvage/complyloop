@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   aiGatewayApiKey,
+  aiModel,
   appUrl,
   assessmentCheckoutQuota,
   e2eAuthEnabled,
@@ -41,8 +42,7 @@ describe("server env", () => {
     expect(quota.scanTimeoutMs).toBe(30_000);
   });
 
-  it("reads support email, app URL fallbacks, and node env", () => {
-    vi.stubEnv("COMPLYLOOP_SUPPORT_EMAIL", "  support@example.com  ");
+  it("reads support email, app URL fallbacks, and node env", () => {    vi.stubEnv("COMPLYLOOP_SUPPORT_EMAIL", "  support@example.com  ");
     expect(supportEmail()).toBe("support@example.com");
     vi.stubEnv("COMPLYLOOP_SUPPORT_EMAIL", "");
     expect(supportEmail()).toBeNull();
@@ -56,5 +56,12 @@ describe("server env", () => {
     expect(appUrl()).toBeUndefined();
 
     expect(nodeEnv()).toBe("test");
+  });
+
+  it("defaults the AI model and allows an env override", () => {
+    vi.stubEnv("AI_MODEL", "");
+    expect(aiModel()).toBe("poolside/laguna-s-2.1-free");
+    vi.stubEnv("AI_MODEL", "acme/pro-model");
+    expect(aiModel()).toBe("acme/pro-model");
   });
 });

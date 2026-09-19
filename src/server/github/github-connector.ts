@@ -31,16 +31,21 @@ import type {
   Control,
   Project,
 } from "@complyloop/analysis-core/contract/project-types";
+import type { Severity } from "@complyloop/analysis-core/contract/statuses";
 
 import type { PatchCandidate } from "@/ai/verified-fix";
 
+import { appUrl } from "../env";
 import { reportWarning } from "../observability";
 import { fetchGitHubRepo, resolveProjectGitHubToken } from "./github-access";
 import { githubAppInstallUrl, listReposViaInstallations } from "./github-app";
 import {
+  CHECK_RUN_NAME,
   postPullRequestCheckRun,
   summarizeAssessmentFailureForCheckRun,
   summarizeAssessmentForCheckRun,
+  summarizeInProgressCheckRun,
+  summarizeQueuedCheckRun,
 } from "./github-checks";
 import type { GitHubRepoSummary } from "./github-types";
 import { preparePullRequest, type PullRequestResult } from "./pr";
@@ -89,6 +94,21 @@ export function createProjectPullRequest(
 }
 
 /**
+ * Deep link for the Check Run `details_url`: project compliance page when the
+ * app URL is configured, otherwise undefined (Checks API omits it).
+ */
+export function assessmentDetailsUrl(
+  projectId: string,
+  assessmentId: string,
+): string | undefined {
+  const base = appUrl()?.replace(/\/$/, "");
+  if (!base) return undefined;
+  return `${base}/projects/${projectId}/assessments/${assessmentId}`;
+}
+
+export { CHECK_RUN_NAME };
+
+/**
  * Shared Check Run post: resolves the project token internally and warns
  * (never throws) when posting is impossible, so the worker stays on its
  * load → run → apply shape.
@@ -97,9 +117,13 @@ async function postCheckRunSafely(input: {
   project: Project;
   jobId: string;
   headSha: string;
-  conclusion: "success" | "failure" | "neutral";
+  status?: "queued" | "in_progress" | "completed";
+  conclusion?: "success" | "failure" | "neutral";
   title: string;
   summary: string;
+  detailsUrl?: string;
+  startedAt?: string;
+  completedAt?: string;
 }): Promise<void> {
   const { project, jobId, headSha } = input;
   try {
@@ -119,9 +143,14 @@ async function postCheckRunSafely(input: {
       fullName: project.github.fullName,
       headSha,
       token,
+      status: input.status ?? "completed",
       conclusion: input.conclusion,
       title: input.title,
       summary: input.summary,
+      detailsUrl: input.detailsUrl,
+      externalId: jobId,
+      startedAt: input.startedAt,
+      completedAt: input.completedAt,
     });
     if (!posted.ok) {
       reportWarning("Pull-request Check Run could not be posted.", {
@@ -146,6 +175,46 @@ async function postCheckRunSafely(input: {
 }
 
 /**
+ * Post the `queued` Check Run on a PR head commit. Fire-and-forget from the
+ * webhook enqueue path — never throws.
+ */
+export async function postQueuedCheckRunForPreview(input: {
+  project: Project;
+  jobId: string;
+  headSha: string;
+  startedAt?: string;
+}): Promise<void> {
+  await postCheckRunSafely({
+    project: input.project,
+    jobId: input.jobId,
+    headSha: input.headSha,
+    status: "queued",
+    startedAt: input.startedAt,
+    ...summarizeQueuedCheckRun(input.jobId),
+  });
+}
+
+/**
+ * Post the `in_progress` Check Run when the worker claims a PR preview job.
+ * Never throws.
+ */
+export async function postInProgressCheckRunForPreview(input: {
+  project: Project;
+  jobId: string;
+  headSha: string;
+  startedAt?: string;
+}): Promise<void> {
+  await postCheckRunSafely({
+    project: input.project,
+    jobId: input.jobId,
+    headSha: input.headSha,
+    status: "in_progress",
+    startedAt: input.startedAt,
+    ...summarizeInProgressCheckRun(input.jobId),
+  });
+}
+
+/**
  * Post the assessment Check Run on a PR head commit. Resolves the project
  * token internally and warns (never throws) when posting is impossible, so
  * the worker stays on its load → run → apply shape.
@@ -157,15 +226,23 @@ export async function postAssessmentCheckRun(input: {
   openViolations: number;
   failedRequirements: number;
   assessmentId: string;
+  severity?: Partial<Record<Severity, number>>;
+  startedAt?: string;
+  completedAt?: string;
 }): Promise<void> {
   await postCheckRunSafely({
     project: input.project,
     jobId: input.jobId,
     headSha: input.headSha,
+    status: "completed",
+    detailsUrl: assessmentDetailsUrl(input.project.id, input.assessmentId),
+    startedAt: input.startedAt,
+    completedAt: input.completedAt,
     ...summarizeAssessmentForCheckRun({
       openViolations: input.openViolations,
       failedRequirements: input.failedRequirements,
       assessmentId: input.assessmentId,
+      severity: input.severity,
     }),
   });
 }
