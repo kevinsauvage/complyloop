@@ -6,6 +6,7 @@ import type {
 } from "@complyloop/analysis-core/contract/project-types";
 
 import type { DrizzleDb } from "../postgres.ts";
+import { orgWriteLockKey, withNamedPostgresAdvisoryLock } from "../postgres.ts";
 import { memberships, organizations } from "../schema.ts";
 import { membershipToRow, organizationToRow } from "./mappers.ts";
 
@@ -113,6 +114,35 @@ export async function upsertMembership(
   tx: DrizzleDb,
   membership: OrgMembership,
 ): Promise<void> {
+  try {
+    await upsertMembershipById(tx, membership);
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error;
+    // Cross-user concurrent writes for one login (parallel invites, or an
+    // invite racing a sign-in claim) use different ids, so the id arbiter
+    // misses and Postgres rejects the second writer (23505 on the real
+    // unique keys). Converge onto the winning row instead of 500ing: role
+    // follows the incoming write (same as a sequential double-invite), and
+    // a claimed userId is never cleared by an invite.
+    const winner = await findMembershipByOrgLogin(
+      tx,
+      membership.orgId,
+      membership.githubLogin,
+    );
+    if (!winner || winner.id === membership.id) throw error;
+    await upsertMembershipById(tx, {
+      ...winner,
+      role: membership.role,
+      userId: membership.userId ?? winner.userId,
+      githubLogin: membership.githubLogin,
+    });
+  }
+}
+
+async function upsertMembershipById(
+  tx: DrizzleDb,
+  membership: OrgMembership,
+): Promise<void> {
   await tx
     .insert(memberships)
     .values(membershipToRow(membership))
@@ -126,6 +156,40 @@ export async function upsertMembership(
         payload: sql`excluded.payload`,
       },
     });
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  // postgres.js throws raw errors with `.code`; the drizzle query builder
+  // wraps them (code moves to `.cause`), so check both shapes.
+  if (typeof error !== "object" || error === null) return false;
+  if ("code" in error && error.code === "23505") return true;
+  const cause = "cause" in error ? error.cause : undefined;
+  return (
+    typeof cause === "object" &&
+    cause !== null &&
+    "code" in cause &&
+    cause.code === "23505"
+  );
+}
+
+async function findMembershipByOrgLogin(
+  tx: DrizzleDb,
+  orgId: string,
+  githubLogin: string,
+): Promise<OrgMembership | undefined> {
+  const login = githubLogin.trim().toLowerCase();
+  if (!login) return undefined;
+  const rows = await tx
+    .select()
+    .from(memberships)
+    .where(
+      and(
+        eq(memberships.orgId, orgId),
+        sql`lower(${memberships.githubLogin}) = ${login}`,
+      ),
+    )
+    .limit(1);
+  return rows[0]?.payload;
 }
 
 export async function deleteMembership(
@@ -237,43 +301,52 @@ async function userOwnsOrg(
  * Sign-in provisioning in one place: claim invite rows for this GitHub login,
  * then create a personal org + owner membership when the user does not already
  * own one. Early-returns when already provisioned (steady state).
+ *
+ * The whole body runs under the user's org-write advisory lock: without it,
+ * concurrent first sign-ins both pass the ownership check and insert
+ * duplicate personal orgs. Same key family as `withOrgWrite`, so provisioning
+ * serializes against org mutations for that user.
  */
 export async function provisionPersonalOrg(
   drizzle: DrizzleDb,
   userId: string,
   githubLogin: string,
 ): Promise<{ created: boolean }> {
-  if (await isPersonalOrgProvisioned(drizzle, userId, githubLogin)) {
-    return { created: false };
-  }
+  return withNamedPostgresAdvisoryLock(
+    drizzle,
+    orgWriteLockKey(userId),
+    async (tx) => {
+      if (await isPersonalOrgProvisioned(tx, userId, githubLogin)) {
+        return { created: false };
+      }
 
-  await claimMembershipsForLogin(drizzle, userId, githubLogin);
+      await claimMembershipsForLogin(tx, userId, githubLogin);
 
-  if (await userOwnsOrg(drizzle, userId)) {
-    return { created: false };
-  }
+      if (await userOwnsOrg(tx, userId)) {
+        return { created: false };
+      }
 
-  const label = githubLogin.trim() || userId.slice(0, 8);
-  const slug = await allocateOrgSlug(drizzle, slugifyOrgName(label));
-  const now = new Date().toISOString();
-  const org: Organization = {
-    id: crypto.randomUUID(),
-    name: `${label}'s workspace`,
-    slug,
-    createdAt: now,
-  };
-  const membership: OrgMembership = {
-    id: crypto.randomUUID(),
-    orgId: org.id,
-    role: "owner",
-    userId,
-    githubLogin: label,
-    createdAt: now,
-  };
+      const label = githubLogin.trim() || userId.slice(0, 8);
+      const slug = await allocateOrgSlug(tx, slugifyOrgName(label));
+      const now = new Date().toISOString();
+      const org: Organization = {
+        id: crypto.randomUUID(),
+        name: `${label}'s workspace`,
+        slug,
+        createdAt: now,
+      };
+      const membership: OrgMembership = {
+        id: crypto.randomUUID(),
+        orgId: org.id,
+        role: "owner",
+        userId,
+        githubLogin: label,
+        createdAt: now,
+      };
 
-  await drizzle.transaction(async (tx) => {
-    await insertOrganization(tx, org);
-    await insertMembership(tx, membership);
-  });
-  return { created: true };
+      await insertOrganization(tx, org);
+      await insertMembership(tx, membership);
+      return { created: true };
+    },
+  );
 }

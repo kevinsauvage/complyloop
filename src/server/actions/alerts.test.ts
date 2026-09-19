@@ -13,7 +13,7 @@ import { testProject } from "@/test-fixtures/project";
 import { markAlertReadAction } from "./alerts";
 
 const { withProjectLock, getWorkspace } = actionWorkspaceMocks;
-const markAlertRead = vi.hoisted(() => vi.fn());
+const markAlertReadById = vi.hoisted(() => vi.fn());
 const getAlertById = vi.hoisted(() => vi.fn());
 const getProjectById = vi.hoisted(() => vi.fn());
 const listMembershipsForOrgs = vi.hoisted(() => vi.fn());
@@ -24,7 +24,7 @@ vi.mock("@complyloop/db/postgres", () => ({
 }));
 
 vi.mock("@complyloop/db/repo/alerts", () => ({
-  markAlertRead: (...args: unknown[]) => markAlertRead(...args),
+  markAlertReadById: (...args: unknown[]) => markAlertReadById(...args),
   getAlertById: (...args: unknown[]) => getAlertById(...args),
 }));
 
@@ -67,16 +67,33 @@ describe("markAlertReadAction", () => {
       testMembership("member", { orgId: project.orgId, userId: "user-1" }),
     ]);
     withProjectLock.mockImplementation(async (_id, fn) => fn({}));
+    markAlertReadById.mockResolvedValue(true);
     const form = new FormData();
     form.set("alertId", "alert-1");
 
     const result = await markAlertReadAction(initialActionState, form);
     expect(result.message).toBe("Alert marked as read.");
-    expect(markAlertRead).toHaveBeenCalledWith(
+    expect(markAlertReadById).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ id: "alert-1", read: false }),
+      "alert-1",
     );
     expect(getWorkspace).not.toHaveBeenCalled();
+  });
+
+  it("reports an unknown alert when the row is gone inside the lock", async () => {
+    signIn();
+    getAlertById.mockResolvedValue(alert);
+    getProjectById.mockResolvedValue(project);
+    listMembershipsForOrgs.mockResolvedValue([
+      testMembership("member", { orgId: project.orgId, userId: "user-1" }),
+    ]);
+    withProjectLock.mockImplementation(async (_id, fn) => fn({}));
+    markAlertReadById.mockResolvedValue(false);
+    const form = new FormData();
+    form.set("alertId", "alert-1");
+
+    const result = await markAlertReadAction(initialActionState, form);
+    expect(result.ok ? null : result.message).toMatch(/Unknown alert/);
   });
 
   it("rejects a viewer without membership in the alert's org", async () => {
@@ -89,7 +106,7 @@ describe("markAlertReadAction", () => {
 
     const result = await markAlertReadAction(initialActionState, form);
     expect(result.ok ? null : result.message).toMatch(/Not allowed/);
-    expect(markAlertRead).not.toHaveBeenCalled();
+    expect(markAlertReadById).not.toHaveBeenCalled();
   });
 
   it("rejects an unknown alert id", async () => {

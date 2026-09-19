@@ -41,12 +41,28 @@ export async function listAlertsForProjects(
   return rows.map((row) => row.payload);
 }
 
-export async function markAlertRead(
+/**
+ * Marks one alert read by id, re-reading inside the caller's project lock.
+ * The permission check (`requireAlertAccess`) loads the alert *before* the
+ * lock, so merging `read` onto that object would upsert a stale payload and
+ * discard a concurrent assessment's refreshed alert. Returns false when the
+ * row is gone (concurrently deleted) instead of inventing it.
+ */
+export async function markAlertReadById(
   tx: DrizzleDb,
-  alert: Alert,
-): Promise<void> {
-  const updated = { ...alert, read: true };
-  await upsertAlerts(tx, [updated]);
+  alertId: string,
+): Promise<boolean> {
+  const rows = await tx
+    .select({ payload: alerts.payload })
+    .from(alerts)
+    .where(eq(alerts.id, alertId))
+    .limit(1)
+    .for("update");
+  const fresh = rows[0]?.payload;
+  if (!fresh) return false;
+  if (fresh.read) return true;
+  await upsertAlerts(tx, [{ ...fresh, read: true }]);
+  return true;
 }
 
 export async function markAllProjectAlertsRead(

@@ -4,7 +4,7 @@ Audit of the actual code (not docs). Ordered by value; grouped so related root c
 
 ## P2 — Medium
 
-### [ ] Fix concurrency data-integrity bugs in alerts, memberships, and org provisioning
+### [x] Fix concurrency data-integrity bugs in alerts, memberships, and org provisioning
 
 **Why:** `markAlertReadAction` reads the alert outside the project lock and upserts the whole stale payload under it, discarding a concurrent assessment's refreshed alert (`actions/alerts.ts:35-42`, `repo/alerts.ts:44-85`). `upsertMembership` conflicts on `id` rather than the real unique keys `(org_id,user_id)` / `(org_id, lower(login))`, so duplicate invites throw `23505` instead of converging (`repo/orgs.ts:112-129`). Personal-org provisioning is a check-then-insert race with no lock (`repo/orgs.ts:241-278`).
 

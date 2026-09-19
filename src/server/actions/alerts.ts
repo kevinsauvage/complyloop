@@ -2,9 +2,10 @@
 
 import { z } from "zod";
 
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   listAlertsForProject,
-  markAlertRead,
+  markAlertReadById,
   markAllProjectAlertsRead,
 } from "@complyloop/db/repo/alerts";
 
@@ -31,15 +32,15 @@ export async function markAlertReadAction(
     const { alertId } = parseForm(markAlertReadInput, formData);
 
     // Single-row touch: permission-scoped alert load (no full workspace
-    // load), then the mutation under the project write lock.
-    const { alert, project } = await requireAlertAccess(
-      alertId,
-      "project.view",
-    );
+    // load), then the mutation under the project write lock. The mark
+    // re-reads inside the lock so a concurrent assessment refresh cannot be
+    // discarded by a stale payload.
+    const { project } = await requireAlertAccess(alertId, "project.view");
 
-    await withProjectLock(project.id, async (tx) => {
-      await markAlertRead(tx, alert);
+    const marked = await withProjectLock(project.id, async (tx) => {
+      return markAlertReadById(tx, alertId);
     });
+    if (!marked) throw new PublicError("Unknown alert.");
     refresh("/dashboard");
     return "Alert marked as read.";
   });

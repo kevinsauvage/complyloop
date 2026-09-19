@@ -4,7 +4,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import type { Alert } from "@complyloop/analysis-core/contract/entities";
 
 import { closeDrizzle, type DrizzleDb, getDrizzle } from "./postgres";
-import { upsertAlerts } from "./repo/alerts";
+import { markAlertReadById, upsertAlerts } from "./repo/alerts";
 
 /** Opt-in: needs a migrated Postgres (`DATABASE_URL`). Skipped in the default CI quality job. */
 const enabled = Boolean(process.env.DATABASE_URL?.trim());
@@ -61,6 +61,59 @@ describe.skipIf(!enabled)("alert upserts", () => {
       await drizzle.execute(sql`DELETE FROM projects WHERE id = ${projectId}`);
       await drizzle.execute(sql`DELETE FROM organizations WHERE id = ${orgId}`);
     }
+  });
+
+  it("marks read from the fresh row instead of a stale payload", async () => {
+    const drizzle = await getDrizzle();
+    const suffix = `${Date.now()}-fresh`;
+    const { orgId, projectId, controlId } = await insertAlertFixture(
+      drizzle,
+      suffix,
+    );
+
+    try {
+      const alertId = `alert-${suffix}`;
+      const base: Alert = {
+        id: alertId,
+        projectId,
+        kind: "compliance_regression",
+        summary: "first",
+        at: "2026-01-01T00:00:00.000Z",
+        read: false,
+        detail: { controlId },
+      };
+      await upsertAlerts(drizzle, [base]);
+      // Concurrent assessment refresh between the permission check and the
+      // mark must survive: the mark re-reads inside the lock.
+      await upsertAlerts(drizzle, [{ ...base, summary: "refreshed" }]);
+
+      await drizzle.transaction(async (tx) => {
+        expect(await markAlertReadById(tx, alertId)).toBe(true);
+      });
+
+      const rows = await drizzle.execute(sql`
+        SELECT read, payload FROM alerts WHERE id = ${alertId}
+      `);
+      expect(rows.length).toBe(1);
+      const row = rows[0] as { read: boolean; payload: Alert };
+      expect(row.read).toBe(true);
+      expect(row.payload.summary).toBe("refreshed");
+      expect(row.payload.read).toBe(true);
+    } finally {
+      await drizzle.execute(sql`DELETE FROM projects WHERE id = ${projectId}`);
+      await drizzle.execute(sql`DELETE FROM organizations WHERE id = ${orgId}`);
+    }
+  });
+
+  it("returns false for a missing alert instead of inventing it", async () => {
+    const drizzle = await getDrizzle();
+    await drizzle.transaction(async (tx) => {
+      expect(await markAlertReadById(tx, "alert-missing")).toBe(false);
+    });
+    const rows = await drizzle.execute(sql`
+      SELECT id FROM alerts WHERE id = 'alert-missing'
+    `);
+    expect(rows.length).toBe(0);
   });
 });
 
