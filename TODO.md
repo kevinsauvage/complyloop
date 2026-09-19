@@ -14,7 +14,7 @@ Audit of the actual code (not docs). Ordered by value; grouped so related root c
 
 **Impact:** Medium — silent data loss and sign-in/write failures under concurrency.
 
-### [ ] UI simplification pass
+### [x] UI simplification pass
 
 **Why:** The same evidence-timeline markup is hand-built three times (`findings/[id]/page.tsx:155-213`, `remediation-history.tsx:100-135`), tone/color maps are re-derived outside the canonical `@/core/display` table in 4+ places, every status badge mounts a Radix tooltip that only works on hover, and confirmed dead exports remain (`EngineBadge`, `projectDescription`, `parseUnknown`). History tabs ship the full client bulk-selection component with `canRemediate={false}`.
 

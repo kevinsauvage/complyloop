@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import type { EvidenceRecord } from "@complyloop/analysis-core/contract/entities";
 import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 
 import {
@@ -12,6 +13,7 @@ import {
   SeverityBadge,
 } from "@/components/primitives/badges";
 import { CopyButton } from "@/components/primitives/copy-button";
+import { EvidenceTimeline } from "@/components/primitives/evidence-timeline";
 import { FormattedDateTime } from "@/components/primitives/formatted-datetime";
 import {
   EmptyState,
@@ -27,7 +29,6 @@ import {
   evidenceDisplay,
 } from "@/core/display";
 import { findingsListHref } from "@/core/filter-params";
-import { cn } from "@/lib/utils";
 import { displayControl } from "@/server/reporting/report";
 import { loadFindingDetailView } from "@/server/workspace/finding-detail-view";
 import { isProjectVisible } from "@/server/workspace/project-visibility";
@@ -38,6 +39,27 @@ import { FindingNextStepPanel } from "../_components/finding-next-step-panel";
 import { FindingQueueNav } from "../_components/finding-queue-nav";
 import { FindingUnderstandCard } from "../_components/finding-understand-card";
 import { RemediationHistory } from "../_components/remediation-history";
+
+function evidenceTimelineItem(record: EvidenceRecord, isLatest: boolean) {
+  return {
+    id: record.id,
+    isLatest,
+    badge: (
+      <Badge variant="secondary">
+        {evidenceDisplay(record.kind, record.detail).label}
+      </Badge>
+    ),
+    date: (
+      <FormattedDateTime
+        iso={record.at}
+        className="text-xs text-muted-foreground"
+      />
+    ),
+    children: (
+      <p className="mt-1.5 text-sm text-muted-foreground">{record.summary}</p>
+    ),
+  };
+}
 
 export default async function FindingPage({
   params,
@@ -156,63 +178,27 @@ export default async function FindingPage({
           ) : (
             <div className="surface-panel rounded-xl p-4">
               <p className="mb-3 text-xs text-muted-foreground">Newest first</p>
-              <ol className="relative flex flex-col gap-0 border-l border-border/70 pl-4">
-                {evidence.slice(0, 5).map((record, index) => (
-                  <li key={record.id} className="relative pb-4 last:pb-0">
-                    <span
-                      className={cn(
-                        "absolute top-1.5 -left-[1.28125rem] size-2.5 rounded-full ring-4 ring-background",
-                        index === 0 ? "bg-signal" : "bg-muted-foreground/40",
-                      )}
-                      aria-hidden
-                    />
-                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                      <Badge variant="secondary">
-                        {evidenceDisplay(record.kind, record.detail).label}
-                      </Badge>
-                      {index === 0 ? (
-                        <span className="rounded-full border border-signal/40 px-1.5 py-px text-xs font-semibold text-signal">
-                          Latest
-                        </span>
-                      ) : null}
-                      <FormattedDateTime
-                        iso={record.at}
-                        className="text-xs text-muted-foreground"
-                      />
-                    </div>
-                    <p className="mt-1.5 text-sm text-muted-foreground">
-                      {record.summary}
-                    </p>
-                  </li>
-                ))}
-              </ol>
+              <EvidenceTimeline
+                label="Evidence trail"
+                items={evidence
+                  .slice(0, 5)
+                  .map((record, index) =>
+                    evidenceTimelineItem(record, index === 0),
+                  )}
+              />
               {evidence.length > 5 ? (
                 <details className="mt-3 border-t border-border/60 pt-3">
                   <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
                     Show all {evidence.length} ({evidence.length} total)
                   </summary>
-                  <ol className="relative mt-3 flex flex-col gap-0 border-l border-border/70 pl-4">
-                    {evidence.slice(5).map((record) => (
-                      <li key={record.id} className="relative pb-4 last:pb-0">
-                        <span
-                          className="absolute top-1.5 -left-[1.28125rem] size-2.5 rounded-full bg-muted-foreground/40 ring-4 ring-background"
-                          aria-hidden
-                        />
-                        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                          <Badge variant="secondary">
-                            {evidenceDisplay(record.kind, record.detail).label}
-                          </Badge>
-                          <FormattedDateTime
-                            iso={record.at}
-                            className="text-xs text-muted-foreground"
-                          />
-                        </div>
-                        <p className="mt-1.5 text-sm text-muted-foreground">
-                          {record.summary}
-                        </p>
-                      </li>
-                    ))}
-                  </ol>
+                  <div className="mt-3">
+                    <EvidenceTimeline
+                      label="All evidence"
+                      items={evidence
+                        .slice(5)
+                        .map((record) => evidenceTimelineItem(record, false))}
+                    />
+                  </div>
                 </details>
               ) : null}
             </div>

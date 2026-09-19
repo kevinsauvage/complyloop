@@ -5,9 +5,9 @@ import type {
 import type { RemediationStatus } from "@complyloop/analysis-core/contract/statuses";
 
 import { RemediationStatusBadge } from "@/components/primitives/badges";
+import { EvidenceTimeline } from "@/components/primitives/evidence-timeline";
 import { FormattedDateTime } from "@/components/primitives/formatted-datetime";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 
 type HistoryEntry = {
   status: RemediationStatus;
@@ -97,42 +97,24 @@ export function RemediationHistory({
             </span>
           </div>
         ) : (
-          <ol
-            className="relative flex flex-col gap-0 border-l border-border/70 pl-4"
-            aria-label="Remediation history timeline"
-          >
-            {history.map((entry, index) => (
-              <li
-                key={`${entry.at}-${index}`}
-                className="relative pb-4 last:pb-0"
-              >
-                <span
-                  aria-hidden
-                  className={cn(
-                    "absolute top-1.5 -left-[1.28125rem] size-2.5 rounded-full ring-4 ring-background",
-                    index === 0 ? "bg-signal" : "bg-muted-foreground/40",
-                  )}
+          <EvidenceTimeline
+            label="Remediation history timeline"
+            items={history.map((entry, index) => ({
+              id: `${entry.at}-${index}`,
+              badge: <RemediationStatusBadge status={entry.status} />,
+              date: (
+                <FormattedDateTime
+                  iso={entry.at}
+                  className="text-xs text-muted-foreground"
                 />
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <RemediationStatusBadge status={entry.status} />
-                  {index === 0 ? (
-                    <span className="rounded-full border border-signal/40 px-1.5 py-px text-xs font-semibold text-signal">
-                      Latest
-                    </span>
-                  ) : null}
-                  <FormattedDateTime
-                    iso={entry.at}
-                    className="text-xs text-muted-foreground"
-                  />
-                </div>
-                {entry.note ? (
-                  <p className="mt-1.5 text-sm text-muted-foreground">
-                    {entry.note}
-                  </p>
-                ) : null}
-              </li>
-            ))}
-          </ol>
+              ),
+              children: entry.note ? (
+                <p className="mt-1.5 text-sm text-muted-foreground">
+                  {entry.note}
+                </p>
+              ) : null,
+            }))}
+          />
         )}
       </CardContent>
     </Card>
