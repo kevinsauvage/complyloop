@@ -18,7 +18,13 @@ import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
 import { getDrizzle } from "@complyloop/db/postgres";
-import { countFindingsByStatusForProject } from "@complyloop/db/repo/findings";
+import { listLatestAssessmentForProject } from "@complyloop/db/repo/assessments";
+import {
+  countFindingsByStatusForList,
+  countFindingsByStatusForProject,
+  listFindingsPageForProject,
+} from "@complyloop/db/repo/findings";
+import { listRemediationsForFindings } from "@complyloop/db/repo/remediations";
 
 import {
   type FilterFindingsContext,
@@ -71,10 +77,18 @@ const countFindingsByStatus = cache(async (projectId: string) =>
 );
 
 /**
- * Everything the findings list page renders, derived in one place: tab
- * totals (index-only count), scoped runtime rows, filter context,
- * ordered + paginated slices. Item mapping (`toFindingListItems`) stays in
- * the page next to its component imports.
+ * Everything the findings list page renders, derived in one place. Two paths:
+ *
+ * - Fast path (no free-text search): the active tab's page plus exact totals
+ *   come straight from SQL (`ORDER BY severity_rank, id`), with remediations
+ *   loaded for the page rows only. No full loads.
+ * - Fallback (free-text search matches catalog text SQL cannot see): the
+ *   bounded status-scoped load with JS filter/sort/paginate, truncation
+ *   flagged via the exact SQL counts.
+ *
+ * Both paths implement the same severity-first order, so pages never disagree.
+ * Item mapping (`toFindingListItems`) stays in the page next to its component
+ * imports.
  */
 export async function loadFindingsView(
   rawParams: Record<string, string | string[] | undefined>,
@@ -88,6 +102,11 @@ export async function loadFindingsView(
   // another status.
   const activeTab: FindingsTab = listParams.tab;
   const statusForTab: FindingStatus = activeTab;
+
+  const needsJsFiltering = Boolean(listParams.q);
+  if (!needsJsFiltering) {
+    return loadFindingsViewFast(project, caps, listParams, activeTab);
+  }
 
   // Tab totals come from an index-only count so inherited history never inflates
   // the payload. Only open findings plus the active status load in full:
@@ -167,5 +186,74 @@ export async function loadFindingsView(
     paginationQuery,
     filtersActive: hasActiveFindingFilters(listParams),
     hasAssessment,
+  };
+}
+
+/**
+ * SQL fast path: the active tab's page plus exact totals come straight from
+ * the database — no full loads. Only status/severity/control filters are
+ * SQL-expressible; free-text, remediation, and engine filters take the
+ * bounded fallback above. Remediations load for the page rows only.
+ */
+async function loadFindingsViewFast(
+  project: Project,
+  caps: ProjectCapabilities,
+  listParams: FindingListParams,
+  activeTab: FindingsTab,
+): Promise<FindingsView> {
+  const statusForTab: FindingStatus = activeTab;
+  const sqlFilters = {
+    severity: listParams.severity,
+    controlId: listParams.control,
+    engine: listParams.engine,
+    remediation: listParams.remediation,
+  };
+  const drizzle = await getDrizzle();
+  const [statusCounts, filteredCounts, page, latestAssessments] =
+    await Promise.all([
+      countFindingsByStatus(project.id),
+      countFindingsByStatusForList(drizzle, project.id, sqlFilters),
+      listFindingsPageForProject(drizzle, project.id, {
+        statuses: [statusForTab],
+        ...sqlFilters,
+        page: listParams.page,
+      }),
+      listLatestAssessmentForProject(drizzle, project.id),
+    ]);
+  const pageRemediations = await listRemediationsForFindings(
+    drizzle,
+    page.rows.map((finding) => finding.id),
+  );
+  const remediationByFindingId = new Map(
+    pageRemediations.map((remediation) => [remediation.findingId, remediation]),
+  );
+  const sliceFor = (status: FindingStatus): PageSlice<Finding> =>
+    status === statusForTab
+      ? pageSliceFromQuery<Finding>(page.rows, listParams.page, page.total)
+      : pageSliceFromQuery<Finding>(
+          [],
+          listParams.page,
+          filteredCounts[status],
+        );
+  return {
+    project,
+    caps,
+    listParams,
+    activeTab,
+    statusCounts,
+    totalFindings:
+      statusCounts.open + statusCounts.resolved + statusCounts.dismissed,
+    findingsTruncated: false,
+    openSlice: sliceFor("open"),
+    resolvedSlice: sliceFor("resolved"),
+    dismissedSlice: sliceFor("dismissed"),
+    findings: [],
+    controls: shippedCatalog().controls,
+    remediationByFindingId,
+    paginationQuery: findingListPaginationQuery(listParams),
+    filtersActive: hasActiveFindingFilters(listParams),
+    hasAssessment: latestAssessments.some(
+      (assessment) => assessment.projectId === project.id,
+    ),
   };
 }

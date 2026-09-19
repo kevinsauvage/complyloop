@@ -7,6 +7,10 @@ import type {
   Remediation,
   Requirement,
 } from "@complyloop/analysis-core/contract/entities";
+import {
+  type AssessmentEngine,
+  engineFor,
+} from "@complyloop/analysis-core/contract/finding-types";
 import type {
   Organization,
   OrgMembership,
@@ -90,7 +94,21 @@ export function findingToRow(finding: Finding) {
     // Unknown severities sort last (same as `minor`); core `severityRank`
     // throws on them, but the write path must never fail on a projection.
     severityRank: SEVERITY_RANK[finding.severity] ?? 3,
+    engine: engineForRow(finding),
   });
+}
+
+/**
+ * Engine bucket projection (`engineFor` over the payload analyzer). Unknown
+ * legacy analyzers fall back to `ast` (same default as a missing analyzer);
+ * core throws on them, but the write path must never fail on a projection.
+ */
+function engineForRow(finding: Finding): AssessmentEngine {
+  try {
+    return engineFor(finding);
+  } catch {
+    return "ast";
+  }
 }
 
 export function remediationToRow(remediation: Remediation) {

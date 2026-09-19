@@ -66,6 +66,23 @@ export async function listRemediationsForProjects(
   return rows.map((row) => row.payload);
 }
 
+/**
+ * Remediations for exactly the findings on a rendered page (the findings-list
+ * fast path): one small IN query instead of the whole project map, so the
+ * page never loads remediation history it does not render.
+ */
+export async function listRemediationsForFindings(
+  drizzle: DrizzleDb,
+  findingIds: readonly string[],
+): Promise<Remediation[]> {
+  if (findingIds.length === 0) return [];
+  const rows = await drizzle
+    .select({ payload: remediations.payload })
+    .from(remediations)
+    .where(inArray(remediations.findingId, [...findingIds]));
+  return rows.map((row) => row.payload);
+}
+
 export async function upsertRemediations(
   tx: DrizzleDb,
   items: ReadonlyArray<Remediation>,

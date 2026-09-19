@@ -195,6 +195,12 @@ export const findings = pgTable(
       .references(() => assessments.id, { onDelete: "cascade" }),
     status: text("status").notNull(),
     /**
+     * Denormalized engine bucket (`ast`/`runtime`, derived from `analyzerId`
+     * via `engineFor` at write time) so list filters run in SQL. Synced from
+     * the payload by the repo mappers — the only writers.
+     */
+    engine: text("engine").notNull(),
+    /**
      * Denormalized `SEVERITY_RANK` (contract/statuses): lower sorts first.
      * Lets list loads order + cap in SQL (`ORDER BY severity_rank, id`) with
      * the same order as the JS fallback sort. Synced from the payload by the
@@ -219,6 +225,10 @@ export const findings = pgTable(
     check(
       "findings_status_check",
       sqlIn(sql`${table.status}`, FINDING_STATUSES),
+    ),
+    check(
+      "findings_engine_check",
+      sqlIn(sql`${table.engine}`, ["ast", "runtime"]),
     ),
   ],
 );

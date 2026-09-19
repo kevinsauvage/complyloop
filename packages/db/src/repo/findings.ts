@@ -1,13 +1,18 @@
-import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, type SQL, sql } from "drizzle-orm";
 
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
+import type { AssessmentEngine } from "@complyloop/analysis-core/contract/finding-types";
+import { DEFAULT_PAGE_SIZE } from "@complyloop/analysis-core/contract/project-types";
 import {
   FINDING_STATUSES,
   type FindingStatus,
+  type RemediationStatus,
+  type Severity,
+  SEVERITY_RANK,
 } from "@complyloop/analysis-core/contract/statuses";
 
 import type { DrizzleDb } from "../postgres.ts";
-import { findings } from "../schema.ts";
+import { findings, remediations } from "../schema.ts";
 import { findingToRow } from "./mappers.ts";
 import { type StaleWriteOptions, upsertPayloadRows } from "./upsert-guard.ts";
 
@@ -71,6 +76,113 @@ export async function listFindingsForProject(
     .orderBy(asc(findings.severityRank), asc(findings.id));
   const rows = limit === undefined ? await query : await query.limit(limit);
   return rows.map((row) => row.payload);
+}
+
+export interface FindingsPageFilters {
+  statuses?: readonly FindingStatus[];
+  severity?: Severity;
+  controlId?: string;
+  engine?: AssessmentEngine;
+  remediation?: RemediationStatus;
+}
+
+/** Shared WHERE clause for the paginated list and its total (must match). */
+function findingsPageWhere(
+  projectId: string,
+  filters: FindingsPageFilters = {},
+): SQL | undefined {
+  const conditions = [eq(findings.projectId, projectId)];
+  if (filters.statuses && filters.statuses.length > 0) {
+    conditions.push(inArray(findings.status, [...filters.statuses]));
+  }
+  if (filters.severity) {
+    conditions.push(eq(findings.severityRank, SEVERITY_RANK[filters.severity]));
+  }
+  if (filters.controlId) {
+    conditions.push(eq(findings.controlId, filters.controlId));
+  }
+  if (filters.engine) {
+    conditions.push(eq(findings.engine, filters.engine));
+  }
+  if (filters.remediation) {
+    // EXISTS (not a join) so duplicate remediation rows can never multiply
+    // list rows or inflate the total.
+    conditions.push(
+      sql`EXISTS (SELECT 1 FROM ${remediations} WHERE ${remediations.findingId} = ${findings.id} AND ${remediations.status} = ${filters.remediation})`,
+    );
+  }
+  return and(...conditions);
+}
+
+export interface FindingsPageOptions extends FindingsPageFilters {
+  page?: number;
+  pageSize?: number;
+}
+
+export interface FindingsPage {
+  rows: Finding[];
+  total: number;
+}
+
+/**
+ * One findings-list page with its exact total, both in SQL. Order is
+ * severity-first with id tiebreak — identical to the JS fallback sort
+ * (`compareFindingsBySeverity`), so SQL pages and JS pages never disagree.
+ * Only free-text search needs the bounded full load; every other filter is
+ * SQL-expressible.
+ */
+export async function listFindingsPageForProject(
+  drizzle: DrizzleDb,
+  projectId: string,
+  options: FindingsPageOptions = {},
+): Promise<FindingsPage> {
+  const { page = 1, pageSize = DEFAULT_PAGE_SIZE, ...filters } = options;
+  const safePage = Number.isFinite(page) && page >= 1 ? Math.floor(page) : 1;
+  const where = findingsPageWhere(projectId, filters);
+  const [countRows, rows] = await Promise.all([
+    drizzle.select({ value: count() }).from(findings).where(where),
+    drizzle
+      .select({ payload: findings.payload })
+      .from(findings)
+      .where(where)
+      .orderBy(asc(findings.severityRank), asc(findings.id))
+      .limit(pageSize)
+      .offset((safePage - 1) * pageSize),
+  ]);
+  return {
+    rows: rows.map((row) => row.payload),
+    total: Number(countRows[0]?.value ?? 0),
+  };
+}
+
+/**
+ * Per-status totals under the SQL-expressible filters (severity/control/engine/remediation).
+ * One grouped query for all tab badges, so the fast path never loads rows
+ * to count them. Unfiltered callers should keep using
+ * `countFindingsByStatusForProject`.
+ */
+export async function countFindingsByStatusForList(
+  drizzle: DrizzleDb,
+  projectId: string,
+  filters: Pick<
+    FindingsPageFilters,
+    "severity" | "controlId" | "engine" | "remediation"
+  > = {},
+): Promise<Record<FindingStatus, number>> {
+  const rows = await drizzle
+    .select({ status: findings.status, value: count() })
+    .from(findings)
+    .where(findingsPageWhere(projectId, filters))
+    .groupBy(findings.status);
+  const counts = Object.fromEntries(
+    FINDING_STATUSES.map((status) => [status, 0]),
+  ) as Record<FindingStatus, number>;
+  for (const row of rows) {
+    if ((FINDING_STATUSES as readonly string[]).includes(row.status)) {
+      counts[row.status as FindingStatus] = Number(row.value ?? 0);
+    }
+  }
+  return counts;
 }
 
 /**

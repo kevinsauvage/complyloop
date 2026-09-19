@@ -73,9 +73,11 @@ export interface Assessment {
 
 /**
  * A persisted finding: observation fields + persistence envelope
- * (id, project, control, assessment, status, lifecycle). `engine` is not
- * stored — it is derived from `analyzerId` via `engineFor` at the UI/filter
- * boundaries. `checkId` stays a plain string at the persistence boundary;
+ * (id, project, control, assessment, status, lifecycle). `engine` is derived
+ * from `analyzerId` via `engineFor`: the UI/filter boundaries call it
+ * directly, while the persistence boundary projects it onto the
+ * `findings.engine` column at write time (repo mappers) so list filters run
+ * in SQL. `checkId` stays a plain string at the persistence boundary;
  * the strict registry union lives on `RawFinding`.
  */
 export interface Finding {

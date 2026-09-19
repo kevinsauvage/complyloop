@@ -49,6 +49,7 @@ describe("repo mappers emit stable row shapes", () => {
       "assessmentId",
       "status",
       "severityRank",
+      "engine",
       "payload",
     ]);
     expect(Object.keys(remediationToRow(remediation))).toEqual([
@@ -104,6 +105,16 @@ describe("repo mappers emit stable row shapes", () => {
     expect(
       findingToRow({ severity: "unknown" } as unknown as Finding).severityRank,
     ).toBe(3);
+  });
+
+  it("projects the engine bucket from the payload analyzer", () => {
+    expect(
+      findingToRow({ analyzerId: "axe" } as unknown as Finding).engine,
+    ).toBe("runtime");
+    expect(
+      findingToRow({ analyzerId: "ast" } as unknown as Finding).engine,
+    ).toBe("ast");
+    expect(findingToRow({} as unknown as Finding).engine).toBe("ast");
   });
 
   it("assessment payload excludes the snapshot (stored separately)", () => {
