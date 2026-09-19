@@ -14,16 +14,6 @@ Audit of the actual code (not docs). Ordered by value; grouped so related root c
 
 **Impact:** Medium — silent data loss and sign-in/write failures under concurrency.
 
-### [x] UI simplification pass
-
-**Why:** The same evidence-timeline markup is hand-built three times (`findings/[id]/page.tsx:155-213`, `remediation-history.tsx:100-135`), tone/color maps are re-derived outside the canonical `@/core/display` table in 4+ places, every status badge mounts a Radix tooltip that only works on hover, and confirmed dead exports remain (`EngineBadge`, `projectDescription`, `parseUnknown`). History tabs ship the full client bulk-selection component with `canRemediate={false}`.
-
-**Where:** `src/app/(app)/findings/[id]/page.tsx`, `src/components/findings/remediation-history.tsx`, `src/components/{badges,dashboard-overview,findings-bulk-list}.tsx`, `src/core/display/`, `src/core/validate.ts`.
-
-**Change:** Extract one `EvidenceTimeline`; route all tone tints through `@/core/display`; replace per-badge tooltips with a server-friendly description; delete dead exports; render history tabs as a read-only server list.
-
-**Impact:** Medium — maintenance cost, bundle/hydration, and consistency.
-
 ### [ ] Harden public/auth edge cases and the product's own accessibility
 
 **Why:** `/login` is public and crashes with a 500 for crafted `?error=constructor` (prototype-chain lookup at `login/page.tsx:90`); the findings list tolerates orphan findings but the detail loader throws (`finding-detail-view.ts:104-107`); requirement titles are not headings and "Framework scope" is labelled four times in one subtree, which is notable for an accessibility product. Root 404 loses all product navigation.
