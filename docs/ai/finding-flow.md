@@ -19,27 +19,11 @@ stays. Everything else is secondary.
 Dismiss lives in a `<details>` inside Act. Runtime "Generate guidance"
 links to `#copy-handoff`.
 
-```
-Source, no patch     → Generate patch
-Source, patch ready  → Review → Create PR
-Source, PR open      → Open draft PR (wait for merge + re-assess)
-Source, done         → Verified
-Runtime, no fix      → Generate guidance
-Runtime, suggested   → Approve
-Runtime, approved    → Mark implemented
-Runtime, done        → Verify (audit / note)
-Dismissed            → Exception on record
-```
+## Act panel (`findingAct`)
 
-**Source:** never show Create draft PR or Generate patch for
-`location.kind === "dom"`. Path is driven by `patchReady` / `prUrl`, not
-intermediate remediation statuses. Code: `actions/ai-fix.ts`, `ai-fix.ts`,
-`verified-fix.ts`, `patch.ts`, `pr.ts`, `assessment.ts`.
-
-**Runtime:** Generate guidance → Approve → Mark implemented → Verify.
-Code: `generateAiRemediationAction`, `FindingNextStepPanel`.
-
-### Act panel (`findingAct`)
+One primary action per state. Source path is driven by `patchReady` /
+`prUrl`, not intermediate remediation statuses — never show Create draft PR
+or Generate patch for `location.kind === "dom"`.
 
 | Source state   | Primary action                                                    |
 | -------------- | ----------------------------------------------------------------- |
@@ -54,6 +38,26 @@ Code: `generateAiRemediationAction`, `FindingNextStepPanel`.
 | Suggested     | Approve           |
 | Approved      | Mark implemented  |
 | Implemented   | Verify            |
+
+Short form:
+
+```
+Source, no patch     → Generate patch
+Source, patch ready  → Review → Create PR
+Source, PR open      → Open draft PR (wait for merge + re-assess)
+Source, done         → Verified
+Runtime, no fix      → Generate guidance
+Runtime, suggested   → Approve
+Runtime, approved    → Mark implemented
+Runtime, done        → Verify (audit / note)
+Dismissed            → Exception on record
+```
+
+**Source** code: `actions/ai-fix.ts`, `ai-fix.ts`, `verified-fix.ts`,
+`patch.ts`, `pr.ts`, `assessment.ts`.
+
+**Runtime** path: Generate guidance → Approve → Mark implemented → Verify.
+Code: `generateAiRemediationAction`, `FindingNextStepPanel`.
 
 - `showHandoff` — no PR yet, finding open, suggestion or `finding.fix` exists.
 - `showDismiss` — open finding, can remediate, not verified.

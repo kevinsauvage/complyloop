@@ -1,15 +1,20 @@
 # ComplyLoop Design System
 
-> Source of truth for product UI and UX decisions. This document is
-> advisory — enforceable UI patterns live in
+> Advisory source of truth for product UI/UX decisions. Enforceable UI
+> patterns live in
 > [`.cursor/rules/ui-conventions.mdc`](../../.cursor/rules/ui-conventions.mdc)
 > and the [finding-page contract](./finding-flow.md).
-
-> Source of truth for product UI and UX decisions.
 >
-> ComplyLoop is a developer-first compliance engineering platform for continuously identifying, understanding, fixing, verifying, and evidencing accessibility issues in web applications.
+> ComplyLoop is a developer-first compliance engineering platform for
+> continuously identifying, understanding, fixing, verifying, and evidencing
+> accessibility issues in web applications.
 >
-> **Design principle:** make compliance work feel like a normal part of the software development workflow, not like an external audit.
+> **Design principle:** make compliance work feel like a normal part of the
+> software development workflow, not like an external audit.
+>
+> **How to read this doc:** §1–4 (character, principles) first; §13–19 for
+> the assessment → finding → verify → evidence flow; §44–46 as the
+> pre-ship checklist. The rest is reference.
 
 ---
 

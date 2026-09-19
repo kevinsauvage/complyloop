@@ -4,39 +4,65 @@
 [`compliance-engineering-product-spec.md`](../compliance-engineering-product-spec.md).
 **Enforceable rules:** [`.cursor/rules/`](../../.cursor/rules/).
 
+> **TL;DR** — Next.js app + Postgres. Analysis is deterministic (AST + optional
+> Playwright/axe); AI is advisory only. Assessments are durable queued jobs run
+> by a GitHub Actions worker. Evidence is append-only. Writes go through
+> `with*Write` helpers with per-project locks; actions never call `getDrizzle()`
+> directly.
+
 ## Modules
 
-| Piece    | Location                               | Role                                                                                                                                                                                                                                                                                                                                                                                               |
-| -------- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Contract | `packages/analysis-core/src/contract/` | Statuses, findings, org/project/requirement types, job enums, persisted entities (`entities.ts`: Finding, Remediation, Assessment, Evidence, Alert)                                                                                                                                                                                                                                                |
-| Analysis | `packages/analysis-core/src/`          | AST checks + optional runtime audits                                                                                                                                                                                                                                                                                                                                                               |
-| Catalog  | `packages/analysis-core/src/catalog/`  | RGAA/WCAG catalog, presets, guidance (reference data — not hexagonal ports; no app-level adapters layer)                                                                                                                                                                                                                                                                                           |
-| DB       | `packages/db/src/`                     | Drizzle schema, `repo/`, workspace-load, `WorkspaceSlice` (imports entity types from contract for the slice shape only — no entity re-exports)                                                                                                                                                                                                                                                     |
-| App core | `src/core/`                            | Shared kernel (contract only): `rbac`, `datetime` + domain folders `assessment/` (job vocabulary, guards, worker-safe summaries), `findings/` (`finding-priority` clustering/scoring, `finding-act` finding-page UX beats, `FindingCluster` type), `requirements/` (`remediation-lifecycle` domain transitions), `actions/` (client-safe action-state, zod `validate`), `display`, `filter-params` |
-| AI       | `src/ai/`                              | Explain / remediate — never sets status; takes contract in, returns results / throws `PublicError`, reports failures only via an injected `onError` hook (never imports `@/server`)                                                                                                                                                                                                                |
-| Server   | `src/server/`                          | Domain folders (`assessment/`, `github/`, `workspace/`, `reporting/`) + `actions/` mutation edge + shared kernel (`observability`, `rate-limit`, `action-state`)                                                                                                                                                                                                                                   |
-| App      | `src/app/`                             | Next.js UI + API                                                                                                                                                                                                                                                                                                                                                                                   |
+| Piece    | Location                               | Role                                                                                       |
+| -------- | -------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Contract | `packages/analysis-core/src/contract/` | Shared types: statuses, findings, org/project/requirement types, job enums, entities       |
+| Analysis | `packages/analysis-core/src/`          | AST checks + optional runtime audits                                                       |
+| Catalog  | `packages/analysis-core/src/catalog/`  | RGAA/WCAG reference data (not a ports/adapters layer)                                      |
+| DB       | `packages/db/src/`                     | Drizzle schema, `repo/`, workspace-load, `WorkspaceSlice`                                  |
+| App core | `src/core/`                            | Shared kernel: `rbac`, `datetime`, `assessment/`, `findings/`, `requirements/`, `actions/` |
+| AI       | `src/ai/`                              | Explain / remediate — never sets status; never imports `@/server`                          |
+| Server   | `src/server/`                          | `assessment/`, `github/`, `workspace/`, `reporting/` + `actions/` mutation edge            |
+| App      | `src/app/`                             | Next.js UI + API                                                                           |
 
-`src/core` must not import the catalog, db, or analysis-core beyond `contract/*`
-(ESLint). Dependency direction: `contract → { db, catalog, app }`.
-Integration is direct — pages/actions call `src/server`, which calls
-`packages/db` and analysis-core. `src/ai` depends only on the contract
-(plus its own gateway/fs helpers); `src/server` depends on `src/ai`.
-Remediation legality lives in `src/core/requirements/remediation-lifecycle.ts`; the
-finding-page beat model (`src/core/findings/finding-act.ts`) is UI policy and must not
-be imported by `src/server/assessment/` (ESLint).
+Details per folder:
+
+- **Contract** persists `Finding, Remediation, Assessment, Evidence, Alert`
+  (`entities.ts`).
+- **App core** holds the job vocabulary and guards (`assessment/`), finding
+  clustering/scoring and finding-page beats (`findings/`), the remediation
+  lifecycle (`requirements/remediation-lifecycle.ts`), and client-safe
+  action-state + zod validation (`actions/`).
+- **DB** imports entity _types_ from the contract for the slice shape only —
+  no entity re-exports.
+- **AI** takes contract types in, returns results or throws `PublicError`,
+  and reports failures only via an injected `onError` hook.
+
+**Dependency rules** (enforced by ESLint):
+
+- `src/core` imports only `contract/*` — never the catalog, db, or analysis
+  beyond the contract.
+- Direction: `contract → { db, catalog, app }`.
+- Integration is direct: pages/actions call `src/server`, which calls
+  `packages/db` and analysis-core.
+- `src/ai` depends only on the contract (plus its own gateway/fs helpers);
+  `src/server` depends on `src/ai`.
+- Remediation legality lives in `src/core/requirements/remediation-lifecycle.ts`.
+- The finding-page beat model (`src/core/findings/finding-act.ts`) is UI policy
+  and must not be imported by `src/server/assessment/`.
 
 Workspace packages export `src/*.ts`. Next transpiles them; `dist/` is
 publish-only.
 
-**Connectors:** GitHub only. **State:** Postgres (`DATABASE_URL`). Evidence is
-append-only. Tokens AES-256-GCM at rest. Server-owned env keys live in
-`src/server/env.ts` (lazy getters — never module constants); `AUTH_*` stays
-with auth/middleware/token crypto, framework keys stay direct. Manual and
-webhook assessments are durable jobs: enqueue → `repository_dispatch` kicks
-the GitHub Actions `assessment-worker` (Playwright Chromium, same family as
-local dev) → 15-min schedule backstop for failed dispatches, killed tasks,
-and expired leases; dev/e2e drains inline.
+**Runtime topology:**
+
+- **Connectors:** GitHub only. **State:** Postgres (`DATABASE_URL`).
+- Evidence is append-only. Tokens are AES-256-GCM at rest.
+- Server-owned env keys live in `src/server/env.ts` (lazy getters — never
+  module constants); `AUTH_*` stays with auth/middleware/token crypto,
+  framework keys stay direct.
+- Manual and webhook assessments are durable jobs: enqueue →
+  `repository_dispatch` kicks the GitHub Actions `assessment-worker`
+  (Playwright Chromium, same family as local dev) → 15-min schedule backstop
+  for failed dispatches, killed tasks, and expired leases. Dev/e2e drain inline.
 
 ```
 Manual run (dashboard action enqueues + after() dispatch) → assessment-worker (GH) → claim → scan → persist
@@ -60,71 +86,74 @@ Webhook (enqueue + after() dispatch) → assessment-worker (GH); 15-min schedule
   `assessment_snapshots` and load only for `runAssessment`. Evidence and
   findings pages load via `src/server/reporting/evidence-queries.ts` and
   `src/server/workspace/project-view.ts` (`loadFindingsView`).
-- **Writes (the write model)** — `withProjectWrite` / `withFindingWrite` /
-  `withOrgWrite` / `withConnectWrite` in
-  `src/server/workspace/workspace-write.ts`; `withProjectLock` in
-  `src/server/workspace/db.ts`. Finding-scope permission
+- **Writes (the write model)** — all mutations go through helpers in
+  `src/server/workspace/workspace-write.ts` (`withProjectWrite` /
+  `withFindingWrite` / `withOrgWrite` / `withConnectWrite`) with locking in
+  `src/server/workspace/db.ts` (`withProjectLock`). Finding-scope permission
   (`requireOnFindingProject`) lives in
   `src/server/workspace/project-visibility.ts` so the write layer never
   imports from the action edge.
-  Project **compliance** mutations (findings, remediations, requirements,
-  evidence) go through `withProjectWrite` / `withFindingWrite` so locking,
-  stale-write guards, and evidence appends apply. Tenancy/org/connect
-  mutations go through `withOrgWrite` / `withConnectWrite`. Actions never
-  call `getDrizzle()` (ESLint): single-row alert touches use the
-  `requireAlertAccess` / `requireProjectAccess` read guards
-  (`src/server/workspace/workspace.ts`) plus `withProjectLock`; org export
-  reads via `loadOrgExportData` (`src/server/workspace/orgs.ts`); PR
-  evidence reads via the reporting loader. Connection acquisition lives in
-  `workspace/*`, `project-runtime.ts`, reporting loaders, and job/infra
-  paths; SQL lives in `packages/db/repo/*` (rate-limit buckets, GitHub
-  tokens, webhook deliveries each have a repo module — server files keep
-  only policy/cryptography).
-  callback returns a `ProjectWritePayload` (or void); `persistProjectRows`
-  upserts it. Org writes return `{ result, insertOrgs, upsertMemberships,
+  - Project **compliance** mutations (findings, remediations, requirements,
+    evidence) → `withProjectWrite` / `withFindingWrite` (locking,
+    stale-write guards, evidence appends).
+  - Tenancy/org/connect mutations → `withOrgWrite` / `withConnectWrite`.
+  - Actions never call `getDrizzle()` (ESLint).
+  - Single-row alert touches use the `requireAlertAccess` /
+    `requireProjectAccess` read guards (`src/server/workspace/workspace.ts`)
+    plus `withProjectLock`. Org export reads via `loadOrgExportData`
+    (`src/server/workspace/orgs.ts`); PR evidence reads via the reporting loader.
+  - Connection acquisition lives in `workspace/*`, `project-runtime.ts`,
+    reporting loaders, and job/infra paths. SQL lives in `packages/db/repo/*`
+    (rate-limit buckets, GitHub tokens, webhook deliveries each have a repo
+    module — server files keep only policy/cryptography).
+  - Callback returns a `ProjectWritePayload` (or void); `persistProjectRows`
+    upserts it. Org writes return `{ result, insertOrgs, upsertMemberships,
 deleteMembershipIds, deleteOrgIds }` — no JSON-diff of the in-memory slice.
-  Connect/disconnect uses `withConnectWrite` (tenancy load, org lock, no
-  project lock — there may be no active project yet) and returns
-  `{ result, insertProjects, deleteProjectIds, evidence }`. Structural
-  entities go through `repo/*`. `runAssessment` returns `{ assessment,
-evidence, findings, remediations, requirements }`; the worker persists via
-  `applyAssessmentPayload`. Stale-write guards take a single `loadedSlice`
-  (`ProjectSlice`); `persistProjectRows` derives the per-entity `updatedAt`
-  maps. Project-scoped filtering is shared via `projectScopedSlice` (used by
-  `snapshotProjectSlice`, assessment scratch clones, and
-  `buildAssessmentApplyPayload`).
-- **Locks** — job claim `FOR UPDATE SKIP LOCKED`; interactive project writes
+  - Connect/disconnect uses `withConnectWrite` (tenancy load, org lock, no
+    project lock — there may be no active project yet) and returns
+    `{ result, insertProjects, deleteProjectIds, evidence }`.
+  - Structural entities go through `repo/*`. `runAssessment` returns
+    `{ assessment, evidence, findings, remediations, requirements }`; the worker
+    persists via `applyAssessmentPayload`.
+  - Stale-write guards take a single `loadedSlice` (`ProjectSlice`);
+    `persistProjectRows` derives the per-entity `updatedAt` maps.
+  - Project-scoped filtering is shared via `projectScopedSlice` (used by
+    `snapshotProjectSlice`, assessment scratch clones, and
+    `buildAssessmentApplyPayload`).
+- **Locks** — job claim `FOR UPDATE SKIP LOCKED`. Interactive project writes
   and apply take `project-write:{projectId}`; org and connect writes take the
-  user-scoped org lock. Serial-per-project is enforced by the database, not
-  just the claim query: the partial unique index
-  `assessment_jobs_running_project_uidx` (`project_id` where `running`,
-  drizzle/0000_init) rejects a second concurrent claim (23505 → claim returns
-  null). Corrupt job payloads terminal-fail at claim time instead of
-  scanning; scan authority is explicit (`resolveJobAuthoritative`: manual, or
-  webhook push without a PR SHA). Requirement, finding and remediation
-  upserts skip rows whose DB `updatedAt` is newer than the loaded slice
-  (`repo/upsert-guard.ts`), so a stale apply cannot revert a concurrent human
-  decision.
+  user-scoped org lock.
+  - Serial-per-project is enforced by the database, not just the claim query:
+    the partial unique index `assessment_jobs_running_project_uidx`
+    (`project_id` where `running`, `drizzle/0000_init`) rejects a second
+    concurrent claim (23505 → claim returns null).
+  - Corrupt job payloads terminal-fail at claim time instead of scanning.
+  - Scan authority is explicit (`resolveJobAuthoritative`: manual, or webhook
+    push without a PR SHA).
+  - Requirement, finding and remediation upserts skip rows whose DB `updatedAt`
+    is newer than the loaded slice (`repo/upsert-guard.ts`), so a stale apply
+    cannot revert a concurrent human decision.
 - **Latest assessment** — `latestAssessmentFor` compares `completedAt`.
   Do not use `.at(-1)` (loaders return newest-first).
 - **Read bounding** — findings list order is severity-first
   (`findings.severity_rank`, `ORDER BY severity_rank, id`; same order in SQL
-  and the JS fallback). The list paginates in SQL for every filter except
-  free-text search (status/severity/rule/engine/remediation all have columns
-  or an `EXISTS` clause); search takes the bounded status-scoped load.
-  Status-scoped page loads cap at `FINDINGS_LIST_LOAD_LIMIT` (most severe
-  first; counts stay exact via SQL, truncation is flagged, never silent);
-  writes/reports/exports load full history. Evidence exports cap per project
-  (`EVIDENCE_EXPORT_LIMIT`, newest first, flagged); per-finding reads cap at
-  `FINDING_EVIDENCE_LIMIT`.
+  and the JS fallback).
+  - The list paginates in SQL for every filter except free-text search
+    (status/severity/rule/engine/remediation all have columns or an `EXISTS`
+    clause); search takes the bounded status-scoped load.
+  - Status-scoped page loads cap at `FINDINGS_LIST_LOAD_LIMIT` (most severe
+    first; counts stay exact via SQL, truncation is flagged, never silent).
+    Writes/reports/exports load full history.
+  - Evidence exports cap per project (`EVIDENCE_EXPORT_LIMIT`, newest first,
+    flagged); per-finding reads cap at `FINDING_EVIDENCE_LIMIT`.
 - **Retention/erasure** — evidence is append-only (trigger) with one gated
   exception: org deletion erases tenant evidence via `deleteEvidenceForOrg`
-  (transaction-scoped `complyloop.allow_evidence_erase` flag); project
-  disconnect keeps retention. Snapshots dedup identical hash maps
-  (`hashes_unchanged`, reader fallback); `webhook_deliveries` prunes to 10k
-  per batch tick. Patch evidence keeps full edit texts — they are
-  load-bearing for `applyFileEdits` PR apply; identical candidates dedup on
-  write instead.
+  (transaction-scoped `complyloop.allow_evidence_erase` flag). Project
+  disconnect keeps retention.
+  - Snapshots dedup identical hash maps (`hashes_unchanged`, reader fallback).
+  - `webhook_deliveries` prunes to 10k per batch tick.
+  - Patch evidence keeps full edit texts — they are load-bearing for
+    `applyFileEdits` PR apply; identical candidates dedup on write instead.
 - **Verification loop** — every finding type reaches `verified`: source via
   PR merge + re-assessment auto-verify; runtime/site via on-demand re-audit
   (works on open and resolved findings, re-opens on re-detection) or manual
@@ -145,18 +174,17 @@ evidence, findings, remediations, requirements }`; the worker persists via
 - **Jobs** — 30-min lease (renewed by a 5-min heartbeat while a scan runs),
   3 attempts, serial per project, cancellable (`queued`/`running` →
   `cancelled`, project-scoped; a cancelled mid-run run saves nothing and posts
-  no Check Run).
-  Two triggers, one queued topology, one job model:
+  no Check Run). Two triggers, one queued topology, one job model:
   - **Manual** — `runAssessmentAction` enqueues (`queued`, `attempts: 0`)
-    and schedules the drain in `after()`; the click resolves fast with
-    "queued" copy and progress lives in the Pipeline section (polls every
-    3s, refreshes on completion). A second click while a scan is live is
-    refused; a click while a job is queued-due re-kicks the worker without
-    enqueuing a duplicate — claims are serial per project.
-  - **Webhook (queued)** — enqueue then `after()` dispatch of the GH
-    worker; its 15-min schedule is the backstop for failed dispatches,
-    killed tasks, and expired leases. Dev/e2e drain the queue inline.
-    Expired rate-limit buckets prune once per batch.
+    and schedules the drain in `after()`. The click resolves fast with
+    "queued" copy; progress lives in the Pipeline section (polls every 3s,
+    refreshes on completion). A second click while a scan is live is refused;
+    a click while a job is queued-due re-kicks the worker without enqueuing
+    a duplicate — claims are serial per project.
+  - **Webhook (queued)** — enqueue then `after()` dispatch of the GH worker;
+    its 15-min schedule is the backstop for failed dispatches, killed tasks,
+    and expired leases. Dev/e2e drain the queue inline. Expired rate-limit
+    buckets prune once per batch.
 - **Checkouts** — shallow ephemeral checkout per job via pure-JS git
   (isomorphic-git, no `git` CLI); deleted after. The executor uses its
   locally installed Playwright browser. See [`vercel.md`](../vercel.md).
@@ -166,15 +194,14 @@ evidence, findings, remediations, requirements }`; the worker persists via
 Three deterministic engines. AI is separate and never authoritative.
 Stage entries and leaf rules: `packages/analysis-core/README.md`.
 
-**AST** (`checks/` + jsx-a11y) — custom checks over source (full check-id
-list in `CHECK_REGISTRY`, `packages/analysis-core/src/check-registry.ts`).
-Safe auto-fixes and verified AI patches target AST findings.
-
-**Runtime** (when `runtimeBaseUrl` is set) — Playwright + axe from disk.
-Navigate with `domcontentloaded` + settle, not `networkidle`. Never add
-`@axe-core/playwright`. Never import `ssrf-guard/node` in app code.
-`linkinator`, `playwright`, `axe-core`, `html-validate` are server
-externals in `next.config.ts`.
+- **AST** (`checks/` + jsx-a11y) — custom checks over source. Full check-id
+  list in `CHECK_REGISTRY` (`packages/analysis-core/src/check-registry.ts`).
+  Safe auto-fixes and verified AI patches target AST findings.
+- **Runtime** (when `runtimeBaseUrl` is set) — Playwright + axe from disk.
+  Navigate with `domcontentloaded` + settle, not `networkidle`. Never add
+  `@axe-core/playwright`. Never import `ssrf-guard/node` in app code.
+  `linkinator`, `playwright`, `axe-core`, `html-validate` are server
+  externals in `next.config.ts`.
 
 Engine containment: a throwing custom probe is recorded on
 `probeFailures` and the rest of the pass continues. html-validate
@@ -227,25 +254,30 @@ Assessments always use the project's `defaultPresetId`. Requirements page
 
 **Assessment:** manual runs enqueue in the dashboard action and kick the GH
 worker via dispatch (backstop: 15-min schedule); webhook runs go
-enqueue → dispatch, 15-min schedule backstop (see
-Jobs above). Either way the worker
-clones + scans → `detectChanges` (depth-1
-clone: author is HEAD) → AST → optional Playwright → merge → re-derive
-statuses → `verifyRemediationOnResolve` (uses the run's re-scan proof, not
-historical evidence). Only a **default-branch** scan (or a
-manual assessment) is authoritative: it persists findings/statuses and may
-auto-verify. A **pull-request head** scan is a preview — it runs the same
-analysis to post a Check Run but never resolves findings, flips statuses, or
-auto-verifies, and persists nothing to the project store.
+enqueue → dispatch, 15-min schedule backstop (see Jobs above). Either way the
+worker clones + scans:
 
-**Remediation:** source = patch → ComplyLoop → draft PR → merge → re-assess
-→ `verified`. Runtime = guidance → approve → implement → re-audit. Verify
-fails closed on HTTP errors, redirects away from the finding URL, or an
-empty document. Site-level findings re-run the site audit; source findings
-are not verified by applying a local patch. A successful runtime verify
-forwards `runtimeRan` (and site-level / html-validate flags when those
-engines ran) so the requirement can close. Runtime/DOM/site findings are
-never resolved unless `runtimeRan`.
+1. `detectChanges` (depth-1 clone: author is HEAD)
+2. AST → optional Playwright → merge
+3. Re-derive statuses → `verifyRemediationOnResolve` (uses the run's re-scan
+   proof, not historical evidence)
+
+Only a **default-branch** scan (or a manual assessment) is authoritative: it
+persists findings/statuses and may auto-verify. A **pull-request head** scan
+is a preview — it runs the same analysis to post a Check Run but persists
+nothing and never resolves findings, flips statuses, or auto-verifies.
+
+**Remediation:**
+
+- Source: patch → ComplyLoop → draft PR → merge → re-assess → `verified`.
+- Runtime: guidance → approve → implement → re-audit.
+- Verify fails closed on HTTP errors, redirects away from the finding URL, or
+  an empty document.
+- Site-level findings re-run the site audit; source findings are not verified
+  by applying a local patch.
+- A successful runtime verify forwards `runtimeRan` (and site-level /
+  html-validate flags when those engines ran) so the requirement can close.
+- Runtime/DOM/site findings are never resolved unless `runtimeRan`.
 
 **Monitoring:** webhook enqueues only (`idempotency_key` from delivery id).
 Only pushes to the project's **live** default branch
@@ -260,37 +292,32 @@ pushes are ignored. PR events post a Check Run. Failures become
 
 - **Server boundary** — `src/server/*` (and `packages/db/src/postgres.ts`)
   carry `import "server-only"` so a client import fails at build time.
-  Client-safe shared types live in `*.types.ts` / `@/server/github/github-types`
-  and `@complyloop/db/repo/*` (type-only); `src/server/actions/*`
-  (`"use server"`) stay unfenced because clients invoke them.
-- **Reads** — pages compose exactly two cached reads (`getWorkspace` for
-  tenancy, `getProjectRuntime` for compliance rows; `loadActiveProjectPage`
-  where caps are needed) plus the reporting loaders (`loadFindingsView` in
-  `workspace/project-view.ts`,
-  `evidence-queries`, `nav-attention`); pages never open Drizzle or import
-  `@complyloop/db/repo/*` directly (except the health probe, which is a DB
-  check by definition). Single-row guards (`requireProjectAccess`,
-  `requireAlertAccess`) and the job loader (`loadProjectDb`) are the only
-  other sanctioned reads. In-write slice lookups (`findingById`,
-  `remediationForFinding`) are for `with*Write` callbacks only — page
-  previews use the DB-backed `requireFinding` /
-  `requireRemediationForFinding`.
+  Client-safe shared types live in `*.types.ts` /
+  `@/server/github/github-types` and `@complyloop/db/repo/*` (type-only).
+  `src/server/actions/*` (`"use server"`) stay unfenced because clients
+  invoke them.
+- **Reads** — pages compose two cached reads (`getWorkspace` for tenancy,
+  `getProjectRuntime` for compliance rows; `loadActiveProjectPage` where caps
+  are needed) plus the reporting loaders (`loadFindingsView`,
+  `evidence-queries`, `nav-attention`).
+  - Pages never open Drizzle or import `@complyloop/db/repo/*` directly
+    (except the health probe).
+  - Sanctioned extra reads: `requireProjectAccess`, `requireAlertAccess`,
+    `loadProjectDb`.
+  - In-write slice lookups (`findingById`, `remediationForFinding`) are for
+    `with*Write` callbacks only — page previews use `requireFinding` /
+    `requireRemediationForFinding`.
 - **Caching** — authenticated `(app)` pages rely on dynamic-from-usage
   (`getWorkspace` reads `auth()`/`cookies()`; list pages also await
   `searchParams`) plus targeted `revalidatePath` on mutation
   (`src/server/actions/shared.ts`). No blanket `force-dynamic` on pages.
   `force-dynamic` stays only on JSON Route Handlers
-  (`api/github/repos`, `assessment-jobs`, `health`)
-  where accidental static caching of per-user JSON must be impossible.
-- **Mutations vs routes** — mutations go through Server Actions; Route
+  (`api/github/repos`, `assessment-jobs`, `health`).
+- **Mutations vs routes** — mutations go through Server Actions. Route
   Handlers exist only for webhooks, polling/streaming (`assessment-jobs`,
-  picker typeahead), auth, and health. Do not
-  convert polling/search to Server Actions, and do not proxy Server
-  Component reads through `/api`.
+  picker typeahead), auth, and health.
 - **Providers** — `ThemeProvider` + `TooltipProvider` + `Toaster` stay in
-  the root layout (theme needs the HTML shell to avoid FOUC). Only move
-  them under `(app)/layout.tsx` if marketing pages ever need zero client
-  JS; until then the global placement is intentional.
+  the root layout (theme needs the HTML shell to avoid FOUC).
 
 ## Invariants
 

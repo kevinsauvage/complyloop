@@ -33,7 +33,10 @@ Open [http://localhost:3000](http://localhost:3000), sign in with GitHub, connec
 | All docs                  | [`docs/README.md`](./docs/README.md)                   |
 | Agent / contributor guide | [`AGENTS.md`](./AGENTS.md)                             |
 
-**Local dev:** assessments run **in-process** during `npm run dev`. **Production (Vercel):** trigger sites only enqueue, then kick the GitHub Actions `assessment-worker` via `repository_dispatch` (15-min schedule backstop) — no worker process, no Vercel Cron (see [`docs/vercel.md`](./docs/vercel.md)).
+**Local dev:** assessments run **in-process** during `npm run dev`.
+**Production (Vercel):** trigger sites only enqueue, then kick the GitHub Actions
+`assessment-worker` via `repository_dispatch` (15-min schedule backstop).
+No worker process, no Vercel Cron (see [`docs/vercel.md`](./docs/vercel.md)).
 
 ---
 
@@ -59,16 +62,28 @@ Repos are **shallow-cloned per job** into a temp directory and deleted when done
 
 ## How it works
 
-1. **Assess** — Default preset is **Full RGAA 4** on connect (change in **Settings**). On **Requirements**, browse presets via **`?presetId=`** (shareable URLs). Custom AST checks + `eslint-plugin-jsx-a11y` scan connected code (full check-id list in `CHECK_REGISTRY` — `packages/analysis-core/src/check-registry.ts`); re-assess skips unchanged files via snapshot diff when possible (runtime audits always re-scan all preview pages). Optional **preview URL** (Settings → Runtime audit) enables Playwright + axe for contrast, landmarks, reflow, and other **runtime-only** rules (see `check-authority.ts`). First runtime run: `npm run playwright:install`.
+1. **Assess** — Default preset is **Full RGAA 4** on connect (change in **Settings**).
+   On **Requirements**, browse presets via **`?presetId=`** (shareable URLs).
+   - Source scan: custom AST checks + `eslint-plugin-jsx-a11y`.
+     Full check-id list: `CHECK_REGISTRY` in `packages/analysis-core/src/check-registry.ts`.
+   - Re-assess skips unchanged files via snapshot diff when possible
+     (runtime audits always re-scan all preview pages).
+   - Optional **preview URL** (Settings → Runtime audit) enables Playwright + axe
+     for contrast, landmarks, reflow, and other **runtime-only** rules
+     (see `check-authority.ts`).
+   - First runtime run: `npm run playwright:install`.
 2. **Understand** — Each finding: what failed, why, where, impact, confidence, engine (`ast` or `runtime`).
 3. **Remediate** — Source: verified patch → draft PR. Runtime: call-site guidance — fix in the app, not a generic `aria-label` on a shared component.
 4. **Verify** — Merge PR + re-assess, or re-run page audit. Only `verified` closes the loop.
 5. **Evidence** — Append-only log; export JSON, Markdown, or HTML report.
 6. **Monitor** — Webhooks and re-assessments catch regressions.
 
-**Also on findings:** copy patch/PR body, mark runtime work implemented outside the platform, record human pass or exceptions on Requirements.
+**Also on findings:** copy patch/PR body, mark runtime work implemented outside
+the platform, record human pass or exceptions on Requirements.
 
-**AI** (`AI_GATEWAY_API_KEY`): explanations, remediation suggestions, constrained source patches. Patches must pass ComplyLoop before **Create draft PR**. AI never sets requirement status.
+**AI** (optional, `AI_GATEWAY_API_KEY`): explanations, remediation suggestions,
+constrained source patches. Patches must pass ComplyLoop before **Create draft PR**.
+AI never sets requirement status.
 
 ---
 
