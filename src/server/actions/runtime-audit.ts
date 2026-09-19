@@ -6,8 +6,8 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { normalizeRoutes } from "@complyloop/analysis-core/runtime/routes";
 import { assertSafeRuntimeUrl } from "@complyloop/analysis-core/runtime/url-safety";
 
-import type { ActionState } from "@/core/action-state";
-import { parseForm } from "@/core/validate";
+import type { ActionState } from "@/core/actions/action-state";
+import { parseForm } from "@/core/actions/validate";
 
 import { runAction } from "../action-state";
 import { assertRuntimeAuditRateLimit } from "../rate-limit";

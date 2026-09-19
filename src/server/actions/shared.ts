@@ -4,7 +4,7 @@ import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
-import { advanceRemediation } from "@/core/remediation-lifecycle";
+import { advanceRemediation } from "@/core/requirements/remediation-lifecycle";
 import { getSession } from "@/server/auth-session";
 
 import { assertProjectPermission } from "../workspace/project-visibility";

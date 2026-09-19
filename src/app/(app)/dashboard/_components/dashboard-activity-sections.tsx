@@ -27,7 +27,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { evidenceDisplay } from "@/core/display";
-import type { FindingCluster } from "@/core/finding-priority";
+import type { FindingCluster } from "@/core/findings/finding-priority";
 import { cn } from "@/lib/utils";
 
 function ActivityCard({

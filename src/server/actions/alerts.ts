@@ -8,8 +8,8 @@ import {
   markAllProjectAlertsRead,
 } from "@complyloop/db/repo/alerts";
 
-import type { ActionState } from "@/core/action-state";
-import { parseForm, requiredField } from "@/core/validate";
+import type { ActionState } from "@/core/actions/action-state";
+import { parseForm, requiredField } from "@/core/actions/validate";
 
 import { runAction } from "../action-state";
 import { withProjectLock } from "../workspace/db";

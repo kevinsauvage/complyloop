@@ -2,7 +2,10 @@
 
 import { useActionState } from "react";
 
-import { type ActionState, initialActionState } from "@/core/action-state";
+import {
+  type ActionState,
+  initialActionState,
+} from "@/core/actions/action-state";
 import { useActionToast } from "@/hooks/use-action-toast";
 import {
   connectGitHubRepoAction,

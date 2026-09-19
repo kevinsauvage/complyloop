@@ -12,13 +12,17 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 
-import type { ActionState } from "@/core/action-state";
+import type { ActionState } from "@/core/actions/action-state";
+import {
+  parseEntityId,
+  parseForm,
+  requiredField,
+} from "@/core/actions/validate";
 import {
   clearRequirementHumanDetermination,
   normalizeExpiryInstant,
   setRequirementHumanDetermination,
-} from "@/core/requirement-human-determination";
-import { parseEntityId, parseForm, requiredField } from "@/core/validate";
+} from "@/core/requirements/requirement-human-determination";
 
 import { applyRequirementStatusRefresh } from "../assessment/assessment-status";
 import { assertRequirementsRateLimit } from "../rate-limit";

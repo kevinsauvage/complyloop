@@ -4,8 +4,8 @@ import { z } from "zod";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
-import type { ActionState } from "@/core/action-state";
-import { parseForm, requiredField } from "@/core/validate";
+import type { ActionState } from "@/core/actions/action-state";
+import { parseForm, requiredField } from "@/core/actions/validate";
 import { getGitHubAccessTokenState } from "@/server/github/access-token";
 
 import { runAction } from "../action-state";

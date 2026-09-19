@@ -32,7 +32,7 @@ import {
   reportHref,
   requirementsPageHref,
   requirementsStatusHref,
-} from "./filter-params";
+} from "../filter-params";
 import {
   entityIdSchema,
   findingIdsField,

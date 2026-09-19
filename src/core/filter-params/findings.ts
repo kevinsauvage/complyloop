@@ -15,12 +15,12 @@ import {
   type Severity,
 } from "@complyloop/analysis-core/contract/statuses";
 
-import type { FindingCluster } from "../finding-priority";
+import type { FindingCluster } from "../findings/finding-priority";
 import {
   prioritizeFindings,
   SEVERITY_ORDER,
   severityRank,
-} from "../finding-priority";
+} from "../findings/finding-priority";
 import { parsePageParam } from "./pagination";
 import { firstParam } from "./params";
 

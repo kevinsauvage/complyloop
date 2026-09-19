@@ -32,7 +32,10 @@ import {
   paginateSlice,
   parseFindingListParams,
 } from "@/core/filter-params";
-import { clusterFindings, prioritizeClusters } from "@/core/finding-priority";
+import {
+  clusterFindings,
+  prioritizeClusters,
+} from "@/core/findings/finding-priority";
 import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
 import type { ProjectCapabilities } from "@/server/workspace/project-capabilities";
 import { getProjectRuntime } from "@/server/workspace/project-runtime";

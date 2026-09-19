@@ -18,14 +18,14 @@ import {
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 
-import type { ActionState } from "@/core/action-state";
-import { advanceRemediation } from "@/core/remediation-lifecycle";
+import type { ActionState } from "@/core/actions/action-state";
 import {
   optionalNoteSchema,
   parseEntityId,
   parseForm,
   requiredField,
-} from "@/core/validate";
+} from "@/core/actions/validate";
+import { advanceRemediation } from "@/core/requirements/remediation-lifecycle";
 
 import { runAction } from "../action-state";
 import { sameInstance } from "../assessment/assessment-findings";

@@ -11,7 +11,7 @@ import {
   PageSection,
 } from "@/components/primitives/page-primitives";
 import { PermissionNotice } from "@/components/primitives/permission-notice";
-import { hasPreviewUrl } from "@/core/assessment-helpers";
+import { hasPreviewUrl } from "@/core/assessment/assessment-helpers";
 import { displayControl } from "@/server/reporting/report";
 import { loadDashboardView } from "@/server/workspace/dashboard-view";
 

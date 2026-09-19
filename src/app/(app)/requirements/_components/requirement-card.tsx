@@ -22,7 +22,7 @@ import { findingsListHref } from "@/core/filter-params";
 import {
   unableToVerifyReason,
   unableToVerifyReasonLabel,
-} from "@/core/finding-priority";
+} from "@/core/findings/finding-priority";
 
 import { RequirementRemediationActions } from "./requirement-remediation-actions";
 import { RequirementStatusAccent } from "./requirement-status-accent";

@@ -21,7 +21,10 @@ import type {
 } from "@complyloop/analysis-core/contract/project-types";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
 
-import { countByStatus, toCountMap } from "@/core/assessment-helpers";
+import {
+  countByStatus,
+  toCountMap,
+} from "@/core/assessment/assessment-helpers";
 import {
   type PageSlice,
   paginateSlice,

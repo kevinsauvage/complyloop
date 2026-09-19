@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Requirement } from "@complyloop/analysis-core/contract/entities";
 
-import { initialActionState } from "@/core/action-state";
+import { initialActionState } from "@/core/actions/action-state";
 import {
   clearProjectWritePayloads,
   mockProjectWrite,

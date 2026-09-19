@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { SITE_VERIFY_TIMEOUT_MS } from "@complyloop/analysis-core/contract/assessment-limits";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 
-import { initialActionState } from "@/core/action-state";
+import { initialActionState } from "@/core/actions/action-state";
 import {
   actionWorkspaceMocks,
   clearProjectWritePayloads,

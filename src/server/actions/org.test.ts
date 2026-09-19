@@ -7,7 +7,7 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 import { emptyWorkspaceSlice as emptyDbBase } from "@complyloop/db/types";
 
-import { initialActionState } from "@/core/action-state";
+import { initialActionState } from "@/core/actions/action-state";
 import {
   actionAuthMocks,
   actionWorkspaceMocks,

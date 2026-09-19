@@ -6,9 +6,9 @@ import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
 import { generateAiExplanation } from "@/ai/explainer";
 import { generateAiRemediation } from "@/ai/remediation";
-import type { ActionState } from "@/core/action-state";
-import { refreshSuggestion } from "@/core/remediation-lifecycle";
-import { parseEntityId } from "@/core/validate";
+import type { ActionState } from "@/core/actions/action-state";
+import { parseEntityId } from "@/core/actions/validate";
+import { refreshSuggestion } from "@/core/requirements/remediation-lifecycle";
 
 import { runAction } from "../action-state";
 import { getSession } from "../auth-session";

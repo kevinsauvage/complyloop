@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { parseInput } from "@/core/validate";
+import { parseInput } from "@/core/actions/validate";
 import { publicErrorMessage } from "@/server/action-state";
 import { getSession } from "@/server/auth-session";
 import { getGitHubAccessToken } from "@/server/github/access-token";

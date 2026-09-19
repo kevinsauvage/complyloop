@@ -31,9 +31,9 @@ import {
   countByStatus,
   hasPreviewUrl,
   latestAssessmentFor,
-} from "@/core/assessment-helpers";
-import type { AssessmentJobStage } from "@/core/assessment-jobs";
-import { advanceRemediation } from "@/core/remediation-lifecycle";
+} from "@/core/assessment/assessment-helpers";
+import type { AssessmentJobStage } from "@/core/assessment/assessment-jobs";
+import { advanceRemediation } from "@/core/requirements/remediation-lifecycle";
 
 import { reportEvent, reportWarning } from "../observability";
 import {

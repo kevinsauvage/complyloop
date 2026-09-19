@@ -7,11 +7,11 @@ import {
   isSourceLocation,
 } from "@complyloop/analysis-core/contract/location";
 
-import { humanizeReasonSlug } from "./display/status";
+import { humanizeReasonSlug } from "../display/status";
 import {
   hasSafeDeterministicFix,
   verifiedDescription,
-} from "./remediation-lifecycle";
+} from "../requirements/remediation-lifecycle";
 
 /**
  * Finding-page UX beat model: maps finding + remediation state to a single

@@ -3,7 +3,7 @@
 import { z } from "zod";
 
 import { signIn, signOut } from "@/auth";
-import { parseForm } from "@/core/validate";
+import { parseForm } from "@/core/actions/validate";
 
 const signInInput = z.object({
   callbackUrl: z.string().optional(),

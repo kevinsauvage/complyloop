@@ -2,7 +2,10 @@ import "server-only";
 
 import { isPublicError } from "@complyloop/analysis-core/contract/public-error";
 
-import { type ActionState, unexpectedActionMessage } from "@/core/action-state";
+import {
+  type ActionState,
+  unexpectedActionMessage,
+} from "@/core/actions/action-state";
 
 import { reportError } from "./observability";
 

@@ -5,9 +5,9 @@ import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
 import { aiAvailable } from "@/ai/ai-call";
 import { assertSourceLocatedFinding } from "@/ai/verified-fix";
-import type { ActionState } from "@/core/action-state";
-import { hasSafeDeterministicFix } from "@/core/remediation-lifecycle";
-import { parseEntityId } from "@/core/validate";
+import type { ActionState } from "@/core/actions/action-state";
+import { parseEntityId } from "@/core/actions/validate";
+import { hasSafeDeterministicFix } from "@/core/requirements/remediation-lifecycle";
 
 import { runAction } from "../action-state";
 import {

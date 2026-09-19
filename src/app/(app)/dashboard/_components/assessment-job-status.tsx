@@ -2,7 +2,7 @@ import { RefreshCw } from "lucide-react";
 
 import { StatefulActionForm } from "@/components/forms/stateful-action-form";
 import { FormattedDateTime } from "@/components/primitives/formatted-datetime";
-import type { AssessmentJobStage } from "@/core/assessment-jobs";
+import type { AssessmentJobStage } from "@/core/assessment/assessment-jobs";
 import { cn } from "@/lib/utils";
 import {
   cancelAssessmentJobAction,

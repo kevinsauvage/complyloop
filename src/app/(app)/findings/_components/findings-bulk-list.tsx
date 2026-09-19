@@ -26,7 +26,7 @@ import {
   findingDetailHref,
   type FindingListParams,
 } from "@/core/filter-params";
-import { canBulkApproveRemediation } from "@/core/remediation-lifecycle";
+import { canBulkApproveRemediation } from "@/core/requirements/remediation-lifecycle";
 import { cn } from "@/lib/utils";
 import {
   bulkApproveRemediationsAction,

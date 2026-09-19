@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { FindingActView } from "@/core/finding-act";
+import type { FindingActView } from "@/core/findings/finding-act";
 import { cn } from "@/lib/utils";
 import { generateAiFixAction } from "@/server/actions/ai-fix";
 import { approveRemediationAction } from "@/server/actions/remediation";

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { entityIdSchema, parseInput } from "@/core/validate";
+import { entityIdSchema, parseInput } from "@/core/actions/validate";
 import { recentAssessmentJobsForProject } from "@/server/assessment/assessment-jobs";
 import { viewerCanViewProject } from "@/server/workspace/workspace";
 

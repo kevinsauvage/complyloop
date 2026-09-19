@@ -27,7 +27,7 @@ import {
   type AssessmentJobPayload,
   assessmentJobPayloadSchema,
   type AssessmentJobStage,
-} from "@/core/assessment-jobs";
+} from "@/core/assessment/assessment-jobs";
 
 import { reportWarning } from "../observability";
 

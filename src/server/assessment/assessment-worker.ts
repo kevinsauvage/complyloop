@@ -2,7 +2,7 @@ import "server-only";
 
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
 
-import type { AssessmentJobStage } from "@/core/assessment-jobs";
+import type { AssessmentJobStage } from "@/core/assessment/assessment-jobs";
 
 import {
   postAssessmentCheckRun,

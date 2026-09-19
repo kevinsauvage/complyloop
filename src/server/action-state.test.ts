@@ -5,7 +5,7 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   initialActionState,
   unexpectedActionMessage,
-} from "@/core/action-state";
+} from "@/core/actions/action-state";
 
 import { publicErrorMessage, runAction } from "./action-state";
 import { RateLimitError } from "./rate-limit";

@@ -32,7 +32,7 @@ import {
 import {
   hasSafeDeterministicFix,
   refreshSuggestion,
-} from "@/core/remediation-lifecycle";
+} from "@/core/requirements/remediation-lifecycle";
 
 import { reportError, reportWarning } from "../observability";
 import { appendEvidence } from "../workspace/project-rows";

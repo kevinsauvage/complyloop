@@ -21,12 +21,12 @@ import {
   countByStatus,
   hasPreviewUrl,
   latestAssessmentFor,
-} from "@/core/assessment-helpers";
+} from "@/core/assessment/assessment-helpers";
 import {
   clusterFindings,
   prioritizeClusters,
   prioritizeFindings,
-} from "@/core/finding-priority";
+} from "@/core/findings/finding-priority";
 import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
 import type { ProjectCapabilities } from "@/server/workspace/project-capabilities";
 import { getProjectRuntime } from "@/server/workspace/project-runtime";

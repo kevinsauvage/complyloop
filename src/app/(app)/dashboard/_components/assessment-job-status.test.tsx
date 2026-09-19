@@ -6,7 +6,7 @@ vi.mock("@/server/actions/assessment", () => ({
   cancelAssessmentJobAction: vi.fn(),
 }));
 
-import type { AssessmentJob } from "@/core/assessment-jobs";
+import type { AssessmentJob } from "@/core/assessment/assessment-jobs";
 import { renderWithUiProviders } from "@/test-fixtures/render-ui";
 
 import { AssessmentJobStatus } from "./assessment-job-status";

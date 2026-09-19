@@ -6,8 +6,8 @@ import type { Severity } from "@complyloop/analysis-core/contract/statuses";
 import { SeverityBadge } from "@/components/primitives/badges";
 import { EmptyState } from "@/components/primitives/page-primitives";
 import { findingsListHref } from "@/core/filter-params";
-import type { FindingCluster } from "@/core/finding-priority";
-import { severityRank } from "@/core/finding-priority";
+import type { FindingCluster } from "@/core/findings/finding-priority";
+import { severityRank } from "@/core/findings/finding-priority";
 
 function severityMix(
   members: Finding[],

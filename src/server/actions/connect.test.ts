@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { OrgMembership } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
-import { initialActionState } from "@/core/action-state";
+import { initialActionState } from "@/core/actions/action-state";
 import {
   actionAuthMocks,
   actionWorkspaceMocks,

@@ -4,7 +4,7 @@ import type { AssessmentEngines } from "@complyloop/analysis-core/contract/findi
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 
 import { Badge } from "@/components/ui/badge";
-import { runtimeCoverageSummary } from "@/core/assessment-helpers";
+import { runtimeCoverageSummary } from "@/core/assessment/assessment-helpers";
 import { STATUS_TONE_BADGE } from "@/core/display";
 import { cn } from "@/lib/utils";
 

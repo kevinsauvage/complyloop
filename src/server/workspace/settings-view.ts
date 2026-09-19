@@ -15,7 +15,7 @@ import { isRuntimeOnlyCheck } from "@complyloop/analysis-core/check-authority";
 import { CHECK_REGISTRY } from "@complyloop/analysis-core/check-registry";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 
-import { latestAssessmentFor } from "@/core/assessment-helpers";
+import { latestAssessmentFor } from "@/core/assessment/assessment-helpers";
 import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
 import type { ProjectCapabilities } from "@/server/workspace/project-capabilities";
 import { getProjectRuntime } from "@/server/workspace/project-runtime";

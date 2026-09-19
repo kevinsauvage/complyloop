@@ -6,24 +6,24 @@
 
 ## Modules
 
-| Piece    | Location                               | Role                                                                                                                                                                                                                                                                        |
-| -------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Contract | `packages/analysis-core/src/contract/` | Statuses, findings, org/project/requirement types, job enums, persisted entities (`entities.ts`: Finding, Remediation, Assessment, Evidence, Alert)                                                                                                                         |
-| Analysis | `packages/analysis-core/src/`          | AST checks + optional runtime audits                                                                                                                                                                                                                                        |
-| Catalog  | `packages/analysis-core/src/catalog/`  | RGAA/WCAG catalog, presets, guidance (reference data — not hexagonal ports; no app-level adapters layer)                                                                                                                                                                    |
-| DB       | `packages/db/src/`                     | Drizzle schema, `repo/`, workspace-load, `WorkspaceSlice` (imports entity types from contract for the slice shape only — no entity re-exports)                                                                                                                              |
-| App core | `src/core/`                            | Shared kernel (contract only): `rbac`, `remediation-lifecycle` (domain transitions), `assessment-helpers` (worker-safe summaries), `finding-priority` (clustering/scoring), `finding-act` (finding-page UX beats), `finding-cluster` type, `datetime`, `display`, `filters` |
-| AI       | `src/ai/`                              | Explain / remediate — never sets status; takes contract in, returns results / throws `PublicError`, reports failures only via an injected `onError` hook (never imports `@/server`)                                                                                         |
-| Server   | `src/server/`                          | Domain folders (`assessment/`, `github/`, `workspace/`, `reporting/`) + `actions/` mutation edge + shared kernel (`observability`, `rate-limit`, `action-state`)                                                                                                            |
-| App      | `src/app/`                             | Next.js UI + API                                                                                                                                                                                                                                                            |
+| Piece    | Location                               | Role                                                                                                                                                                                                                                                                                                                                                                                               |
+| -------- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Contract | `packages/analysis-core/src/contract/` | Statuses, findings, org/project/requirement types, job enums, persisted entities (`entities.ts`: Finding, Remediation, Assessment, Evidence, Alert)                                                                                                                                                                                                                                                |
+| Analysis | `packages/analysis-core/src/`          | AST checks + optional runtime audits                                                                                                                                                                                                                                                                                                                                                               |
+| Catalog  | `packages/analysis-core/src/catalog/`  | RGAA/WCAG catalog, presets, guidance (reference data — not hexagonal ports; no app-level adapters layer)                                                                                                                                                                                                                                                                                           |
+| DB       | `packages/db/src/`                     | Drizzle schema, `repo/`, workspace-load, `WorkspaceSlice` (imports entity types from contract for the slice shape only — no entity re-exports)                                                                                                                                                                                                                                                     |
+| App core | `src/core/`                            | Shared kernel (contract only): `rbac`, `datetime` + domain folders `assessment/` (job vocabulary, guards, worker-safe summaries), `findings/` (`finding-priority` clustering/scoring, `finding-act` finding-page UX beats, `FindingCluster` type), `requirements/` (`remediation-lifecycle` domain transitions), `actions/` (client-safe action-state, zod `validate`), `display`, `filter-params` |
+| AI       | `src/ai/`                              | Explain / remediate — never sets status; takes contract in, returns results / throws `PublicError`, reports failures only via an injected `onError` hook (never imports `@/server`)                                                                                                                                                                                                                |
+| Server   | `src/server/`                          | Domain folders (`assessment/`, `github/`, `workspace/`, `reporting/`) + `actions/` mutation edge + shared kernel (`observability`, `rate-limit`, `action-state`)                                                                                                                                                                                                                                   |
+| App      | `src/app/`                             | Next.js UI + API                                                                                                                                                                                                                                                                                                                                                                                   |
 
 `src/core` must not import the catalog, db, or analysis-core beyond `contract/*`
 (ESLint). Dependency direction: `contract → { db, catalog, app }`.
 Integration is direct — pages/actions call `src/server`, which calls
 `packages/db` and analysis-core. `src/ai` depends only on the contract
 (plus its own gateway/fs helpers); `src/server` depends on `src/ai`.
-Remediation legality lives in `src/core/remediation-lifecycle.ts`; the
-finding-page beat model (`src/core/finding-act.ts`) is UI policy and must not
+Remediation legality lives in `src/core/requirements/remediation-lifecycle.ts`; the
+finding-page beat model (`src/core/findings/finding-act.ts`) is UI policy and must not
 be imported by `src/server/assessment/` (ESLint).
 
 Workspace packages export `src/*.ts`. Next transpiles them; `dist/` is
@@ -126,7 +126,7 @@ evidence, findings, remediations, requirements }`; the worker persists via
   rejected, never run against an arbitrary row.
 - **Validation** — shared zod primitives (`entityIdSchema`,
   `requiredField`, `parseForm` / `parseInput` / `parseEntityId`) live in
-  `src/core/validate.ts`; action- and route-specific schemas stay next to
+  `src/core/actions/validate.ts`; action- and route-specific schemas stay next to
   their actions/handlers. No separate validation layer.
 - **Persistence API** — concrete `packages/db/repo` functions are the API.
   No abstract repositories, interfaces-per-table, or DI containers: expensive

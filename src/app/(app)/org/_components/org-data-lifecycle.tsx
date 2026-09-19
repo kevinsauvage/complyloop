@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { initialActionState } from "@/core/action-state";
+import { initialActionState } from "@/core/actions/action-state";
 import { announceResult, useActionToast } from "@/hooks/use-action-toast";
 import { deleteOrgAction, exportOrgDataAction } from "@/server/actions/org";
 

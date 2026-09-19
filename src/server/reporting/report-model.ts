@@ -29,7 +29,7 @@ import {
   type Severity,
 } from "@complyloop/analysis-core/contract/statuses";
 
-import { countByStatus } from "@/core/assessment-helpers";
+import { countByStatus } from "@/core/assessment/assessment-helpers";
 import {
   determinationDisplay,
   evidenceDisplay,
@@ -38,7 +38,7 @@ import {
   requirementStatusDisplay,
   severityDisplay,
 } from "@/core/display";
-import { prioritizeClusters } from "@/core/finding-priority";
+import { prioritizeClusters } from "@/core/findings/finding-priority";
 
 export interface ReportInput {
   project: Project;

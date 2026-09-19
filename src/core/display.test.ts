@@ -32,7 +32,7 @@ import {
   STATUS_TONE_BADGE,
   STATUS_TONE_REPORT,
 } from "./display";
-import { severityRank } from "./finding-priority";
+import { severityRank } from "./findings/finding-priority";
 
 const SEVERITIES: Severity[] = ["critical", "serious", "moderate", "minor"];
 

@@ -3,8 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { parseAssessmentJobsResponse } from "@/core/assessment-job-guard";
-import type { AssessmentJob } from "@/core/assessment-jobs";
+import { parseAssessmentJobsResponse } from "@/core/assessment/assessment-job-guard";
+import type { AssessmentJob } from "@/core/assessment/assessment-jobs";
 
 import { AssessmentJobStatus } from "./assessment-job-status";
 

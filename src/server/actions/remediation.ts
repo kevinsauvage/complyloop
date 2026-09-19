@@ -18,16 +18,16 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 
-import type { ActionState } from "@/core/action-state";
-import {
-  advanceRemediation,
-  canBulkApproveRemediation,
-} from "@/core/remediation-lifecycle";
+import type { ActionState } from "@/core/actions/action-state";
 import {
   findingIdsField,
   optionalNoteSchema,
   parseForm,
-} from "@/core/validate";
+} from "@/core/actions/validate";
+import {
+  advanceRemediation,
+  canBulkApproveRemediation,
+} from "@/core/requirements/remediation-lifecycle";
 
 import { runAction } from "../action-state";
 import { applyRequirementStatusRefresh } from "../assessment/assessment-status";

@@ -24,9 +24,12 @@ import {
   orderedFindingIdsForQueue,
   parseFindingListParams,
 } from "@/core/filter-params";
-import type { FindingActView } from "@/core/finding-act";
-import { findingAct } from "@/core/finding-act";
-import { clusterFindings, prioritizeClusters } from "@/core/finding-priority";
+import type { FindingActView } from "@/core/findings/finding-act";
+import { findingAct } from "@/core/findings/finding-act";
+import {
+  clusterFindings,
+  prioritizeClusters,
+} from "@/core/findings/finding-priority";
 import {
   latestPatchState,
   pullRequestUrlFromEvidence,

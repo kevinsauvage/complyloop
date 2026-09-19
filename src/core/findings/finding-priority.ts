@@ -11,8 +11,8 @@ import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import type { Severity } from "@complyloop/analysis-core/contract/statuses";
 
-import { hasPreviewUrl } from "./assessment-helpers";
-import { mustGet } from "./display/must-get";
+import { hasPreviewUrl } from "../assessment/assessment-helpers";
+import { mustGet } from "../display/must-get";
 
 /**
  * Finding prioritization policy: severity order, root-cause clustering,

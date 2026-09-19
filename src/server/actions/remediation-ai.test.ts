@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Remediation } from "@complyloop/analysis-core/contract/entities";
 import type { OrgMembership } from "@complyloop/analysis-core/contract/project-types";
 
-import { initialActionState } from "@/core/action-state";
+import { initialActionState } from "@/core/actions/action-state";
 import {
   actionWorkspaceMocks,
   clearProjectWritePayloads,
