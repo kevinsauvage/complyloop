@@ -16,7 +16,11 @@ import { displayControl } from "@/server/reporting/report";
 import { loadDashboardView } from "@/server/workspace/dashboard-view";
 
 import { AssessmentRunForm } from "./_components/assessment-run-form";
-import { DashboardActivitySections } from "./_components/dashboard-activity-sections";
+import {
+  DashboardFindingsQueue,
+  DashboardOpsTimeline,
+  DashboardRegressionsBanner,
+} from "./_components/dashboard-activity-sections";
 import { DashboardAlertsCard } from "./_components/dashboard-alerts-card";
 import { DashboardOverview } from "./_components/dashboard-overview";
 import {
@@ -87,6 +91,11 @@ export default async function DashboardPage() {
     showFirstRun,
   } = view;
 
+  // The alerts card already covers regressions and is the next action when
+  // unread alerts exist — showing the generic next-action banner alongside
+  // it duplicates the CTA.
+  const showNextAction = Boolean(nextAction) && unreadAlerts.length === 0;
+
   return (
     <div className="flex flex-col gap-6">
       <DashboardOverview
@@ -151,36 +160,39 @@ export default async function DashboardPage() {
 
       {latestAssessment ? (
         <>
-          {nextAction ? (
-            <section
-              aria-labelledby="next-action-heading"
-              className="surface-panel rounded-xl border-signal/30 bg-signal/5 p-5 sm:p-6"
-            >
-              <p className="text-xs font-semibold uppercase tracking-wider text-signal">
-                Next action
-              </p>
-              <div className="mt-1 flex flex-wrap items-end justify-between gap-4">
-                <div className="min-w-0">
-                  <h2
-                    id="next-action-heading"
-                    className="text-lg font-semibold tracking-tight"
-                  >
-                    {nextAction.title}
-                  </h2>
-                  <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                    {nextAction.description}
-                  </p>
-                </div>
-                <PageActionLink href={nextAction.href}>
-                  {nextAction.cta}
-                </PageActionLink>
-              </div>
-            </section>
-          ) : null}
-
           {unreadAlerts.length > 0 ? (
             <DashboardAlertsCard alerts={unreadAlerts} project={project} />
-          ) : null}
+          ) : (
+            <>
+              <DashboardRegressionsBanner regressions={regressions} />
+              {showNextAction && nextAction ? (
+                <section
+                  aria-labelledby="next-action-heading"
+                  className="surface-panel rounded-xl border-signal/30 bg-signal/5 p-5 sm:p-6"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wider text-signal">
+                    Next action
+                  </p>
+                  <div className="mt-1 flex flex-wrap items-end justify-between gap-4">
+                    <div className="min-w-0">
+                      <h2
+                        id="next-action-heading"
+                        className="text-lg font-semibold tracking-tight"
+                      >
+                        {nextAction.title}
+                      </h2>
+                      <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                        {nextAction.description}
+                      </p>
+                    </div>
+                    <PageActionLink href={nextAction.href}>
+                      {nextAction.cta}
+                    </PageActionLink>
+                  </div>
+                </section>
+              ) : null}
+            </>
+          )}
 
           <PageSection
             title="Compliance snapshot"
@@ -194,29 +206,31 @@ export default async function DashboardPage() {
             <DashboardStatusCounts counts={counts} />
           </PageSection>
 
-          <Suspense fallback={<DashboardPipelineSkeleton />}>
-            <DashboardPipelineSection
-              projectId={project.id}
-              canRetry={caps.canAssess}
-              canCancel={caps.canAssess}
-            />
-          </Suspense>
+          <div className="grid items-start gap-4 lg:grid-cols-12">
+            <div className="min-w-0 lg:col-span-7">
+              <DashboardFindingsQueue
+                openFindings={openFindings}
+                openCount={openCount}
+                controlById={(controlId) => displayControl(controlId, project)}
+              />
+            </div>
 
-          <PageSection
-            title="Activity"
-            description="Findings, changes, and evidence from recent work."
-          >
-            <DashboardActivitySections
-              regressions={regressions}
-              recentChanges={recentChanges}
-              openFindings={openFindings}
-              openCount={openCount}
-              recentVerified={recentVerified}
-              recentEvidence={recentEvidence}
-              controlById={(controlId) => displayControl(controlId, project)}
-              hideRegressions={unreadAlerts.length > 0}
-            />
-          </PageSection>
+            <div className="flex min-w-0 flex-col gap-4 lg:col-span-5">
+              <Suspense fallback={<DashboardPipelineSkeleton />}>
+                <DashboardPipelineSection
+                  projectId={project.id}
+                  canRetry={caps.canAssess}
+                  canCancel={caps.canAssess}
+                />
+              </Suspense>
+
+              <DashboardOpsTimeline
+                recentChanges={recentChanges}
+                recentVerified={recentVerified}
+                recentEvidence={recentEvidence}
+              />
+            </div>
+          </div>
         </>
       ) : null}
     </div>

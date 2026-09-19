@@ -2,6 +2,7 @@ import {
   ArrowUpRight,
   FileSearch,
   GitCommitHorizontal,
+  History,
   Layers,
 } from "lucide-react";
 import Link from "next/link";
@@ -26,7 +27,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { evidenceDisplay } from "@/core/display";
+import { EVIDENCE_TONE_DOT,evidenceDisplay } from "@/core/display";
 import { cn } from "@/lib/utils";
 
 function ActivityCard({
@@ -66,28 +67,141 @@ function ActivityCard({
   );
 }
 
-export function DashboardActivitySections({
+export function DashboardRegressionsBanner({
   regressions,
-  recentChanges,
-  openFindings,
-  openCount,
-  recentVerified,
-  recentEvidence,
-  controlById,
-  hideRegressions = false,
 }: {
   regressions: EvidenceRecord[];
-  recentChanges: FileChange[];
+}) {
+  if (regressions.length === 0) return null;
+  return (
+    <section
+      className="surface-panel rounded-xl border-destructive/30 bg-destructive/5 p-4 sm:p-5"
+      aria-labelledby="recent-regressions-heading"
+    >
+      <div className="mb-3 flex items-start gap-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-destructive/15 text-destructive">
+          <Layers className="size-4" aria-hidden />
+        </span>
+        <div className="min-w-0">
+          <h3
+            id="recent-regressions-heading"
+            className="text-base font-medium text-foreground"
+          >
+            Recent compliance regressions
+          </h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Requirement statuses that worsened since the last assessment.
+          </p>
+        </div>
+      </div>
+      <ul className="flex flex-col gap-2">
+        {regressions.map((record) => (
+          <li
+            key={record.id}
+            className="rounded-lg border border-destructive/25 bg-background/70 px-3 py-2 text-sm text-destructive"
+          >
+            {record.summary}
+            <span className="ml-2 text-xs text-muted-foreground">
+              <FormattedDateTime iso={record.at} />
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** Left-rail work queue: open findings in severity order. Full column width. */
+export function DashboardFindingsQueue({
+  openFindings,
+  openCount,
+  controlById,
+}: {
   openFindings: Finding[];
   /** Exact open total (loaded rows are capped — never derive counts from them). */
   openCount: number;
-  recentVerified: EvidenceRecord[];
-  recentEvidence: EvidenceRecord[];
   controlById: (controlId: string) => Control;
-  /** When the unread-alerts card is shown it already covers regressions. */
-  hideRegressions?: boolean;
 }) {
   const allClear = openCount === 0;
+
+  return (
+    <ActivityCard
+      title={allClear ? "All clear" : "Needs attention"}
+      description={
+        allClear
+          ? "No open findings — recent verifications and activity below."
+          : "Open findings ordered by severity for remediation."
+      }
+      icon={FileSearch}
+    >
+      {openCount === 0 ? (
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-muted-foreground">
+            Everything detected has been fixed, verified, or reviewed. Keep
+            monitoring for regressions after the next assessment.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <PageActionLink href="/evidence">
+              View evidence trail
+            </PageActionLink>
+            <PageActionLink href="/requirements">
+              View requirements
+            </PageActionLink>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <ul className="flex flex-col gap-1">
+            {openFindings.slice(0, 6).map((finding) => {
+              const control = controlById(finding.controlId);
+              return (
+                <li key={finding.id}>
+                  <Link
+                    href={`/findings/${finding.id}`}
+                    className="group flex items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 outline-none transition-[background-color,border-color] duration-200 hover:border-border/60 hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <SeverityBadge severity={finding.severity} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium group-hover:text-signal">
+                        {control.code} — {control.title}
+                      </span>
+                      <span className="mt-0.5 block font-mono text-xs break-all text-muted-foreground">
+                        {formatLocationRef(finding.location)}
+                      </span>
+                    </span>
+                    <ArrowUpRight
+                      className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 pointer-coarse:opacity-60"
+                      aria-hidden
+                    />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+          {openCount > 6 ? (
+            <Link
+              href="/findings?tab=open"
+              className="text-sm font-medium text-signal underline-offset-4 hover:underline"
+            >
+              View all {openCount} open findings
+            </Link>
+          ) : null}
+        </div>
+      )}
+    </ActivityCard>
+  );
+}
+
+/** Right-rail ops stack: changed files + verification/evidence timeline. */
+export function DashboardOpsTimeline({
+  recentChanges,
+  recentVerified,
+  recentEvidence,
+}: {
+  recentChanges: FileChange[];
+  recentVerified: EvidenceRecord[];
+  recentEvidence: EvidenceRecord[];
+}) {
   const verifiedIds = new Set(recentVerified.map((record) => record.id));
   const mergedActivity = (() => {
     const seen = new Set<string>();
@@ -101,159 +215,46 @@ export function DashboardActivitySections({
   })();
 
   return (
-    <div className="grid gap-4 lg:grid-cols-12">
-      {!hideRegressions && regressions.length > 0 ? (
-        <section
-          className="surface-panel rounded-xl border-destructive/30 bg-destructive/5 p-4 sm:p-5 lg:col-span-12"
-          aria-labelledby="recent-regressions-heading"
+    <div className="flex flex-col gap-4">
+      {recentChanges.length > 0 ? (
+        <ActivityCard
+          title="Changes since last assessment"
+          description={`${recentChanges.length} file${recentChanges.length === 1 ? "" : "s"} changed`}
+          icon={GitCommitHorizontal}
         >
-          <div className="mb-4 flex items-start gap-3">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-destructive/15 text-destructive">
-              <Layers className="size-4" aria-hidden />
-            </span>
-            <div className="min-w-0">
-              <h3
-                id="recent-regressions-heading"
-                className="text-base font-medium text-foreground"
-              >
-                Recent compliance regressions
-              </h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Requirement statuses that worsened since the last assessment.
-              </p>
-            </div>
-          </div>
-          <ul className="flex flex-col gap-2">
-            {regressions.map((record) => (
+          <ul className="flex flex-col gap-1.5">
+            {recentChanges.slice(0, 6).map((change) => (
               <li
-                key={record.id}
-                className="rounded-lg border border-destructive/25 bg-background/70 px-3 py-2 text-sm text-destructive"
+                key={change.filePath}
+                className="rounded-md bg-muted/30 px-2.5 py-1.5 font-mono text-xs break-all text-muted-foreground"
               >
-                {record.summary}
-                <span className="ml-2 text-xs text-muted-foreground">
-                  <FormattedDateTime iso={record.at} />
-                </span>
+                {change.filePath}
               </li>
             ))}
           </ul>
-        </section>
-      ) : allClear ? (
-        <ActivityCard
-          title="No regressions detected"
-          description="Requirement statuses have not regressed since your last assessments."
-          className="border-status-passed/30 bg-status-passed/5 lg:col-span-12"
-          icon={Layers}
-        >
-          <p className="text-sm text-muted-foreground">
-            Keep running assessments after code changes to catch regressions
-            early.
-          </p>
         </ActivityCard>
       ) : null}
 
-      <ActivityCard
-        title={allClear ? "All clear" : "Needs attention"}
-        description={
-          allClear
-            ? "No open findings — recent verifications and activity below."
-            : "Open findings ordered by severity for remediation."
-        }
-        className="lg:col-span-7"
-        icon={FileSearch}
-      >
-        {openCount === 0 ? (
-          <div className="flex flex-col gap-4">
-            <p className="text-sm text-muted-foreground">
-              Everything detected has been fixed, verified, or reviewed. Keep
-              monitoring for regressions after the next assessment.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <PageActionLink href="/evidence">
-                View evidence trail
-              </PageActionLink>
-              <PageActionLink href="/requirements">
-                View requirements
-              </PageActionLink>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            <ul className="flex flex-col gap-1">
-              {openFindings.slice(0, 6).map((finding) => {
-                const control = controlById(finding.controlId);
-                return (
-                  <li key={finding.id}>
-                    <Link
-                      href={`/findings/${finding.id}`}
-                      className="group flex flex-wrap items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 outline-none transition-[background-color,border-color] duration-200 hover:border-border/60 hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <SeverityBadge severity={finding.severity} />
-                      <span className="min-w-0 flex-1 text-sm font-medium group-hover:text-signal">
-                        {control.code} — {control.title}
-                      </span>
-                      <span className="font-mono text-xs text-muted-foreground w-full">
-                        {formatLocationRef(finding.location)}
-                      </span>
-                      <ArrowUpRight
-                        className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 pointer-coarse:opacity-60"
-                        aria-hidden
-                      />
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-            {openCount > 6 ? (
-              <Link
-                href="/findings?tab=open"
-                className="text-sm font-medium text-signal underline-offset-4 hover:underline"
-              >
-                View all {openCount} open findings
-              </Link>
-            ) : null}
-          </div>
-        )}
-      </ActivityCard>
-
-      <div className="flex flex-col gap-4 lg:col-span-5">
-        {recentChanges.length > 0 ? (
-          <ActivityCard
-            title="Changes since last assessment"
-            icon={GitCommitHorizontal}
-          >
-            <ul className="flex flex-col gap-2">
-              {recentChanges.slice(0, 6).map((change) => (
-                <li
-                  key={change.filePath}
-                  className="rounded-lg border border-border/50 bg-muted/15 px-3 py-2 font-mono text-xs text-muted-foreground"
-                >
-                  {change.filePath}
-                </li>
-              ))}
-            </ul>
-          </ActivityCard>
-        ) : null}
-      </div>
-
-      <ActivityCard
-        title="Recent activity"
-        className="lg:col-span-12"
-        icon={Layers}
-      >
+      <ActivityCard title="Recent activity" icon={History}>
         {mergedActivity.length === 0 ? (
           <p className="text-sm text-muted-foreground">No evidence yet.</p>
         ) : (
-          <ul className="grid gap-2 sm:grid-cols-2">
+          <ol className="relative flex flex-col gap-4 border-l border-border/60 pl-5">
             {mergedActivity.map((record) => {
               const isVerified = verifiedIds.has(record.id);
+              const display = evidenceDisplay(record.kind, record.detail);
               return (
-                <li
-                  key={record.id}
-                  className="rounded-lg border border-border/50 bg-muted/15 px-3 py-2 text-sm text-muted-foreground"
-                >
-                  <span className="flex flex-wrap items-center gap-2">
+                <li key={record.id} className="relative min-w-0">
+                  <span
+                    className={cn(
+                      "absolute top-1.5 -left-5 size-2 -translate-x-1/2 rounded-full ring-4 ring-card",
+                      EVIDENCE_TONE_DOT[display.tone],
+                    )}
+                    aria-hidden
+                  />
+                  <p className="flex flex-wrap items-center gap-2 text-sm">
                     <span className="font-medium text-foreground">
-                      {evidenceDisplay(record.kind, record.detail).label}
+                      {display.label}
                     </span>
                     {isVerified ? (
                       <Badge
@@ -263,15 +264,17 @@ export function DashboardActivitySections({
                         Verified
                       </Badge>
                     ) : null}
-                  </span>
-                  <span className="mt-1 block">{record.summary}</span>
-                  <span className="mt-1 block text-xs">
+                  </p>
+                  <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
+                    {record.summary}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
                     <FormattedDateTime iso={record.at} />
-                  </span>
+                  </p>
                 </li>
               );
             })}
-          </ul>
+          </ol>
         )}
       </ActivityCard>
     </div>

@@ -14,6 +14,7 @@ export async function DashboardPipelineSection({
   canCancel: boolean;
 }) {
   const recentJobs = await recentAssessmentJobsForProject(projectId);
+  if (recentJobs.length === 0) return null;
   return (
     <PageSection title="Pipeline" description="Recent assessment job history.">
       <AssessmentJobStatusLive

@@ -15,32 +15,29 @@ export type DashboardQuickStat = {
 function statToneClass(tone: DashboardQuickStat["tone"]): string {
   switch (tone) {
     case "signal":
-      return "border-signal/20 bg-signal/6";
+      return "text-signal";
     case "warning":
-      return "border-status-failed/20 bg-status-failed/6";
+      return "text-status-failed";
     case "review":
-      return "border-status-review/25 bg-status-review/8";
+      return "text-status-review";
     case "success":
-      return "border-status-passed/20 bg-status-passed/6";
+      return "text-status-passed";
     case "muted":
-      return "border-border/50 bg-muted/30";
+      return "text-muted-foreground";
     case "default":
     default:
-      return "border-border/60 bg-card";
+      return "text-foreground";
   }
 }
 
-function QuickStatTile({ stat }: { stat: DashboardQuickStat }) {
+function QuickStatItem({ stat }: { stat: DashboardQuickStat }) {
   const linked = Boolean(stat.href);
   const inner = (
     <>
       <p
         className={cn(
           "flex items-center gap-1 font-mono text-2xl font-semibold tabular-nums tracking-tight",
-          stat.tone === "signal" && "text-signal",
-          stat.tone === "warning" && "text-status-failed",
-          stat.tone === "review" && "text-status-review",
-          stat.tone === "success" && "text-status-passed",
+          statToneClass(stat.tone),
           linked && "group-hover:text-signal",
         )}
       >
@@ -60,13 +57,8 @@ function QuickStatTile({ stat }: { stat: DashboardQuickStat }) {
     </>
   );
 
-  const className = cn(
-    "surface-panel group block w-full min-w-0 rounded-xl px-4 py-3 transition-[border-color,background-color] duration-200",
-    statToneClass(stat.tone),
-    linked
-      ? "hover:border-signal/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      : "cursor-default",
-  );
+  const className =
+    "group block min-w-0 flex-1 px-4 py-3 first:pl-5 last:pr-5 sm:first:pl-6 sm:last:pr-6 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring";
 
   if (stat.href) {
     return (
@@ -80,7 +72,7 @@ function QuickStatTile({ stat }: { stat: DashboardQuickStat }) {
     );
   }
 
-  return <div className={className}>{inner}</div>;
+  return <div className={cn(className, "cursor-default")}>{inner}</div>;
 }
 
 export function DashboardOverview({
@@ -124,11 +116,11 @@ export function DashboardOverview({
         {stats.length > 0 ? (
           <ul
             aria-label="Key compliance metrics"
-            className="grid grid-cols-2 gap-3 px-5 pb-5 sm:grid-cols-4 sm:px-6 sm:pb-6"
+            className="flex flex-col divide-y divide-border/60 border-t border-border/60 sm:flex-row sm:divide-x sm:divide-y-0"
           >
             {stats.map((stat) => (
-              <li key={stat.label} className="min-w-0">
-                <QuickStatTile stat={stat} />
+              <li key={stat.label} className="min-w-0 flex-1">
+                <QuickStatItem stat={stat} />
               </li>
             ))}
           </ul>
