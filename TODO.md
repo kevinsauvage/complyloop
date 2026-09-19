@@ -24,7 +24,7 @@ Audit of the actual code (not docs). Ordered by value; grouped so related root c
 
 **Impact:** Medium — unauthenticated crash + product credibility for an a11y tool.
 
-### [ ] Clean up install and dependency fragility
+### [x] Clean up install and dependency fragility
 
 **Why:** `ssrf-guard` is rewritten by a custom postinstall because its published exports flap, and it declares Node >=24 while CI runs Node 22 (`postinstall-ssrf-guard.mjs`, `packages/analysis-core/package.json:14`); `@octokit/webhooks` is a production dependency used only for two type aliases; `tsx`/`typescript`/`dotenv` sit in `dependencies` though only scripts use them; `next-auth` is a beta pinned by range.
 
