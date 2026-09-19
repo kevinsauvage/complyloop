@@ -33,7 +33,7 @@ Open [http://localhost:3000](http://localhost:3000), sign in with GitHub, connec
 | All docs                  | [`docs/README.md`](./docs/README.md)                   |
 | Agent / contributor guide | [`AGENTS.md`](./AGENTS.md)                             |
 
-**Local dev:** assessments run **in-process** during `npm run dev`. **Production (Vercel):** trigger sites only enqueue, then kick the GitHub Actions `assessment-worker` via `repository_dispatch` (15-min schedule backstop; self-fetch of `POST /api/internal/jobs/run` as degraded fallback) — no worker process, no Vercel Cron (see [`docs/vercel.md`](./docs/vercel.md)).
+**Local dev:** assessments run **in-process** during `npm run dev`. **Production (Vercel):** trigger sites only enqueue, then kick the GitHub Actions `assessment-worker` via `repository_dispatch` (15-min schedule backstop) — no worker process, no Vercel Cron (see [`docs/vercel.md`](./docs/vercel.md)).
 
 ---
 

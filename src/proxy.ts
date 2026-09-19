@@ -111,7 +111,7 @@ export async function proxy(req: NextRequest) {
   if (pathname.startsWith("/api/")) return;
 
   // Private-preview gate: HTTP Basic Auth on every page. API routes above
-  // keep their own auth (webhook secret, cron Bearer, session cookies), and
+  // keep their own auth (webhook secret, session cookies), and
   // browsers cache the Basic credential per origin so in-app fetch calls
   // reuse it. Unset credentials = gate open (local dev).
   const basicAuth = basicAuthCredentials();

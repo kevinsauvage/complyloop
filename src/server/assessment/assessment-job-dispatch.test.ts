@@ -8,7 +8,6 @@ import { reportWarning } from "../observability";
 import {
   ASSESSMENT_DRAIN_EVENT_TYPE,
   dispatchAssessmentWorker,
-  isWorkerDispatchConfigured,
 } from "./assessment-job-dispatch";
 
 const warned = vi.mocked(reportWarning);
@@ -28,25 +27,6 @@ afterEach(() => {
   vi.clearAllMocks();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
-});
-
-describe("isWorkerDispatchConfigured", () => {
-  it("requires a token and a resolvable repo", () => {
-    expect(isWorkerDispatchConfigured()).toBe(true);
-
-    vi.stubEnv("GH_WORKER_DISPATCH_TOKEN", "");
-    expect(isWorkerDispatchConfigured()).toBe(false);
-  });
-
-  it("falls back to Vercel git metadata when no explicit repo is set", () => {
-    vi.stubEnv("APP_REPO_FULL_NAME", "");
-    vi.stubEnv("VERCEL_GIT_REPO_OWNER", "octo");
-    vi.stubEnv("VERCEL_GIT_REPO_SLUG", "app");
-    expect(isWorkerDispatchConfigured()).toBe(true);
-
-    vi.stubEnv("VERCEL_GIT_REPO_SLUG", "");
-    expect(isWorkerDispatchConfigured()).toBe(false);
-  });
 });
 
 describe("dispatchAssessmentWorker", () => {

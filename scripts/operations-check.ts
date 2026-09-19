@@ -44,7 +44,7 @@ async function main(): Promise<void> {
           required("GITHUB_APP_ID"),
           required("GITHUB_APP_PRIVATE_KEY"),
           required("GITHUB_WEBHOOK_SECRET"),
-          required("WORKER_SECRET"),
+          required("GH_WORKER_DISPATCH_TOKEN"),
           required("SENTRY_DSN"),
         ].filter((failure): failure is string => Boolean(failure))
       : [];

@@ -15,6 +15,7 @@ import {
   type AssessmentJob,
   cancelAssessmentJob,
   enqueueAssessmentJob,
+  recoverExpiredAssessmentLeases,
 } from "../assessment/assessment-jobs";
 import {
   scheduleAssessmentDrain,
@@ -29,6 +30,30 @@ import { refresh, requireOnActive } from "./shared";
 const cancelAssessmentJobInput = z.object({
   jobId: entityIdSchema,
 });
+
+/**
+ * A `running` job whose lease already expired is a dead worker, not an
+ * active scan — the heartbeat renews live leases every 5 minutes against a
+ * 30-minute lease, so an expired lease means no worker is coming back.
+ */
+function hasLiveLease(job: AssessmentJob, now: number): boolean {
+  if (job.status !== "running" || !job.leaseExpiresAt) return false;
+  const expiresAt = Date.parse(job.leaseExpiresAt);
+  return Number.isFinite(expiresAt) && expiresAt > now;
+}
+
+/**
+ * A `queued` job past its `availableAt` is dispatchable right now (a
+ * just-recovered lease lands here with `availableAt: now`). Kicking the
+ * worker for it cannot duplicate work — the serial-per-project claim still
+ * runs one assessment at a time. A job in backoff (`availableAt` in the
+ * future) is left alone so a re-kick cannot boot a runner for nothing.
+ */
+function isDueForDispatch(job: AssessmentJob, now: number): boolean {
+  if (job.status !== "queued") return false;
+  const availableAt = Date.parse(job.availableAt);
+  return Number.isFinite(availableAt) && availableAt <= now;
+}
 
 /**
  * Queues a manual assessment and kicks the worker without waiting for it.
@@ -70,6 +95,11 @@ export async function runAssessmentAction(
       requireOnActive(workspace, "project.assess");
       context.projectId = workspace.project.id;
       if (workspace.userId) await assertAssessRateLimit(workspace.userId);
+      // Reclaim crashed-worker leases before reading the active job: an
+      // expired-`running` row must not block re-dispatch until the 15-minute
+      // schedule happens to claim (recovery requeues while attempts remain,
+      // terminal-fails poison jobs — either way the row below is current).
+      await recoverExpiredAssessmentLeases();
       const active = await activeAssessmentJobForProject(workspace.project.id);
       if (active) {
         context.alreadyActive = active;
@@ -94,6 +124,17 @@ export async function runAssessmentAction(
     const alreadyActive = context.alreadyActive;
     if (alreadyActive) {
       refresh(...COMPLIANCE_LOOP_ROUTES);
+      const now = Date.now();
+      if (hasLiveLease(alreadyActive, now)) {
+        return "An assessment is already running — track it in the Pipeline below.";
+      }
+      if (isDueForDispatch(alreadyActive, now)) {
+        // Dispatchable but idle: the first kick failed or the lease was just
+        // recovered above. Re-kick instead of returning silently — no second
+        // job is enqueued, so scans cannot stack behind the serial claim.
+        after(() => scheduleAssessmentDrain());
+        return "An assessment is already queued — kicked the worker to pick it up. Track progress in the Pipeline below.";
+      }
       const state = alreadyActive.status === "running" ? "running" : "queued";
       return `An assessment is already ${state} — track it in the Pipeline below.`;
     }

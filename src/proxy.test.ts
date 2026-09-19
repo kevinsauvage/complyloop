@@ -76,9 +76,6 @@ describe("proxy basic auth gate", () => {
     await expect(
       proxy(request("/api/github/webhook")),
     ).resolves.toBeUndefined();
-    await expect(
-      proxy(request("/api/internal/jobs/run")),
-    ).resolves.toBeUndefined();
   });
 
   it("leaves the Sentry tunnel untouched (no gate, no login redirect)", async () => {

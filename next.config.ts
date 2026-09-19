@@ -51,21 +51,17 @@ const nextConfig: NextConfig = {
   // into the function bundle (`Cannot find module .../browsers.json`, surfaced
   // as generic "Runtime scan failed."). 1 KB, so it goes to every route.
   // Same for `axe-core/axe.min.js`: the remediation-verify re-checks run
-  // inside finding-page actions (not the worker route), so only a global
+  // inside finding-page actions, so only a global
   // include keeps them working in production.
-  // `@sparticuz/chromium` ships its binaries as non-JS `bin/*.br` assets with
-  // the same tracing blind spot (`The input directory
-  // ".../@sparticuz/chromium/bin" does not exist`). 66 MB, so it is included
-  // only where a browser is launched: the worker route (manual + webhook
-  // scans drain through it). No other route launches a browser — the
-  // dashboard action only enqueues. A new route that launches one needs its
-  // own entry here — that is the failure this scoping exists to make loud.
+  // `@sparticuz/chromium` stays in `serverExternalPackages` above (never
+  // bundled) but its `bin/*.br` binaries are no longer force-included
+  // anywhere: the only consumer was the deleted Vercel worker route, and
+  // the GitHub Actions executor resolves the package from `node_modules`.
   outputFileTracingIncludes: {
     "/*": [
       "./node_modules/playwright-core/browsers.json",
       "./node_modules/axe-core/axe.min.js",
     ],
-    "/api/internal/jobs/run": ["./node_modules/@sparticuz/chromium/bin/**/*"],
   },
   transpilePackages: [
     "@complyloop/analysis-core",

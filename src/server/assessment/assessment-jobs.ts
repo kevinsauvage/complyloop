@@ -329,6 +329,20 @@ async function recoverExpiredLeases(tx: DrizzleDb, now: string): Promise<void> {
     );
 }
 
+/**
+ * Reclaims crashed-worker leases outside a claim tick. The manual Run action
+ * and the Run form call this before reading the active job so an
+ * expired-`running` row (dead executor, no heartbeat) does not block
+ * re-dispatch until the 15-minute schedule happens to claim. Live leases are
+ * untouched — only rows whose `leaseExpiresAt` already passed move.
+ */
+export async function recoverExpiredAssessmentLeases(): Promise<void> {
+  const drizzle = await getDrizzle();
+  await drizzle.transaction(async (tx) => {
+    await recoverExpiredLeases(tx, new Date().toISOString());
+  });
+}
+
 /** Claims one ready job while ensuring only one assessment runs per project. */
 export async function claimNextAssessmentJob(): Promise<AssessmentJob | null> {
   const drizzle = await getDrizzle();

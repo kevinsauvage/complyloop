@@ -34,9 +34,8 @@ export const metadata: Metadata = {
 };
 
 // Manual runs only enqueue (see `runAssessmentAction`): the click resolves
-// fast and the scan drains through the worker queue, so this segment needs
-// no extended timeout — the worker route (`/api/internal/jobs/run`) owns
-// its own `maxDuration` budget instead.
+// fast and the scan drains through the GitHub Actions worker queue, so this
+// segment needs no extended timeout.
 
 export default async function DashboardPage() {
   const view = await loadDashboardView();

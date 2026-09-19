@@ -25,6 +25,7 @@ import {
 const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
 const activeAssessmentJobForProject = vi.hoisted(() => vi.fn());
 const cancelAssessmentJob = vi.hoisted(() => vi.fn());
+const recoverExpiredAssessmentLeases = vi.hoisted(() => vi.fn());
 const scheduleAssessmentDrain = vi.hoisted(() => vi.fn());
 const shouldDrainAssessmentJobsInline = vi.hoisted(() => vi.fn());
 const assertAssessRateLimit = vi.hoisted(() => vi.fn());
@@ -60,6 +61,8 @@ vi.mock("../assessment/assessment-jobs", () => ({
     activeAssessmentJobForProject(...args),
   enqueueAssessmentJob: (...args: unknown[]) => enqueueAssessmentJob(...args),
   cancelAssessmentJob: (...args: unknown[]) => cancelAssessmentJob(...args),
+  recoverExpiredAssessmentLeases: (...args: unknown[]) =>
+    recoverExpiredAssessmentLeases(...args),
 }));
 
 vi.mock("../assessment/assessment-scheduler", () => ({
@@ -318,6 +321,81 @@ describe("runAssessmentAction", () => {
       ok: true,
       message:
         "An assessment is already running — track it in the Pipeline below.",
+    });
+    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
+    expect(afterFn).not.toHaveBeenCalled();
+  });
+
+  it("does not kick the worker while a live lease is held", async () => {
+    const workspace = workspaceFor("member");
+    mockProjectWrite(workspace);
+    activeAssessmentJobForProject.mockResolvedValue({
+      id: "job-running",
+      status: "running",
+      leaseExpiresAt: new Date(Date.now() + 30 * 60_000).toISOString(),
+    });
+    assertAssessRateLimit.mockResolvedValue(undefined);
+
+    const result = await runAssessmentAction(
+      initialActionState,
+      new FormData(),
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      message:
+        "An assessment is already running — track it in the Pipeline below.",
+    });
+    expect(recoverExpiredAssessmentLeases).toHaveBeenCalledTimes(1);
+    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
+    expect(afterFn).not.toHaveBeenCalled();
+  });
+
+  it("re-kicks the worker for a due queued job instead of stacking a second scan", async () => {
+    const workspace = workspaceFor("member");
+    mockProjectWrite(workspace);
+    activeAssessmentJobForProject.mockResolvedValue({
+      id: "job-queued",
+      status: "queued",
+      availableAt: new Date(Date.now() - 60_000).toISOString(),
+    });
+    assertAssessRateLimit.mockResolvedValue(undefined);
+
+    const result = await runAssessmentAction(
+      initialActionState,
+      new FormData(),
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      message:
+        "An assessment is already queued — kicked the worker to pick it up. Track progress in the Pipeline below.",
+    });
+    expect(recoverExpiredAssessmentLeases).toHaveBeenCalledTimes(1);
+    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
+    expect(scheduleAssessmentDrain).not.toHaveBeenCalled();
+    expect(afterFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves a backoff-queued job alone without kicking", async () => {
+    const workspace = workspaceFor("member");
+    mockProjectWrite(workspace);
+    activeAssessmentJobForProject.mockResolvedValue({
+      id: "job-backoff",
+      status: "queued",
+      availableAt: new Date(Date.now() + 60_000).toISOString(),
+    });
+    assertAssessRateLimit.mockResolvedValue(undefined);
+
+    const result = await runAssessmentAction(
+      initialActionState,
+      new FormData(),
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      message:
+        "An assessment is already queued — track it in the Pipeline below.",
     });
     expect(enqueueAssessmentJob).not.toHaveBeenCalled();
     expect(afterFn).not.toHaveBeenCalled();

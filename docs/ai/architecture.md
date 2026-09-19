@@ -36,8 +36,7 @@ with auth/middleware/token crypto, framework keys stay direct. Manual and
 webhook assessments are durable jobs: enqueue → `repository_dispatch` kicks
 the GitHub Actions `assessment-worker` (Playwright Chromium, same family as
 local dev) → 15-min schedule backstop for failed dispatches, killed tasks,
-and expired leases. `POST /api/internal/jobs/run` stays for schedulers that
-call it directly; dev/e2e drains inline.
+and expired leases; dev/e2e drains inline.
 
 ```
 Manual run (dashboard action enqueues + after() dispatch) → assessment-worker (GH) → claim → scan → persist
@@ -141,16 +140,16 @@ evidence, findings, remediations, requirements }`; the worker persists via
   - **Manual** — `runAssessmentAction` enqueues (`queued`, `attempts: 0`)
     and schedules the drain in `after()`; the click resolves fast with
     "queued" copy and progress lives in the Pipeline section (polls every
-    3s, refreshes on completion). A second click while a job is active is
-    refused — claims are serial per project.
+    3s, refreshes on completion). A second click while a scan is live is
+    refused; a click while a job is queued-due re-kicks the worker without
+    enqueuing a duplicate — claims are serial per project.
   - **Webhook (queued)** — enqueue then `after()` dispatch of the GH
     worker; its 15-min schedule is the backstop for failed dispatches,
     killed tasks, and expired leases. Dev/e2e drain the queue inline.
   Expired rate-limit buckets prune once per batch.
 - **Checkouts** — shallow ephemeral checkout per job via pure-JS git
-  (isomorphic-git, no `git` CLI); deleted after. Serverless Chromium via
-  `@sparticuz/chromium` when `ASSESSMENT_RUNTIME_BROWSER=serverless`, local
-  Playwright browser otherwise. See [`vercel.md`](../vercel.md).
+  (isomorphic-git, no `git` CLI); deleted after. The executor uses its
+  locally installed Playwright browser. See [`vercel.md`](../vercel.md).
 
 ## Analysis
 
@@ -271,11 +270,11 @@ pushes are ignored. PR events post a Check Run. Failures become
   `searchParams`) plus targeted `revalidatePath` on mutation
   (`src/server/actions/shared.ts`). No blanket `force-dynamic` on pages.
   `force-dynamic` stays only on JSON Route Handlers
-  (`api/github/repos`, `assessment-jobs`, `health`, `internal/jobs/run`)
+  (`api/github/repos`, `assessment-jobs`, `health`)
   where accidental static caching of per-user JSON must be impossible.
 - **Mutations vs routes** — mutations go through Server Actions; Route
   Handlers exist only for webhooks, polling/streaming (`assessment-jobs`,
-  picker typeahead), auth, health, and the internal job runner. Do not
+  picker typeahead), auth, and health. Do not
   convert polling/search to Server Actions, and do not proxy Server
   Component reads through `/api`.
 - **Providers** — `ThemeProvider` + `TooltipProvider` + `Toaster` stay in

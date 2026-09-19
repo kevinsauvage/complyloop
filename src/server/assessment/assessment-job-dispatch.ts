@@ -26,18 +26,11 @@ function appRepo(): { owner: string; repo: string } | null {
   return owner && repo ? { owner, repo } : null;
 }
 
-export function isWorkerDispatchConfigured(): boolean {
-  return (
-    Boolean(process.env.GH_WORKER_DISPATCH_TOKEN?.trim()) &&
-    appRepo() !== null
-  );
-}
-
 /**
  * Kicks the GitHub Actions executor via `repository_dispatch`. Returns true
  * when GitHub accepted the event, false when unconfigured or rejected.
  * Never throws and never logs the token — a failed dispatch leaves the job
- * queued and the caller falls back to the next drain path.
+ * queued for the executor's 15-minute schedule (lease recovery reclaims it).
  */
 export async function dispatchAssessmentWorker(): Promise<boolean> {
   try {

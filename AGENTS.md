@@ -33,7 +33,7 @@ Compliance engineering for **RGAA/WCAG** on React/Next.js/TypeScript — orgs, p
 | DB         | Postgres + Drizzle (`DATABASE_URL`); evidence insert-only             |
 | Auth       | Auth.js v5 + GitHub OAuth/App; ephemeral checkouts per job           |
 | Analysis   | AST + jsx-a11y + optional Playwright/axe when `runtimeBaseUrl` is set |
-| Jobs       | Vercel Cron → `POST /api/internal/jobs/run` (no worker process)      |
+| Jobs       | GH Actions `assessment-worker` via `repository_dispatch` + 15-min schedule backstop (no worker process, no Vercel Cron) |
 | AI         | Vercel AI SDK, optional; **never sets statuses**                      |
 | Tests      | Vitest + RTL; Playwright e2e (`E2E_AUTH_ENABLED`)                     |
 

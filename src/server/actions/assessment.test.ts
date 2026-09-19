@@ -30,7 +30,6 @@ const processNext = vi.mocked(processNextAssessmentJob);
 
 beforeEach(() => {
   vi.stubEnv("AUTH_URL", "https://app.example.com");
-  vi.stubEnv("WORKER_SECRET", "test-worker-secret");
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200 }));
 });
 

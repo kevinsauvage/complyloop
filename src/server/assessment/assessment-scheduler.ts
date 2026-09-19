@@ -55,7 +55,7 @@ async function runSequential(
 /**
  * Claims and runs ready assessment jobs until the queue is idle or `limit`
  * jobs have been attempted. The single batch loop shared by the GH Actions
- * drain script, the degraded worker route, and the dev/e2e inline drain.
+ * drain script and the dev/e2e inline drain.
  *
  * Pass `concurrency` > 1 to run a bounded in-process pool. Per-project
  * exclusivity is enforced by `claimNextAssessmentJob` (correlated NOT EXISTS
@@ -227,10 +227,9 @@ export async function drainAssessmentJobsInline(): Promise<string> {
  * returns `undefined`, so the caller falls back to the "queued" copy. A
  * dispatch that is unconfigured or rejected leaves the job `queued` — the
  * executor's 15-minute schedule reclaims it via lease recovery, so there is
- * no second executor path to maintain. (The degraded Vercel worker-route
- * self-fetch lives in the dispatch-failure fallback, not here.)
+ * no second executor path to maintain.
  *
- * Never throws — a failed dispatch leaves the job `queued`/`running` and the
+ * Never throws — a failed dispatch leaves the job `queued` and the
  * scheduled worker reclaims it via lease recovery.
  */
 export async function scheduleAssessmentDrain(): Promise<string | undefined> {
