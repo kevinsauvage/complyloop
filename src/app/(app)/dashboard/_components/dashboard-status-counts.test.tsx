@@ -6,7 +6,7 @@ import {
   type RequirementStatus,
 } from "@complyloop/analysis-core/contract/statuses";
 
-import { renderWithUiProviders } from "@/test/render-ui";
+import { renderWithUiProviders } from "@/test-fixtures/render-ui";
 
 import { DashboardStatusCounts } from "./dashboard-status-counts";
 

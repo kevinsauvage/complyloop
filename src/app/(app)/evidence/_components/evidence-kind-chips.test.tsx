@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { EvidenceKind } from "@complyloop/analysis-core/contract/entities";
 
-import { renderWithUiProviders } from "@/test/render-ui";
+import { renderWithUiProviders } from "@/test-fixtures/render-ui";
 
 import { EvidenceKindChips } from "./evidence-kind-chips";
 

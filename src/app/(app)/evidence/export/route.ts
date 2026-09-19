@@ -1,3 +1,6 @@
+// Colocated with the evidence page on purpose: this download endpoint serves
+// that page's export menu (route handlers don't inherit layouts, so the (app)
+// group here is organizational only).
 import { assertExportRateLimit } from "@/server/rate-limit";
 import { loadEvidenceExport } from "@/server/reporting/evidence-queries";
 import { frameworkForProject } from "@/server/reporting/report";

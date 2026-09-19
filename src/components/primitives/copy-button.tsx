@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useCopy } from "@/hooks/use-copy";
+import { useCopy } from "@/components/primitives/use-copy";
 
 export function CopyButton({ label, text }: { label: string; text: string }) {
   const { status, copy } = useCopy(text);

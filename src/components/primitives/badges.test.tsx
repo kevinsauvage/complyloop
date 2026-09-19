@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { renderWithUiProviders } from "@/test/render-ui";
+import { renderWithUiProviders } from "@/test-fixtures/render-ui";
 
 import {
   ProvenanceBadge,

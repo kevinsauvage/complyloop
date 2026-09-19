@@ -3,7 +3,7 @@
 import { Check, Copy, WrapText } from "lucide-react";
 import { useState } from "react";
 
-import { useCopy } from "@/hooks/use-copy";
+import { useCopy } from "@/components/primitives/use-copy";
 import { cn } from "@/lib/utils";
 
 /** Code viewer with copy + wrap controls — long diffs stay readable on 320px viewports. */
