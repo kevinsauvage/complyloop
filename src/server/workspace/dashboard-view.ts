@@ -7,7 +7,8 @@
  */
 import "server-only";
 
-import { shippedCatalog } from "@complyloop/analysis-core/catalog/catalog";
+import { cache } from "react";
+
 import type {
   Alert,
   Assessment,
@@ -16,17 +17,15 @@ import type {
 } from "@complyloop/analysis-core/contract/entities";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
+import { getDrizzle } from "@complyloop/db/postgres";
+import { countFindingsByStatusForProject } from "@complyloop/db/repo/findings";
 
 import {
   countByStatus,
   hasPreviewUrl,
   latestAssessmentFor,
 } from "@/core/assessment/assessment-helpers";
-import {
-  clusterFindings,
-  prioritizeClusters,
-  prioritizeFindings,
-} from "@/core/findings/finding-priority";
+import { compareFindingsBySeverity } from "@/core/findings/finding-priority";
 import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
 import type { ProjectCapabilities } from "@/server/workspace/project-capabilities";
 import { getProjectRuntime } from "@/server/workspace/project-runtime";
@@ -45,11 +44,12 @@ export type DashboardView =
       latestAssessment: Assessment | undefined;
       counts: Record<(typeof REQUIREMENT_STATUSES)[number], number>;
       openFindings: Finding[];
+      /** Exact open total from an index-only count (loaded rows are capped). */
+      openCount: number;
       unreadAlerts: Alert[];
       regressions: EvidenceRecord[];
       recentVerified: EvidenceRecord[];
       recentEvidence: EvidenceRecord[];
-      clusters: ReturnType<typeof prioritizeClusters>;
       recentChanges: NonNullable<Assessment["changesSincePrevious"]>;
       quickStats: Array<{
         label: string;
@@ -67,8 +67,18 @@ export type DashboardView =
     };
 
 /**
+ * Index-only open total, memoized per request like the rest of the loaders.
+ * The loaded finding rows are capped (see `FINDINGS_LIST_LOAD_LIMIT`), so
+ * counts displayed here must come from SQL, not `openFindings.length`.
+ */
+const countOpenFindings = cache(
+  async (projectId: string) =>
+    (await countFindingsByStatusForProject(await getDrizzle(), projectId)).open,
+);
+
+/**
  * Everything the dashboard renders: scoped runtime rows, status counts,
- * prioritized findings/clusters, alert/regression/evidence windows, and the
+ * severity-ordered findings, alert/regression/evidence windows, and the
  * derived quick-stats + next-action cards. The run-assessment CTA and
  * coverage chip stay in the page (render decisions on `caps`).
  */
@@ -80,16 +90,12 @@ export async function loadDashboardView(): Promise<DashboardView> {
   const runtime = await getProjectRuntime(project.id, {
     findingStatuses: ["open"],
   });
+  const openCount = await countOpenFindings(project.id);
   const latestAssessment = latestAssessmentFor(runtime.assessments, project.id);
   const requirements = requirementsInScope(runtime.requirements, project);
   const projectFindings = findingsInScope(runtime.findings, project);
-  const controls = shippedCatalog().controls;
-  const rawClusters = clusterFindings(projectFindings, controls);
-  const openFindings = prioritizeFindings(
-    projectFindings,
-    controls,
-    rawClusters,
-  );
+  // Severity-first display order (same order as the findings list).
+  const openFindings = [...projectFindings].sort(compareFindingsBySeverity);
   const unreadAlerts = runtime.alerts
     .filter((alert) => alert.projectId === project.id && !alert.read)
     .slice()
@@ -117,11 +123,6 @@ export async function loadDashboardView(): Promise<DashboardView> {
     .filter((record) => record.projectId === project.id || !record.projectId)
     .slice(-6)
     .reverse();
-  const clusters = prioritizeClusters(
-    projectFindings,
-    controls,
-    rawClusters,
-  ).slice(0, 5);
   const recentChanges = latestAssessment?.changesSincePrevious ?? [];
 
   const counts = countByStatus(requirements, REQUIREMENT_STATUSES);
@@ -149,12 +150,9 @@ export async function loadDashboardView(): Promise<DashboardView> {
     ? [
         {
           label: "Open findings",
-          value: openFindings.length,
-          href: openFindings.length > 0 ? "/findings" : undefined,
-          tone:
-            openFindings.length > 0
-              ? ("warning" as const)
-              : ("success" as const),
+          value: openCount,
+          href: openCount > 0 ? "/findings" : undefined,
+          tone: openCount > 0 ? ("warning" as const) : ("success" as const),
         },
         {
           label: "Unread alerts",
@@ -178,7 +176,7 @@ export async function loadDashboardView(): Promise<DashboardView> {
       ]
     : [];
 
-  // Single next action, highest priority first: alerts → failed
+  // Single next action, most urgent first: alerts → failed
   // requirements → open findings → preview-URL coverage gap.
   const nextAction =
     unreadAlerts.length > 0
@@ -197,11 +195,11 @@ export async function loadDashboardView(): Promise<DashboardView> {
             cta: "See failed requirements",
             href: "/requirements?status=failed",
           }
-        : openFindings.length > 0
+        : openCount > 0
           ? {
-              title: `${openFindings.length} open finding${openFindings.length === 1 ? "" : "s"}`,
+              title: `${openCount} open finding${openCount === 1 ? "" : "s"}`,
               description:
-                "Triage the queue in priority order — fix each finding to Verified.",
+                "Triage the queue in severity order — fix each finding to Verified.",
               cta: "Triage findings",
               href: "/findings?tab=open",
             }
@@ -222,11 +220,11 @@ export async function loadDashboardView(): Promise<DashboardView> {
     latestAssessment,
     counts,
     openFindings,
+    openCount,
     unreadAlerts,
     regressions,
     recentVerified,
     recentEvidence,
-    clusters,
     recentChanges,
     quickStats,
     nextAction,

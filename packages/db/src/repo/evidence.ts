@@ -1,13 +1,11 @@
 import type { SQL } from "drizzle-orm";
 import {
   and,
-  asc,
   count,
   desc,
   eq,
   gte,
   ilike,
-  inArray,
   isNull,
   lte,
   or,
@@ -32,6 +30,13 @@ export const WORKSPACE_EVIDENCE_LIMIT = 100;
  * DB forever (append-only); this only bounds the download, not the table.
  */
 export const EVIDENCE_EXPORT_LIMIT = 5_000;
+
+/**
+ * Safety cap on per-finding evidence reads (finding detail timeline). Real
+ * timelines hold dozens of rows (decisions, scan refs, AI suggestions); the
+ * cap only bounds pathological growth. Served by `evidence_finding_at_idx`.
+ */
+export const FINDING_EVIDENCE_LIMIT = 500;
 
 /** How many rows an export should take, and whether the table was larger. */
 export function evidenceExportWindow(
@@ -226,28 +231,55 @@ export async function listEvidenceForExport(
   };
 }
 
+export interface OrgEvidenceExport {
+  /** Oldest-first across the org (each project's window is oldest-first). */
+  records: EvidenceRecord[];
+  total: number;
+  limitPerProject: number;
+  /** Project ids whose evidence exceeded the per-project cap. */
+  truncatedProjectIds: string[];
+}
+
+/**
+ * Bounded evidence for org exports: the per-project newest-`limit` window
+ * (same semantics as the single-project export), merged oldest-first. The
+ * previous unlimited loader could materialize hundreds of MB for long-lived
+ * orgs; callers surface `truncatedProjectIds` in the export payload.
+ */
+export async function listEvidenceForExportForProjects(
+  drizzle: DrizzleDb,
+  projectIds: readonly string[],
+  limitPerProject: number = EVIDENCE_EXPORT_LIMIT,
+): Promise<OrgEvidenceExport> {
+  const pages = await Promise.all(
+    projectIds.map(async (projectId) => ({
+      projectId,
+      page: await listEvidenceForExport(drizzle, projectId, limitPerProject),
+    })),
+  );
+  const records = pages
+    .flatMap(({ page }) => page.records)
+    .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+  return {
+    records,
+    total: pages.reduce((sum, { page }) => sum + page.total, 0),
+    limitPerProject,
+    truncatedProjectIds: pages
+      .filter(({ page }) => page.truncated)
+      .map(({ projectId }) => projectId),
+  };
+}
+
 export async function listEvidenceForFinding(
   drizzle: DrizzleDb,
   findingId: string,
+  limit: number = FINDING_EVIDENCE_LIMIT,
 ): Promise<EvidenceRecord[]> {
   const rows = await drizzle
     .select()
     .from(evidence)
     .where(eq(evidence.findingId, findingId))
-    .orderBy(desc(evidence.at));
-  return rows.map(rowToEvidence);
-}
-
-/** All evidence for many projects, oldest-first (org export). */
-export async function listAllEvidenceForProjects(
-  drizzle: DrizzleDb,
-  projectIds: readonly string[],
-): Promise<EvidenceRecord[]> {
-  if (projectIds.length === 0) return [];
-  const rows = await drizzle
-    .select()
-    .from(evidence)
-    .where(inArray(evidence.projectId, [...projectIds]))
-    .orderBy(asc(evidence.at));
+    .orderBy(desc(evidence.at))
+    .limit(limit);
   return rows.map(rowToEvidence);
 }

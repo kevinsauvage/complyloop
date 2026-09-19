@@ -8,7 +8,7 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { getDrizzle } from "@complyloop/db/postgres";
 import { listAlertsForProjects } from "@complyloop/db/repo/alerts";
 import { listAssessmentsForProjects } from "@complyloop/db/repo/assessments";
-import { listAllEvidenceForProjects } from "@complyloop/db/repo/evidence";
+import { listEvidenceForExportForProjects } from "@complyloop/db/repo/evidence";
 import { listFindingsForProjects } from "@complyloop/db/repo/findings";
 import { nextUniqueSlug, slugifyOrgName } from "@complyloop/db/repo/orgs";
 import { listRemediationsForProjects } from "@complyloop/db/repo/remediations";
@@ -83,6 +83,7 @@ export function exportOrgData(
   db: WorkspaceSlice,
   orgId: string,
   actorUserId: string,
+  options: { evidenceTruncatedProjectIds?: readonly string[] } = {},
 ): Record<string, unknown> {
   const index = buildOrgMembershipIndex(db.memberships);
   if (roleInOrg(index, orgId, actorUserId) !== "owner") {
@@ -97,6 +98,9 @@ export function exportOrgData(
     projectIds.has(finding.projectId),
   );
   const findingIds = new Set(findings.map((finding) => finding.id));
+  const evidenceTruncatedProjectIds = [
+    ...(options.evidenceTruncatedProjectIds ?? []),
+  ];
 
   return {
     exportedAt: new Date().toISOString(),
@@ -124,6 +128,8 @@ export function exportOrgData(
       (entry) => entry.projectId != null && projectIds.has(entry.projectId),
     ),
     alerts: db.alerts.filter((alert) => projectIds.has(alert.projectId)),
+    evidenceTruncated: evidenceTruncatedProjectIds.length > 0,
+    evidenceTruncatedProjectIds,
   };
 }
 
@@ -159,13 +165,15 @@ export function deleteOrganization(
 /**
  * Full-history org export rows for the audit artifact. The workspace slice
  * is bounded (latest assessment, evidence window), so the export fetches
- * full history directly with one set-based query per entity type (no
- * per-project N+1). Workspace-owned so actions never open Drizzle directly.
+ * history directly with one set-based query per entity type (no per-project
+ * N+1). Evidence is the exception: append-only forever, so each project
+ * contributes its newest export window (`EVIDENCE_EXPORT_LIMIT`, same
+ * semantics as the single-project export) instead of an unbounded read —
+ * long-lived orgs would otherwise materialize hundreds of MB. Truncated
+ * project ids ride along so the payload flags incompleteness.
  */
-export async function loadOrgExportData(
-  projectIds: string[],
-): Promise<
-  Pick<
+export async function loadOrgExportData(projectIds: string[]): Promise<{
+  history: Pick<
     WorkspaceSlice,
     | "evidence"
     | "assessments"
@@ -173,24 +181,34 @@ export async function loadOrgExportData(
     | "remediations"
     | "requirements"
     | "alerts"
-  >
-> {
+  >;
+  evidenceTruncatedProjectIds: string[];
+}> {
   const drizzle = await getDrizzle();
-  const [evidence, assessments, findings, remediations, requirements, alerts] =
-    await Promise.all([
-      listAllEvidenceForProjects(drizzle, projectIds),
-      listAssessmentsForProjects(drizzle, projectIds),
-      listFindingsForProjects(drizzle, projectIds),
-      listRemediationsForProjects(drizzle, projectIds),
-      listRequirementsForProjects(drizzle, projectIds),
-      listAlertsForProjects(drizzle, projectIds),
-    ]);
-  return {
-    evidence,
+  const [
+    evidenceExport,
     assessments,
     findings,
     remediations,
     requirements,
     alerts,
+  ] = await Promise.all([
+    listEvidenceForExportForProjects(drizzle, projectIds),
+    listAssessmentsForProjects(drizzle, projectIds),
+    listFindingsForProjects(drizzle, projectIds),
+    listRemediationsForProjects(drizzle, projectIds),
+    listRequirementsForProjects(drizzle, projectIds),
+    listAlertsForProjects(drizzle, projectIds),
+  ]);
+  return {
+    history: {
+      evidence: evidenceExport.records,
+      assessments,
+      findings,
+      remediations,
+      requirements,
+      alerts,
+    },
+    evidenceTruncatedProjectIds: evidenceExport.truncatedProjectIds,
   };
 }

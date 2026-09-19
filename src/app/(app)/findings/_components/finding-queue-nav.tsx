@@ -41,13 +41,11 @@ export function FindingQueueNav({
   const inQueue = index >= 0 && total > 0;
   const [liveMessage, setLiveMessage] = useState("");
   const tabLabel =
-    listParams.tab === "by_cause"
-      ? "Root cause"
-      : listParams.tab === "resolved"
-        ? "Resolved"
-        : listParams.tab === "dismissed"
-          ? "Dismissed"
-          : "Open";
+    listParams.tab === "resolved"
+      ? "Resolved"
+      : listParams.tab === "dismissed"
+        ? "Dismissed"
+        : "Open";
   const filteredSuffix = hasActiveFindingFilters(listParams)
     ? " · filtered"
     : "";

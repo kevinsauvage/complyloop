@@ -57,6 +57,13 @@ export interface LoadProjectRuntimeOptions {
    * `["open"]` so project history does not grow request payloads.
    */
   findingStatuses?: readonly FindingStatus[];
+  /**
+   * Hard cap on finding rows (page reads). Paired with the severity-first SQL
+   * order, so truncation drops the least severe findings first. Omit for full
+   * history (writes, reports, exports) — a capped write slice would corrupt
+   * stale-write guards and assessment payloads.
+   */
+  findingsLimit?: number;
 }
 
 export async function loadProjectRuntime(
@@ -79,8 +86,11 @@ export async function loadProjectRuntime(
     listRequirementsForProject(drizzle, projectId),
     listFindingsForProject(drizzle, projectId, {
       statuses: options.findingStatuses,
+      limit: options.findingsLimit,
     }),
-    listRemediationsForProject(drizzle, projectId),
+    listRemediationsForProject(drizzle, projectId, {
+      findingStatuses: options.findingStatuses,
+    }),
     listAlertsForProject(drizzle, projectId),
     // Latest only — the app consumes latestAssessmentFor + "has any".
     listLatestAssessmentForProject(drizzle, projectId),

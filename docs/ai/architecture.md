@@ -107,6 +107,13 @@ evidence, findings, remediations, requirements }`; the worker persists via
   decision.
 - **Latest assessment** — `latestAssessmentFor` compares `completedAt`.
   Do not use `.at(-1)` (loaders return newest-first).
+- **Read bounding** — findings list order is severity-first
+  (`findings.severity_rank`, `ORDER BY severity_rank, id`; same order in SQL
+  and the JS fallback). Status-scoped page loads cap at
+  `FINDINGS_LIST_LOAD_LIMIT` (most severe first; counts stay exact via SQL,
+  truncation is flagged, never silent); writes/reports/exports load full
+  history. Evidence exports cap per project (`EVIDENCE_EXPORT_LIMIT`, newest
+  first, flagged); per-finding reads cap at `FINDING_EVIDENCE_LIMIT`.
 - **Retention/erasure** — evidence is append-only (trigger) with one gated
   exception: org deletion erases tenant evidence via `deleteEvidenceForOrg`
   (transaction-scoped `complyloop.allow_evidence_erase` flag); project

@@ -113,7 +113,12 @@ vi.mock("@complyloop/db/postgres", () => ({
 }));
 
 vi.mock("@complyloop/db/repo/evidence", () => ({
-  listAllEvidenceForProjects: async () => [],
+  listEvidenceForExportForProjects: async () => ({
+    records: [],
+    total: 0,
+    limitPerProject: 5_000,
+    truncatedProjectIds: [],
+  }),
 }));
 vi.mock("@complyloop/db/repo/assessments", () => ({
   listAssessmentsForProjects: async () => [],
@@ -255,6 +260,7 @@ describe("org lifecycle actions", () => {
       expect.anything(),
       "org-1",
       "user-1",
+      { evidenceTruncatedProjectIds: [] },
     );
   });
 

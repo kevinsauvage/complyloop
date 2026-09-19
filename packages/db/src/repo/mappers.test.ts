@@ -48,6 +48,7 @@ describe("repo mappers emit stable row shapes", () => {
       "controlId",
       "assessmentId",
       "status",
+      "severityRank",
       "payload",
     ]);
     expect(Object.keys(remediationToRow(remediation))).toEqual([
@@ -90,6 +91,19 @@ describe("repo mappers emit stable row shapes", () => {
       "projectId",
       "payload",
     ]);
+  });
+
+  it("projects finding severity to the denormalized rank column", () => {
+    expect(
+      findingToRow({ severity: "critical" } as unknown as Finding).severityRank,
+    ).toBe(0);
+    expect(
+      findingToRow({ severity: "minor" } as unknown as Finding).severityRank,
+    ).toBe(3);
+    // Unknown legacy severities sort last instead of failing the write.
+    expect(
+      findingToRow({ severity: "unknown" } as unknown as Finding).severityRank,
+    ).toBe(3);
   });
 
   it("assessment payload excludes the snapshot (stored separately)", () => {

@@ -27,7 +27,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { evidenceDisplay } from "@/core/display";
-import type { FindingCluster } from "@/core/findings/finding-priority";
 import { cn } from "@/lib/utils";
 
 function ActivityCard({
@@ -70,8 +69,8 @@ function ActivityCard({
 export function DashboardActivitySections({
   regressions,
   recentChanges,
-  clusters,
   openFindings,
+  openCount,
   recentVerified,
   recentEvidence,
   controlById,
@@ -79,15 +78,16 @@ export function DashboardActivitySections({
 }: {
   regressions: EvidenceRecord[];
   recentChanges: FileChange[];
-  clusters: FindingCluster[];
   openFindings: Finding[];
+  /** Exact open total (loaded rows are capped — never derive counts from them). */
+  openCount: number;
   recentVerified: EvidenceRecord[];
   recentEvidence: EvidenceRecord[];
   controlById: (controlId: string) => Control;
   /** When the unread-alerts card is shown it already covers regressions. */
   hideRegressions?: boolean;
 }) {
-  const allClear = openFindings.length === 0;
+  const allClear = openCount === 0;
   const verifiedIds = new Set(recentVerified.map((record) => record.id));
   const mergedActivity = (() => {
     const seen = new Set<string>();
@@ -156,12 +156,12 @@ export function DashboardActivitySections({
         description={
           allClear
             ? "No open findings — recent verifications and activity below."
-            : "Open findings prioritized for remediation."
+            : "Open findings ordered by severity for remediation."
         }
         className="lg:col-span-7"
         icon={FileSearch}
       >
-        {openFindings.length === 0 ? (
+        {openCount === 0 ? (
           <div className="flex flex-col gap-4">
             <p className="text-sm text-muted-foreground">
               Everything detected has been fixed, verified, or reviewed. Keep
@@ -203,12 +203,12 @@ export function DashboardActivitySections({
                 );
               })}
             </ul>
-            {openFindings.length > 6 ? (
+            {openCount > 6 ? (
               <Link
                 href="/findings?tab=open"
                 className="text-sm font-medium text-signal underline-offset-4 hover:underline"
               >
-                View all {openFindings.length} open findings
+                View all {openCount} open findings
               </Link>
             ) : null}
           </div>
@@ -228,34 +228,6 @@ export function DashboardActivitySections({
                   className="rounded-lg border border-border/50 bg-muted/15 px-3 py-2 font-mono text-xs text-muted-foreground"
                 >
                   {change.filePath}
-                </li>
-              ))}
-            </ul>
-          </ActivityCard>
-        ) : null}
-
-        {clusters.length > 0 ? (
-          <ActivityCard
-            title="Likely shared root causes"
-            icon={Layers}
-            className="scroll-mt-4"
-          >
-            <div id="root-causes" className="scroll-mt-4" aria-hidden />
-            <ul className="flex flex-col gap-2">
-              {clusters.map((cluster) => (
-                <li
-                  key={cluster.id}
-                  className="flex items-center justify-between gap-2 rounded-lg border border-border/50 bg-muted/15 px-3 py-2 text-sm"
-                >
-                  <Link
-                    href="/findings?tab=by_cause"
-                    className="font-medium hover:text-signal hover:underline"
-                  >
-                    {cluster.label}
-                  </Link>
-                  <span className="shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
-                    {cluster.findingIds.length} findings
-                  </span>
                 </li>
               ))}
             </ul>

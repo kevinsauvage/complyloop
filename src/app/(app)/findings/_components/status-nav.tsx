@@ -46,7 +46,6 @@ export function FindingsStatusNav({
   activeTab: FindingsTab;
   totals: {
     open: number;
-    byCause: number;
     resolved: number;
     dismissed: number;
   };
@@ -61,12 +60,6 @@ export function FindingsStatusNav({
         current={activeTab === "open"}
       >
         Open ({totals.open})
-      </StatusNavLink>
-      <StatusNavLink
-        href={tabHref("by_cause", listParams)}
-        current={activeTab === "by_cause"}
-      >
-        Root cause ({totals.byCause})
       </StatusNavLink>
       <StatusNavLink
         href={tabHref("resolved", listParams)}

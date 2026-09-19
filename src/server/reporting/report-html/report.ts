@@ -73,16 +73,9 @@ export function buildEngineeringReportHtml(input: ReportInput): string {
       "Summary",
       `<div class="summary-grid">
         ${summaryStat("Open findings", model.findings.length)}
-        ${summaryStat("Shared root causes", model.clusters.length)}
       </div>`,
     ),
   ];
-
-  if (model.clusters.length > 0) {
-    sections.push(
-      reportSection("clusters", "Shared root causes", renderClusters(model)),
-    );
-  }
 
   sections.push(
     reportSection(
@@ -121,19 +114,6 @@ function renderEngineeringFindings(model: EngineeringReportModel): string {
 </article>`;
     })
     .join("\n");
-}
-
-function renderClusters(model: EngineeringReportModel): string {
-  if (model.clusters.length === 0) {
-    return emptyParagraph("No shared root causes detected.");
-  }
-  const items = model.clusters
-    .map(
-      (cluster) =>
-        `<li><strong>${escapeHtml(cluster.label)}</strong> — ${cluster.findingCount} open finding(s)</li>`,
-    )
-    .join("\n");
-  return `<ul class="cluster-list">${items}</ul>`;
 }
 
 function renderEvidence(

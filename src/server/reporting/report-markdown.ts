@@ -132,7 +132,6 @@ function renderEngineeringMarkdown(model: EngineeringReportModel): string {
     `| Metric | Count |`,
     `| --- | ---: |`,
     `| Open findings | ${model.findings.length} |`,
-    `| Shared root causes | ${model.clusters.length} |`,
     ``,
   ];
 
@@ -145,19 +144,6 @@ function renderEngineeringMarkdown(model: EngineeringReportModel): string {
     lines.push(...severityRows);
     lines.push(``);
   }
-
-  lines.push(`## Shared root causes`);
-  lines.push(``);
-  if (model.clusters.length === 0) {
-    lines.push(`_No shared root causes detected._`);
-  } else {
-    for (const cluster of model.clusters) {
-      lines.push(
-        `- **${mdProse(cluster.checkId)}** — ${cluster.findingCount} finding(s) at \`${mdCode(cluster.sharedLocation)}\``,
-      );
-    }
-  }
-  lines.push(``);
 
   lines.push(`## Open findings`);
   lines.push(``);

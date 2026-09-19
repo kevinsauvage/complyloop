@@ -1,4 +1,4 @@
-import { and, count, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import {
@@ -30,14 +30,29 @@ export interface ListFindingsOptions {
    * loads no findings for callers that only need the rest of the runtime.
    */
   statuses?: readonly FindingStatus[];
+  /**
+   * Hard cap on rows (page reads). Always paired with the severity-first
+   * `ORDER BY` below, so truncation drops the least severe findings first
+   * and loads stay deterministic. Omit for full history (writes, reports,
+   * exports). Callers compare against `countFindingsByStatusForProject` and
+   * surface truncation instead of silently paging a partial set.
+   */
+  limit?: number;
 }
+
+/**
+ * Max finding rows a page read loads. Payloads are ~1KB, so a full capped
+ * load stays in single-digit MB; above the cap the findings page shows a
+ * refine-filters notice (counts stay exact via the SQL count).
+ */
+export const FINDINGS_LIST_LOAD_LIMIT = 5_000;
 
 export async function listFindingsForProject(
   drizzle: DrizzleDb,
   projectId: string,
   options: ListFindingsOptions = {},
 ): Promise<Finding[]> {
-  const { statuses } = options;
+  const { statuses, limit } = options;
   if (statuses && statuses.length === 0) return [];
   const where =
     statuses && statuses.length > 0
@@ -46,10 +61,15 @@ export async function listFindingsForProject(
           inArray(findings.status, [...statuses]),
         )
       : eq(findings.projectId, projectId);
-  const rows = await drizzle
+  // Severity-first, id tiebreak — same order as the JS fallback sort
+  // (`compareFindingsBySeverity`), so capped and full loads agree. Served by
+  // `findings_project_status_severity_idx`.
+  const query = drizzle
     .select({ payload: findings.payload })
     .from(findings)
-    .where(where);
+    .where(where)
+    .orderBy(asc(findings.severityRank), asc(findings.id));
+  const rows = limit === undefined ? await query : await query.limit(limit);
   return rows.map((row) => row.payload);
 }
 
@@ -89,6 +109,28 @@ export async function countFindingsByStatusForProject(
     if ((FINDING_STATUSES as readonly string[]).includes(row.status)) {
       counts[row.status as FindingStatus] = Number(row.value ?? 0);
     }
+  }
+  return counts;
+}
+
+/**
+ * Open finding counts per control for a project (requirements page badges).
+ * Lets the requirements view stay exact when the findings row load is capped:
+ * counts come from SQL, not the loaded slice. Filter served by the leftmost
+ * `findings_project_status_idx` prefix.
+ */
+export async function countOpenFindingsByControlForProject(
+  drizzle: DrizzleDb,
+  projectId: string,
+): Promise<Map<string, number>> {
+  const rows = await drizzle
+    .select({ controlId: findings.controlId, value: count() })
+    .from(findings)
+    .where(and(eq(findings.projectId, projectId), eq(findings.status, "open")))
+    .groupBy(findings.controlId);
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    counts.set(row.controlId, Number(row.value ?? 0));
   }
   return counts;
 }

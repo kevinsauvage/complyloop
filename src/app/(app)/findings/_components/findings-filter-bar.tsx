@@ -130,17 +130,6 @@ export function FindingsFilterBar({
       </ActiveChip>,
     );
   }
-  if (params.cluster) {
-    chips.push(
-      <ActiveChip
-        key="cluster"
-        href={clearedHref({ cluster: undefined, tab: "open" })}
-        clearLabel="Clear root cause filter"
-      >
-        Root cause
-      </ActiveChip>,
-    );
-  }
 
   // All filters apply explicitly via Apply — selects never auto-submit, so
   // keyboard exploration never triggers a surprise navigation. On mobile the
@@ -164,9 +153,6 @@ export function FindingsFilterBar({
       >
         {params.tab !== "open" ? (
           <input type="hidden" name="tab" value={params.tab} />
-        ) : null}
-        {params.cluster ? (
-          <input type="hidden" name="cluster" value={params.cluster} />
         ) : null}
         {params.control ? (
           <input type="hidden" name="control" value={params.control} />

@@ -76,11 +76,11 @@ export default async function DashboardPage() {
     latestAssessment,
     counts,
     openFindings,
+    openCount,
     unreadAlerts,
     regressions,
     recentVerified,
     recentEvidence,
-    clusters,
     recentChanges,
     quickStats,
     nextAction,
@@ -209,8 +209,8 @@ export default async function DashboardPage() {
             <DashboardActivitySections
               regressions={regressions}
               recentChanges={recentChanges}
-              clusters={clusters}
               openFindings={openFindings}
+              openCount={openCount}
               recentVerified={recentVerified}
               recentEvidence={recentEvidence}
               controlById={(controlId) => displayControl(controlId, project)}

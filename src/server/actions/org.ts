@@ -299,8 +299,10 @@ export async function exportOrgDataAction(
     }
     // The workspace slice is bounded (latest assessment, evidence window);
     // the export is the audit artifact, so full history loads via the
-    // workspace export loader (one set-based query per entity type).
-    const history = await loadOrgExportData(projectIds);
+    // workspace export loader (one set-based query per entity type; evidence
+    // contributes a bounded per-project window with truncation flags).
+    const { history, evidenceTruncatedProjectIds } =
+      await loadOrgExportData(projectIds);
     const payload = exportOrgData(
       {
         ...emptyWorkspaceSlice(),
@@ -312,6 +314,7 @@ export async function exportOrgDataAction(
       },
       orgId,
       userId,
+      { evidenceTruncatedProjectIds },
     );
     return { error: null, json: JSON.stringify(payload, null, 2) };
   } catch (error) {

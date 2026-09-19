@@ -27,10 +27,6 @@ import {
 import type { FindingActView } from "@/core/findings/finding-act";
 import { findingAct } from "@/core/findings/finding-act";
 import {
-  clusterFindings,
-  prioritizeClusters,
-} from "@/core/findings/finding-priority";
-import {
   latestPatchState,
   pullRequestUrlFromEvidence,
 } from "@/server/assessment/ai-fix";
@@ -98,7 +94,7 @@ export async function loadFindingDetailView(
     return { finding: null };
   }
 
-  const statusForTab = listParams.tab === "by_cause" ? "open" : listParams.tab;
+  const statusForTab = listParams.tab;
   const [runtime, remediation] = await Promise.all([
     getProjectRuntime(project.id, { findingStatuses: [statusForTab] }),
     requireRemediationForFinding(finding.id),
@@ -130,19 +126,10 @@ export async function loadFindingDetailView(
 
   const scopedFindings = findingsInScope(runtime.findings, project);
   const controls = shippedCatalog().controls;
-  const rawClusters = clusterFindings(scopedFindings, controls);
-  const clusters = prioritizeClusters(scopedFindings, controls, rawClusters);
   const queueFilterContext: FilterFindingsContext = {
     controls,
     remediationStatusFor: (findingId) =>
       remediationByFindingId.get(findingId)?.status,
-    clusterFindingIds: listParams.cluster
-      ? new Set(
-          clusters.find((cluster) => cluster.id === listParams.cluster)
-            ?.findingIds ?? [],
-        )
-      : undefined,
-    clusters: rawClusters,
   };
 
   const queueIds = orderedFindingIdsForQueue(

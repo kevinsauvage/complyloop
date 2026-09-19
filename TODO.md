@@ -14,16 +14,6 @@ Audit of the actual code (not docs). Ordered by value; grouped so related root c
 
 **Impact:** Medium — silent data loss and sign-in/write failures under concurrency.
 
-### [ ] Bound page and query loads, and cap exports
-
-**Why:** Findings list and finding-detail evidence load all rows then paginate in JS (`findings-view.ts:97-140`, `repo/evidence.ts:205-215`); alerts/remediations load per project unbounded; org export uses the unlimited loaders (`orgs.ts:178-186`) and ignores the 5000-row evidence export cap, so a long-lived org can materialize hundreds of MB in one request.
-
-**Where:** `packages/db/src/repo/{findings,evidence,alerts,remediations}.ts`, `src/server/workspace/findings-view.ts`, `src/server/workspace/orgs.ts`, `src/server/actions/org.ts`.
-
-**Change:** Push limits/`ORDER BY` into SQL for list and detail loaders; apply a row cap (or streaming) to org export; add indexes for the actual order/filter columns.
-
-**Impact:** Medium — page latency and memory at real project scale.
-
 ### [ ] UI simplification pass
 
 **Why:** The same evidence-timeline markup is hand-built three times (`findings/[id]/page.tsx:155-213`, `remediation-history.tsx:100-135`), tone/color maps are re-derived outside the canonical `@/core/display` table in 4+ places, every status badge mounts a Radix tooltip that only works on hover, and confirmed dead exports remain (`EngineBadge`, `projectDescription`, `parseUnknown`). History tabs ship the full client bulk-selection component with `canRemediate={false}`.

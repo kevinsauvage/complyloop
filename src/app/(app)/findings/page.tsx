@@ -20,7 +20,6 @@ import { loadFindingsView } from "@/server/workspace/findings-view";
 
 import { toFindingListItems } from "./_components/finding-list-items";
 import { FindingsBulkList } from "./_components/findings-bulk-list";
-import { FindingsClustersTab } from "./_components/findings-clusters-tab";
 import { FindingsFilterBar } from "./_components/findings-filter-bar";
 import { FindingsTabPanel } from "./_components/findings-tab-panel";
 import { FocusFilterResults } from "./_components/focus-filter-results";
@@ -56,14 +55,13 @@ export default async function FindingsPage({
     openSlice,
     resolvedSlice,
     dismissedSlice,
-    clusters,
-    findings,
     controls,
     remediationByFindingId,
     paginationQuery,
     filtersActive,
     hasAssessment,
     totalFindings,
+    findingsTruncated,
   } = view;
 
   // Orphan findings (scoped re-assess, stale apply, manual DB edit)
@@ -162,12 +160,20 @@ export default async function FindingsPage({
             re-assess to repair.
           </div>
         ) : null}
+        {findingsTruncated ? (
+          <div
+            role="status"
+            className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
+          >
+            Showing the most severe findings — refine the search or filters to
+            narrow the list.
+          </div>
+        ) : null}
         <FindingsStatusNav
           listParams={listParams}
           activeTab={activeTab}
           totals={{
             open: openSlice.total,
-            byCause: clusters.length,
             resolved: resolvedSlice.total,
             dismissed: dismissedSlice.total,
           }}
@@ -216,10 +222,6 @@ export default async function FindingsPage({
             resultCount={dismissedSlice.total}
             resultLabel="dismissed"
           />
-        ) : activeTab === "by_cause" ? (
-          <div className="mt-4 flex flex-col gap-4">
-            <FindingsClustersTab clusters={clusters} findings={findings} />
-          </div>
         ) : (
           <div className="mt-4 flex flex-col gap-4">
             <FindingsFilterBar

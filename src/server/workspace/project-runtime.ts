@@ -16,6 +16,7 @@ import {
   listEvidencePageForProject,
   WORKSPACE_EVIDENCE_LIMIT,
 } from "@complyloop/db/repo/evidence";
+import { FINDINGS_LIST_LOAD_LIMIT } from "@complyloop/db/repo/findings";
 import { loadProjectRuntime } from "@complyloop/db/workspace-load";
 
 /** Active-project compliance rows for page reads (not the tenancy Workspace). */
@@ -34,7 +35,11 @@ export interface ProjectRuntime {
  * Pass `{ includeEvidence: false }` when the caller loads evidence separately
  * (e.g. report exports), so the window read is not issued twice. Pass
  * `{ findingStatuses: ["open"] }` on read pages that never need history so an
- * unbounded findings table does not inflate every response.
+ * unbounded findings table does not inflate every response. Status-scoped
+ * loads are additionally capped at `FINDINGS_LIST_LOAD_LIMIT` rows in
+ * severity-first order (callers compare against the SQL status counts and
+ * surface truncation); omit `findingStatuses` for full history (writes,
+ * reports, exports).
  */
 export const getProjectRuntime = cache(
   async (
@@ -48,6 +53,10 @@ export const getProjectRuntime = cache(
     const [runtime, evidenceNewestFirst] = await Promise.all([
       loadProjectRuntime(drizzle, projectId, {
         findingStatuses: options?.findingStatuses,
+        // Cap page reads only — full-history callers omit findingStatuses.
+        findingsLimit: options?.findingStatuses
+          ? FINDINGS_LIST_LOAD_LIMIT
+          : undefined,
       }),
       options?.includeEvidence === false
         ? []

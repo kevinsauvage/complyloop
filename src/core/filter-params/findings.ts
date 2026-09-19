@@ -15,16 +15,14 @@ import {
   type Severity,
 } from "@complyloop/analysis-core/contract/statuses";
 
-import type { FindingCluster } from "../findings/finding-priority";
 import {
-  prioritizeFindings,
+  compareFindingsBySeverity,
   SEVERITY_ORDER,
-  severityRank,
 } from "../findings/finding-priority";
 import { parsePageParam } from "./pagination";
 import { firstParam } from "./params";
 
-const FINDINGS_TABS = ["open", "resolved", "dismissed", "by_cause"] as const;
+const FINDINGS_TABS = ["open", "resolved", "dismissed"] as const;
 
 export type FindingsTab = (typeof FINDINGS_TABS)[number];
 
@@ -36,7 +34,6 @@ export interface FindingListParams {
   engine?: AssessmentEngine;
   remediation?: RemediationStatus;
   control?: string;
-  cluster?: string;
   tab: FindingsTab;
   page: number;
 }
@@ -44,7 +41,7 @@ export interface FindingListParams {
 /** Filter params that are preserved on pagination links (excludes `tab` and `page`). */
 export type FindingListFilters = Pick<
   FindingListParams,
-  "q" | "severity" | "engine" | "remediation" | "control" | "cluster"
+  "q" | "severity" | "engine" | "remediation" | "control"
 >;
 
 const ENGINE_VALUES = ["ast", "runtime"] as const;
@@ -57,7 +54,6 @@ export function parseFindingListParams(
   const engine = firstParam(raw.engine);
   const remediation = firstParam(raw.remediation);
   const control = firstParam(raw.control);
-  const cluster = firstParam(raw.cluster);
   const tab = firstParam(raw.tab);
   return {
     q: q?.trim() || undefined,
@@ -73,7 +69,8 @@ export function parseFindingListParams(
       ? (remediation as RemediationStatus)
       : undefined,
     control: control || undefined,
-    cluster: cluster || undefined,
+    // Unknown tabs (including the removed `by_cause`) fall back to `open`,
+    // so old bookmarks and dashboard links keep working.
     tab: (FINDINGS_TABS as readonly string[]).includes(tab ?? "")
       ? (tab as FindingsTab)
       : "open",
@@ -87,8 +84,7 @@ export function hasActiveFindingFilters(params: FindingListFilters): boolean {
     params.severity ||
     params.engine ||
     params.remediation ||
-    params.control ||
-    params.cluster,
+    params.control,
   );
 }
 
@@ -108,7 +104,6 @@ export function findingListPaginationQuery(
   if (params.engine) query.engine = params.engine;
   if (params.remediation) query.remediation = params.remediation;
   if (params.control) query.control = params.control;
-  if (params.cluster) query.cluster = params.cluster;
   if (params.tab !== "open") query.tab = params.tab;
   return query;
 }
@@ -134,9 +129,6 @@ export function findingDetailHref(
 export interface FilterFindingsContext {
   controls: ReadonlyArray<Control>;
   remediationStatusFor: (findingId: string) => RemediationStatus | undefined;
-  clusterFindingIds?: ReadonlySet<string>;
-  /** Precomputed open-finding clusters; avoids re-clustering when ordering. */
-  clusters?: ReadonlyArray<FindingCluster>;
 }
 
 export function filterFindings(
@@ -148,12 +140,6 @@ export function filterFindings(
 
   if (params.control) {
     result = result.filter((finding) => finding.controlId === params.control);
-  }
-
-  if (params.cluster && context.clusterFindingIds) {
-    result = result.filter((finding) =>
-      context.clusterFindingIds!.has(finding.id),
-    );
   }
 
   if (params.severity) {
@@ -206,12 +192,10 @@ export function orderFindingsForList(
     params,
     context,
   );
-  if (status === "open") {
-    return prioritizeFindings(filtered, context.controls, context.clusters);
-  }
-  return [...filtered].sort(
-    (a, b) => severityRank(a.severity) - severityRank(b.severity),
-  );
+  // Severity-first list order — same order as SQL `ORDER BY severity_rank,
+  // id` (see `packages/db/src/repo/findings.ts`), so JS pages and SQL pages
+  // agree.
+  return [...filtered].sort(compareFindingsBySeverity);
 }
 
 export function orderedFindingIdsForQueue(
@@ -219,7 +203,7 @@ export function orderedFindingIdsForQueue(
   params: FindingListParams,
   context: FilterFindingsContext,
 ): string[] {
-  const status: FindingStatus = params.tab === "by_cause" ? "open" : params.tab;
+  const status: FindingStatus = params.tab;
   return orderFindingsForList(findings, status, params, context).map(
     (finding) => finding.id,
   );

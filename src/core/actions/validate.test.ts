@@ -359,7 +359,6 @@ describe("parseFindingListParams", () => {
         engine: "runtime",
         remediation: "suggested",
         control: "ctl-img",
-        cluster: "img-alt:file:Button.tsx",
         tab: "resolved",
         page: "2",
       }),
@@ -369,9 +368,20 @@ describe("parseFindingListParams", () => {
       engine: "runtime",
       remediation: "suggested",
       control: "ctl-img",
-      cluster: "img-alt:file:Button.tsx",
       tab: "resolved",
       page: 2,
+    });
+  });
+
+  it("drops removed params and falls back to the open tab", () => {
+    expect(parseFindingListParams({ tab: "by_cause", cluster: "c1" })).toEqual({
+      q: undefined,
+      severity: undefined,
+      engine: undefined,
+      remediation: undefined,
+      control: undefined,
+      tab: "open",
+      page: 1,
     });
   });
 
@@ -382,7 +392,6 @@ describe("parseFindingListParams", () => {
       engine: undefined,
       remediation: undefined,
       control: undefined,
-      cluster: undefined,
       tab: "open",
       page: 1,
     });
@@ -413,8 +422,8 @@ describe("findingsListHref", () => {
   });
 
   it("includes non-default tab and page", () => {
-    expect(findingsListHref({ tab: "by_cause", page: 3, cluster: "c1" })).toBe(
-      "/findings?cluster=c1&tab=by_cause&page=3",
+    expect(findingsListHref({ tab: "resolved", page: 3 })).toBe(
+      "/findings?tab=resolved&page=3",
     );
   });
 
@@ -456,7 +465,7 @@ describe("hasActiveFindingFilters", () => {
 
   it("is true when any filter is set", () => {
     expect(hasActiveFindingFilters({ q: "x" })).toBe(true);
-    expect(hasActiveFindingFilters({ cluster: "c1" })).toBe(true);
+    expect(hasActiveFindingFilters({ control: "ctl" })).toBe(true);
   });
 });
 
@@ -548,17 +557,6 @@ describe("filterFindings", () => {
         { controls, remediationStatusFor },
       ),
     ).toEqual([findings[1]]);
-  });
-
-  it("filters by cluster membership", () => {
-    const clusterFindingIds = new Set(["f1"]);
-    expect(
-      filterFindings(
-        findings,
-        { cluster: "img-alt:file:Button.tsx" },
-        { controls, remediationStatusFor, clusterFindingIds },
-      ),
-    ).toEqual([findings[0]]);
   });
 });
 

@@ -20,11 +20,10 @@ import type {
   Project,
 } from "@complyloop/analysis-core/contract/project-types";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
+import { getDrizzle } from "@complyloop/db/postgres";
+import { countOpenFindingsByControlForProject } from "@complyloop/db/repo/findings";
 
-import {
-  countByStatus,
-  toCountMap,
-} from "@/core/assessment/assessment-helpers";
+import { countByStatus } from "@/core/assessment/assessment-helpers";
 import {
   type PageSlice,
   paginateSlice,
@@ -85,6 +84,12 @@ export async function loadRequirementsView(
   const runtime = await getProjectRuntime(project.id, {
     findingStatuses: ["open"],
   });
+  // Per-control open counts come from SQL, not the loaded slice: the findings
+  // row load is capped, but badges must stay exact.
+  const openFindingCounts = await countOpenFindingsByControlForProject(
+    await getDrizzle(),
+    project.id,
+  );
   const defaultPresetId = projectDefaultPresetId(project);
   const selectedPresetId = urlPresetId ?? defaultPresetId;
   const selectedPreset = presetById(selectedPresetId);
@@ -101,14 +106,6 @@ export async function loadRequirementsView(
   const inScopeIds = new Set(presetControls.map((control) => control.id));
   const assessed = requirements.filter((requirement) =>
     inScopeIds.has(requirement.controlId),
-  );
-
-  const openFindingCounts = toCountMap(
-    runtime.findings.filter(
-      (finding) =>
-        finding.projectId === project.id && finding.status === "open",
-    ),
-    (finding) => finding.controlId,
   );
 
   const statusCounts = countByStatus(assessed, REQUIREMENT_STATUSES);

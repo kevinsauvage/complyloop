@@ -32,10 +32,6 @@ import {
   paginateSlice,
   parseFindingListParams,
 } from "@/core/filter-params";
-import {
-  clusterFindings,
-  prioritizeClusters,
-} from "@/core/findings/finding-priority";
 import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
 import type { ProjectCapabilities } from "@/server/workspace/project-capabilities";
 import { getProjectRuntime } from "@/server/workspace/project-runtime";
@@ -50,10 +46,15 @@ export type FindingsView =
       activeTab: FindingsTab;
       statusCounts: { open: number; resolved: number; dismissed: number };
       totalFindings: number;
+      /**
+       * True when the findings load hit `FINDINGS_LIST_LOAD_LIMIT`: the page
+       * shows the most severe findings and the counts stay exact — the UI
+       * must tell the user to refine filters instead of paging a partial set.
+       */
+      findingsTruncated: boolean;
       openSlice: PageSlice<Finding>;
       resolvedSlice: PageSlice<Finding>;
       dismissedSlice: PageSlice<Finding>;
-      clusters: ReturnType<typeof prioritizeClusters>;
       findings: Finding[];
       controls: readonly Control[];
       remediationByFindingId: Map<string, Remediation>;
@@ -71,7 +72,7 @@ const countFindingsByStatus = cache(async (projectId: string) =>
 
 /**
  * Everything the findings list page renders, derived in one place: tab
- * totals (index-only count), scoped runtime rows, clusters, filter context,
+ * totals (index-only count), scoped runtime rows, filter context,
  * ordered + paginated slices. Item mapping (`toFindingListItems`) stays in
  * the page next to its component imports.
  */
@@ -86,8 +87,7 @@ export async function loadFindingsView(
   // must render the open list (or its empty state), not silently jump to
   // another status.
   const activeTab: FindingsTab = listParams.tab;
-  const statusForTab: FindingStatus =
-    activeTab === "by_cause" ? "open" : activeTab;
+  const statusForTab: FindingStatus = activeTab;
 
   // Tab totals come from an index-only count so inherited history never inflates
   // the payload. Only open findings plus the active status load in full:
@@ -104,6 +104,21 @@ export async function loadFindingsView(
     statusCounts.open + statusCounts.resolved + statusCounts.dismissed;
 
   const findings = findingsInScope(runtime.findings, project);
+  // The row load is capped (`FINDINGS_LIST_LOAD_LIMIT`, most severe first);
+  // compare against the exact SQL counts so truncation is surfaced, never
+  // silent. Only the loaded statuses can be truncated.
+  const loadedByStatus = new Map<FindingStatus, number>();
+  for (const finding of findings) {
+    loadedByStatus.set(
+      finding.status,
+      (loadedByStatus.get(finding.status) ?? 0) + 1,
+    );
+  }
+  const findingsTruncated =
+    statusCounts.open > (loadedByStatus.get("open") ?? 0) ||
+    (statusForTab !== "open" &&
+      statusCounts[statusForTab] > (loadedByStatus.get(statusForTab) ?? 0));
+
   const remediationByFindingId = new Map(
     runtime.remediations.map((remediation) => [
       remediation.findingId,
@@ -111,19 +126,10 @@ export async function loadFindingsView(
     ]),
   );
   const controls = shippedCatalog().controls;
-  const rawClusters = clusterFindings(findings, controls);
-  const clusters = prioritizeClusters(findings, controls, rawClusters);
   const filterContext: FilterFindingsContext = {
     controls,
     remediationStatusFor: (findingId) =>
       remediationByFindingId.get(findingId)?.status,
-    clusterFindingIds: listParams.cluster
-      ? new Set(
-          clusters.find((cluster) => cluster.id === listParams.cluster)
-            ?.findingIds ?? [],
-        )
-      : undefined,
-    clusters: rawClusters,
   };
 
   const byStatus = (status: FindingStatus): Finding[] =>
@@ -151,10 +157,10 @@ export async function loadFindingsView(
     activeTab,
     statusCounts,
     totalFindings,
+    findingsTruncated,
     openSlice,
     resolvedSlice,
     dismissedSlice,
-    clusters,
     findings,
     controls,
     remediationByFindingId,

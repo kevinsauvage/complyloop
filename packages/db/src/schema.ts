@@ -194,6 +194,13 @@ export const findings = pgTable(
       .notNull()
       .references(() => assessments.id, { onDelete: "cascade" }),
     status: text("status").notNull(),
+    /**
+     * Denormalized `SEVERITY_RANK` (contract/statuses): lower sorts first.
+     * Lets list loads order + cap in SQL (`ORDER BY severity_rank, id`) with
+     * the same order as the JS fallback sort. Synced from the payload by the
+     * repo mappers — the only writers.
+     */
+    severityRank: integer("severity_rank").notNull(),
     payload: jsonb("payload").$type<Finding>().notNull(),
   },
   (table) => [
@@ -201,6 +208,13 @@ export const findings = pgTable(
     index("findings_project_assessment_idx").on(
       table.projectId,
       table.assessmentId,
+    ),
+    // Severity-first list loads: status-scoped, ordered, capped.
+    index("findings_project_status_severity_idx").on(
+      table.projectId,
+      table.status,
+      table.severityRank,
+      table.id,
     ),
     check(
       "findings_status_check",

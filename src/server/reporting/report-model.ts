@@ -38,7 +38,6 @@ import {
   requirementStatusDisplay,
   severityDisplay,
 } from "@/core/display";
-import { prioritizeClusters } from "@/core/findings/finding-priority";
 
 export interface ReportInput {
   project: Project;
@@ -96,12 +95,6 @@ export interface EngineeringFindingCard {
 
 export interface EngineeringReportModel {
   header: ReportHeaderModel;
-  clusters: {
-    label: string;
-    findingCount: number;
-    checkId: string;
-    sharedLocation: string;
-  }[];
   findings: EngineeringFindingCard[];
 }
 
@@ -283,12 +276,6 @@ export function composeEngineeringReport(
 
   return {
     header: reportHeader("Engineering report", input),
-    clusters: prioritizeClusters(openFindings, controls).map((cluster) => ({
-      label: cluster.label,
-      findingCount: cluster.findingIds.length,
-      checkId: cluster.checkId,
-      sharedLocation: cluster.sharedLocation,
-    })),
     findings: openFindings.map((finding) =>
       toEngineeringFindingCard(
         finding,
