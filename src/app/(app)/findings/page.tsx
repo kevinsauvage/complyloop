@@ -3,20 +3,14 @@ import Link from "next/link";
 
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
 
-import { toFindingListItems } from "@/components/findings/finding-list-items";
-import { FindingsBulkList } from "@/components/findings/findings-bulk-list";
-import { FindingsClustersTab } from "@/components/findings/findings-clusters-tab";
-import { FindingsFilterBar } from "@/components/findings/findings-filter-bar";
-import { FindingsTabPanel } from "@/components/findings/findings-tab-panel";
-import { FocusFilterResults } from "@/components/findings/focus-filter-results";
 import {
   EmptyState,
   NoProjectNotice,
   PageActionLink,
   PageContent,
   PageHeader,
-} from "@/components/page-primitives";
-import { PaginationNav } from "@/components/pagination-nav";
+} from "@/components/primitives/page-primitives";
+import { PaginationNav } from "@/components/primitives/pagination-nav";
 import { Button } from "@/components/ui/button";
 import { findingsListHref } from "@/core/filter-params";
 import { reportHref } from "@/core/filter-params";
@@ -24,6 +18,12 @@ import { DEFAULT_PAGE_SIZE } from "@/core/filter-params";
 import { displayControl } from "@/server/reporting/report";
 import { loadFindingsView } from "@/server/workspace/findings-view";
 
+import { toFindingListItems } from "./_components/finding-list-items";
+import { FindingsBulkList } from "./_components/findings-bulk-list";
+import { FindingsClustersTab } from "./_components/findings-clusters-tab";
+import { FindingsFilterBar } from "./_components/findings-filter-bar";
+import { FindingsTabPanel } from "./_components/findings-tab-panel";
+import { FocusFilterResults } from "./_components/focus-filter-results";
 import { FindingsStatusNav } from "./_components/status-nav";
 
 export const metadata: Metadata = {

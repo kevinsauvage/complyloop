@@ -7,15 +7,16 @@ import {
   PageContent,
   PageHeader,
   PageSection,
-} from "@/components/page-primitives";
-import { PaginationNav } from "@/components/pagination-nav";
-import { AssessedRequirementList } from "@/components/requirements/assessed-requirement-list";
-import { RequirementsPresetPanel } from "@/components/requirements/requirements-preset-panel";
-import { RequirementsStatusChips } from "@/components/requirements/requirements-status-chips";
+} from "@/components/primitives/page-primitives";
+import { PaginationNav } from "@/components/primitives/pagination-nav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { loadRequirementsView } from "@/server/workspace/requirements-view";
+
+import { AssessedRequirementList } from "./_components/assessed-requirement-list";
+import { RequirementsPresetPanel } from "./_components/requirements-preset-panel";
+import { RequirementsStatusChips } from "./_components/requirements-status-chips";
 
 export const metadata: Metadata = {
   title: "Requirements",

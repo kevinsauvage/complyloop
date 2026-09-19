@@ -1,20 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { CopyButton } from "@/components/copy-button";
+import { RuntimeAuditForm } from "@/components/forms/runtime-audit-form";
+import { CopyButton } from "@/components/primitives/copy-button";
 import {
   MetaTile,
   NoProjectNotice,
   PageContent,
   PageHeader,
   PageSection,
-} from "@/components/page-primitives";
-import { PermissionNotice } from "@/components/permission-notice";
-import { RuntimeAuditForm } from "@/components/runtime-audit-form";
-import { DefaultPresetForm } from "@/components/settings/default-preset-form";
+} from "@/components/primitives/page-primitives";
+import { PermissionNotice } from "@/components/primitives/permission-notice";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { loadSettingsView } from "@/server/workspace/settings-view";
+
+import { DefaultPresetForm } from "./_components/default-preset-form";
 
 export const metadata: Metadata = {
   title: "Settings",

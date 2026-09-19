@@ -1,17 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { EvidenceKindBadge } from "@/components/badges";
-import { EvidenceKindChips } from "@/components/evidence/evidence-kind-chips";
-import { FormattedDateTime } from "@/components/formatted-datetime";
+import { EvidenceKindBadge } from "@/components/primitives/badges";
+import { FormattedDateTime } from "@/components/primitives/formatted-datetime";
 import {
   EmptyState,
   NoProjectNotice,
   PageActionLink,
   PageContent,
   PageHeader,
-} from "@/components/page-primitives";
-import { PaginationNav } from "@/components/pagination-nav";
+} from "@/components/primitives/page-primitives";
+import { PaginationNav } from "@/components/primitives/pagination-nav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { loadEvidenceView } from "@/server/workspace/evidence-view";
 
 import { EvidenceExportMenu } from "./_components/evidence-export-menu";
+import { EvidenceKindChips } from "./_components/evidence-kind-chips";
 
 export const metadata: Metadata = {
   title: "Evidence",

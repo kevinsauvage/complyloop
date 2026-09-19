@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { PageContent, PageHeader } from "@/components/page-primitives";
+import { PageContent, PageHeader } from "@/components/primitives/page-primitives";
 
 export const metadata: Metadata = {
   title: "Terms of Service",

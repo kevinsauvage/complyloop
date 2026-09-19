@@ -2,15 +2,15 @@ import type { ReactNode } from "react";
 import { Suspense } from "react";
 
 import { isGitHubAuthConfigured } from "@/auth";
-import { AppShell } from "@/components/app-shell";
-import { AuthControls } from "@/components/auth-controls";
+import { AppShell } from "@/components/shell/app-shell";
+import { AuthControls } from "@/components/shell/auth-controls";
 import {
   NavAttentionBadges,
   NavBadgeSkeletons,
-} from "@/components/nav-attention-badges";
+} from "@/components/shell/nav-attention-badges";
+import { WorkspaceContext } from "@/components/shell/workspace-context";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { WorkspaceContext } from "@/components/workspace-context";
 import { getSession } from "@/server/auth-session";
 
 export default async function AppLayout({ children }: { children: ReactNode }) {

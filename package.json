@@ -14,6 +14,7 @@
     "analyze": "next experimental-analyze --output",
     "start": "next start",
     "lint": "eslint",
+    "lint:fix": "eslint --fix",
     "typecheck": "tsc --noEmit",
     "verify:gate": "sh scripts/verify-gate.sh",
     "test": "vitest run",

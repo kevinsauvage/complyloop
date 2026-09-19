@@ -1,6 +1,6 @@
 "use client";
 
-import { AppErrorCard } from "@/components/app-error-card";
+import { AppErrorCard } from "@/components/shell/app-error-card";
 
 export default function EvidenceError({
   error,

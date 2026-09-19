@@ -2,7 +2,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { StatefulActionForm } from "@/components/stateful-action-form";
+import { StatefulActionForm } from "@/components/forms/stateful-action-form";
 
 /** Mirrors the server's still-failing message (see remediation-verify.ts). */
 const STILL_FAILING_VERIFY_MESSAGE =

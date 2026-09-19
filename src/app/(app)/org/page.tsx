@@ -1,17 +1,12 @@
 import type { Metadata } from "next";
 
-import { CreateOrgForm } from "@/components/create-org-form";
-import { InviteMemberForm } from "@/components/invite-member-form";
-import { OrgAccountOverview } from "@/components/org-account-overview";
-import { OrgDataLifecycle } from "@/components/org-data-lifecycle";
-import { OrgMembersCard } from "@/components/org-members-card";
 import {
   EmptyState,
   PageContent,
   PageHeader,
   PageSection,
-} from "@/components/page-primitives";
-import { SignInWithGitHubButton } from "@/components/sign-in-with-github-button";
+} from "@/components/primitives/page-primitives";
+import { SignInWithGitHubButton } from "@/components/shell/sign-in-with-github-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,6 +23,12 @@ import { createOrgAction, inviteOrgMemberAction } from "@/server/actions/org";
 import { getSession } from "@/server/auth-session";
 import { supportEmail as getSupportEmail } from "@/server/env";
 import { getWorkspace } from "@/server/workspace/workspace";
+
+import { CreateOrgForm } from "./_components/create-org-form";
+import { InviteMemberForm } from "./_components/invite-member-form";
+import { OrgAccountOverview } from "./_components/org-account-overview";
+import { OrgDataLifecycle } from "./_components/org-data-lifecycle";
+import { OrgMembersCard } from "./_components/org-members-card";
 
 export const metadata: Metadata = {
   title: "Organization",

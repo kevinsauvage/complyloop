@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 
 import { isGitHubAuthConfigured } from "@/auth";
-import { MarketingFooter } from "@/components/marketing/marketing-footer";
-import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { getSession } from "@/server/auth-session";
+
+import { MarketingFooter } from "./_components/marketing-footer";
+import { MarketingHeader } from "./_components/marketing-header";
 
 export default async function MarketingLayout({
   children,

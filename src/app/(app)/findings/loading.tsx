@@ -1,4 +1,4 @@
-import { RouteLoadingStatus } from "@/components/loading-placeholders";
+import { RouteLoadingStatus } from "@/components/primitives/loading-placeholders";
 
 export default function FindingsLoading() {
   return (

@@ -4,28 +4,29 @@ import { Suspense } from "react";
 import {
   ConnectProjectCard,
   ConnectProjectPanel,
-} from "@/components/connect-project-panel";
-import { AssessmentRunForm } from "@/components/dashboard/assessment-run-form";
-import { DashboardActivitySections } from "@/components/dashboard/dashboard-activity-sections";
-import { DashboardAlertsCard } from "@/components/dashboard/dashboard-alerts-card";
-import { DashboardOverview } from "@/components/dashboard/dashboard-overview";
-import {
-  DashboardPipelineSection,
-  DashboardPipelineSkeleton,
-} from "@/components/dashboard/dashboard-pipeline-section";
-import { DashboardStatusCounts } from "@/components/dashboard/dashboard-status-counts";
-import {
-  FirstAssessmentChecklist,
-  UnableToVerifyRuntimeHint,
-} from "@/components/dashboard/first-assessment-checklist";
-import { projectSourceBit } from "@/components/dashboard/project-description";
-import { RuntimeCoverageChip } from "@/components/dashboard/runtime-coverage-chip";
-import { FormattedDateTime } from "@/components/formatted-datetime";
-import { PageActionLink, PageSection } from "@/components/page-primitives";
-import { PermissionNotice } from "@/components/permission-notice";
+} from "@/components/github/connect-project-panel";
+import { FormattedDateTime } from "@/components/primitives/formatted-datetime";
+import { PageActionLink, PageSection } from "@/components/primitives/page-primitives";
+import { PermissionNotice } from "@/components/primitives/permission-notice";
 import { hasPreviewUrl } from "@/core/assessment-helpers";
 import { displayControl } from "@/server/reporting/report";
 import { loadDashboardView } from "@/server/workspace/dashboard-view";
+
+import { AssessmentRunForm } from "./_components/assessment-run-form";
+import { DashboardActivitySections } from "./_components/dashboard-activity-sections";
+import { DashboardAlertsCard } from "./_components/dashboard-alerts-card";
+import { DashboardOverview } from "./_components/dashboard-overview";
+import {
+  DashboardPipelineSection,
+  DashboardPipelineSkeleton,
+} from "./_components/dashboard-pipeline-section";
+import { DashboardStatusCounts } from "./_components/dashboard-status-counts";
+import {
+  FirstAssessmentChecklist,
+  UnableToVerifyRuntimeHint,
+} from "./_components/first-assessment-checklist";
+import { projectSourceBit } from "./_components/project-description";
+import { RuntimeCoverageChip } from "./_components/runtime-coverage-chip";
 
 export const metadata: Metadata = {
   title: "Dashboard",

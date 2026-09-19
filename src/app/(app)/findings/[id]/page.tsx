@@ -10,20 +10,15 @@ import {
   FindingStatusBadge,
   RemediationStatusBadge,
   SeverityBadge,
-} from "@/components/badges";
-import { CopyButton } from "@/components/copy-button";
-import { DeveloperHandoffCard } from "@/components/developer-handoff";
-import { FindingNextStepPanel } from "@/components/findings/finding-next-step-panel";
-import { FindingQueueNav } from "@/components/findings/finding-queue-nav";
-import { FindingUnderstandCard } from "@/components/findings/finding-understand-card";
-import { RemediationHistory } from "@/components/findings/remediation-history";
-import { FormattedDateTime } from "@/components/formatted-datetime";
+} from "@/components/primitives/badges";
+import { CopyButton } from "@/components/primitives/copy-button";
+import { FormattedDateTime } from "@/components/primitives/formatted-datetime";
 import {
   EmptyState,
   PageContent,
   PageHeader,
   PageSection,
-} from "@/components/page-primitives";
+} from "@/components/primitives/page-primitives";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,6 +32,12 @@ import { displayControl } from "@/server/reporting/report";
 import { loadFindingDetailView } from "@/server/workspace/finding-detail-view";
 import { isProjectVisible } from "@/server/workspace/project-visibility";
 import { getWorkspace, requireFinding } from "@/server/workspace/workspace";
+
+import { DeveloperHandoffCard } from "../_components/developer-handoff";
+import { FindingNextStepPanel } from "../_components/finding-next-step-panel";
+import { FindingQueueNav } from "../_components/finding-queue-nav";
+import { FindingUnderstandCard } from "../_components/finding-understand-card";
+import { RemediationHistory } from "../_components/remediation-history";
 
 export default async function FindingPage({
   params,

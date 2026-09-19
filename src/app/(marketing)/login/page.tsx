@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import { isGitHubAuthConfigured } from "@/auth";
 import { isProductionRuntime } from "@/auth-secret";
-import { SignInWithGitHubButton } from "@/components/sign-in-with-github-button";
+import { SignInWithGitHubButton } from "@/components/shell/sign-in-with-github-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {

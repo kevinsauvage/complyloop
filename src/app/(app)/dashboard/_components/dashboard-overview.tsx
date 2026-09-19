@@ -1,0 +1,139 @@
+import { ArrowUpRight, GitBranch } from "lucide-react";
+import Link from "next/link";
+import type { ReactNode } from "react";
+
+import { PageHeader } from "@/components/primitives/page-primitives";
+import { cn } from "@/lib/utils";
+
+export type DashboardQuickStat = {
+  label: string;
+  value: number | string;
+  href?: string;
+  tone?: "default" | "signal" | "warning" | "review" | "success" | "muted";
+};
+
+function statToneClass(tone: DashboardQuickStat["tone"]): string {
+  switch (tone) {
+    case "signal":
+      return "border-signal/20 bg-signal/6";
+    case "warning":
+      return "border-status-failed/20 bg-status-failed/6";
+    case "review":
+      return "border-status-review/25 bg-status-review/8";
+    case "success":
+      return "border-status-passed/20 bg-status-passed/6";
+    case "muted":
+      return "border-border/50 bg-muted/30";
+    case "default":
+    default:
+      return "border-border/60 bg-card";
+  }
+}
+
+function QuickStatTile({ stat }: { stat: DashboardQuickStat }) {
+  const linked = Boolean(stat.href);
+  const inner = (
+    <>
+      <p
+        className={cn(
+          "flex items-center gap-1 font-mono text-2xl font-semibold tabular-nums tracking-tight",
+          stat.tone === "signal" && "text-signal",
+          stat.tone === "warning" && "text-status-failed",
+          stat.tone === "review" && "text-status-review",
+          stat.tone === "success" && "text-status-passed",
+          linked && "group-hover:text-signal",
+        )}
+      >
+        <span className="min-w-0 truncate">{stat.value}</span>
+        {linked ? (
+          <ArrowUpRight className="size-4 shrink-0 opacity-60" aria-hidden />
+        ) : null}
+      </p>
+      <p
+        className={cn(
+          "mt-1 text-xs font-medium text-muted-foreground",
+          linked && "underline decoration-dotted underline-offset-4",
+        )}
+      >
+        {stat.label}
+      </p>
+    </>
+  );
+
+  const className = cn(
+    "surface-panel group block w-full min-w-0 rounded-xl px-4 py-3 transition-[border-color,background-color] duration-200",
+    statToneClass(stat.tone),
+    linked
+      ? "hover:border-signal/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      : "cursor-default",
+  );
+
+  if (stat.href) {
+    return (
+      <Link
+        href={stat.href}
+        className={className}
+        aria-label={`${stat.label}: ${stat.value}. View details`}
+      >
+        {inner}
+      </Link>
+    );
+  }
+
+  return <div className={className}>{inner}</div>;
+}
+
+export function DashboardOverview({
+  title,
+  description,
+  repoLabel,
+  stats,
+  meta,
+  actions,
+}: {
+  title: string;
+  description?: ReactNode;
+  repoLabel?: string;
+  stats: DashboardQuickStat[];
+  meta?: ReactNode;
+  actions?: ReactNode;
+}) {
+  return (
+    <section className="surface-panel relative rounded-xl">
+      <div>
+        <PageHeader
+          title={title}
+          description={description}
+          variant="plain"
+          eyebrow={
+            repoLabel || meta ? (
+              <>
+                {repoLabel && repoLabel !== title ? (
+                  <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/60 bg-background/50 px-2.5 py-1 font-mono text-xs text-muted-foreground">
+                    <GitBranch className="size-3.5 shrink-0" aria-hidden />
+                    <span className="min-w-0 truncate">{repoLabel}</span>
+                  </span>
+                ) : null}
+                {meta}
+              </>
+            ) : undefined
+          }
+        >
+          {actions}
+        </PageHeader>
+        {stats.length > 0 ? (
+          <ul
+            aria-label="Key compliance metrics"
+            className="grid grid-cols-2 gap-3 px-5 pb-5 sm:grid-cols-4 sm:px-6 sm:pb-6"
+          >
+            {stats.map((stat) => (
+              <li key={stat.label} className="min-w-0">
+                <QuickStatTile stat={stat} />
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+    </section>
+  );
+}
