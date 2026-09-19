@@ -4,8 +4,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Requirement } from "@complyloop/analysis-core/contract/entities";
 
-import { renderWithUiProviders } from "@/test-fixtures/render-ui";
 import { testControl } from "@/test-fixtures/control";
+import { renderWithUiProviders } from "@/test-fixtures/render-ui";
 
 import { RequirementRemediationActions } from "./requirement-remediation-actions";
 
