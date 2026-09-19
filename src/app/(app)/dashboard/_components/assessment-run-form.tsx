@@ -33,7 +33,13 @@ async function loadActiveJob(projectId: string) {
   return { activeJob, runningLive };
 }
 
-export async function AssessmentRunForm({ projectId }: { projectId: string }) {
+export async function AssessmentRunForm({
+  projectId,
+  changedCount = 0,
+}: {
+  projectId: string;
+  changedCount?: number;
+}) {
   const { activeJob, runningLive } = await loadActiveJob(projectId);
   return (
     <div className="flex flex-col gap-1">
@@ -49,6 +55,11 @@ export async function AssessmentRunForm({ projectId }: { projectId: string }) {
           Assessment already{" "}
           {activeJob.status === "running" ? "running" : "queued"} — track it in
           the Pipeline below.
+        </p>
+      ) : changedCount > 0 ? (
+        <p className="text-xs text-muted-foreground" role="status">
+          {changedCount} file{changedCount === 1 ? "" : "s"} changed since the
+          last scan — re-run to refresh.
         </p>
       ) : null}
     </div>

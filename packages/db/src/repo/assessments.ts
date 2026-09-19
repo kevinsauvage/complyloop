@@ -80,6 +80,28 @@ export async function listLatestAssessmentForProject(
   return rows.map((row) => assessmentFromRow(row));
 }
 
+/**
+ * Newest-first assessment history, capped for hot-path reads (trend
+ * sparklines). Webhook pushes append rows without bound — callers that only
+ * need the latest must use {@link listLatestAssessmentForProject}.
+ */
+export async function listAssessmentHistoryForProject(
+  drizzle: DrizzleDb,
+  projectId: string,
+  limit: number,
+): Promise<Assessment[]> {
+  const rows = await drizzle
+    .select()
+    .from(assessments)
+    .where(eq(assessments.projectId, projectId))
+    .orderBy(
+      desc(sql`${assessments.payload}->>'completedAt'`),
+      desc(sql`${assessments.payload}->>'startedAt'`),
+    )
+    .limit(limit);
+  return rows.map((row) => assessmentFromRow(row));
+}
+
 export async function getLatestAssessmentSnapshot(
   drizzle: DrizzleDb,
   projectId: string,

@@ -16,6 +16,7 @@ import { displayControl } from "@/server/reporting/report";
 import { loadDashboardView } from "@/server/workspace/dashboard-view";
 
 import { AssessmentRunForm } from "./_components/assessment-run-form";
+import { AssessmentTrend } from "./_components/assessment-trend";
 import {
   DashboardFindingsQueue,
   DashboardOpsTimeline,
@@ -68,7 +69,10 @@ export default async function DashboardPage() {
 
   const { caps } = view;
   const assessAction = caps.canAssess ? (
-    <AssessmentRunForm projectId={view.project.id} />
+    <AssessmentRunForm
+      projectId={view.project.id}
+      changedCount={view.recentChanges.length}
+    />
   ) : (
     <PermissionNotice>
       View-only role — you can browse results but not run assessments.
@@ -89,8 +93,8 @@ export default async function DashboardPage() {
     quickStats,
     nextAction,
     showFirstRun,
+    trend,
   } = view;
-
   // The alerts card already covers regressions and is the next action when
   // unread alerts exist — showing the generic next-action banner alongside
   // it duplicates the CTA.
@@ -204,6 +208,7 @@ export default async function DashboardPage() {
               runtimeError={latestAssessment.engines?.runtimeError}
             />
             <DashboardStatusCounts counts={counts} />
+            <AssessmentTrend trend={trend} />
           </PageSection>
 
           <div className="grid items-start gap-4 lg:grid-cols-12">

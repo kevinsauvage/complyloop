@@ -18,6 +18,7 @@ import type {
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
 import { getDrizzle } from "@complyloop/db/postgres";
+import { listAssessmentHistoryForProject } from "@complyloop/db/repo/assessments";
 import { countFindingsByStatusForProject } from "@complyloop/db/repo/findings";
 
 import {
@@ -64,6 +65,8 @@ export type DashboardView =
         href: string;
       } | null;
       showFirstRun: boolean;
+      /** Pass-rate history for the trend sparkline (oldest → newest, max 10). */
+      trend: Array<{ at: string; passRate: number }>;
     };
 
 /**
@@ -124,6 +127,31 @@ export async function loadDashboardView(): Promise<DashboardView> {
     .slice(-6)
     .reverse();
   const recentChanges = latestAssessment?.changesSincePrevious ?? [];
+
+  // Bounded history window, oldest → newest (max 10). runtime.assessments
+  // holds the latest assessment only, so the trend reads its own capped
+  // history — deriving it from the runtime slice could never reach 2 points.
+  const history = await listAssessmentHistoryForProject(
+    await getDrizzle(),
+    project.id,
+    10,
+  );
+  const trend = history
+    .sort((a, b) => (a.completedAt < b.completedAt ? -1 : 1))
+    .flatMap((assessment) => {
+      const summary = assessment.summary;
+      const total = REQUIREMENT_STATUSES.reduce(
+        (sum, status) => sum + (summary[status] ?? 0),
+        0,
+      );
+      if (total === 0) return [];
+      return [
+        {
+          at: assessment.completedAt,
+          passRate: Math.round(((summary.passed ?? 0) / total) * 100),
+        },
+      ];
+    });
 
   const counts = countByStatus(requirements, REQUIREMENT_STATUSES);
 
@@ -229,5 +257,6 @@ export async function loadDashboardView(): Promise<DashboardView> {
     quickStats,
     nextAction,
     showFirstRun,
+    trend,
   };
 }
