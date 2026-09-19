@@ -46,13 +46,11 @@ export interface CheckRegistration {
    * are site_level without this flag).
    */
   runtimeOnly?: boolean;
-  /** Analyzers that can emit findings for this check. */
   analyzers?: readonly AnalyzerId[];
   /** Catalog control this check powers (verified 1:1 by the catalog coverage test). */
   catalogControlId: string;
 }
 
-/** One entry per check — see file header. */
 export const CHECK_REGISTRY = [
   {
     id: "img-alt",

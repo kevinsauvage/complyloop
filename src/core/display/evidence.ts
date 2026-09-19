@@ -3,11 +3,6 @@ import type { EvidenceKind } from "@complyloop/analysis-core/contract/entities";
 import { mustGet } from "./must-get";
 import { STATUS_TONE_BADGE, STATUS_TONE_DOT } from "./report-tones";
 
-// ---------------------------------------------------------------------------
-// Evidence — one record per kind; `finding` and `assessment_job` refine
-// label + tone together from `detail`, so the two stay in sync.
-// ---------------------------------------------------------------------------
-
 export type EvidenceTone = "default" | "pass" | "fail" | "review" | "signal";
 
 export interface EvidenceDisplay {
@@ -50,14 +45,12 @@ const EVIDENCE_DISPLAY: Record<EvidenceKind, EvidenceDisplay> = {
   webhook_reassessment: { label: "Webhook reassessment", tone: "signal" },
 };
 
-/** `finding` evidence refines label + tone together from `detail.event`. */
 const FINDING_EVENT_DISPLAY: Record<string, EvidenceDisplay> = {
   detected: { label: "Finding detected", tone: "fail" },
   resolved: { label: "Finding resolved", tone: "pass" },
   dismissed: { label: "Finding dismissed", tone: "review" },
 };
 
-/** `assessment_job` evidence refines label + tone together from `detail.phase`. */
 const ASSESSMENT_JOB_PHASE_DISPLAY: Record<string, EvidenceDisplay> = {
   // `queued` is retained for evidence written before manual runs became
   // direct (webhook enqueues and historical rows).

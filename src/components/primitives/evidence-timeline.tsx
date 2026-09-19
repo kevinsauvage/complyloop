@@ -4,13 +4,10 @@ import { cn } from "@/lib/utils";
 
 export interface TimelineItem {
   id: string;
-  /** Status/kind badge rendered next to the date. */
   badge: ReactNode;
-  /** Formatted date rendered next to the badge. */
   date: ReactNode;
   /** Defaults to the first item; drives the highlight dot + Latest pill. */
   isLatest?: boolean;
-  /** Summary/note body rendered below the badge row. */
   children?: ReactNode;
 }
 

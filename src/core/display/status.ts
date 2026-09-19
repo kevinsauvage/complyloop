@@ -18,10 +18,6 @@ import {
   type StatusTone,
 } from "./report-tones";
 
-// ---------------------------------------------------------------------------
-// Requirement status
-// ---------------------------------------------------------------------------
-
 export interface RequirementStatusDisplay {
   label: string;
   description: string;
@@ -69,10 +65,6 @@ const REQUIREMENT_STATUS_DISPLAY: Record<
     tone: "unverifiable",
   },
 };
-
-// ---------------------------------------------------------------------------
-// Remediation status
-// ---------------------------------------------------------------------------
 
 export interface RemediationStatusDisplay {
   label: string;
@@ -127,10 +119,6 @@ const REMEDIATION_STATUS_DISPLAY: Record<
   },
 };
 
-// ---------------------------------------------------------------------------
-// Finding status
-// ---------------------------------------------------------------------------
-
 export interface FindingStatusDisplay {
   label: string;
   description: string;
@@ -162,10 +150,6 @@ const FINDING_STATUS_DISPLAY: Record<FindingStatus, FindingStatusDisplay> = {
     tone: "review",
   },
 };
-
-// ---------------------------------------------------------------------------
-// Severity
-// ---------------------------------------------------------------------------
 
 export interface SeverityDisplay {
   label: string;
@@ -213,10 +197,6 @@ const SEVERITY_DISPLAY: Record<Severity, SeverityDisplay> = {
   },
 };
 
-// ---------------------------------------------------------------------------
-// Determination
-// ---------------------------------------------------------------------------
-
 export interface DeterminationDisplay {
   label: string;
   description: string;
@@ -243,10 +223,6 @@ const DETERMINATION_DISPLAY: Record<DeterminationMethod, DeterminationDisplay> =
       tone: "signal",
     },
   };
-
-// ---------------------------------------------------------------------------
-// Confidence / provenance / engine
-// ---------------------------------------------------------------------------
 
 export interface ConfidenceDisplay {
   description: string;
@@ -324,10 +300,6 @@ const ENGINE_DISPLAY: Record<AssessmentEngine, EngineDisplay> = {
   },
 };
 
-// ---------------------------------------------------------------------------
-// Org role tone
-// ---------------------------------------------------------------------------
-
 export function roleTone(role: OrgRole): StatusTone {
   return mustGet(ROLE_TONE, role, "org role");
 }
@@ -339,7 +311,6 @@ const ROLE_TONE: Record<OrgRole, StatusTone> = {
   viewer: "na",
 };
 
-/** Report CSS class for a requirement status, via its unified tone. */
 export function requirementStatusReportClass(
   status: RequirementStatus,
 ): string {

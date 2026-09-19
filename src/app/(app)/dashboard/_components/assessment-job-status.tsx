@@ -26,7 +26,6 @@ const statusIndicator: Record<AssessmentJob["status"], string> = {
   cancelled: "bg-muted-foreground/40",
 };
 
-/** Human copy for the running-job pipeline stage (see `updateAssessmentJobStage`). */
 const stageCopy: Record<AssessmentJobStage, string> = {
   checkout: "Checking out repository",
   changedetection: "Detecting changes",

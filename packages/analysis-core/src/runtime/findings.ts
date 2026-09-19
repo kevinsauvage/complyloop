@@ -50,9 +50,7 @@ export interface RuntimeScanPageResult {
   snapshot?: RuntimePageSnapshot;
   /** Playwright custom-probe findings for this page. */
   customFindings?: RawFinding[];
-  /** html-validate rendered findings for this page. */
   htmlValidateFindings?: RawFinding[];
-  /** html-validate rendered pass succeeded on this page. */
   htmlValidateRan?: boolean;
   /** Deterministic absence probes for applicability-gated checks. */
   applicabilityObservations?: ApplicabilityObservation[];

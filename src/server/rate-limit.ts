@@ -37,39 +37,32 @@ export async function assertRateLimit(
   if (!consumed) throw new RateLimitError();
 }
 
-/** Removes expired windows; `runAssessmentJobBatch` calls this once per batch. */
 export async function pruneRateLimitBuckets(
   maxAgeMs = 86_400_000,
 ): Promise<number> {
   return pruneBuckets(await getDrizzle(), maxAgeMs);
 }
 
-/** Connect / clone: 10 per user per minute. */
 export function assertConnectRateLimit(userId: string): Promise<void> {
   return assertRateLimit(`connect:${userId}`, 10, 60_000);
 }
 
-/** Assessment runs: 6 queued per user per minute. */
 export function assertAssessRateLimit(userId: string): Promise<void> {
   return assertRateLimit(`assess:${userId}`, 6, 60_000);
 }
 
-/** AI explain / remediate: 20 per user per minute. */
 export function assertAiRateLimit(userId: string): Promise<void> {
   return assertRateLimit(`ai:${userId}`, 20, 60_000);
 }
 
-/** Remediation writes (approve/implement/verify/dismiss, incl. bulk): 30 per user per minute. */
 export function assertRemediationRateLimit(userId: string): Promise<void> {
   return assertRateLimit(`remediation:${userId}`, 30, 60_000);
 }
 
-/** Requirement writes (exceptions, human verification): 30 per user per minute. */
 export function assertRequirementsRateLimit(userId: string): Promise<void> {
   return assertRateLimit(`requirements:${userId}`, 30, 60_000);
 }
 
-/** Runtime audit config saves: 20 per user per minute. */
 export function assertRuntimeAuditRateLimit(userId: string): Promise<void> {
   return assertRateLimit(`runtime-audit:${userId}`, 20, 60_000);
 }

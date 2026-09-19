@@ -9,7 +9,6 @@ import {
 } from "@/server/github/github-tokens";
 import { ensurePersonalOrgProvisioned } from "@/server/workspace/personal-org";
 
-/** True when GitHub OAuth env vars are present — otherwise sign-in is hidden. */
 export function isGitHubAuthConfigured(): boolean {
   return Boolean(
     process.env.AUTH_SECRET &&

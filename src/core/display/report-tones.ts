@@ -11,7 +11,6 @@ export type StatusTone =
 
 export type BadgeVariant = "secondary" | "outline" | undefined;
 
-/** Hex pair for the standalone HTML report, which has no Tailwind tokens. */
 export interface ReportColorPair {
   fg: string;
   bg: string;
@@ -100,7 +99,6 @@ function requiredReportClass(tone: SignallessTone): string {
   return value;
 }
 
-/** Soft tint + readable text; stronger fill in dark mode for contrast. */
 export const STATUS_TONE_BADGE: Record<StatusTone, string> = {
   passed: toneStyle("passed").badge,
   failed: toneStyle("failed").badge,
@@ -118,7 +116,6 @@ export const STATUS_TONE_ACCENT: Record<SignallessTone, string> = {
   unverifiable: toneStyle("unverifiable").accent,
 };
 
-/** Dot fill per tone — shared by evidence chips and similar markers. */
 export const STATUS_TONE_DOT: Record<StatusTone, string> = {
   passed: toneStyle("passed").dot,
   failed: toneStyle("failed").dot,
@@ -128,7 +125,6 @@ export const STATUS_TONE_DOT: Record<StatusTone, string> = {
   signal: toneStyle("signal").dot,
 };
 
-/** Print/email hex palette per requirement tone (Tailwind unavailable). */
 export const STATUS_TONE_REPORT: Record<SignallessTone, ReportColorPair> = {
   passed: requiredReport("passed"),
   failed: requiredReport("failed"),
@@ -137,7 +133,6 @@ export const STATUS_TONE_REPORT: Record<SignallessTone, ReportColorPair> = {
   unverifiable: requiredReport("unverifiable"),
 };
 
-/** CSS badge class suffix per tone in the standalone report. */
 export const STATUS_TONE_REPORT_CLASS: Record<SignallessTone, string> = {
   passed: requiredReportClass("passed"),
   failed: requiredReportClass("failed"),

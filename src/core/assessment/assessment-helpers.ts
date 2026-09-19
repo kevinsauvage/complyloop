@@ -77,7 +77,6 @@ export function runtimeCoverageSummary(
   };
 }
 
-/** Zero-init every status key, then count items by `status`. */
 export function countByStatus<T extends string>(
   items: readonly { status: T }[],
   statuses: readonly T[],
@@ -91,7 +90,6 @@ export function countByStatus<T extends string>(
   return counts;
 }
 
-/** Count items by a derived string key, returning a Map for O(1) lookups. */
 export function toCountMap<T>(
   items: readonly T[],
   key: (item: T) => string,

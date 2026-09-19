@@ -50,7 +50,6 @@ export default defineConfig({
         "packages/db/src/**",
       ],
       exclude: [
-        // Test files themselves carry no product logic.
         "src/**/*.test.{ts,tsx}",
         "packages/analysis-core/src/**/*.test.{ts,tsx}",
         "packages/db/src/**/*.test.{ts,tsx}",

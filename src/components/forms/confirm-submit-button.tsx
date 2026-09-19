@@ -16,7 +16,6 @@ import {
 import type { ButtonSize, ButtonVariant } from "@/components/ui/button";
 import { Button } from "@/components/ui/button";
 
-/** Pending label rule shared by every submit control. */
 function resolveSubmitLabel(
   pending: boolean,
   label: string,

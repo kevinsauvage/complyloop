@@ -235,7 +235,6 @@ export async function getDrizzle(): Promise<DrizzleDb> {
   return globalForDb.__complyloopInit;
 }
 
-/** Test helper — closes the pool. */
 export async function closeDrizzle(): Promise<void> {
   if (globalForDb.__complyloopSql) {
     await globalForDb.__complyloopSql.end({ timeout: 5 });
