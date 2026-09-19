@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 
 import type { EvidenceKind } from "@complyloop/analysis-core/contract/entities";
-import type { AssessmentEngine } from "@complyloop/analysis-core/contract/finding-types";
 import type {
   Confidence,
   ExplanationProvenance,
@@ -16,7 +15,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   type BadgeVariant,
   confidenceDisplay,
-  engineDisplay,
   EVIDENCE_TONE_BADGE,
   evidenceDisplay,
   findingStatusDisplay,
@@ -157,20 +155,6 @@ export function ProvenanceBadge({
       description={display.description}
       label={display.label}
       tone={display.tone}
-    />
-  );
-}
-
-/** Which analysis engine produced a finding (AST source vs rendered DOM). */
-export function EngineBadge({ engine }: { engine: AssessmentEngine }) {
-  const display = engineDisplay(engine);
-  return (
-    <StatusBadge
-      description={display.description}
-      label={display.label}
-      variant={display.badgeVariant}
-      tone={display.tone}
-      muted={display.badgeVariant === "outline"}
     />
   );
 }

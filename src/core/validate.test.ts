@@ -41,7 +41,6 @@ import {
   optionalNoteSchema,
   parseForm,
   parseInput,
-  parseUnknown,
   requiredField,
 } from "./validate";
 
@@ -662,20 +661,6 @@ describe("formRecord", () => {
       orgId: "org-1",
       findingIds: ["f1", "f2"],
     });
-  });
-});
-
-describe("parseUnknown", () => {
-  it("returns parsed data when the payload matches", () => {
-    expect(parseUnknown(entityIdSchema, "  org-1  ", "Invalid id.")).toBe(
-      "org-1",
-    );
-  });
-
-  it("throws the fallback message when the payload does not match", () => {
-    expect(() => parseUnknown(entityIdSchema, "", "Invalid id.")).toThrow(
-      "Invalid id.",
-    );
   });
 });
 

@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import { renderWithUiProviders } from "@/test/render-ui";
 
 import {
-  EngineBadge,
   ProvenanceBadge,
   RemediationStatusBadge,
   RequirementStatusBadge,
@@ -49,16 +48,5 @@ describe("badges", () => {
     );
     expect(screen.getByText("Verified")).toBeInTheDocument();
     expect(screen.getByText("Critical")).toBeInTheDocument();
-  });
-
-  it("labels code vs live-page detection engines", () => {
-    renderWithUiProviders(
-      <>
-        <EngineBadge engine="ast" />
-        <EngineBadge engine="runtime" />
-      </>,
-    );
-    expect(screen.getByText("Code")).toBeInTheDocument();
-    expect(screen.getByText("Live page")).toBeInTheDocument();
   });
 });

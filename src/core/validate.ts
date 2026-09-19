@@ -71,16 +71,6 @@ export function firstIssueMessage(error: z.ZodError, fallback: string): string {
   return error.issues[0]?.message ?? fallback;
 }
 
-export function parseUnknown<T>(
-  schema: z.ZodType<T>,
-  value: unknown,
-  message: string,
-): T {
-  const result = schema.safeParse(value);
-  if (!result.success) throw new Error(message);
-  return result.data;
-}
-
 export function parseForm<T>(
   schema: z.ZodType<T>,
   formData: FormData,

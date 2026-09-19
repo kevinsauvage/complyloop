@@ -4,16 +4,6 @@ Audit of the actual code (not docs). Ordered by value; grouped so related root c
 
 ## P2 — Medium
 
-### [ ] Reconcile the worker topology and delete the dead serverless path
-
-**Why:** Docs, `README`, and `.env.example` promise a dispatch-failure self-fetch fallback and reference `assessment_opportunistic_drain_failed`; the code never self-fetches (`assessment-scheduler.ts:227-233`), no production caller uses `POST /api/internal/jobs/run`, `isWorkerDispatchConfigured` is dead, and `WORKER_SECRET` is required by `ops:check` with no consumer. The unused route still forces `@sparticuz/chromium` (67 MB) into tracing and `next.config.ts` workarounds.
-
-**Where:** `src/server/assessment/assessment-scheduler.ts`, `assessment-job-dispatch.ts`, `src/app/api/internal/jobs/run/route.ts`, `next.config.ts`, `docs/vercel.md`, `README.md`, `.env.example`, `packages/analysis-core/package.json`.
-
-**Change:** Pick one: implement the documented fallback, or delete it from all docs/env/checks and remove the unused route + `@sparticuz/chromium` + its tracing. Also make a stuck/expired `running` job not block re-dispatch (`actions/assessment.ts:73-77` returns without dispatching).
-
-**Impact:** Medium-High — removes ~67 MB, dead code, and doc/runbook drift.
-
 ### [ ] Fix concurrency data-integrity bugs in alerts, memberships, and org provisioning
 
 **Why:** `markAlertReadAction` reads the alert outside the project lock and upserts the whole stale payload under it, discarding a concurrent assessment's refreshed alert (`actions/alerts.ts:35-42`, `repo/alerts.ts:44-85`). `upsertMembership` conflicts on `id` rather than the real unique keys `(org_id,user_id)` / `(org_id, lower(login))`, so duplicate invites throw `23505` instead of converging (`repo/orgs.ts:112-129`). Personal-org provisioning is a check-then-insert race with no lock (`repo/orgs.ts:241-278`).
@@ -65,23 +55,3 @@ Audit of the actual code (not docs). Ordered by value; grouped so related root c
 **Impact:** Medium — security-critical install fragility and install-size bloat.
 
 ---
-
-## Biggest Wins
-
-1. **Concurrency-safe assessment queue** — removes duplicate findings/assessments and the silent state corruption behind them (P0-1).
-2. **Runtime verification loop** — makes `verified` reachable for DOM/site findings, the only status that closes the loop (P0-2).
-3. **Reliable deploys + monitoring** — migrate-on-deploy plus a working ops/health/queue alert replaces a safety net that is currently dead (P0-3).
-4. **Cross-tenant webhook resolution** — stops webhooks from scanning or mutating the wrong org's project (P0-4).
-5. **CI exercises the runtime engine** — the product's differentiator stops being a zero-CI-coverage blind spot (P1-8).
-
-## Target State
-
-- One assessment runs per project at a time, enforced by the database, with no duplicate findings and fail-closed job payloads.
-- Every finding type reaches `verified` through deterministic proof, and `verified` drives the UI, not `resolved`.
-- Deploys apply migrations automatically; `/api/health` and queue/evidence checks are monitored and actually alert.
-- Webhooks resolve to the correct tenant, bound to the installation, deterministically.
-- Evidence/data growth is bounded and a documented erasure/retention path exists.
-- CI runs the runtime scanner and the untested auth/tenant route boundaries; `verify:gate` matches CI.
-- One worker topology with no dead serverless route, no 67 MB unused browser dependency, and docs matching code.
-- Timestamps and lists are correct and bounded for the viewer; the UI has a single timeline and one tone table.
-- The platform's own login, 404, and requirements pages are robust and accessible.
