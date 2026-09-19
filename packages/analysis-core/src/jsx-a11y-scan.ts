@@ -23,9 +23,7 @@ import type { RawFinding } from "./types.ts";
 // follow static imports, so a dynamic require silently drops the plugin
 // from serverless bundles (MODULE_NOT_FOUND in production). Interop is
 // identical: the plugin is plain CJS, so the default import is module.exports.
-const jsxA11y = jsxA11yPlugin as NonNullable<
-  Linter.Config["plugins"]
->[string];
+const jsxA11y = jsxA11yPlugin as NonNullable<Linter.Config["plugins"]>[string];
 
 const linter = new Linter({ configType: "flat" });
 

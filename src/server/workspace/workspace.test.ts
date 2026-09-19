@@ -68,8 +68,7 @@ vi.mock("@complyloop/db/repo/projects", () => ({
 vi.mock("@complyloop/db/repo/evidence", () => ({
   WORKSPACE_EVIDENCE_LIMIT: 100,
   insertEvidenceRecords: (...args: unknown[]) => insertEvidenceRecords(...args),
-  deleteEvidenceForOrg: (...args: unknown[]) =>
-    deleteEvidenceForOrg(...args),
+  deleteEvidenceForOrg: (...args: unknown[]) => deleteEvidenceForOrg(...args),
 }));
 vi.mock("@complyloop/db/repo/findings", () => ({
   getFindingById: (...args: unknown[]) => getFindingById(...args),

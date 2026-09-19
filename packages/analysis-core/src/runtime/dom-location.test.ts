@@ -65,7 +65,7 @@ describe("describeAxeElement", () => {
       ),
     ).toBe("a \u201cGo to Home section\u201d");
     expect(
-      describeAxeElement("<input type=\"email\">", "input[type=email]"),
+      describeAxeElement('<input type="email">', "input[type=email]"),
     ).toBe("input (input[type=email])");
   });
 });

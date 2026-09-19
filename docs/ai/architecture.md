@@ -146,7 +146,7 @@ evidence, findings, remediations, requirements }`; the worker persists via
   - **Webhook (queued)** — enqueue then `after()` dispatch of the GH
     worker; its 15-min schedule is the backstop for failed dispatches,
     killed tasks, and expired leases. Dev/e2e drain the queue inline.
-  Expired rate-limit buckets prune once per batch.
+    Expired rate-limit buckets prune once per batch.
 - **Checkouts** — shallow ephemeral checkout per job via pure-JS git
   (isomorphic-git, no `git` CLI); deleted after. The executor uses its
   locally installed Playwright browser. See [`vercel.md`](../vercel.md).
@@ -216,10 +216,10 @@ Assessments always use the project's `defaultPresetId`. Requirements page
 ## Key flows
 
 **Assessment:** manual runs enqueue in the dashboard action and kick the GH
-   worker via dispatch (backstop: 15-min schedule); webhook runs go
-   enqueue → dispatch, 15-min schedule backstop (see
-   Jobs above). Either way the worker
-   clones + scans → `detectChanges` (depth-1
+worker via dispatch (backstop: 15-min schedule); webhook runs go
+enqueue → dispatch, 15-min schedule backstop (see
+Jobs above). Either way the worker
+clones + scans → `detectChanges` (depth-1
 clone: author is HEAD) → AST → optional Playwright → merge → re-derive
 statuses → `verifyRemediationOnResolve` (uses the run's re-scan proof, not
 historical evidence). Only a **default-branch** scan (or a

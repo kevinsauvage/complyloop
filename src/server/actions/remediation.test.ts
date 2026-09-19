@@ -424,10 +424,7 @@ describe("cancelAssessmentJobAction", () => {
     const form = new FormData();
     form.set("jobId", "job-1");
 
-    const result = await cancelAssessmentJobAction(
-      initialActionState,
-      form,
-    );
+    const result = await cancelAssessmentJobAction(initialActionState, form);
 
     expect(result).toEqual({ ok: true, message: "Assessment cancelled." });
     expect(cancelAssessmentJob).toHaveBeenCalledWith({
@@ -450,10 +447,7 @@ describe("cancelAssessmentJobAction", () => {
     const form = new FormData();
     form.set("jobId", "job-done");
 
-    const result = await cancelAssessmentJobAction(
-      initialActionState,
-      form,
-    );
+    const result = await cancelAssessmentJobAction(initialActionState, form);
 
     expect(result.ok ? null : result.message).toMatch(/already finished/);
   });

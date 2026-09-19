@@ -35,8 +35,7 @@ import { preparePullRequest } from "./pr";
 const isoPush = vi.hoisted(() => vi.fn());
 
 vi.mock("isomorphic-git", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("isomorphic-git")>();
+  const actual = await importOriginal<typeof import("isomorphic-git")>();
   const passthrough = [
     "init",
     "add",

@@ -84,9 +84,7 @@ export function describeAxeElement(html: string, selector: string): string {
 export function visibleTextOf(html: string): string {
   // Complete tags → space; a trailing fragment cut mid-tag (`<h2 class="…`)
   // has no closing `>` and would otherwise leak class soup as "text".
-  const withoutTags = html
-    .replace(/<[^>]*>/g, " ")
-    .replace(/<[^>]*$/g, " ");
+  const withoutTags = html.replace(/<[^>]*>/g, " ").replace(/<[^>]*$/g, " ");
   const collapsed = withoutTags.replace(/\s+/g, " ").trim();
   // Unescape the common entities axe emits so the label reads as rendered.
   const decoded = collapsed
@@ -124,5 +122,3 @@ export function namingAttributeOf(html: string): string {
   }
   return "";
 }
-
-

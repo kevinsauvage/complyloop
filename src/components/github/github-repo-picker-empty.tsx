@@ -16,8 +16,8 @@ export function GitHubRepoPickerEmpty({
       </p>
       <p className="text-xs text-muted-foreground">
         Not seeing your repo? It may live on an installation this account
-        can&apos;t see, or under a renamed/transferred name — search above
-        only covers the first page of installations.
+        can&apos;t see, or under a renamed/transferred name — search above only
+        covers the first page of installations.
       </p>
       {appInstallUrl ? (
         <Button asChild size="sm" className="w-fit">

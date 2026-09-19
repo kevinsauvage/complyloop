@@ -30,10 +30,7 @@ import { fileURLToPath } from "node:url";
 
 import { buildSync } from "esbuild";
 
-const root = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
-);
+const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 buildSync({
   entryPoints: [path.join(root, "scripts", "assessment-worker-drain.ts")],

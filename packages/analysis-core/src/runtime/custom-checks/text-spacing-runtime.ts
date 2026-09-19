@@ -14,12 +14,12 @@ const IS_HIDDEN_SOURCE = isVisuallyHiddenByDesign.toString();
 export async function textSpacingRuntimeViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
-    const nodes = await pageEvaluateWithHitCapture(
-      page,
-      (captureHit, { styleId, hiddenSrc }) => {
-        const isHidden = new Function(
-          `return (${hiddenSrc})`,
-        )() as typeof isVisuallyHiddenByDesign;
+  const nodes = await pageEvaluateWithHitCapture(
+    page,
+    (captureHit, { styleId, hiddenSrc }) => {
+      const isHidden = new Function(
+        `return (${hiddenSrc})`,
+      )() as typeof isVisuallyHiddenByDesign;
       const existing = document.getElementById(styleId);
       existing?.remove();
 
@@ -68,8 +68,8 @@ export async function textSpacingRuntimeViolation(
       document.getElementById(styleId)?.remove();
       return violations;
     },
-      { styleId: SPACING_STYLE_ID, hiddenSrc: IS_HIDDEN_SOURCE },
-    );
+    { styleId: SPACING_STYLE_ID, hiddenSrc: IS_HIDDEN_SOURCE },
+  );
 
   if (nodes.length === 0) return null;
   return {

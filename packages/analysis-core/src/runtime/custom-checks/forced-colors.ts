@@ -62,9 +62,7 @@ export async function forcedColorsViolation(
                 : [];
             const all = [
               ...self,
-              ...Array.from(
-                target.querySelectorAll("svg,img,canvas,video"),
-              ),
+              ...Array.from(target.querySelectorAll("svg,img,canvas,video")),
             ];
             return all.some((node) => {
               const rect = node.getBoundingClientRect();

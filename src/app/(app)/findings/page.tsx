@@ -82,7 +82,8 @@ export default async function FindingsPage({
       (controlId) => displayControl(controlId, project),
       (findingId) => {
         const remediation = remediationByFindingId.get(findingId);
-        if (!remediation) throw new Error(`Missing remediation for ${findingId}`);
+        if (!remediation)
+          throw new Error(`Missing remediation for ${findingId}`);
         return remediation;
       },
     );

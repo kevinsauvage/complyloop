@@ -91,7 +91,10 @@ async function commitLockedProjectPayload(
  * Snapshots the loaded slice before the handler mutates rows in place:
  * persist compares against what was loaded, not the post-mutation state.
  */
-function snapshotLoadedSlice(db: WorkspaceSlice, projectId: string): ProjectSlice {
+function snapshotLoadedSlice(
+  db: WorkspaceSlice,
+  projectId: string,
+): ProjectSlice {
   return snapshotProjectSlice(
     db.requirements,
     db.findings,

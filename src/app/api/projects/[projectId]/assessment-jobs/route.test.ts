@@ -11,11 +11,12 @@ vi.mock("@/server/assessment/assessment-jobs", () => ({
 }));
 
 vi.mock("@/server/workspace/workspace", () => ({
-  viewerCanViewProject: (...args: unknown[]) =>
-    viewerCanViewProject(...args),
+  viewerCanViewProject: (...args: unknown[]) => viewerCanViewProject(...args),
 }));
 
-function getRequest(projectId: string): [Request, { params: Promise<{ projectId: string }> }] {
+function getRequest(
+  projectId: string,
+): [Request, { params: Promise<{ projectId: string }> }] {
   return [
     new Request(`http://localhost/api/projects/${projectId}/assessment-jobs`),
     { params: Promise.resolve({ projectId }) },

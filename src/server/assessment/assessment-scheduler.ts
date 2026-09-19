@@ -75,9 +75,8 @@ export async function runAssessmentJobBatch(
     // the last 10k (far beyond any redelivery window) via dynamic import so
     // this module's static graph stays dispatch + harness + rate-limit +
     // observability (see the boundary contract above).
-    const { pruneWebhookDeliveryRows } = await import(
-      "@complyloop/db/repo/webhook-deliveries"
-    );
+    const { pruneWebhookDeliveryRows } =
+      await import("@complyloop/db/repo/webhook-deliveries");
     const { getDrizzle } = await import("@complyloop/db/postgres");
     await pruneWebhookDeliveryRows(await getDrizzle(), 10_000);
   } catch (error) {
@@ -126,9 +125,8 @@ export async function runAssessmentJobBatch(
  */
 export async function closeAssessmentWorker(): Promise<void> {
   try {
-    const { closeRuntimeBrowser } = await import(
-      "@complyloop/analysis-core/runtime/scan"
-    );
+    const { closeRuntimeBrowser } =
+      await import("@complyloop/analysis-core/runtime/scan");
     await closeRuntimeBrowser();
   } catch (error) {
     reportWarning("Assessment worker browser close failed.", {

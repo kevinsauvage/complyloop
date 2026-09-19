@@ -223,9 +223,8 @@ describe("refreshGitHubToken", () => {
   });
 
   it("classifies invalid_grant as revoked", async () => {
-    const { refreshGitHubToken, isTokenRefreshError } = await import(
-      "./github-tokens"
-    );
+    const { refreshGitHubToken, isTokenRefreshError } =
+      await import("./github-tokens");
     const originalFetch = global.fetch;
     global.fetch = vi.fn(() =>
       Promise.resolve(
@@ -245,18 +244,15 @@ describe("refreshGitHubToken", () => {
         refreshToken: "rt",
       }).catch((cause: unknown) => cause);
       expect(isTokenRefreshError(error)).toBe(true);
-      expect(
-        (error as { reason: string }).reason,
-      ).toBe("revoked");
+      expect((error as { reason: string }).reason).toBe("revoked");
     } finally {
       global.fetch = originalFetch;
     }
   });
 
   it("classifies server errors as transient", async () => {
-    const { refreshGitHubToken, isTokenRefreshError } = await import(
-      "./github-tokens"
-    );
+    const { refreshGitHubToken, isTokenRefreshError } =
+      await import("./github-tokens");
     const originalFetch = global.fetch;
     global.fetch = vi.fn(() =>
       Promise.resolve(new Response("boom", { status: 500 })),
@@ -271,9 +267,7 @@ describe("refreshGitHubToken", () => {
         refreshToken: "rt",
       }).catch((cause: unknown) => cause);
       expect(isTokenRefreshError(error)).toBe(true);
-      expect(
-        (error as { reason: string }).reason,
-      ).toBe("transient");
+      expect((error as { reason: string }).reason).toBe("transient");
     } finally {
       global.fetch = originalFetch;
     }

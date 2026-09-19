@@ -239,7 +239,8 @@
   .card-sheen {
     position: relative;
     isolation: isolate;
-  }  .card-sheen::before {
+  }
+  .card-sheen::before {
     content: "";
     position: absolute;
     inset: 0;

@@ -19,7 +19,9 @@ vi.mock("sonner", () => ({
 const routerRefresh = vi.fn();
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: (...args: unknown[]) => routerRefresh(...args) }),
+  useRouter: () => ({
+    refresh: (...args: unknown[]) => routerRefresh(...args),
+  }),
 }));
 
 afterEach(() => {

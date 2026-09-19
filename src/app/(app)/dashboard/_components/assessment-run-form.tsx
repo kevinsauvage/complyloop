@@ -33,11 +33,7 @@ async function loadActiveJob(projectId: string) {
   return { activeJob, runningLive };
 }
 
-export async function AssessmentRunForm({
-  projectId,
-}: {
-  projectId: string;
-}) {
+export async function AssessmentRunForm({ projectId }: { projectId: string }) {
   const { activeJob, runningLive } = await loadActiveJob(projectId);
   return (
     <div className="flex flex-col gap-1">
@@ -51,8 +47,8 @@ export async function AssessmentRunForm({
       {activeJob ? (
         <p className="text-xs text-muted-foreground" role="status">
           Assessment already{" "}
-          {activeJob.status === "running" ? "running" : "queued"} — track it
-          in the Pipeline below.
+          {activeJob.status === "running" ? "running" : "queued"} — track it in
+          the Pipeline below.
         </p>
       ) : null}
     </div>

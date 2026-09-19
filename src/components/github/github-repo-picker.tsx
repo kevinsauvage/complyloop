@@ -7,10 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { GitHubRepoSummary } from "@/server/github/github-types";
 
-import {
-  GitHubRepoList,
-  groupReposByOwner,
-} from "./github-repo-list";
+import { GitHubRepoList, groupReposByOwner } from "./github-repo-list";
 import { GitHubRepoPickerEmpty } from "./github-repo-picker-empty";
 import { useGitHubRepoConnect } from "./use-github-repo-connect";
 import { useGitHubRepoSearch } from "./use-github-repo-search";

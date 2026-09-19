@@ -450,7 +450,8 @@ function reportStaleLease(jobId: string): void {
   });
 }
 
-export async function completeAssessmentJob(job: AssessmentJob): Promise<void> {  const drizzle = await getDrizzle();
+export async function completeAssessmentJob(job: AssessmentJob): Promise<void> {
+  const drizzle = await getDrizzle();
   const now = new Date().toISOString();
   const result = await drizzle
     .update(assessmentJobs)
@@ -675,7 +676,8 @@ export async function updateAssessmentJobStage(
   }
 }
 
-export async function queuedAssessmentJobCount(): Promise<number> {  const drizzle = await getDrizzle();
+export async function queuedAssessmentJobCount(): Promise<number> {
+  const drizzle = await getDrizzle();
   const [row] = await drizzle
     .select({ value: count() })
     .from(assessmentJobs)

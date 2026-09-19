@@ -105,8 +105,9 @@ export async function aiCall<TSchema extends z.ZodType>(
     }
     return null;
   }
-  const prompt =
-    Array.isArray(input.prompt) ? input.prompt.join("\n") : input.prompt;
+  const prompt = Array.isArray(input.prompt)
+    ? input.prompt.join("\n")
+    : input.prompt;
   const fail = (failure: unknown): null => {
     input.onError?.(failure, {
       code: input.code,

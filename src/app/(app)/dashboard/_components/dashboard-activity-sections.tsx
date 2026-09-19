@@ -44,12 +44,7 @@ function ActivityCard({
   icon?: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
 }) {
   return (
-    <Card
-      className={cn(
-        "h-full border-border/70 shadow-none",
-        className,
-      )}
-    >
+    <Card className={cn("h-full border-border/70 shadow-none", className)}>
       <CardHeader className="pb-3">
         <div className="flex items-start gap-3">
           {Icon ? (

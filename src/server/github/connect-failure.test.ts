@@ -24,7 +24,10 @@ describe("classifyConnectFailure", () => {
       "repo-not-on-install",
     ],
     // connect.ts
-    ["acme/shop is already connected. Disconnect it first.", "repo-not-on-install"],
+    [
+      "acme/shop is already connected. Disconnect it first.",
+      "repo-not-on-install",
+    ],
     [
       "GitHub revoked this app's authorization. Sign out and sign in again to reconnect.",
       "token-revoked",
@@ -34,10 +37,7 @@ describe("classifyConnectFailure", () => {
       "token-missing",
     ],
     // github-access.ts
-    [
-      "Could not load repository acme/shop (404): Not Found",
-      "repo-not-found",
-    ],
+    ["Could not load repository acme/shop (404): Not Found", "repo-not-found"],
     // connect-project-panel.tsx
     [
       "Could not read your GitHub token. Sign out and sign in again.",
@@ -51,9 +51,9 @@ describe("classifyConnectFailure", () => {
     expect(
       classifyConnectFailure(new PublicError("Something else broke.")),
     ).toBe("unknown");
-    expect(classifyConnectFailure(new Error("No GitHub App installations"))).toBe(
-      "unknown",
-    );
+    expect(
+      classifyConnectFailure(new Error("No GitHub App installations")),
+    ).toBe("unknown");
     expect(classifyConnectFailure(null)).toBe("unknown");
   });
 });

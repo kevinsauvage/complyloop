@@ -60,12 +60,8 @@ describe.skipIf(!enabled)("assessment job serial claim concurrency", () => {
       await drizzle.execute(
         sql`DELETE FROM assessment_jobs WHERE project_id = ${projectId}`,
       );
-      await drizzle.execute(
-        sql`DELETE FROM projects WHERE id = ${projectId}`,
-      );
-      await drizzle.execute(
-        sql`DELETE FROM organizations WHERE id = ${orgId}`,
-      );
+      await drizzle.execute(sql`DELETE FROM projects WHERE id = ${projectId}`);
+      await drizzle.execute(sql`DELETE FROM organizations WHERE id = ${orgId}`);
     }
   });
 
@@ -104,12 +100,8 @@ describe.skipIf(!enabled)("assessment job serial claim concurrency", () => {
       await drizzle.execute(
         sql`DELETE FROM assessment_jobs WHERE project_id = ${projectId}`,
       );
-      await drizzle.execute(
-        sql`DELETE FROM projects WHERE id = ${projectId}`,
-      );
-      await drizzle.execute(
-        sql`DELETE FROM organizations WHERE id = ${orgId}`,
-      );
+      await drizzle.execute(sql`DELETE FROM projects WHERE id = ${projectId}`);
+      await drizzle.execute(sql`DELETE FROM organizations WHERE id = ${orgId}`);
     }
   });
 });

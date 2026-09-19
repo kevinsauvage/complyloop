@@ -200,7 +200,8 @@ export function parseCssColor(value: string): ParsedCssColor | null {
     if (space !== "srgb") return null;
     const channel = (token: string): number => {
       const t = token.trim();
-      if (t.endsWith("%")) return clamp255((Number(t.slice(0, -1)) / 100) * 255);
+      if (t.endsWith("%"))
+        return clamp255((Number(t.slice(0, -1)) / 100) * 255);
       return clamp255(Number(t) * 255);
     };
     return {

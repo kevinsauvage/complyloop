@@ -56,24 +56,28 @@ export async function generateAiExplanationAction(
         "AI explanation unavailable. Check AI credentials or try again.",
       );
     }
-    await withFindingWrite(findingId, "project.remediate", async ({ finding }) => {
-      // Persist onto the live row — the preview above may be stale.
-      // Cap growth: deterministic baseline (index 0) + latest AI additions.
-      // Every append rewrites the whole finding row, so unbounded clicks
-      // would bloat it forever.
-      const explanations = [...finding.explanations, explanation];
-      return {
-        findings: [
-          {
-            ...finding,
-            explanations:
-              explanations.length > 6
-                ? [explanations[0]!, ...explanations.slice(-5)]
-                : explanations,
-          },
-        ],
-      };
-    });
+    await withFindingWrite(
+      findingId,
+      "project.remediate",
+      async ({ finding }) => {
+        // Persist onto the live row — the preview above may be stale.
+        // Cap growth: deterministic baseline (index 0) + latest AI additions.
+        // Every append rewrites the whole finding row, so unbounded clicks
+        // would bloat it forever.
+        const explanations = [...finding.explanations, explanation];
+        return {
+          findings: [
+            {
+              ...finding,
+              explanations:
+                explanations.length > 6
+                  ? [explanations[0]!, ...explanations.slice(-5)]
+                  : explanations,
+            },
+          ],
+        };
+      },
+    );
     refresh(...COMPLIANCE_LOOP_ROUTES);
     return "AI explanation added.";
   });

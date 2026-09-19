@@ -3,11 +3,7 @@ import { inspect } from "node:util";
 import * as Sentry from "@sentry/nextjs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  reportAppError,
-  reportError,
-  reportWarning,
-} from "./observability";
+import { reportAppError, reportError, reportWarning } from "./observability";
 
 afterEach(() => {
   vi.unstubAllEnvs();

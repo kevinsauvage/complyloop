@@ -74,10 +74,7 @@ function approveRemediationInPayload(
   remediation: Remediation,
   options: { bulk?: boolean; approvalNote: string },
 ): void {
-  replaceRemediation(
-    payload,
-    advanceRemediation(remediation, "approved"),
-  );
+  replaceRemediation(payload, advanceRemediation(remediation, "approved"));
   appendEvidence(payload, {
     kind: "remediation_approved",
     summary: remediationEvidenceSummary("approved", finding),

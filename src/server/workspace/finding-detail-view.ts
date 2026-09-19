@@ -26,18 +26,13 @@ import {
 } from "@/core/filter-params";
 import type { FindingActView } from "@/core/finding-act";
 import { findingAct } from "@/core/finding-act";
-import {
-  clusterFindings,
-  prioritizeClusters,
-} from "@/core/finding-priority";
+import { clusterFindings, prioritizeClusters } from "@/core/finding-priority";
 import {
   latestPatchState,
   pullRequestUrlFromEvidence,
 } from "@/server/assessment/ai-fix";
 import { buildDeveloperHandoff } from "@/server/assessment/handoff";
-import {
-  listEvidenceForFindingScoped,
-} from "@/server/reporting/evidence-queries";
+import { listEvidenceForFindingScoped } from "@/server/reporting/evidence-queries";
 import { displayControl } from "@/server/reporting/report";
 import type { ProjectCapabilities } from "@/server/workspace/project-capabilities";
 import { projectCapabilities } from "@/server/workspace/project-capabilities";
@@ -165,12 +160,12 @@ export async function loadFindingDetailView(
           record.kind === "ai_patch_ready") &&
         typeof record.detail?.locationRef === "string",
     );
-  const stampedLocation =
-    suggestionEvidence?.detail?.locationRef as string | undefined;
+  const stampedLocation = suggestionEvidence?.detail?.locationRef as
+    string | undefined;
   const suggestionStale = Boolean(
     remediation.suggestion &&
-      stampedLocation &&
-      stampedLocation !== formatLocationRef(finding.location),
+    stampedLocation &&
+    stampedLocation !== formatLocationRef(finding.location),
   );
 
   return {

@@ -396,12 +396,12 @@ function createPlaywrightAxeScanner(options?: {
           if (!precheck.ok) {
             throw new PublicError(precheck.message);
           }
-            page = await context.newPage();
-            // Fresh const for narrowing: `page` stays nullable for the
-            // `finally` teardown below, but everything past this point
-            // holds a live page.
-            const currentPage: Page = page;
-            try {
+          page = await context.newPage();
+          // Fresh const for narrowing: `page` stays nullable for the
+          // `finally` teardown below, but everything past this point
+          // holds a live page.
+          const currentPage: Page = page;
+          try {
             // Re-resolve DNS immediately before goto and reject address
             // changes to shrink the rebinding TOCTOU window.
             await assertStableRuntimeDns(url, lookupOptions);
@@ -430,7 +430,10 @@ function createPlaywrightAxeScanner(options?: {
           let htmlValidateFindings: RawFinding[] = [];
           let pageHtmlValidateRan = false;
           try {
-            htmlValidateFindings = await htmlValidateFindingsForPage(currentPage, url);
+            htmlValidateFindings = await htmlValidateFindingsForPage(
+              currentPage,
+              url,
+            );
             pageHtmlValidateRan = true;
           } catch {
             // Non-fatal: axe + custom findings are still valid evidence.

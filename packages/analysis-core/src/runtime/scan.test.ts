@@ -99,9 +99,7 @@ describe("runAxeOnPage", () => {
         );
       },
     } as unknown as Page;
-    await expect(runAxeOnPage(page)).rejects.toThrow(
-      /Content Security Policy/,
-    );
+    await expect(runAxeOnPage(page)).rejects.toThrow(/Content Security Policy/);
     expect(injections).toBe(3);
   });
 

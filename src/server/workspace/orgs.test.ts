@@ -348,9 +348,7 @@ describe("leaveOrgMember", () => {
     applyMembership(db, inviteOrgMember(db, org.id, "user-a", "bob", "member"));
     claimInvite(db, "user-b", "bob");
 
-    expect(() => leaveOrgMember(db, org.id, "user-a")).toThrow(
-      /last owner/,
-    );
+    expect(() => leaveOrgMember(db, org.id, "user-a")).toThrow(/last owner/);
   });
 
   it("lets an owner leave when another owner remains", () => {
@@ -374,12 +372,8 @@ describe("leaveOrgMember", () => {
     const db = emptyWorkspaceSlice();
     const org = seedOwnerOrg(db, "user-a", "alice");
 
-    expect(() => leaveOrgMember(db, org.id, "user-a")).toThrow(
-      /last member/,
-    );
-    expect(() => leaveOrgMember(db, org.id, "ghost")).toThrow(
-      /not a member/,
-    );
+    expect(() => leaveOrgMember(db, org.id, "user-a")).toThrow(/last member/);
+    expect(() => leaveOrgMember(db, org.id, "ghost")).toThrow(/not a member/);
   });
 });
 
@@ -387,10 +381,7 @@ describe("findOrgMembershipByLogin", () => {
   it("matches case-insensitively and tolerates @", () => {
     const db = emptyWorkspaceSlice();
     const org = seedOwnerOrg(db, "user-a", "alice");
-    applyMembership(
-      db,
-      inviteOrgMember(db, org.id, "user-a", "Bob", "member"),
-    );
+    applyMembership(db, inviteOrgMember(db, org.id, "user-a", "Bob", "member"));
 
     expect(findOrgMembershipByLogin(db, org.id, "@BOB")?.role).toBe("member");
     expect(findOrgMembershipByLogin(db, org.id, "carol")).toBeUndefined();

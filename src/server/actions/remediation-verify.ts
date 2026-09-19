@@ -20,7 +20,12 @@ import type { WorkspaceSlice } from "@complyloop/db/types";
 
 import type { ActionState } from "@/core/action-state";
 import { advanceRemediation } from "@/core/remediation-lifecycle";
-import { optionalNoteSchema, parseEntityId, parseForm, requiredField } from "@/core/validate";
+import {
+  optionalNoteSchema,
+  parseEntityId,
+  parseForm,
+  requiredField,
+} from "@/core/validate";
 
 import { runAction } from "../action-state";
 import { sameInstance } from "../assessment/assessment-findings";
@@ -130,7 +135,8 @@ function recordStillFailing(
   finding: Finding,
   remediation: Remediation,
 ): void {
-  const note = "Verification failed: the violation is still detected on the page.";
+  const note =
+    "Verification failed: the violation is still detected on the page.";
   replaceRemediation(payload, remediation);
   if (finding.status === "resolved") {
     // A resolved finding proven live again must not stay closed: re-open it
@@ -402,10 +408,7 @@ export async function markRemediationImplementedAction(
 }
 
 const attestVerifiedInput = z.object({
-  note: requiredField(
-    "Add a note describing how the fix was confirmed.",
-    2000,
-  ),
+  note: requiredField("Add a note describing how the fix was confirmed.", 2000),
 });
 
 const ATTEST_REQUIRES_RESOLVED_MESSAGE =

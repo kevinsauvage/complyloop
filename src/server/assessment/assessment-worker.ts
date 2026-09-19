@@ -46,8 +46,7 @@ export function resolveJobAuthoritative(job: AssessmentJob): boolean {
   if (job.trigger === "manual") return true;
   if (job.trigger !== "webhook") return false;
   return (
-    job.payload.eventName === "push" &&
-    job.payload.pullRequestHeadSha == null
+    job.payload.eventName === "push" && job.payload.pullRequestHeadSha == null
   );
 }
 
@@ -336,13 +335,12 @@ async function postFailureCheckRunForJob(
       code: "github_check_run_failed",
       projectId: job.projectId,
       jobId: job.id,
-      error:
-        postError instanceof Error ? postError.message : String(postError),
+      error: postError instanceof Error ? postError.message : String(postError),
     });
   }
 }
 
-/** Claims and processes a single job; safe to run concurrently on many workers. */export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult> {
+/** Claims and processes a single job; safe to run concurrently on many workers. */ export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult> {
   const job = await claimNextAssessmentJob();
   if (!job) {
     return { kind: "idle" };

@@ -17,18 +17,15 @@ vi.mock("@/server/workspace/workspace", () => ({
 }));
 
 vi.mock("@/server/workspace/project-capabilities", () => ({
-  projectCapabilities: (...args: unknown[]) =>
-    projectCapabilities(...args),
+  projectCapabilities: (...args: unknown[]) => projectCapabilities(...args),
 }));
 
 vi.mock("@/server/github/access-token", () => ({
-  getGitHubAccessToken: (...args: unknown[]) =>
-    getGitHubAccessToken(...args),
+  getGitHubAccessToken: (...args: unknown[]) => getGitHubAccessToken(...args),
 }));
 
 vi.mock("@/server/github/github-connector", () => ({
-  listAvailableRepos: (...args: unknown[]) =>
-    listAvailableRepos(...args),
+  listAvailableRepos: (...args: unknown[]) => listAvailableRepos(...args),
 }));
 
 function getRequest(): Request {

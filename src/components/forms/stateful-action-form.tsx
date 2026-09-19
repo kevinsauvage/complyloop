@@ -1,7 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { type ReactNode, useActionState, useEffect, useId, useRef } from "react";
+import {
+  type ReactNode,
+  useActionState,
+  useEffect,
+  useId,
+  useRef,
+} from "react";
 
 import type { ButtonSize, ButtonVariant } from "@/components/ui/button";
 import { type ActionState, initialActionState } from "@/core/action-state";
@@ -83,7 +89,9 @@ export function StatefulActionForm({
   return (
     <form id={formId} action={formAction} className={className}>
       {children}
-      {shouldRefresh ? <RefreshOnSuccess message={state.message ?? ""} /> : null}
+      {shouldRefresh ? (
+        <RefreshOnSuccess message={state.message ?? ""} />
+      ) : null}
       <div className="flex flex-col gap-2">
         <ConfirmSubmitButton
           label={showRetry ? (retryLabel ?? submitLabel) : submitLabel}

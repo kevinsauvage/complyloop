@@ -47,7 +47,9 @@ function main() {
     return;
   }
   fs.writeFileSync(PKG_PATH, `${JSON.stringify(pkg, null, 2)}\n`);
-  console.log("[postinstall] ssrf-guard exports patched with require condition");
+  console.log(
+    "[postinstall] ssrf-guard exports patched with require condition",
+  );
 }
 
 main();

@@ -129,7 +129,8 @@ export function leaveOrgMember(
   const target = members.find(
     (membership) => membership.userId === actorUserId,
   );
-  if (!target) throw new PublicError("You are not a member of that organization.");
+  if (!target)
+    throw new PublicError("You are not a member of that organization.");
   if (members.length <= 1) {
     throw new PublicError(
       "You are the last member — delete the organization instead of leaving it.",

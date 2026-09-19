@@ -243,9 +243,7 @@ describe.skipIf(!enabled)("persistProjectRows integration", () => {
         .where(eq(requirements.id, fixture.requirementId));
       expect(rows).toHaveLength(1);
       expect(rows[0]?.payload.status).toBe("passed");
-      expect(rows[0]?.payload.updatedAt).toBe(
-        applied[0]?.payload.updatedAt,
-      );
+      expect(rows[0]?.payload.updatedAt).toBe(applied[0]?.payload.updatedAt);
       expect(rows[0]?.payload.updatedAt).not.toBe("2026-01-03T00:00:00.000Z");
     } finally {
       await cleanupProjectSliceFixture(drizzle, fixture);

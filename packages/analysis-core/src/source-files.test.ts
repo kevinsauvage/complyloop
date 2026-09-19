@@ -4,7 +4,11 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { hasSourceFiles, listSourceFiles, shouldSnapshotFile } from "./source-files";
+import {
+  hasSourceFiles,
+  listSourceFiles,
+  shouldSnapshotFile,
+} from "./source-files";
 
 const tempDirs: string[] = [];
 
@@ -94,10 +98,7 @@ describe("shouldSnapshotFile", () => {
       "App.TSX",
     ];
     for (const relative of candidates) {
-      expect(
-        shouldSnapshotFile(relative),
-        relative,
-      ).toBe(listed.has(relative));
+      expect(shouldSnapshotFile(relative), relative).toBe(listed.has(relative));
     }
     expect(shouldSnapshotFile("dist.ts")).toBe(true);
     expect(shouldSnapshotFile("App.TSX")).toBe(false);

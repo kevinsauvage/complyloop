@@ -35,13 +35,18 @@ export async function main(): Promise<void> {
   // not override by default, and this stays inside main so importing this
   // module — e.g. in tests — has no env side effects).
   loadLocalEnv();
-  const missing = ["DATABASE_URL", "GITHUB_APP_ID", "GITHUB_APP_PRIVATE_KEY"].filter(
-    (name) => !process.env[name]?.trim(),
-  );
+  const missing = [
+    "DATABASE_URL",
+    "GITHUB_APP_ID",
+    "GITHUB_APP_PRIVATE_KEY",
+  ].filter((name) => !process.env[name]?.trim());
   if (missing.length > 0) {
     throw new Error(`Missing required env: ${missing.join(", ")}.`);
   }
-  const limit = numeric("ASSESSMENT_WORKER_LIMIT", ASSESSMENT_DRAIN_DEFAULTS.limit);
+  const limit = numeric(
+    "ASSESSMENT_WORKER_LIMIT",
+    ASSESSMENT_DRAIN_DEFAULTS.limit,
+  );
   const concurrency = numeric(
     "ASSESSMENT_WORKER_CONCURRENCY",
     ASSESSMENT_DRAIN_DEFAULTS.concurrency,

@@ -139,9 +139,7 @@ async function collectCurrentHits(page: Page): Promise<{
       function backgroundRgb(el: Element): [number, number, number] | null {
         let current: Element | null = el;
         while (current) {
-          const parsed = parseColor(
-            getComputedStyle(current).backgroundColor,
-          );
+          const parsed = parseColor(getComputedStyle(current).backgroundColor);
           if (parsed && parsed.alpha > 0) return parsed.rgb;
           current = current.parentElement;
         }
@@ -227,9 +225,7 @@ async function collectHoverHit(locator: Locator): Promise<ContrastHit | null> {
       function backgroundRgb(node: Element): [number, number, number] | null {
         let current: Element | null = node;
         while (current) {
-          const parsed = parseColor(
-            getComputedStyle(current).backgroundColor,
-          );
+          const parsed = parseColor(getComputedStyle(current).backgroundColor);
           if (parsed && parsed.alpha > 0) return parsed.rgb;
           current = current.parentElement;
         }

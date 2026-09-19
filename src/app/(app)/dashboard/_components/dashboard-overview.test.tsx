@@ -3,7 +3,10 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { renderWithUiProviders } from "@/test-fixtures/render-ui";
 
-import { DashboardOverview, type DashboardQuickStat } from "./dashboard-overview";
+import {
+  DashboardOverview,
+  type DashboardQuickStat,
+} from "./dashboard-overview";
 
 afterEach(() => {
   cleanup();

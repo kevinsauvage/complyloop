@@ -14,7 +14,10 @@ import {
 } from "@complyloop/analysis-core/runtime/dom-location";
 
 import { StatefulActionForm } from "@/components/forms/stateful-action-form";
-import { ConfidenceBadge, ProvenanceBadge } from "@/components/primitives/badges";
+import {
+  ConfidenceBadge,
+  ProvenanceBadge,
+} from "@/components/primitives/badges";
 import { CodeBlock } from "@/components/primitives/code-block";
 import { CopyButton } from "@/components/primitives/copy-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -99,9 +102,9 @@ function DomElementBlock({ finding }: { finding: Finding }) {
         </li>
         <li>
           In DevTools press Cmd/Ctrl+F, paste the selector, and the failing{" "}
-          {label.split(" ")[0]} highlights — then trace to the component
-          that renders it (rendered text often comes from props or
-          template expressions, not literal source).
+          {label.split(" ")[0]} highlights — then trace to the component that
+          renders it (rendered text often comes from props or template
+          expressions, not literal source).
         </li>
       </ol>
     </div>

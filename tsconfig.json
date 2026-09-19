@@ -31,9 +31,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": [
-    "node_modules",
-    "packages/analysis-core/dist",
-    "packages/db/dist"
-  ]
+  "exclude": ["node_modules", "packages/analysis-core/dist", "packages/db/dist"]
 }

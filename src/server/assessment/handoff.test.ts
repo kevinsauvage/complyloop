@@ -143,7 +143,12 @@ describe("developer handoff", () => {
       history: [],
     };
 
-    const handoff = buildDeveloperHandoff(project, control, finding, remediation);
+    const handoff = buildDeveloperHandoff(
+      project,
+      control,
+      finding,
+      remediation,
+    );
     expect(handoff.body).toMatch(/site-wide/);
     expect(handoff.body).not.toMatch(/draft pull request/);
   });

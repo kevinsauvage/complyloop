@@ -6,7 +6,10 @@ import {
   ConnectProjectPanel,
 } from "@/components/github/connect-project-panel";
 import { FormattedDateTime } from "@/components/primitives/formatted-datetime";
-import { PageActionLink, PageSection } from "@/components/primitives/page-primitives";
+import {
+  PageActionLink,
+  PageSection,
+} from "@/components/primitives/page-primitives";
 import { PermissionNotice } from "@/components/primitives/permission-notice";
 import { hasPreviewUrl } from "@/core/assessment-helpers";
 import { displayControl } from "@/server/reporting/report";

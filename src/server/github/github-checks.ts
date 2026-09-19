@@ -68,7 +68,8 @@ export async function postPullRequestCheckRun(
   }
 }
 
-export function summarizeAssessmentForCheckRun(input: {  openViolations: number;
+export function summarizeAssessmentForCheckRun(input: {
+  openViolations: number;
   failedRequirements: number;
   assessmentId: string;
 }): { conclusion: "success" | "failure"; title: string; summary: string } {
@@ -106,9 +107,11 @@ export function summarizeAssessmentForCheckRun(input: {  openViolations: number;
  * the PR must not sit on "expected checks" forever. Posted only on terminal
  * failure — retries stay quiet and post the real verdict later.
  */
-export function summarizeAssessmentFailureForCheckRun(
-  error: unknown,
-): { conclusion: "failure"; title: string; summary: string } {
+export function summarizeAssessmentFailureForCheckRun(error: unknown): {
+  conclusion: "failure";
+  title: string;
+  summary: string;
+} {
   const message =
     error instanceof Error ? error.message : String(error ?? "Unknown error");
   return {

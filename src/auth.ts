@@ -1,10 +1,7 @@
 import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
 
-import {
-  isProductionRuntime,
-  resolveAuthSecret,
-} from "@/auth-secret";
+import { isProductionRuntime, resolveAuthSecret } from "@/auth-secret";
 import { assertProductionGitHubApp } from "@/server/github/github-app";
 import {
   clearStoredGitHubToken,

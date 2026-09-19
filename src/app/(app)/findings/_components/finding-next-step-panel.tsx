@@ -147,8 +147,8 @@ function ActControls({
                   role="alert"
                   className="rounded-lg border border-signal/30 bg-signal/10 px-3 py-2 text-xs font-medium text-foreground"
                 >
-                  This suggestion predates the latest scan — the finding
-                  moved. Generate fresh guidance before approving.
+                  This suggestion predates the latest scan — the finding moved.
+                  Generate fresh guidance before approving.
                 </p>
               ) : null}
               <p className="text-sm text-muted-foreground">
@@ -208,9 +208,7 @@ function ActControls({
               className="flex flex-col gap-2"
             >
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="attest-verify-note">
-                  Confirmation note
-                </Label>
+                <Label htmlFor="attest-verify-note">Confirmation note</Label>
                 <Input
                   id="attest-verify-note"
                   type="text"
@@ -224,8 +222,8 @@ function ActControls({
                   id="attest-verify-note-hint"
                   className="text-xs text-muted-foreground"
                 >
-                  Required — how you confirmed the fix (re-audit is
-                  unavailable or inconclusive for this finding).
+                  Required — how you confirmed the fix (re-audit is unavailable
+                  or inconclusive for this finding).
                 </p>
               </div>
             </StatefulActionForm>

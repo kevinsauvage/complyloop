@@ -5,7 +5,12 @@ import path from "node:path";
 import git from "isomorphic-git";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { captureSnapshot, detectChanges, readRepoHead, summarizeChanges } from "./monitor";
+import {
+  captureSnapshot,
+  detectChanges,
+  readRepoHead,
+  summarizeChanges,
+} from "./monitor";
 
 let rootPath: string;
 

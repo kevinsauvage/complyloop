@@ -2,7 +2,10 @@ import type { RequirementStatus } from "@complyloop/analysis-core/contract/statu
 import { REQUIREMENT_STATUS_DISPLAY_ORDER } from "@complyloop/analysis-core/contract/statuses";
 
 import { RequirementStatusBadge } from "@/components/primitives/badges";
-import { FilterChipList, HiddenCategoriesNote } from "@/components/primitives/filter-chip-list";
+import {
+  FilterChipList,
+  HiddenCategoriesNote,
+} from "@/components/primitives/filter-chip-list";
 import { requirementsPageHref } from "@/core/filter-params";
 
 export function RequirementsStatusChips({

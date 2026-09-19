@@ -30,14 +30,16 @@ const acquireNamedPostgresAdvisoryLock = vi.hoisted(() => vi.fn());
 const transaction = vi.hoisted(() => vi.fn());
 
 vi.mock("./assessment-jobs", async () => {
-  const actual = await vi.importActual<typeof import("./assessment-jobs")>(
-    "./assessment-jobs",
-  );
+  const actual =
+    await vi.importActual<typeof import("./assessment-jobs")>(
+      "./assessment-jobs",
+    );
   return {
     ...actual,
     claimNextAssessmentJob: (...args: unknown[]) =>
       claimNextAssessmentJob(...args),
-    completeAssessmentJob: (...args: unknown[]) => completeAssessmentJob(...args),
+    completeAssessmentJob: (...args: unknown[]) =>
+      completeAssessmentJob(...args),
     failAssessmentJob: (...args: unknown[]) => failAssessmentJob(...args),
     refreshAssessmentJobLease: (...args: unknown[]) =>
       refreshAssessmentJobLease(...args),

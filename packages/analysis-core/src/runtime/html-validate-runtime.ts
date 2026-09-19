@@ -289,9 +289,7 @@ export async function htmlValidateFindingsFromSerialized(
         url,
         selector: el?.selector ?? "(document)",
         snippet: htmlSnippet(el?.html ?? "(whole document)"),
-        elementLabel: el
-          ? describeAxeElement(el.html, el.selector)
-          : undefined,
+        elementLabel: el ? describeAxeElement(el.html, el.selector) : undefined,
         context: msg.message,
         analyzerId: "html-validate",
         analyzerRuleId: msg.ruleId,

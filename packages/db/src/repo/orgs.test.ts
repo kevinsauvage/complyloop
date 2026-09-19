@@ -96,16 +96,10 @@ describe("isUnclaimedInviteExpired", () => {
   it("expires unclaimed invites past 30 days, never claimed rows", () => {
     const now = Date.parse("2026-09-17T00:00:00.000Z");
     expect(
-      isUnclaimedInviteExpired(
-        invitePayload("2026-07-01T00:00:00.000Z"),
-        now,
-      ),
+      isUnclaimedInviteExpired(invitePayload("2026-07-01T00:00:00.000Z"), now),
     ).toBe(true);
     expect(
-      isUnclaimedInviteExpired(
-        invitePayload("2026-09-01T00:00:00.000Z"),
-        now,
-      ),
+      isUnclaimedInviteExpired(invitePayload("2026-09-01T00:00:00.000Z"), now),
     ).toBe(false);
     expect(
       isUnclaimedInviteExpired(

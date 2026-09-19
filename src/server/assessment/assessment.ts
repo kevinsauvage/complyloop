@@ -170,8 +170,7 @@ export function verifyRemediationOnResolve(
   const remediation = rows.remediations[remediationIndex];
   if (
     !remediation ||
-    (remediation.status !== "approved" &&
-      remediation.status !== "implemented")
+    (remediation.status !== "approved" && remediation.status !== "implemented")
   ) {
     return;
   }
@@ -220,16 +219,13 @@ export function verifyRemediationOnResolve(
     ? scope.fileExists(filePath)
     : fileExistsInCheckout(scope.rootPath, filePath);
   if (!exists) {
-    reportWarning(
-      "Skipping auto-verify: finding file no longer exists",
-      {
-        code: "draft_pr_verify_scope_unproven",
-        projectId: finding.projectId,
-        findingId: finding.id,
-        assessmentId,
-        filePath,
-      },
-    );
+    reportWarning("Skipping auto-verify: finding file no longer exists", {
+      code: "draft_pr_verify_scope_unproven",
+      projectId: finding.projectId,
+      findingId: finding.id,
+      assessmentId,
+      filePath,
+    });
     return;
   }
   const siblingPersists = rows.findings.some(

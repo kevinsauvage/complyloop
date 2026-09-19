@@ -1,10 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-import {
-  resolveAuthSecret,
-  sessionCookieIsSecure,
-} from "@/auth-secret";
+import { resolveAuthSecret, sessionCookieIsSecure } from "@/auth-secret";
 
 const PUBLIC_PATHS = new Set(["/", "/login"]);
 

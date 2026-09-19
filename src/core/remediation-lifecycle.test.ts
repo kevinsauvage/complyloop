@@ -93,15 +93,15 @@ describe("refreshSuggestion", () => {
   });
 
   it("rejects refresh after approval", () => {
-    expect(() => refreshSuggestion(remediation("approved"), suggestion)).toThrow(
-      /before approval/,
-    );
+    expect(() =>
+      refreshSuggestion(remediation("approved"), suggestion),
+    ).toThrow(/before approval/);
     expect(() =>
       refreshSuggestion(remediation("implemented"), suggestion),
     ).toThrow(/before approval/);
-    expect(() => refreshSuggestion(remediation("verified"), suggestion)).toThrow(
-      /before approval/,
-    );
+    expect(() =>
+      refreshSuggestion(remediation("verified"), suggestion),
+    ).toThrow(/before approval/);
   });
 });
 

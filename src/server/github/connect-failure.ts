@@ -48,10 +48,7 @@ const CAUSE_PATTERNS: ReadonlyArray<{
   },
   {
     cause: "token-missing",
-    fragments: [
-      "access token missing",
-      "Could not read your GitHub token",
-    ],
+    fragments: ["access token missing", "Could not read your GitHub token"],
   },
 ];
 

@@ -17,10 +17,7 @@ beforeEach(() => {
   vi.stubEnv("APP_REPO_FULL_NAME", "octo/app");
   vi.stubEnv("VERCEL_GIT_REPO_OWNER", "");
   vi.stubEnv("VERCEL_GIT_REPO_SLUG", "");
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({ ok: true, status: 204 }),
-  );
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 204 }));
 });
 
 afterEach(() => {
@@ -74,10 +71,7 @@ describe("dispatchAssessmentWorker", () => {
 
   it("bounds the kick with a timeout signal", async () => {
     await expect(dispatchAssessmentWorker()).resolves.toBe(true);
-    const [, init] = vi.mocked(fetch).mock.calls[0] as [
-      string,
-      RequestInit,
-    ];
+    const [, init] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit];
     expect(init.signal).toBeInstanceOf(AbortSignal);
   });
 });

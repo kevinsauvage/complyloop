@@ -307,11 +307,7 @@ async function collectFocusWalkViolations(page: Page): Promise<{
           return `${html.tagName.toLowerCase()}:${html.className}`;
         }
 
-        function pointObscured(
-          target: Element,
-          x: number,
-          y: number,
-        ): boolean {
+        function pointObscured(target: Element, x: number, y: number): boolean {
           const top = document.elementFromPoint(x, y);
           if (!top) return false;
           return (

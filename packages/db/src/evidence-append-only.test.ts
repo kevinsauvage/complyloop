@@ -75,12 +75,8 @@ describe.skipIf(!enabled)("evidence append-only DB trigger", () => {
       `);
       expect(leftover.length).toBe(0);
     } finally {
-      await drizzle.execute(
-        sql`DELETE FROM projects WHERE id = ${projectId}`,
-      );
-      await drizzle.execute(
-        sql`DELETE FROM organizations WHERE id = ${orgId}`,
-      );
+      await drizzle.execute(sql`DELETE FROM projects WHERE id = ${projectId}`);
+      await drizzle.execute(sql`DELETE FROM organizations WHERE id = ${orgId}`);
     }
   });
 });

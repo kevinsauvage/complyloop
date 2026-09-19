@@ -131,8 +131,7 @@ vi.mock("@complyloop/db/repo/requirements", () => ({
     listRequirementsForProjects(...args),
 }));
 vi.mock("@complyloop/db/repo/alerts", () => ({
-  listAlertsForProjects: (...args: unknown[]) =>
-    listAlertsForProjects(...args),
+  listAlertsForProjects: (...args: unknown[]) => listAlertsForProjects(...args),
 }));
 
 vi.mock("../github/github", async () => {
@@ -700,7 +699,8 @@ describe("org member management actions", () => {
     });
   });
 
-  it("changes a member role", async () => {    const member = testMembership("member", {
+  it("changes a member role", async () => {
+    const member = testMembership("member", {
       id: "m-member",
       userId: "user-2",
       githubLogin: "bob",

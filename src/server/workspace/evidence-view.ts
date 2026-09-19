@@ -23,9 +23,7 @@ import {
   parseEvidenceQueryParam,
   parsePageParam,
 } from "@/core/filter-params";
-import {
-  loadEvidencePage,
-} from "@/server/reporting/evidence-queries";
+import { loadEvidencePage } from "@/server/reporting/evidence-queries";
 import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
 
 export type EvidenceView =

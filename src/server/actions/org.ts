@@ -221,7 +221,10 @@ export async function leaveOrgMemberAction(
     const { userId } = await requireSignedIn(
       "Sign in to leave an organization.",
     );
-    const { orgId } = parseForm(orgMembershipInput.pick({ orgId: true }), formData);
+    const { orgId } = parseForm(
+      orgMembershipInput.pick({ orgId: true }),
+      formData,
+    );
 
     await withOrgWrite(({ db }) => {
       const left = leaveOrgMember(db, orgId, userId);
@@ -238,7 +241,8 @@ export async function leaveOrgMemberAction(
   });
 }
 
-export async function changeOrgMemberRoleAction(  _previous: ActionState,
+export async function changeOrgMemberRoleAction(
+  _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
   return runAction(async () => {

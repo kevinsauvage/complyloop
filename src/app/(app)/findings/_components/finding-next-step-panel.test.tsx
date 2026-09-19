@@ -239,7 +239,9 @@ describe("FindingNextStepPanel", () => {
     expect(
       screen.getByRole("heading", { name: "Verified" }),
     ).toBeInTheDocument();
-    expect(screen.queryByText("Not actually a finding?")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Not actually a finding?"),
+    ).not.toBeInTheDocument();
   });
 
   it("offers Approve for a runtime Finding and never Create draft PR", () => {
@@ -293,7 +295,9 @@ describe("FindingNextStepPanel", () => {
       suggestionStale: true,
     });
 
-    expect(screen.getByRole("alert")).toHaveTextContent(/predates the latest scan/);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      /predates the latest scan/,
+    );
     expect(screen.getByRole("button", { name: "Approve" })).toBeInTheDocument();
   });
 

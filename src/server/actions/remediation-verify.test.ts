@@ -529,9 +529,7 @@ describe("attestRemediationVerifiedAction", () => {
     expect(projectWritePayload()?.remediations?.[0]?.status).toBe("verified");
     const evidence = projectWritePayload()?.evidence ?? [];
     expect(
-      evidence.some(
-        (item) => item.kind === "remediation_manually_verified",
-      ),
+      evidence.some((item) => item.kind === "remediation_manually_verified"),
     ).toBe(true);
     expect(runtimeViolationStillPresent).not.toHaveBeenCalled();
   });

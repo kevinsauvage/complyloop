@@ -162,9 +162,7 @@ describe("AssessmentJobStatus cancel", () => {
       />,
     );
 
-    expect(
-      screen.queryByRole("button", { name: /cancel job/i }),
-    ).toBeNull();
+    expect(screen.queryByRole("button", { name: /cancel job/i })).toBeNull();
   });
 });
 

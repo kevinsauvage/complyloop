@@ -107,8 +107,7 @@ export function RequirementRemediationActions({
                   {" "}
                   — expires{" "}
                   <time dateTime={requirement.exception.expiresAt}>
-                    {exceptionExpiresAtLabel ??
-                      requirement.exception.expiresAt}
+                    {exceptionExpiresAtLabel ?? requirement.exception.expiresAt}
                   </time>
                 </>
               ) : (

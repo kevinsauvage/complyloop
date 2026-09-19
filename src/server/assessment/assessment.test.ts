@@ -127,7 +127,8 @@ describe("runAssessment", () => {
     expect(stages).toEqual(["changedetection", "ast", "runtime", "reconcile"]);
   });
 
-  it("labels an unchanged-commit re-run as reused instead of scoped", async () => {    await git.init({ fs, dir: rootPath });
+  it("labels an unchanged-commit re-run as reused instead of scoped", async () => {
+    await git.init({ fs, dir: rootPath });
     await git.add({ fs, dir: rootPath, filepath: "Hero.tsx" });
     await git.commit({
       fs,
@@ -405,8 +406,7 @@ describe("runAssessment", () => {
       (record) => record.kind === "assessment_completed",
     );
     const detail = completed?.detail as
-      | { stageMs?: Record<string, number>; totalMs?: unknown }
-      | undefined;
+      { stageMs?: Record<string, number>; totalMs?: unknown } | undefined;
     expect(detail?.stageMs).toEqual(run.stageMs);
     expect(typeof detail?.totalMs).toBe("number");
   });
@@ -592,7 +592,8 @@ describe("runAssessment", () => {
     expect(rows.remediations[0]?.status).toBe("verified");
   });
 
-  it("does not auto-verify a draft-PR remediation when sources were reused without a scan", () => {    const finding = testFinding({
+  it("does not auto-verify a draft-PR remediation when sources were reused without a scan", () => {
+    const finding = testFinding({
       projectId: project.id,
       assessmentId: "a0",
     });
@@ -705,7 +706,8 @@ describe("runAssessment", () => {
     ).toBe(false);
   });
 
-  it("auto-verifies when the only same-run sibling is in another file", () => {    const finding = testFinding({
+  it("auto-verifies when the only same-run sibling is in another file", () => {
+    const finding = testFinding({
       projectId: project.id,
       assessmentId: "a0",
     });
@@ -779,9 +781,7 @@ describe("runAssessment", () => {
     // rows — the proof strength is identical regardless of approval path.
     expect(rows.remediations[0]?.status).toBe("verified");
     expect(
-      rows.evidence.some(
-        (record) => record.kind === "remediation_implemented",
-      ),
+      rows.evidence.some((record) => record.kind === "remediation_implemented"),
     ).toBe(true);
     expect(
       rows.evidence.some((record) => record.kind === "remediation_verified"),
@@ -819,9 +819,7 @@ describe("runAssessment", () => {
 
     expect(rows.remediations[0]?.status).toBe("verified");
     expect(
-      rows.evidence.some(
-        (record) => record.kind === "remediation_implemented",
-      ),
+      rows.evidence.some((record) => record.kind === "remediation_implemented"),
     ).toBe(false);
     expect(
       rows.evidence.some((record) => record.kind === "remediation_verified"),

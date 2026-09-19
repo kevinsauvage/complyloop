@@ -36,8 +36,7 @@ vi.mock("@/server/github/access-token", () => ({
   // Derived from the same stub: string → valid, null → missing. Tests that
   // need the revoked state stub `getGitHubAccessTokenState` directly.
   getGitHubAccessTokenState: async () => {
-    const token: string | null =
-      await actionAuthMocks.getGitHubAccessToken();
+    const token: string | null = await actionAuthMocks.getGitHubAccessToken();
     return token ? { state: "valid", token } : { state: "missing" };
   },
 }));
@@ -123,9 +122,9 @@ vi.mock("@/server/workspace/workspace-write", async () => {
 });
 
 vi.mock("@/server/workspace/db", async () => {
-  const actual = await vi.importActual<
-    typeof import("@/server/workspace/db")
-  >("@/server/workspace/db");
+  const actual = await vi.importActual<typeof import("@/server/workspace/db")>(
+    "@/server/workspace/db",
+  );
   return {
     ...actual,
     withProjectLock: (

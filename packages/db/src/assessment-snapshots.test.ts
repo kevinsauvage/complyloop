@@ -39,16 +39,34 @@ describe.skipIf(!enabled)("assessment snapshot dedup", () => {
     try {
       const hashes = { "App.tsx": "abc123", "lib.ts": "def456" };
       await drizzle.transaction(async (tx) => {
-        await insertAssessment(tx, testAssessment(projectId, `a1-${suffix}`, hashes, "2026-01-01T00:00:00.000Z"), {
-          fileHashes: hashes,
-          gitHead: "aaa",
-        });
+        await insertAssessment(
+          tx,
+          testAssessment(
+            projectId,
+            `a1-${suffix}`,
+            hashes,
+            "2026-01-01T00:00:00.000Z",
+          ),
+          {
+            fileHashes: hashes,
+            gitHead: "aaa",
+          },
+        );
       });
       await drizzle.transaction(async (tx) => {
-        await insertAssessment(tx, testAssessment(projectId, `a2-${suffix}`, hashes, "2026-01-02T00:00:00.000Z"), {
-          fileHashes: { ...hashes },
-          gitHead: "bbb",
-        });
+        await insertAssessment(
+          tx,
+          testAssessment(
+            projectId,
+            `a2-${suffix}`,
+            hashes,
+            "2026-01-02T00:00:00.000Z",
+          ),
+          {
+            fileHashes: { ...hashes },
+            gitHead: "bbb",
+          },
+        );
       });
 
       const marker = await drizzle.execute(sql`
@@ -70,7 +88,12 @@ describe.skipIf(!enabled)("assessment snapshot dedup", () => {
       await drizzle.transaction(async (tx) => {
         await insertAssessment(
           tx,
-          testAssessment(projectId, `a3-${suffix}`, { "App.tsx": "changed" }, "2026-01-03T00:00:00.000Z"),
+          testAssessment(
+            projectId,
+            `a3-${suffix}`,
+            { "App.tsx": "changed" },
+            "2026-01-03T00:00:00.000Z",
+          ),
           { fileHashes: { "App.tsx": "changed" }, gitHead: "ccc" },
         );
       });
@@ -83,12 +106,8 @@ describe.skipIf(!enabled)("assessment snapshot dedup", () => {
       await drizzle.execute(
         sql`DELETE FROM assessments WHERE project_id = ${projectId}`,
       );
-      await drizzle.execute(
-        sql`DELETE FROM projects WHERE id = ${projectId}`,
-      );
-      await drizzle.execute(
-        sql`DELETE FROM organizations WHERE id = ${orgId}`,
-      );
+      await drizzle.execute(sql`DELETE FROM projects WHERE id = ${projectId}`);
+      await drizzle.execute(sql`DELETE FROM organizations WHERE id = ${orgId}`);
     }
   });
 });
@@ -106,7 +125,13 @@ function testAssessment(
     completedAt,
     filesScanned: Object.keys(hashes).length,
     scanMode: "full",
-    summary: { passed: 0, failed: 0, needs_review: 0, not_applicable: 0, unable_to_verify: 0 },
+    summary: {
+      passed: 0,
+      failed: 0,
+      needs_review: 0,
+      not_applicable: 0,
+      unable_to_verify: 0,
+    },
     snapshot: { fileHashes: hashes },
     changesSincePrevious: [],
   };
