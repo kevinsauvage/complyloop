@@ -8,7 +8,6 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 
 import { PresetNavigator } from "./preset-navigator";
@@ -33,7 +32,6 @@ export function RequirementsPresetPanel({
       className="shadow-none lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto"
     >
       <CardHeader>
-        <CardTitle level={3}>Framework scope</CardTitle>
         <CardDescription>
           A framework scope is a framework + level (e.g. RGAA 4.1 A+AA). The URL
           updates so views can be shared.

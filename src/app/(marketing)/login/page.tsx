@@ -17,24 +17,13 @@ import {
 import { getSession } from "@/server/auth-session";
 import { isGitHubAppConfigured } from "@/server/github/github-app";
 
+import { authErrorCopy } from "./auth-error-copy";
+
 export const metadata: Metadata = {
   title: "Sign in",
   description:
     "Sign in to ComplyLoop with GitHub to access your compliance dashboard.",
 };
-
-const AUTH_ERROR_COPY: Record<string, string> = {
-  AccessDenied:
-    "You denied GitHub access. Retry and approve access to continue.",
-  OAuthAccountNotLinked:
-    "This GitHub account is already linked to another sign-in method. Use the original method or contact your administrator.",
-  Verification:
-    "The sign-in attempt expired or was already used. Please try again.",
-  Configuration: "Sign-in is misconfigured — contact your administrator.",
-};
-
-const FALLBACK_AUTH_ERROR_COPY =
-  "Sign-in with GitHub failed. Please try again — if it keeps failing, contact your administrator.";
 
 export default async function LoginPage({
   searchParams,
@@ -51,10 +40,9 @@ export default async function LoginPage({
     !params.callbackUrl.startsWith("//")
       ? params.callbackUrl
       : "/dashboard";
-  const authError =
-    typeof params.error === "string" && params.error.length > 0
-      ? params.error
-      : null;
+  const authErrorCopyText = authErrorCopy(
+    typeof params.error === "string" ? params.error : null,
+  );
 
   if (isGitHubAuthConfigured()) {
     const session = await getSession();
@@ -84,17 +72,15 @@ export default async function LoginPage({
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          {authError ? (
+          {authErrorCopyText ? (
             <Alert variant="destructive">
-              <AlertDescription>
-                {AUTH_ERROR_COPY[authError] ?? FALLBACK_AUTH_ERROR_COPY}
-              </AlertDescription>
+              <AlertDescription>{authErrorCopyText}</AlertDescription>
             </Alert>
           ) : null}
           {showConfigurationError ? (
             <Alert variant="destructive">
               <AlertDescription>
-                {AUTH_ERROR_COPY.Configuration}
+                {authErrorCopy("Configuration")}
               </AlertDescription>
             </Alert>
           ) : null}

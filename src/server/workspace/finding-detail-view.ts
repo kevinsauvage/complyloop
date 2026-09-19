@@ -15,6 +15,7 @@ import type {
 } from "@complyloop/analysis-core/contract/entities";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 import { aiAvailable as isAiAvailable } from "@/ai/ai-call";
 import {
@@ -95,10 +96,21 @@ export async function loadFindingDetailView(
   }
 
   const statusForTab = listParams.tab;
-  const [runtime, remediation] = await Promise.all([
-    getProjectRuntime(project.id, { findingStatuses: [statusForTab] }),
-    requireRemediationForFinding(finding.id),
-  ]);
+  // Findings without a remediation row (scoped re-assess, stale apply,
+  // manual DB edit) render as not-found, like a missing finding — the list
+  // page tolerates orphans the same way instead of 500ing. Only PublicError
+  // (unknown ids) maps to null; anything else still throws.
+  let remediation: Remediation;
+  let runtime: Awaited<ReturnType<typeof getProjectRuntime>>;
+  try {
+    [runtime, remediation] = await Promise.all([
+      getProjectRuntime(project.id, { findingStatuses: [statusForTab] }),
+      requireRemediationForFinding(finding.id),
+    ]);
+  } catch (error) {
+    if (error instanceof PublicError) return { finding: null };
+    throw error;
+  }
   const remediationByFindingId = new Map(
     runtime.remediations.map((row) => [row.findingId, row]),
   );

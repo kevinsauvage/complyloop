@@ -70,9 +70,9 @@ export function RequirementCard({
               {control.code}
               {control.secondaryCode ? ` · ${control.secondaryCode}` : ""}
             </p>
-            <p className="mt-0.5 font-medium text-foreground">
+            <h3 className="mt-0.5 font-medium text-foreground">
               {control.title}
-            </p>
+            </h3>
           </div>
           <div
             className="flex flex-wrap items-center gap-2"

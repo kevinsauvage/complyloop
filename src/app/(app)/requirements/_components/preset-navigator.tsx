@@ -22,8 +22,7 @@ export function PresetNavigator({
   q?: string;
 }) {
   return (
-    <nav aria-label="Framework scope" className="flex flex-col gap-2">
-      <p className="text-sm font-medium">Framework scope</p>
+    <nav aria-label="Framework presets" className="flex flex-col gap-2">
       <ul className="flex flex-col gap-2">
         {presets.map((preset) => {
           const selected = preset.id === selectedPresetId;

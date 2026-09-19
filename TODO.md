@@ -14,7 +14,7 @@ Audit of the actual code (not docs). Ordered by value; grouped so related root c
 
 **Impact:** Medium — silent data loss and sign-in/write failures under concurrency.
 
-### [ ] Harden public/auth edge cases and the product's own accessibility
+### [x] Harden public/auth edge cases and the product's own accessibility
 
 **Why:** `/login` is public and crashes with a 500 for crafted `?error=constructor` (prototype-chain lookup at `login/page.tsx:90`); the findings list tolerates orphan findings but the detail loader throws (`finding-detail-view.ts:104-107`); requirement titles are not headings and "Framework scope" is labelled four times in one subtree, which is notable for an accessibility product. Root 404 loses all product navigation.
 
