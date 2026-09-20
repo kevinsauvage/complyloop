@@ -3,10 +3,8 @@ import { dom, elementRoles, roles } from "aria-query";
 import { AXObjects, elementAXObjects } from "axobject-query";
 import ts from "typescript";
 
-import { explicitRoles } from "./a11y-aria.ts";
 import {
   booleanAttributeValue,
-  getAttribute,
   type JsxTagNode,
   stringValueOf,
   tagNameOf,
@@ -133,37 +131,6 @@ function staticAttributes(node: JsxTagNode): StaticAttribute[] {
   return attrs;
 }
 
-function isDisabled(node: JsxTagNode): boolean {
-  const disabled = getAttribute(node, "disabled");
-  if (disabled && booleanAttributeValue(disabled) !== false) return true;
-  return booleanAttributeValue(getAttribute(node, "aria-disabled")) === true;
-}
-
-function tabIndexValue(node: JsxTagNode): number | undefined {
-  const attr = getAttribute(node, "tabIndex") ?? getAttribute(node, "tabindex");
-  if (!attr) return undefined;
-  const text = stringValueOf(attr);
-  if (text !== undefined) {
-    const n = Number(text);
-    return Number.isFinite(n) ? n : undefined;
-  }
-  if (
-    attr.initializer &&
-    ts.isJsxExpression(attr.initializer) &&
-    attr.initializer.expression
-  ) {
-    const expr = attr.initializer.expression;
-    if (
-      ts.isPrefixUnaryExpression(expr) &&
-      expr.operator === ts.SyntaxKind.MinusToken &&
-      ts.isNumericLiteral(expr.operand)
-    ) {
-      return -Number(expr.operand.text);
-    }
-  }
-  return undefined;
-}
-
 function isInherentInteractive(
   tag: string,
   attrs: ReadonlyArray<StaticAttribute>,
@@ -177,47 +144,10 @@ function isInherentInteractive(
   );
 }
 
-function explicitWidgetRole(node: JsxTagNode): boolean {
-  return explicitRoles(node).some((role) => widgetRoleNames.has(role));
-}
-
-/** Implicit ARIA roles for this host from aria-query element/role tables. */
-export function implicitRoles(node: JsxTagNode): string[] {
-  const tag = tagNameOf(node).toLowerCase();
-  const attrs = staticAttributes(node);
-  const found = new Set<string>();
-  for (const [schema, roleSet] of elementRoles.entries()) {
-    if (!conceptMatches(conceptFromRoleRelation(schema), tag, attrs)) continue;
-    for (const role of roleSet) found.add(role);
-  }
-  return [...found];
-}
-
 /** Native HTML widgets (button, a[href], input, …), not explicit ARIA roles. */
 export function isNativeInteractive(node: JsxTagNode): boolean {
   return isInherentInteractive(
     tagNameOf(node).toLowerCase(),
     staticAttributes(node),
   );
-}
-
-/**
- * Keyboard/programmatic focusability from ARIA + AXObject tables.
- * Native widgets stay focusable at tabindex={-1} (axe aria-hidden-focus);
- * non-widgets need tabindex >= 0.
- */
-export function isFocusable(node: JsxTagNode): boolean {
-  if (isDisabled(node)) return false;
-
-  const tag = tagNameOf(node).toLowerCase();
-  const attrs = staticAttributes(node);
-  const tabIndex = tabIndexValue(node);
-  const inherent =
-    isInherentInteractive(tag, attrs) ||
-    explicitWidgetRole(node) ||
-    booleanAttributeValue(getAttribute(node, "contentEditable")) === true ||
-    booleanAttributeValue(getAttribute(node, "contenteditable")) === true;
-
-  if (inherent) return true;
-  return tabIndex !== undefined && tabIndex >= 0;
 }

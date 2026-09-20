@@ -27,21 +27,32 @@ before deleting, then run `npm run verify:gate`.
 
 ## analysis-core
 
-- [ ] `delete:` Drop `CheckRegistration.analyzers` + 133 per-check arrays — rule ownership already lives in `*-map.ts`; only the test reads it. `packages/analysis-core/src/check-registry.ts:49,59-897` (~134 lines)
+> **Correction — many "test-only" flags here are actually drift-gate inputs, not dead code.**
+> `CheckRegistration.analyzers`, `CUSTOM_PROBE_CHECK_IDS`, `axeMappedCheckIds`,
+> `REJECTED_AXE_RULES`, `htmlValidateMappedCheckIds`, `jsxA11yMappedCheckIds`,
+> `APPLICABILITY_OBSERVABLE_CHECK_IDS`/`isApplicabilityObservableCheck`, `CHECK_IDS`,
+> `domLocationDetails` all feed cross-check coverage tests
+> (`check-registry.test.ts`, `catalog-coverage.test.ts`, `axe-map.test.ts`) that
+> guarantee every check id has a real emitter and every analyzer a real check.
+> Deleting them removes regression protection for the exact "silently missed
+> check" failure mode the project prioritizes. Treat as keep, not dead — verified
+> during implementation.
+
+- [x] ~~`delete:` Drop `CheckRegistration.analyzers` + 133 per-check arrays~~ — won't do: it powers the analyzer↔check coverage gate, not dead. `packages/analysis-core/src/check-registry.ts:49`
 - [ ] `delete:` Remove test scaffolding shipping in prod — `playwright-page.ts` imports `vitest` (undeclared) + `layout-table-fixtures.ts`. `packages/analysis-core/src/runtime/custom-checks/playwright-page.ts:1-67` (~95 lines)
-- [ ] `delete:` Drop `a11y-model.ts` dead `isDisabled`/`tabIndexValue`/`explicitWidgetRole`/`implicitRoles`/`isFocusable` (test-only). `packages/analysis-core/src/a11y-model.ts:136-223` (~57 lines)
-- [ ] `delete:` Drop `a11y-aria.ts` dead `isConcreteAriaRole`/`isAriaProperty`/`RequiredAriaProp`/`requiredAriaProps`/`nativeSatisfiesRole` + `roleDefinitions`/`ariaPropertyNames` tables. `packages/analysis-core/src/a11y-aria.ts:11-87` (~40 lines)
+- [x] `delete:` Drop `a11y-model.ts` dead `isDisabled`/`tabIndexValue`/`explicitWidgetRole`/`implicitRoles`/`isFocusable` (no caller, only their own unit test). `packages/analysis-core/src/a11y-model.ts` (~57 lines) — done; deleted `a11y-model.test.ts`
+- [x] `delete:` Drop `a11y-aria.ts` dead `isConcreteAriaRole`/`isAriaProperty`/`RequiredAriaProp`/`requiredAriaProps`/`nativeSatisfiesRole` + `roleDefinitions`/`ariaPropertyNames` tables (no caller). `packages/analysis-core/src/a11y-aria.ts` (~40 lines) — done; trimmed `a11y-aria.test.ts`
 - [ ] `shrink:` Merge `pageEvaluateWithHitCapture`/`locatorEvaluateWithHitCapture` duplicate ~50-line bodies → one internal evaluator. `packages/analysis-core/src/runtime/custom-checks/hit-capture-evaluate.ts:42-145` (~40 lines)
-- [ ] `delete:` Drop `CUSTOM_PROBE_CHECK_IDS` test-only → derive in the test. `packages/analysis-core/src/runtime/custom-checks/types.ts:21-52` (~33 lines)
-- [ ] `delete:` Drop `domLocationDetails` test-only. `packages/analysis-core/src/contract/location.ts:63-78` (~17 lines)
-- [ ] `delete:` Drop `APPLICABILITY_OBSERVABLE_CHECK_IDS` + set + `isApplicabilityObservableCheck` test-only. `packages/analysis-core/src/runtime/applicability.ts:41-54` (~14 lines)
-- [ ] `delete:` Drop `REJECTED_AXE_RULES` + `axeMappedCheckIds` test-only. `packages/analysis-core/src/runtime/axe-map.ts:137-154` (~13 lines)
+- [x] ~~`delete:` Drop `CUSTOM_PROBE_CHECK_IDS`~~ — won't do: coverage-gate input (see correction). `packages/analysis-core/src/runtime/custom-checks/types.ts:21-52`
+- [x] ~~`delete:` Drop `domLocationDetails`~~ — won't do: gate input (see correction). `packages/analysis-core/src/contract/location.ts:63-78`
+- [x] ~~`delete:` Drop `APPLICABILITY_OBSERVABLE_CHECK_IDS` + `isApplicabilityObservableCheck`~~ — won't do: gate input (see correction). `packages/analysis-core/src/runtime/applicability.ts:41-54`
+- [x] ~~`delete:` Drop `REJECTED_AXE_RULES` + `axeMappedCheckIds`~~ — won't do: gate input (see correction). `packages/analysis-core/src/runtime/axe-map.ts:137-154`
 - [ ] `shrink:` Hoist duplicated `backgroundRgb` into `MATH_PAYLOAD`. `packages/analysis-core/src/runtime/custom-checks/non-text-contrast.ts:139-150,225-236` (~12 lines)
-- [ ] `delete:` Drop `htmlValidateMappedCheckIds`/`jsxA11yMappedCheckIds` test-only → inline `Object.values(MAP)`. `packages/analysis-core/src/runtime/html-validate-map.ts:38-40`, `jsx-a11y-map.ts:51-53` (~9 lines)
+- [x] ~~`delete:` Drop `htmlValidateMappedCheckIds`/`jsxA11yMappedCheckIds`~~ — won't do: gate input (see correction). `packages/analysis-core/src/runtime/html-validate-map.ts:38-40`, `jsx-a11y-map.ts:51-53`
 - [ ] `delete:` Drop `isDismissalReason` + `DISMISSAL_REASONS` test-only. `packages/analysis-core/src/contract/finding-types.ts:162-169` (~8 lines)
 - [ ] `delete:` Drop `truncateSnippet` + snippet-length constants (hardcoded literals anyway). `packages/analysis-core/src/runtime/dom-location.ts:13-31` (~8 lines)
 - [ ] `delete:` Drop `parseRgb` dead, weaker dup of `parseCssColor`. `packages/analysis-core/src/runtime/custom-checks/non-text-contrast.ts:13-17` (~5 lines)
-- [ ] `delete:` Drop `CHECK_IDS` test-only. `packages/analysis-core/src/check-registry.ts:902-904` (~3 lines)
+- [x] ~~`delete:` Drop `CHECK_IDS`~~ — won't do: gate input (see correction). `packages/analysis-core/src/check-registry.ts:902-904`
 - [ ] `shrink:` `normalizeSnippet` renames `normalizeSnippetKey` → call directly. `packages/analysis-core/src/merge-findings.ts:69-71` (~3 lines)
 - [ ] `yagni:` Drop `NamedElementConfig.hasName` never set. `packages/analysis-core/src/checks/families/names.ts:26,35` (~2 lines)
 - [ ] `stdlib:` Replace `fast-glob` with `node:fs` `globSync` (engines already ≥22.22). `packages/analysis-core/src/source-files.ts:3,46-58` (-1 dep)
