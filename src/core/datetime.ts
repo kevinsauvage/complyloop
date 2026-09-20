@@ -1,16 +1,10 @@
 /**
- * Date/time formatters. `formatDateTime` is local-time-only for interactive
- * UI — never render it as a bare text node in SSR: server (UTC) and browser
- * (viewer TZ) strings differ and throw React hydration error #418. Use
- * `<FormattedDateTime>` instead, which wraps it in a `time` with
- * `suppressHydrationWarning`. `formatDateTimeWithZone` appends the UTC offset
- * for compliance artifacts (reports, exports) so a printed instant is
- * unambiguous.
+ * Date/time formatters. `formatDateTimeWithZone` appends the UTC offset for
+ * compliance artifacts (reports, exports) so a printed instant is
+ * unambiguous. Interactive UI renders `<FormattedDateTime>`, which wraps a
+ * `time` with `suppressHydrationWarning` (server UTC vs browser TZ would
+ * otherwise throw React hydration error #418).
  */
-
-export function formatDateTime(iso: string): string {
-  return formatDateTimeValue(new Date(iso));
-}
 
 function formatDateTimeValue(date: Date): string {
   return date.toLocaleString("en-GB", {
@@ -22,8 +16,7 @@ function formatDateTimeValue(date: Date): string {
 /**
  * Zone-qualified timestamp for compliance artifacts (reports, exports).
  * Appends the local UTC offset (e.g. "+02:00") so a printed instant is
- * unambiguous across readers — unlike {@link formatDateTime}, which is
- * local-time-only and safe for interactive UI only. The offset is computed
+ * unambiguous across readers. The offset is computed
  * from `getTimezoneOffset` rather than `Intl` `timeZoneName` so it works on
  * every Node/ICU build.
  */

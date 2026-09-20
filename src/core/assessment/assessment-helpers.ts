@@ -89,15 +89,3 @@ export function countByStatus<T extends string>(
   }
   return counts;
 }
-
-export function toCountMap<T>(
-  items: readonly T[],
-  key: (item: T) => string,
-): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const item of items) {
-    const k = key(item);
-    counts.set(k, (counts.get(k) ?? 0) + 1);
-  }
-  return counts;
-}

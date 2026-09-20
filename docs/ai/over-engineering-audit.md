@@ -56,15 +56,10 @@ before deleting, then run `npm run verify:gate`.
 
 ## src/core, ai, components
 
-- [x] ~~`yagni:` Inline `OrgSwitcher` + `ProjectSwitcher` into `workspace-context.tsx`~~ — won't do: named components mocked by name in `workspace-context.test.tsx`; inlining breaks the mock structure. `src/components/shell/org-switcher.tsx`, `project-switcher.tsx`
 - [ ] `yagni:` Inline `ConnectProjectDialog` one production caller into `connect-project-panel.tsx`. `src/components/github/connect-project-dialog.tsx:1-48` (~40 lines)
 - [ ] `shrink:` `report-tones.ts` five hand-listed derived records → one `mapTone(pick)` over `STATUS_TONE_STYLE`. `src/core/display/report-tones.ts:102-142` (~30 lines)
 - [ ] `shrink:` `status.ts` eight near-identical display interfaces → shared `ToneDisplay`/`BadgeDisplay`/`SeverityDisplay`. `src/core/display/status.ts:21-281` (~28 lines)
-- [x] `delete:` Drop `toCountMap` (only its own test). `src/core/assessment/assessment-helpers.ts` — done; trimmed its test block
 - [ ] `delete:` Drop dead re-exports from `verified-fix.ts` barrel. `src/ai/verified-fix.ts:11-24` (~8 lines)
-- [x] ~~`yagni:` `parseRequirementsQueryParam`/`parseEvidenceQueryParam` → `trimmedQuery`~~ — won't do: live callers in `requirements-view.ts`/`evidence-view.ts` (evidence calls it twice); inlining duplicates at 3 sites and churns 4 imports. `src/core/filter-params/requirements.ts`, `evidence.ts`
-- [x] `delete:` Drop `formatDateTime` (only its own test; production uses `formatDateTimeWithZone`). `src/core/datetime.ts` — done; trimmed `datetime.test.ts`, kept `formatDateTimeValue`
-- [x] ~~`delete:` Drop `assessmentJobsResponseSchema`~~ — won't do: named in `assessment-job-guard.ts` as the rejected zod alternative; it's the contract reference two test suites validate. `src/core/assessment/assessment-jobs.ts:61-63`
 - [ ] `shrink:` `firstParam` → one-liner. `src/core/filter-params/params.ts:9-15` (~3 lines)
 
 ## e2e / scripts (minor)
