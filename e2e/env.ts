@@ -12,3 +12,7 @@ export function resolveE2EAuthSecret(): string {
 export function resolveSecret(name: string, fallback: string): string {
   return process.env[name]?.trim() || fallback;
 }
+
+/** Local e2e Postgres (docker-compose port 5433) — shared by config + helpers. */
+export const E2E_DEFAULT_DATABASE_URL =
+  "postgres://complyloop:complyloop@localhost:5433/complyloop";

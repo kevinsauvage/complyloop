@@ -2,7 +2,7 @@ import type { BrowserContextOptions } from "@playwright/test";
 import { encode } from "next-auth/jwt";
 
 import { loadLocalEnv } from "../scripts/env";
-import { resolveE2EAuthSecret } from "./env";
+import { E2E_DEFAULT_DATABASE_URL, resolveE2EAuthSecret } from "./env";
 
 /** Cookie name Auth.js uses for http:// AUTH_URL (no __Secure- prefix). */
 export const SESSION_COOKIE = "authjs.session-token";
@@ -60,6 +60,6 @@ export function resolveE2EDbUrl(): string {
   return (
     process.env.E2E_DATABASE_URL?.trim() ??
     process.env.DATABASE_URL?.trim() ??
-    "postgres://complyloop:complyloop@localhost:5433/complyloop"
+    E2E_DEFAULT_DATABASE_URL
   );
 }

@@ -12,17 +12,17 @@ import type { NextConfig } from "next";
 
 function parseAllowedDevOrigins(value: string | undefined): string[] {
   if (!value) return [];
-  const hosts: string[] = [];
-  for (const raw of value.split(",")) {
-    const host = raw
-      .trim()
-      .toLowerCase()
-      .replace(/^https?:\/\//, "")
-      .split("/")[0]
-      ?.trim();
-    if (host) hosts.push(host);
-  }
-  return hosts;
+  return value
+    .split(",")
+    .map((raw) =>
+      raw
+        .trim()
+        .toLowerCase()
+        .replace(/^https?:\/\//, "")
+        .split("/")[0]
+        ?.trim(),
+    )
+    .filter((host): host is string => Boolean(host));
 }
 
 const nextConfig: NextConfig = {

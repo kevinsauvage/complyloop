@@ -3,7 +3,7 @@ import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
 import { ANON_STATE, OWNER_STATE, VIEWER_STATE } from "./e2e/auth";
-import { resolveE2EAuthSecret } from "./e2e/env";
+import { E2E_DEFAULT_DATABASE_URL, resolveE2EAuthSecret } from "./e2e/env";
 
 const port = Number(process.env.E2E_PORT ?? 3000);
 const baseURL = process.env.E2E_BASE_URL ?? `http://localhost:${port}`;
@@ -29,7 +29,7 @@ const e2eEnv: Record<string, string> = {
   DATABASE_URL:
     process.env.E2E_DATABASE_URL ??
     process.env.DATABASE_URL ??
-    "postgres://complyloop:complyloop@localhost:5433/complyloop",
+    E2E_DEFAULT_DATABASE_URL,
 };
 
 export default defineConfig({
@@ -59,8 +59,8 @@ export default defineConfig({
     },
     {
       name: "owner",
-      testMatch:
-        /routes\.spec\.ts|core-loop\.spec\.ts|compliance-loops\.spec\.ts|a11y\.spec\.ts|org-account\.spec\.ts|settings\.spec\.ts|evidence-export\.spec\.ts|webhook\.spec\.ts/,
+      testMatch: "**/*.spec.ts",
+      testIgnore: [/public\.spec\.ts/, /authz\.spec\.ts/],
       use: {
         ...devices["Desktop Chrome"],
         storageState: OWNER_STATE,

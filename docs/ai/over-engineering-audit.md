@@ -59,18 +59,6 @@ before deleting, then run `npm run verify:gate`.
 - [ ] `yagni:` Inline `ConnectProjectDialog` one production caller into `connect-project-panel.tsx`. `src/components/github/connect-project-dialog.tsx:1-48` (~40 lines)
 - [ ] `shrink:` `report-tones.ts` five hand-listed derived records → one `mapTone(pick)` over `STATUS_TONE_STYLE`. `src/core/display/report-tones.ts:102-142` (~30 lines)
 - [ ] `shrink:` `status.ts` eight near-identical display interfaces → shared `ToneDisplay`/`BadgeDisplay`/`SeverityDisplay`. `src/core/display/status.ts:21-281` (~28 lines)
-- [ ] `delete:` Drop dead re-exports from `verified-fix.ts` barrel. `src/ai/verified-fix.ts:11-24` (~8 lines)
-- [ ] `shrink:` `firstParam` → one-liner. `src/core/filter-params/params.ts:9-15` (~3 lines)
-
-## e2e / scripts (minor)
-
-- [ ] `yagni:` Drop `assessment-worker-drain.ts` `export main` + `isDirectRun()` — no test imports it. `scripts/assessment-worker-drain.ts:33,78-95` (~15 lines)
-- [ ] `shrink:` Merge duplicated numeric-env parsing (`numeric` vs `positiveInt`) → one helper. `scripts/assessment-worker-drain.ts:26-31`, `operations-check.ts:21-30` (~10 lines)
-- [ ] `shrink:` `parseAllowedDevOrigins` loop → `.split(",").map().filter(Boolean)`. `next.config.ts:13-26` (~10 lines)
-- [ ] `shrink:` `resolveE2EDbUrl` fallback duplicates `playwright.config.ts` → one constant. `e2e/helpers.ts:58-65` (~4 lines)
-- [ ] `shrink:` Playwright `owner` project 8-regex list → `testMatch` + `testIgnore`. `playwright.config.ts:61-68` (~2 lines)
-
----
 
 net: ~-1,780 lines, -2 deps (fast-glob, linkinator), -3 scripts possible.
 
