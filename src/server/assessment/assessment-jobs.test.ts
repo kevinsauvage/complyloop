@@ -484,47 +484,25 @@ describe("claimNextAssessmentJob", () => {
     });
   });
 
-  it("does not coalesce across the push/PR authority boundary", async () => {
-    const push = await enqueueAssessmentJob({
+  it("coalesces a push that lands while another push is queued", async () => {
+    const first = await enqueueAssessmentJob({
       projectId: "p1",
       trigger: "webhook",
       idempotencyKey: "delivery-push",
       payload: { ref: "a".repeat(40), eventName: "push" },
     });
-    const pr = await enqueueAssessmentJob({
+    const second = await enqueueAssessmentJob({
       projectId: "p1",
       trigger: "webhook",
-      idempotencyKey: "delivery-pr",
-      payload: {
-        ref: "b".repeat(40),
-        eventName: "pull_request",
-        pullRequestHeadSha: "b".repeat(40),
-      },
-    });
-    expect(pr.id).not.toBe(push.id);
-    expect(jobs.size).toBe(2);
-
-    // The in-memory mock's coalescing lookup is project-agnostic (it matches
-    // any queued webhook job), so isolate the reverse direction.
-    jobs.clear();
-    const prPending = await enqueueAssessmentJob({
-      projectId: "p2",
-      trigger: "webhook",
-      idempotencyKey: "delivery-pr-2",
-      payload: {
-        ref: "c".repeat(40),
-        eventName: "pull_request",
-        pullRequestHeadSha: "c".repeat(40),
-      },
-    });
-    const pushAfterPr = await enqueueAssessmentJob({
-      projectId: "p2",
-      trigger: "webhook",
       idempotencyKey: "delivery-push-2",
-      payload: { ref: "d".repeat(40), eventName: "push" },
+      payload: { ref: "b".repeat(40), eventName: "push" },
     });
-    expect(pushAfterPr.id).not.toBe(prPending.id);
-    expect(pushAfterPr.payload).not.toHaveProperty("supersededRefs");
+    expect(second.id).toBe(first.id);
+    expect(jobs.size).toBe(1);
+    expect(second.payload).toMatchObject({
+      ref: "b".repeat(40),
+      supersededRefs: ["a".repeat(40)],
+    });
   });
 
   it("rejects a claim that loses the per-project race (UPDATE guard)", async () => {

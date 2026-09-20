@@ -1,5 +1,4 @@
 import { createHmac } from "node:crypto";
-import http, { type Server } from "node:http";
 
 import type { APIRequestContext } from "@playwright/test";
 import postgres from "postgres";
@@ -32,7 +31,7 @@ export function signWebhookPayload(rawBody: string): string {
 
 export interface DeliverWebhookOptions {
   request: APIRequestContext;
-  eventName: "push" | "pull_request";
+  eventName: "push";
   payload: Record<string, unknown>;
   deliveryId: string;
 }
@@ -68,28 +67,6 @@ export function pushPayload(opts: { after?: string; fullName?: string } = {}) {
   };
 }
 
-export function pullRequestPayload(
-  opts: {
-    action?: "opened" | "synchronize" | "reopened";
-    headSha?: string;
-    fullName?: string;
-  } = {},
-) {
-  return {
-    action: opts.action ?? "opened",
-    number: 123,
-    pull_request: {
-      head: { sha: opts.headSha ?? "c".repeat(40) },
-      base: { sha: "d".repeat(40) },
-      title: "E2E fixture PR",
-    },
-    repository: {
-      full_name: opts.fullName ?? E2E_PROJECT_FULL_NAME,
-      name: "sample-app",
-    },
-  };
-}
-
 export async function waitForJobSuccess(options: {
   jobId: string;
   timeoutMs?: number;
@@ -118,67 +95,4 @@ export async function waitForJobSuccess(options: {
   });
 }
 
-export interface MockGitHubCheckRun {
-  owner: string;
-  repo: string;
-  body: {
-    name?: string;
-    conclusion?: string;
-    output?: { title?: string; summary?: string };
-    head_sha?: string;
-  };
-}
 
-/**
- * Fixture GitHub Checks API. The e2e app points Octokit at
- * `GITHUB_API_BASE_URL` (see playwright.config.ts), so a PR webhook's Check
- * Run posting lands here and can be asserted on — no real GitHub required.
- */
-export class MockGitHub {
-  private server: Server | null = null;
-  readonly checkRuns: MockGitHubCheckRun[] = [];
-
-  async start(port: number, host = "127.0.0.1"): Promise<void> {
-    this.checkRuns.length = 0;
-    this.server = http.createServer((req, res) => {
-      const url = req.url ?? "";
-      const match = url.match(/^\/repos\/([^/]+)\/([^/]+)\/check-runs$/);
-      if (req.method === "POST" && match) {
-        let body = "";
-        req.on("data", (chunk) => {
-          body += chunk;
-        });
-        req.on("end", () => {
-          this.checkRuns.push({
-            owner: decodeURIComponent(match[1]),
-            repo: decodeURIComponent(match[2]),
-            body: JSON.parse(body || "{}"),
-          });
-          res.writeHead(201, { "content-type": "application/json" });
-          res.end(
-            JSON.stringify({
-              id: 101,
-              html_url: `https://github.com/${match[1]}/${match[2]}/actions/runs/1`,
-              name: "ComplyLoop",
-              status: "completed",
-            }),
-          );
-        });
-        return;
-      }
-      res.writeHead(404, { "content-type": "application/json" });
-      res.end(JSON.stringify({ message: "Not found" }));
-    });
-    await new Promise<void>((resolve, reject) => {
-      this.server?.once("error", reject);
-      this.server?.listen(port, host, () => resolve());
-    });
-  }
-
-  async stop(): Promise<void> {
-    if (!this.server) return;
-    const server = this.server;
-    this.server = null;
-    await new Promise<void>((resolve) => server.close(() => resolve()));
-  }
-}

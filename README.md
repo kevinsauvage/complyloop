@@ -55,8 +55,8 @@ Repos are **shallow-cloned per job** into a temp directory and deleted when done
 
 **Continuous monitoring**
 
-- Webhook events (`push`, `pull_request`) trigger re-assessments; PR events post a **ComplyLoop Check Run**.
-- Repo access uses short-lived App installation tokens — assessments and check runs keep working with no user signed in.
+- `push` webhooks to the default branch trigger re-assessments (PR feedback arrives via the merge-push scan).
+- Repo access uses short-lived App installation tokens — assessments keep working with no user signed in.
 
 ---
 

@@ -1,6 +1,12 @@
 # GitHub Integration — Feature Discovery & Improvement Audit
 
 > Scope note: docs were verified against implementation. Where they disagree, implementation wins (cited `file:line`). No code was modified. All GitHub capabilities below were verified against current official docs (fetched Sep 2026; API version `2026-03-10`).
+>
+> Superseded in part (Sep 2026): per-PR preview scans and Check Run posting
+> were removed — webhook intake is push-only and the merge-push scan is the
+> only assessment trigger besides manual runs. Sections describing PR Check
+> Runs, `check_run.rerequested`, and PR-annotation proposals no longer reflect
+> the code; the rest (auth, tokens, connect, draft-PR creation) is current.
 
 ---
 

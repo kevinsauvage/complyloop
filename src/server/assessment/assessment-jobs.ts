@@ -176,10 +176,10 @@ export async function enqueueAssessmentJob(
   }
 
   const now = new Date().toISOString();
-  // Webhook coalescing: rapid pushes / PR synchronizes for the same project
-  // would otherwise stack full scans of superseded SHAs behind the
-  // serial-per-project claim. A still-queued webhook job is refreshed in place
-  // (newest ref wins); running jobs and non-webhook triggers are untouched.
+  // Webhook coalescing: rapid pushes for the same project would otherwise
+  // stack full scans of superseded SHAs behind the serial-per-project claim.
+  // A still-queued webhook job is refreshed in place (newest ref wins);
+  // running jobs and non-webhook triggers are untouched.
   if (input.trigger === "webhook") {
     const [pending] = await drizzle
       .select()
@@ -195,45 +195,35 @@ export async function enqueueAssessmentJob(
       .limit(1);
     if (pending) {
       const pendingPayload = parseJobPayload(pending.payload);
-      const pendingIsPrPreview =
-        pendingPayload.pullRequestHeadSha !== undefined;
-      const incomingIsPrPreview =
-        input.payload?.pullRequestHeadSha !== undefined;
-      // Authority boundary: pushes (authoritative, no pullRequestHeadSha) and
-      // PR previews (pullRequestHeadSha set) must never coalesce into each
-      // other, otherwise an authoritative scan is silently dropped or a
-      // preview-only scan overwrites a pending authoritative one.
-      if (pendingIsPrPreview === incomingIsPrPreview) {
-        const oldRef = pendingPayload.ref;
-        const newRef = input.payload?.ref;
-        const seen = new Set<string>([
-          ...(pendingPayload.supersededRefs ?? []),
-          ...(input.payload?.supersededRefs ?? []),
-        ]);
-        if (oldRef && newRef && oldRef !== newRef) seen.add(oldRef);
-        const mergedPayload: AssessmentJobPayload = {
-          ...pendingPayload,
-          ...(input.payload ?? {}),
-        };
-        if (seen.size > 0) mergedPayload.supersededRefs = [...seen];
-        const [updated] = await drizzle
-          .update(assessmentJobs)
-          .set({
-            payload: mergedPayload,
-            availableAt: now,
-            updatedAt: now,
-          })
-          .where(
-            and(
-              eq(assessmentJobs.id, pending.id),
-              eq(assessmentJobs.status, "queued"),
-            ),
-          )
-          .returning();
-        // Empty when a worker claimed the row concurrently — fall through and
-        // insert so the delivery is not silently dropped.
-        if (updated) return jobFromRow(updated);
-      }
+      const oldRef = pendingPayload.ref;
+      const newRef = input.payload?.ref;
+      const seen = new Set<string>([
+        ...(pendingPayload.supersededRefs ?? []),
+        ...(input.payload?.supersededRefs ?? []),
+      ]);
+      if (oldRef && newRef && oldRef !== newRef) seen.add(oldRef);
+      const mergedPayload: AssessmentJobPayload = {
+        ...pendingPayload,
+        ...(input.payload ?? {}),
+      };
+      if (seen.size > 0) mergedPayload.supersededRefs = [...seen];
+      const [updated] = await drizzle
+        .update(assessmentJobs)
+        .set({
+          payload: mergedPayload,
+          availableAt: now,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(assessmentJobs.id, pending.id),
+            eq(assessmentJobs.status, "queued"),
+          ),
+        )
+        .returning();
+      // Empty when a worker claimed the row concurrently — fall through and
+      // insert so the delivery is not silently dropped.
+      if (updated) return jobFromRow(updated);
     }
   }
   if (input.trigger === "manual") {

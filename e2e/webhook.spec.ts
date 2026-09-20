@@ -8,8 +8,6 @@ import { shippedCatalog } from "@complyloop/analysis-core/catalog/catalog";
 import { E2E_PROJECT_ID } from "./constants";
 import {
   deliverWebhook,
-  MockGitHub,
-  pullRequestPayload,
   pushPayload,
   waitForJobSuccess,
   withDb,
@@ -22,7 +20,6 @@ const fixturePath = path.join(
   "sample-app",
   "NewRegress.tsx",
 );
-const MOCK_GITHUB_PORT = Number(process.env.E2E_MOCK_GITHUB_PORT ?? 4109);
 
 /** Content that introduces a NEW empty-heading violation not present in Bad.tsx. */
 const NEW_REGRESS_CONTENT = `export function NewRegress() {
@@ -96,49 +93,6 @@ async function regressionAlertCount(): Promise<number> {
 }
 
 test.describe("webhook-driven continuous monitoring", () => {
-  test("pull_request event re-assesses and posts a Check Run", async ({
-    request,
-  }) => {
-    const headSha = "abcd1234ef567890".padEnd(40, "0");
-    const mock = new MockGitHub();
-    await mock.start(MOCK_GITHUB_PORT);
-
-    try {
-      const response = await deliverWebhook({
-        request,
-        eventName: "pull_request",
-        payload: pullRequestPayload({ action: "opened", headSha }),
-        deliveryId: `e2e-pr-${Date.now()}`,
-      });
-      expect(response.ok()).toBeTruthy();
-      const body = await response.json();
-      expect(body.handled).toBe(true);
-      const jobId: string = body.jobId;
-      await waitForJobSuccess({ jobId });
-
-      // PR scans are non-authoritative previews (no assessment_job evidence);
-      // job success + Check Run post proves the re-assessment ran.
-      await expect
-        .poll(() => Promise.resolve(mock.checkRuns.length), {
-          timeout: 30_000,
-        })
-        .toBeGreaterThan(0);
-
-      expect(mock.checkRuns).toHaveLength(1);
-      const checkRun = mock.checkRuns[0];
-      expect(checkRun.owner).toBe("e2e");
-      expect(checkRun.repo).toBe("sample-app");
-      expect(checkRun.body.name).toBe("ComplyLoop");
-      expect(checkRun.body.head_sha).toBe(headSha);
-      expect(["success", "failure", "neutral"]).toContain(
-        checkRun.body.conclusion,
-      );
-      expect(checkRun.body.output?.summary).toContain("Assessment id");
-    } finally {
-      await mock.stop();
-    }
-  });
-
   test("draft-PR merge (push) re-assesses and verifies the approved remediation", async ({
     request,
   }) => {

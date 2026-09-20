@@ -27,8 +27,10 @@ export type AssessmentJobStage = z.infer<typeof assessmentJobStageSchema>;
 /** API / client shape for one assessment job — single source for type + zod. */
 export const assessmentJobPayloadSchema = z.object({
   ref: z.string().optional(),
+  // `pull_request` is legacy: PR preview scans were removed (merge-push scans
+  // are the only webhook topology). Kept in the enum so old queued rows still
+  // parse — the worker treats any non-push webhook job as non-authoritative.
   eventName: z.enum(["push", "pull_request"]).optional(),
-  pullRequestHeadSha: z.string().optional(),
   supersededRefs: z.array(z.string()).optional(),
   stage: assessmentJobStageSchema.optional(),
   stageStartedAt: z.string().optional(),

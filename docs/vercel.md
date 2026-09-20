@@ -167,7 +167,7 @@ GitHub App settings: callback
     unauthenticated scrape target, so the heavy size query lives in
     `ops:check`, not on the health path.
 - Sentry: unhandled exceptions, `assessment_job_failed` /
-  `assessment_job_retrying`, `github_check_run_failed`, growing queue depth.
+  `assessment_job_retrying`, growing queue depth.
 
 ## 5. Evidence retention
 

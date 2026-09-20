@@ -58,7 +58,7 @@ If that loop does not work for one client, the product is not delivering.
 The loop above is live: GitHub App connect, queued assessments on the
 GitHub Actions worker (dispatch + 15-min backstop), finding → patch/PR →
 verify, append-only evidence with JSON/Markdown/HTML export, and
-webhook-driven re-assessment with PR Check Runs.
+webhook-driven re-assessment on merge to the default branch.
 
 Details: [`../README.md`](../README.md) (run it),
 [`ai/architecture.md`](./ai/architecture.md) (how it works),

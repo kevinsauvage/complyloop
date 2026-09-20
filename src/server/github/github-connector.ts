@@ -1,8 +1,8 @@
 /**
  * GitHub connector facade — the single entry point for app/assessment code
- * that needs GitHub *operations* (repo listing, install tokens, PRs, Check
- * Runs). Internal modules (`github.ts`, `github-app.ts`, `github-access.ts`,
- * `pr.ts`, `github-checks.ts`, `github-tokens.ts`, `webhook-deliveries.ts`)
+ * that needs GitHub *operations* (repo listing, install tokens, PRs).
+ * Internal modules (`github.ts`, `github-app.ts`, `github-access.ts`,
+ * `pr.ts`, `github-tokens.ts`, `webhook-deliveries.ts`)
  * are leaves: Octokit details, token cryptography, and git plumbing stay
  * behind this facade.
  *
@@ -31,22 +31,11 @@ import type {
   Control,
   Project,
 } from "@complyloop/analysis-core/contract/project-types";
-import type { Severity } from "@complyloop/analysis-core/contract/statuses";
 
 import type { PatchCandidate } from "@/ai/verified-fix";
 
-import { appUrl } from "../env";
-import { reportWarning } from "../observability";
 import { fetchGitHubRepo, resolveProjectGitHubToken } from "./github-access";
 import { githubAppInstallUrl, listReposViaInstallations } from "./github-app";
-import {
-  CHECK_RUN_NAME,
-  postPullRequestCheckRun,
-  summarizeAssessmentFailureForCheckRun,
-  summarizeAssessmentForCheckRun,
-  summarizeInProgressCheckRun,
-  summarizeQueuedCheckRun,
-} from "./github-checks";
 import type { GitHubRepoSummary } from "./github-types";
 import { preparePullRequest, type PullRequestResult } from "./pr";
 
@@ -93,175 +82,4 @@ export function createProjectPullRequest(
   return preparePullRequest(project, control, finding, remediation, candidate);
 }
 
-/**
- * Deep link for the Check Run `details_url`: project compliance page when the
- * app URL is configured, otherwise undefined (Checks API omits it).
- */
-export function assessmentDetailsUrl(
-  projectId: string,
-  assessmentId: string,
-): string | undefined {
-  const base = appUrl()?.replace(/\/$/, "");
-  if (!base) return undefined;
-  return `${base}/projects/${projectId}/assessments/${assessmentId}`;
-}
 
-export { CHECK_RUN_NAME };
-
-/**
- * Shared Check Run post: resolves the project token internally and warns
- * (never throws) when posting is impossible, so the worker stays on its
- * load → run → apply shape.
- */
-async function postCheckRunSafely(input: {
-  project: Project;
-  jobId: string;
-  headSha: string;
-  status?: "queued" | "in_progress" | "completed";
-  conclusion?: "success" | "failure" | "neutral";
-  title: string;
-  summary: string;
-  detailsUrl?: string;
-  startedAt?: string;
-  completedAt?: string;
-}): Promise<void> {
-  const { project, jobId, headSha } = input;
-  try {
-    const token = await resolveProjectGitHubToken(project);
-    if (!token || !project.github?.fullName) {
-      reportWarning(
-        "Could not post pull-request check: GitHub token unavailable.",
-        {
-          code: "github_token_missing",
-          projectId: project.id,
-          jobId,
-        },
-      );
-      return;
-    }
-    const posted = await postPullRequestCheckRun({
-      fullName: project.github.fullName,
-      headSha,
-      token,
-      status: input.status ?? "completed",
-      conclusion: input.conclusion,
-      title: input.title,
-      summary: input.summary,
-      detailsUrl: input.detailsUrl,
-      externalId: jobId,
-      startedAt: input.startedAt,
-      completedAt: input.completedAt,
-    });
-    if (!posted.ok) {
-      reportWarning("Pull-request Check Run could not be posted.", {
-        code: "github_check_run_failed",
-        projectId: project.id,
-        jobId,
-        error: posted.error,
-      });
-    }
-  } catch (error) {
-    // Token resolution throws (PublicError) — a missing check must never fail
-    // an otherwise successful assessment job.
-    reportWarning(
-      error instanceof Error ? error.message : "Check Run post failed.",
-      {
-        code: "github_check_run_failed",
-        projectId: project.id,
-        jobId,
-      },
-    );
-  }
-}
-
-/**
- * Post the `queued` Check Run on a PR head commit. Fire-and-forget from the
- * webhook enqueue path — never throws.
- */
-export async function postQueuedCheckRunForPreview(input: {
-  project: Project;
-  jobId: string;
-  headSha: string;
-  startedAt?: string;
-}): Promise<void> {
-  await postCheckRunSafely({
-    project: input.project,
-    jobId: input.jobId,
-    headSha: input.headSha,
-    status: "queued",
-    startedAt: input.startedAt,
-    ...summarizeQueuedCheckRun(input.jobId),
-  });
-}
-
-/**
- * Post the `in_progress` Check Run when the worker claims a PR preview job.
- * Never throws.
- */
-export async function postInProgressCheckRunForPreview(input: {
-  project: Project;
-  jobId: string;
-  headSha: string;
-  startedAt?: string;
-}): Promise<void> {
-  await postCheckRunSafely({
-    project: input.project,
-    jobId: input.jobId,
-    headSha: input.headSha,
-    status: "in_progress",
-    startedAt: input.startedAt,
-    ...summarizeInProgressCheckRun(input.jobId),
-  });
-}
-
-/**
- * Post the assessment Check Run on a PR head commit. Resolves the project
- * token internally and warns (never throws) when posting is impossible, so
- * the worker stays on its load → run → apply shape.
- */
-export async function postAssessmentCheckRun(input: {
-  project: Project;
-  jobId: string;
-  headSha: string;
-  openViolations: number;
-  failedRequirements: number;
-  assessmentId: string;
-  severity?: Partial<Record<Severity, number>>;
-  startedAt?: string;
-  completedAt?: string;
-}): Promise<void> {
-  await postCheckRunSafely({
-    project: input.project,
-    jobId: input.jobId,
-    headSha: input.headSha,
-    status: "completed",
-    detailsUrl: assessmentDetailsUrl(input.project.id, input.assessmentId),
-    startedAt: input.startedAt,
-    completedAt: input.completedAt,
-    ...summarizeAssessmentForCheckRun({
-      openViolations: input.openViolations,
-      failedRequirements: input.failedRequirements,
-      assessmentId: input.assessmentId,
-      severity: input.severity,
-    }),
-  });
-}
-
-/**
- * Post a `failure` Check Run when the worker itself crashes on a PR preview
- * scan — otherwise the PR waits on "expected checks" forever. Terminal
- * failures only; retries stay quiet. Never throws.
- */
-export async function postAssessmentFailureCheckRun(input: {
-  project: Project;
-  jobId: string;
-  headSha: string;
-  error: unknown;
-}): Promise<void> {
-  await postCheckRunSafely({
-    project: input.project,
-    jobId: input.jobId,
-    headSha: input.headSha,
-    ...summarizeAssessmentFailureForCheckRun(input.error),
-  });
-}

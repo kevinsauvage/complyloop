@@ -173,8 +173,8 @@ deleteMembershipIds, deleteOrgIds }` — no JSON-diff of the in-memory slice.
   options), everything else is a direct import.
 - **Jobs** — 30-min lease (renewed by a 5-min heartbeat while a scan runs),
   3 attempts, serial per project, cancellable (`queued`/`running` →
-  `cancelled`, project-scoped; a cancelled mid-run run saves nothing and posts
-  no Check Run). Two triggers, one queued topology, one job model:
+  `cancelled`, project-scoped; a cancelled mid-run run saves nothing).
+  Two triggers, one queued topology, one job model:
   - **Manual** — `runAssessmentAction` enqueues (`queued`, `attempts: 0`)
     and schedules the drain in `after()`. The click resolves fast with
     "queued" copy; progress lives in the Pipeline section (polls every 3s,
@@ -263,9 +263,10 @@ worker clones + scans:
    proof, not historical evidence)
 
 Only a **default-branch** scan (or a manual assessment) is authoritative: it
-persists findings/statuses and may auto-verify. A **pull-request head** scan
-is a preview — it runs the same analysis to post a Check Run but persists
-nothing and never resolves findings, flips statuses, or auto-verifies.
+persists findings/statuses and may auto-verify. Anything else (legacy
+non-push rows still draining) runs the same analysis but persists nothing
+and never resolves findings, flips statuses, or auto-verifies. There is no
+per-PR scan: PR feedback arrives via the merge-push scan.
 
 **Remediation:**
 
@@ -283,7 +284,7 @@ nothing and never resolves findings, flips statuses, or auto-verifies.
 Only pushes to the project's **live** default branch
 (`repository.default_branch`, persisted onto `project.github.defaultBranch`
 when it changes) are enqueued as authoritative assessments; feature-branch
-pushes are ignored. PR events post a Check Run. Failures become
+pushes and PR events are ignored. Failures become
 `assessment_job_failed` evidence.
 
 **Reports:** `report-model.ts` + markdown/HTML renderers; routes load via `loadReportInput` in `report.ts`.

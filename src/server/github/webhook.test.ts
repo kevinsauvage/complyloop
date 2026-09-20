@@ -9,7 +9,6 @@ const getProjectById = vi.hoisted(() => vi.fn());
 const drizzleExecute = vi.hoisted(() => vi.fn());
 const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
 const assertRateLimit = vi.hoisted(() => vi.fn());
-const postQueuedCheckRunForPreview = vi.hoisted(() => vi.fn());
 
 vi.mock("@complyloop/db/postgres", () => ({
   getDrizzle: async () => ({
@@ -23,10 +22,6 @@ vi.mock("@complyloop/db/repo/projects", () => ({
 }));
 vi.mock("../assessment/assessment-jobs", () => ({ enqueueAssessmentJob }));
 vi.mock("../rate-limit", () => ({ assertRateLimit }));
-vi.mock("./github-connector", () => ({
-  postQueuedCheckRunForPreview: (...args: unknown[]) =>
-    postQueuedCheckRunForPreview(...args),
-}));
 
 afterEach(() => {
   delete process.env.GITHUB_WEBHOOK_SECRET;
@@ -89,7 +84,6 @@ describe("handleGitHubWebhookEvent", () => {
       payload: {
         ref: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         eventName: "push",
-        pullRequestHeadSha: undefined,
       },
     });
     expect(result).toEqual({
@@ -122,142 +116,6 @@ describe("handleGitHubWebhookEvent", () => {
     expect(enqueueAssessmentJob).not.toHaveBeenCalled();
     // A feature branch must not consume the project webhook rate limit.
     expect(assertRateLimit).not.toHaveBeenCalled();
-  });
-
-  it("retains the PR head SHA for the worker Check Run", async () => {
-    findProjectsByGithubFullName.mockResolvedValue([
-      { id: "p1", orgId: "org-1" },
-    ]);
-    enqueueAssessmentJob.mockResolvedValue({ id: "job-2" });
-    const headSha = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
-
-    await handleGitHubWebhookEvent("pull_request", {
-      action: "opened",
-      repository: { full_name: "acme/app" },
-      pull_request: { head: { sha: headSha } },
-    });
-
-    expect(enqueueAssessmentJob).toHaveBeenCalledWith(
-      expect.objectContaining({
-        payload: expect.objectContaining({
-          ref: headSha,
-          pullRequestHeadSha: headSha,
-        }),
-      }),
-    );
-  });
-
-  it("posts a queued check on PR preview enqueue (fire-and-forget)", async () => {
-    findProjectsByGithubFullName.mockResolvedValue([
-      { id: "p1", orgId: "org-1" },
-    ]);
-    getProjectById.mockResolvedValue({
-      id: "p1",
-      github: { fullName: "acme/app", defaultBranch: "main", private: false },
-    });
-    postQueuedCheckRunForPreview.mockResolvedValue(undefined);
-    enqueueAssessmentJob.mockResolvedValue({ id: "job-queued" });
-    const headSha = "cccccccccccccccccccccccccccccccccccccccc";
-
-    const result = await handleGitHubWebhookEvent(
-      "pull_request",
-      {
-        action: "opened",
-        repository: { full_name: "acme/app" },
-        pull_request: { head: { sha: headSha } },
-      },
-      "delivery-queued",
-    );
-
-    expect(result.handled).toBe(true);
-    // The queued post is fire-and-forget — flush the microtask chain.
-    await new Promise((resolve) => setImmediate(resolve));
-    await new Promise((resolve) => setImmediate(resolve));
-    expect(postQueuedCheckRunForPreview).toHaveBeenCalledWith(
-      expect.objectContaining({ jobId: "job-queued", headSha }),
-    );
-  });
-
-  it("re-enqueues a preview job on check_run rerequest for our check", async () => {
-    findProjectsByGithubFullName.mockResolvedValue([
-      { id: "p1", orgId: "org-1", installationId: 12345 },
-    ]);
-    getProjectById.mockResolvedValue({ id: "p1", github: null });
-    enqueueAssessmentJob.mockResolvedValue({ id: "job-rerequest" });
-    const headSha = "dddddddddddddddddddddddddddddddddddddddd";
-
-    const result = await handleGitHubWebhookEvent(
-      "check_run",
-      {
-        action: "rerequested",
-        check_run: { name: "ComplyLoop", head_sha: headSha },
-        repository: { full_name: "acme/app" },
-        installation: { id: 12345 },
-      },
-      "delivery-rerequest",
-    );
-
-    expect(result).toEqual({
-      handled: true,
-      message: "Queued re-assessment of acme/app.",
-      jobId: "job-rerequest",
-    });
-    expect(assertRateLimit).toHaveBeenCalledWith("webhook:p1", 60, 60_000);
-    expect(enqueueAssessmentJob).toHaveBeenCalledWith({
-      projectId: "p1",
-      trigger: "webhook",
-      idempotencyKey: "delivery-rerequest",
-      payload: {
-        ref: headSha,
-        eventName: "pull_request",
-        pullRequestHeadSha: headSha,
-      },
-    });
-  });
-
-  it("ignores check_run events for other apps' runs", async () => {
-    const result = await handleGitHubWebhookEvent("check_run", {
-      action: "rerequested",
-      check_run: { name: "SomeOtherCheck", head_sha: "e".repeat(40) },
-      repository: { full_name: "acme/app" },
-      installation: { id: 12345 },
-    });
-
-    expect(result.handled).toBe(false);
-    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
-    expect(assertRateLimit).not.toHaveBeenCalled();
-  });
-
-  it("ignores check_run actions other than rerequested", async () => {
-    const result = await handleGitHubWebhookEvent("check_run", {
-      action: "completed",
-      check_run: { name: "ComplyLoop", head_sha: "e".repeat(40) },
-      repository: { full_name: "acme/app" },
-    });
-
-    expect(result.handled).toBe(false);
-    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
-  });
-
-  it("rejects a check_run rerequest with a foreign installation id", async () => {
-    findProjectsByGithubFullName.mockResolvedValue([
-      { id: "p1", orgId: "org-1", installationId: 12345 },
-    ]);
-
-    const result = await handleGitHubWebhookEvent(
-      "check_run",
-      {
-        action: "rerequested",
-        check_run: { name: "ComplyLoop", head_sha: "e".repeat(40) },
-        repository: { full_name: "acme/app" },
-        installation: { id: 99999 },
-      },
-      "delivery-foreign-rerequest",
-    );
-
-    expect(result.handled).toBe(false);
-    expect(result.message).toMatch(/Installation id mismatch/);
-    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
   });
 
   it("accepts a webhook with a matching installation id", async () => {
@@ -380,21 +238,6 @@ describe("handleGitHubWebhookEvent", () => {
     expect(enqueueAssessmentJob).not.toHaveBeenCalled();
   });
 
-  it("ignores pull_request events with a non-SHA head.sha", async () => {
-    findProjectsByGithubFullName.mockResolvedValue([
-      { id: "p1", orgId: "org-1" },
-    ]);
-
-    const result = await handleGitHubWebhookEvent("pull_request", {
-      action: "opened",
-      repository: { full_name: "acme/app" },
-      pull_request: { head: { sha: "not-a-sha" } },
-    });
-
-    expect(result.handled).toBe(false);
-    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
-  });
-
   it("enqueues a push to the live default branch and persists a rename", async () => {
     findProjectsByGithubFullName.mockResolvedValue([
       {
@@ -508,20 +351,6 @@ describe("handleGitHubWebhookEvent", () => {
     await expect(handleGitHubWebhookEvent("push", null)).resolves.toEqual({
       handled: false,
       message: "Invalid payload",
-    });
-    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
-  });
-
-  it("rejects pull requests with unhandled actions", async () => {
-    await expect(
-      handleGitHubWebhookEvent("pull_request", {
-        action: "closed",
-        repository: { full_name: "acme/app" },
-        pull_request: { head: { sha: "b".repeat(40) } },
-      }),
-    ).resolves.toEqual({
-      handled: false,
-      message: "Ignored event pull_request",
     });
     expect(enqueueAssessmentJob).not.toHaveBeenCalled();
   });

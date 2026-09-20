@@ -21,8 +21,6 @@ const reportError = vi.hoisted(() => vi.fn());
 const reportWarning = vi.hoisted(() => vi.fn());
 const reportEvent = vi.hoisted(() => vi.fn());
 const pruneRateLimitBuckets = vi.hoisted(() => vi.fn());
-const resolveProjectGitHubToken = vi.hoisted(() => vi.fn());
-const postPullRequestCheckRun = vi.hoisted(() => vi.fn());
 const applyAssessmentPayload = vi.hoisted(() => vi.fn());
 const listAlertsForProject = vi.hoisted(() => vi.fn());
 const insertEvidence = vi.hoisted(() => vi.fn());
@@ -105,34 +103,6 @@ vi.mock("../observability", () => ({
 
 vi.mock("../rate-limit", () => ({
   pruneRateLimitBuckets: (...args: unknown[]) => pruneRateLimitBuckets(...args),
-}));
-
-vi.mock("../github/github-access", () => ({
-  resolveProjectGitHubToken: (...args: unknown[]) =>
-    resolveProjectGitHubToken(...args),
-}));
-
-vi.mock("../github/github-checks", () => ({
-  postPullRequestCheckRun: (...args: unknown[]) =>
-    postPullRequestCheckRun(...args),
-  summarizeAssessmentForCheckRun: () => ({
-    conclusion: "success" as const,
-    title: "ok",
-    summary: "ok",
-  }),
-  summarizeAssessmentFailureForCheckRun: () => ({
-    conclusion: "failure" as const,
-    title: "failed",
-    summary: "failed",
-  }),
-  summarizeQueuedCheckRun: (jobId: string) => ({
-    title: "queued",
-    summary: `queued ${jobId}`,
-  }),
-  summarizeInProgressCheckRun: (jobId: string) => ({
-    title: "in progress",
-    summary: `in progress ${jobId}`,
-  }),
 }));
 
 import { ASSESSMENT_JOB_HEARTBEAT_MS } from "./assessment-jobs";
@@ -292,35 +262,32 @@ describe("settleRunningAssessmentJob", () => {
     );
   });
 
-  it("posts a failure Check Run when a PR preview scan fails terminally", async () => {
+  it("records failure evidence without posting anywhere on terminal failure", async () => {
     loadProjectDb.mockResolvedValue(projectDb());
     withProjectCheckout.mockRejectedValue(new Error("clone failed"));
     failAssessmentJob.mockResolvedValue("failed");
-    resolveProjectGitHubToken.mockResolvedValue("tok");
-    postPullRequestCheckRun.mockResolvedValue({ ok: true });
 
     await expect(
       settleRunningAssessmentJob(
         job({
           attempts: 3,
           trigger: "webhook",
-          payload: { pullRequestHeadSha: "abc123" },
+          payload: { ref: "a".repeat(40), eventName: "push" },
         }),
       ),
     ).resolves.toEqual({ kind: "failed", jobId: "job-1" });
-    expect(postPullRequestCheckRun).toHaveBeenCalledWith(
+    expect(insertEvidence).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({
-        headSha: "abc123",
-        conclusion: "failure",
+        kind: "assessment_job",
+        detail: expect.objectContaining({ phase: "failed" }),
       }),
     );
   });
 
-  it("stays quiet on retryable PR failures and non-PR terminal failures", async () => {
+  it("retries a failed scan without recording a terminal verdict", async () => {
     loadProjectDb.mockResolvedValue(projectDb());
     withProjectCheckout.mockRejectedValue(new Error("clone failed"));
-    resolveProjectGitHubToken.mockResolvedValue("tok");
-    postPullRequestCheckRun.mockResolvedValue({ ok: true });
 
     failAssessmentJob.mockResolvedValue("retrying");
     await expect(
@@ -328,27 +295,17 @@ describe("settleRunningAssessmentJob", () => {
         job({
           attempts: 1,
           trigger: "webhook",
-          payload: { pullRequestHeadSha: "abc123" },
+          payload: { ref: "a".repeat(40), eventName: "push" },
         }),
       ),
     ).resolves.toEqual({ kind: "retrying", jobId: "job-1" });
-    // The claim-time in_progress signal posts, but no failure verdict —
-    // retries stay quiet and post the real verdict later.
-    expect(postPullRequestCheckRun).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "in_progress" }),
+    expect(insertEvidence).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        kind: "assessment_job",
+        detail: expect.objectContaining({ phase: "retrying" }),
+      }),
     );
-    const verdictCalls = postPullRequestCheckRun.mock.calls.filter(
-      ([input]) =>
-        (input as { conclusion?: string }).conclusion === "failure",
-    );
-    expect(verdictCalls).toHaveLength(0);
-
-    postPullRequestCheckRun.mockClear();
-    failAssessmentJob.mockResolvedValue("failed");
-    await expect(
-      settleRunningAssessmentJob(job({ attempts: 3 })),
-    ).resolves.toEqual({ kind: "failed", jobId: "job-1" });
-    expect(postPullRequestCheckRun).not.toHaveBeenCalled();
   });
 
   it("completes with the renewed lease after a heartbeat renewal", async () => {
@@ -884,14 +841,13 @@ describe("processNextAssessmentJob", () => {
     );
   });
 
-  it("posts a PR check run for webhook jobs with a head sha", async () => {
+  it("treats a legacy non-push webhook job as non-authoritative", async () => {
     const db = projectDb();
     claimNextAssessmentJob.mockResolvedValue(
       job({
         trigger: "webhook",
         payload: {
           eventName: "pull_request",
-          pullRequestHeadSha: "abc123",
         },
       }),
     );
@@ -908,14 +864,12 @@ describe("processNextAssessmentJob", () => {
       }),
     );
     completeAssessmentJob.mockResolvedValue(undefined);
-    resolveProjectGitHubToken.mockResolvedValue("ghs_token");
-    postPullRequestCheckRun.mockResolvedValue({ ok: true });
 
     await expect(processNextAssessmentJob()).resolves.toEqual({
       kind: "succeeded",
       jobId: "job-1",
     });
-    // A PR-head scan is a preview: it posts the Check Run but must not
+    // A legacy non-push webhook row runs the same analysis but must not
     // persist any project compliance state.
     expect(runAssessment).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -929,13 +883,6 @@ describe("processNextAssessmentJob", () => {
     );
     expect(applyAssessmentPayload).not.toHaveBeenCalled();
     expect(insertEvidence).not.toHaveBeenCalled();
-    expect(postPullRequestCheckRun).toHaveBeenCalledWith(
-      expect.objectContaining({
-        fullName: "acme/shop",
-        headSha: "abc123",
-        token: "ghs_token",
-      }),
-    );
   });
 
   it("treats a default-branch webhook push as authoritative and persists", async () => {
@@ -978,36 +925,6 @@ describe("processNextAssessmentJob", () => {
     expect(insertEvidence).toHaveBeenCalled();
   });
 
-  it("warns when a PR check cannot be posted", async () => {
-    const db = projectDb();
-    claimNextAssessmentJob.mockResolvedValue(
-      job({
-        trigger: "webhook",
-        payload: { pullRequestHeadSha: "abc123" },
-      }),
-    );
-    loadProjectDb.mockResolvedValue(db);
-    withProjectCheckout.mockImplementation(
-      async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
-        fn("/tmp/checkout"),
-    );
-    runAssessment.mockResolvedValue(
-      assessmentRun({
-        id: "a1",
-        projectId: "p1",
-        snapshot: { fileHashes: {} },
-      }),
-    );
-    completeAssessmentJob.mockResolvedValue(undefined);
-    resolveProjectGitHubToken.mockResolvedValue(null);
-
-    await processNextAssessmentJob();
-    expect(reportWarning).toHaveBeenCalledWith(
-      expect.stringMatching(/GitHub token unavailable/),
-      expect.objectContaining({ code: "github_token_missing" }),
-    );
-  });
-
   it("retries when the project vanished before its job ran", async () => {
     claimNextAssessmentJob.mockResolvedValue(job());
     loadProjectDb.mockResolvedValue(baseEmptyDb());
@@ -1041,59 +958,6 @@ describe("processNextAssessmentJob", () => {
       jobId: "job-1",
     });
     expect(completeAssessmentJob).not.toHaveBeenCalled();
-  });
-
-  it("warns when the posted PR check fails", async () => {
-    const db = projectDb();
-    db.findings = [
-      testFinding({ id: "f-open", projectId: "p1", controlId: "c1" }),
-    ];
-    db.requirements = [
-      {
-        id: "r1",
-        projectId: "p1",
-        controlId: "c1",
-        status: "failed",
-        determination: "automated",
-        updatedAt: "2026-01-01T00:00:00.000Z",
-      },
-    ];
-    claimNextAssessmentJob.mockResolvedValue(
-      job({
-        trigger: "webhook",
-        payload: {
-          eventName: "pull_request",
-          pullRequestHeadSha: "abc123",
-        },
-      }),
-    );
-    loadProjectDb.mockResolvedValue(db);
-    withProjectCheckout.mockImplementation(
-      async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
-        fn("/tmp/checkout"),
-    );
-    runAssessment.mockResolvedValue(
-      assessmentRun(
-        {
-          id: "a1",
-          projectId: "p1",
-          snapshot: { fileHashes: {} },
-        },
-        { evidence: [], findings: db.findings, requirements: db.requirements },
-      ),
-    );
-    completeAssessmentJob.mockResolvedValue(undefined);
-    resolveProjectGitHubToken.mockResolvedValue("ghs_token");
-    postPullRequestCheckRun.mockResolvedValue({ ok: false, error: "nope" });
-
-    await expect(processNextAssessmentJob()).resolves.toEqual({
-      kind: "succeeded",
-      jobId: "job-1",
-    });
-    expect(reportWarning).toHaveBeenCalledWith(
-      "Pull-request Check Run could not be posted.",
-      expect.objectContaining({ code: "github_check_run_failed" }),
-    );
   });
 
   it("warns when failure evidence cannot be recorded", async () => {
