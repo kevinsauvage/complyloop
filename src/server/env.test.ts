@@ -1,14 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  aiGatewayApiKey,
-  aiModel,
-  appUrl,
   assessmentCheckoutQuota,
   e2eAuthEnabled,
   githubApiBaseUrl,
   githubAppId,
-  nodeEnv,
   supportEmail,
 } from "./env";
 
@@ -27,9 +23,7 @@ describe("server env", () => {
 
   it("returns undefined for unset optionals", () => {
     vi.stubEnv("GITHUB_API_BASE_URL", "");
-    vi.stubEnv("AI_GATEWAY_API_KEY", "");
     expect(githubApiBaseUrl()).toBeUndefined();
-    expect(aiGatewayApiKey()).toBeUndefined();
     expect(e2eAuthEnabled()).toBe(false);
   });
 
@@ -42,27 +36,10 @@ describe("server env", () => {
     expect(quota.scanTimeoutMs).toBe(30_000);
   });
 
-  it("reads support email, app URL fallbacks, and node env", () => {
+  it("reads the support email", () => {
     vi.stubEnv("COMPLYLOOP_SUPPORT_EMAIL", "  support@example.com  ");
     expect(supportEmail()).toBe("support@example.com");
     vi.stubEnv("COMPLYLOOP_SUPPORT_EMAIL", "");
     expect(supportEmail()).toBeNull();
-
-    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://app.example.com");
-    vi.stubEnv("AUTH_URL", "https://auth.example.com");
-    expect(appUrl()).toBe("https://app.example.com");
-    vi.stubEnv("NEXT_PUBLIC_APP_URL", "");
-    expect(appUrl()).toBe("https://auth.example.com");
-    vi.stubEnv("AUTH_URL", "");
-    expect(appUrl()).toBeUndefined();
-
-    expect(nodeEnv()).toBe("test");
-  });
-
-  it("defaults the AI model and allows an env override", () => {
-    vi.stubEnv("AI_MODEL", "");
-    expect(aiModel()).toBe("poolside/laguna-s-2.1-free");
-    vi.stubEnv("AI_MODEL", "acme/pro-model");
-    expect(aiModel()).toBe("acme/pro-model");
   });
 });

@@ -48,14 +48,6 @@ export function roleInOrg(
   )?.role;
 }
 
-export function userRoleInOrg(
-  db: WorkspaceSlice,
-  orgId: string,
-  userId: string,
-): OrgRole | undefined {
-  return roleInOrg(buildOrgMembershipIndex(db.memberships), orgId, userId);
-}
-
 /** Personal owner org — fallback when no active org is selected. */
 function defaultOrgIdForUser(
   db: Pick<WorkspaceSlice, "memberships">,
@@ -99,14 +91,4 @@ export function resolveActiveOrgId(
   }
 
   return defaultOrgIdForUser(db, userId) ?? membershipOrgs[0]?.id;
-}
-
-/** True when the user may invite/remove members for this org. */
-export function canManageOrgMembers(
-  db: WorkspaceSlice,
-  orgId: string,
-  userId: string,
-): boolean {
-  const role = userRoleInOrg(db, orgId, userId);
-  return role === "owner" || role === "admin";
 }

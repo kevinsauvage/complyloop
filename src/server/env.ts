@@ -42,27 +42,8 @@ export function githubWebhookSecret(): string | undefined {
   return trimmed("GITHUB_WEBHOOK_SECRET");
 }
 
-/** Vercel AI Gateway key; unset means AI features stay unavailable. */
-export function aiGatewayApiKey(): string | undefined {
-  return trimmed("AI_GATEWAY_API_KEY");
-}
-
-/**
- * Vercel AI Gateway model id (`provider/model`). Overridable per deploy;
- * defaults to the free-tier model. `src/ai` reads `process.env.AI_MODEL`
- * directly (it must stay free of `@/server/*` imports) — this getter is the
- * server-side accessor for the same var.
- */
-export function aiModel(): string {
-  return trimmed("AI_MODEL") ?? "poolside/laguna-s-2.1-free";
-}
-
 export function supportEmail(): string | null {
   return trimmed("COMPLYLOOP_SUPPORT_EMAIL") ?? null;
-}
-
-export function appUrl(): string | undefined {
-  return trimmed("NEXT_PUBLIC_APP_URL") ?? trimmed("AUTH_URL") ?? undefined;
 }
 
 export function e2eAuthEnabled(): boolean {
@@ -75,10 +56,6 @@ export function e2eProdHarnessAcknowledged(): boolean {
 
 export function e2eFixtureRoot(): string | undefined {
   return trimmed("E2E_FIXTURE_ROOT");
-}
-
-export function nodeEnv(): string | undefined {
-  return process.env.NODE_ENV;
 }
 
 export function assessmentCheckoutQuota(): {

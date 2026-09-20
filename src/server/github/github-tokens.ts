@@ -109,13 +109,6 @@ export interface StoredGitHubToken {
   expiresAt?: string;
 }
 
-export async function getStoredGitHubToken(
-  userId: string,
-): Promise<string | null> {
-  const stored = await getStoredGitHubTokenWithExpiry(userId);
-  return stored?.accessToken ?? null;
-}
-
 export async function getStoredGitHubTokenWithExpiry(
   userId: string,
 ): Promise<StoredGitHubToken | null> {

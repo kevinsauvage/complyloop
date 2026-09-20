@@ -18,7 +18,7 @@ import {
   buildOrgMembershipIndex,
   orgsForUser,
   resolveActiveOrgId,
-  userRoleInOrg,
+  roleInOrg,
 } from "./org-queries";
 import { createOrganization, deleteOrganization, exportOrgData } from "./orgs";
 
@@ -129,7 +129,9 @@ describe("orgs", () => {
     applyMembership(db, inviteOrgMember(db, team.id, "user-a", "bob", "admin"));
     claimInvite(db, "user-b", "bob");
 
-    expect(userRoleInOrg(db, team.id, "user-b")).toBe("admin");
+    expect(
+      roleInOrg(buildOrgMembershipIndex(db.memberships), team.id, "user-b"),
+    ).toBe("admin");
     expect(orgsForUser(db, "user-b").map((org) => org.id)).toContain(team.id);
 
     // Active org can be the shared team even though bob also has a personal org.
