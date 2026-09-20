@@ -1,23 +1,5 @@
 # TODO — Global Project Audit
 
-Prioritized backlog from a full-codebase audit (Graft + source inspection).
-Ordered by the impact order: correctness → missing functionality → security →
-reliability → architecture → complexity → performance → UX → tests/docs.
-
----
-
-### [ ] Restore a green, trustworthy quality gate
-
-**Why:** `npm run verify:gate` (the definition of done) is red. `src/app/error.test.tsx` fails to collect because it imports `./not-found` → `@/auth` → `next-auth` → `next/server`, which Vitest cannot resolve; and `packages/analysis-core/src/runtime/html-validate-runtime.test.ts` intermittently times out (15s) because it imports Playwright but runs in the node project with no browser timeout. CI `quality` and local gates cannot pass.
-
-**Where:** `src/app/error.test.tsx:7`, `src/app/not-found.tsx:4`, `vitest.config.mts:14-18,110-129`, `packages/analysis-core/src/runtime/html-validate-runtime.test.ts:72-184`.
-
-**Change:** Decouple the not-found/error test from `@/auth` (inject or mock the session source), and give the browser-importing unit tests the DOM project + `PLAYWRIGHT_TEST_TIMEOUT_MS` (or move them to the gated e2e/DB path).
-
-**Impact:** High
-
----
-
 ### [ ] Tie org membership to immutable user id (cross-tenant takeover)
 
 **Why:** Membership lookup and claiming are keyed on the mutable `github_login`. `listOrgIdsForUser` grants org access to any account whose login matches a row — even one already claimed by another user — and `claimMembershipsForLogin` reassigns an existing claimed row (including `owner`) to whoever next signs in with that login. A recycled/renamed GitHub username inherits another tenant's org and projects.
