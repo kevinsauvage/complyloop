@@ -81,5 +81,3 @@ export function createProjectPullRequest(
 ): Promise<PullRequestResult> {
   return preparePullRequest(project, control, finding, remediation, candidate);
 }
-
-

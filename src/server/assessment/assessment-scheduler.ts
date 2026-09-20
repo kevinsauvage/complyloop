@@ -9,10 +9,10 @@ import type { AssessmentWorkerResult } from "./assessment-worker";
 export type { AssessmentWorkerResult };
 
 /**
- * Single default drain size, consumed by the GH drain script, the
- * workflow docs, and the dev/e2e inline path. The Vercel worker route keeps
- * its own smaller serverless-tuned default (a limit-10 batch risks the 300s
- * ceiling) — that difference is deliberate, not drift.
+ * Single default drain size, consumed by the GH drain script, the workflow
+ * docs, and the dev/e2e inline path. There is no Vercel scan route (the old
+ * curl sweep was retired), so the GitHub Actions executor is the only drain
+ * path and this one default applies everywhere.
  */
 export const ASSESSMENT_DRAIN_DEFAULTS = {
   limit: 10,

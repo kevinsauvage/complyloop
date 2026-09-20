@@ -123,9 +123,10 @@ below) and check the Vercel function logs (filter `[event]` for
 | `GITHUB_APP_SLUG` / `GITHUB_WEBHOOK_SECRET`   | Install link + webhook verification                                                                                                                                                            |
 | `GH_WORKER_DISPATCH_TOKEN`                    | Fine-grained PAT (Actions write on the app repo) so the app can fire `repository_dispatch`; target repo from `APP_REPO_FULL_NAME` or Vercel's `VERCEL_GIT_REPO_OWNER` / `VERCEL_GIT_REPO_SLUG` |
 | `APP_REPO_FULL_NAME`                          | `owner/repo` of the app repo (dispatch target fallback)                                                                                                                                        |
-| `ASSESSMENT_MAX_CHECKOUT_BYTES`               | `100000000` (100 MB — `/tmp` caps at ~500 MB)                                                                                                                                                  |
-| `ASSESSMENT_MAX_CHECKOUT_FILES`               | `10000`                                                                                                                                                                                        |
-| `ASSESSMENT_MAX_RUNTIME_PAGES`                | `10` (fewer pages per executor run)                                                                                                                                                            |
+| `ASSESSMENT_MAX_CHECKOUT_BYTES`               | `524288000` (500 MB — matches the code default; `/tmp` caps at ~500 MB)                                                                                                                        |
+| `ASSESSMENT_MAX_CHECKOUT_FILES`               | `50000`                                                                                                                                                                                        |
+| `ASSESSMENT_MAX_CHECKOUT_SCAN_MS`             | `30000`                                                                                                                                                                                        |
+| `ASSESSMENT_MAX_RUNTIME_PAGES`                | `25`                                                                                                                                                                                           |
 | `SENTRY_DSN` (+ `NEXT_PUBLIC_SENTRY_DSN`)     | Required by `ops:check` in production                                                                                                                                                          |
 | `BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD` | Private preview gate (Basic Auth on every page; unset = open). Set both on the deployed project until public launch                                                                            |
 | `COMPLYLOOP_SUPPORT_EMAIL`                    | Shown on the Organization page                                                                                                                                                                 |
@@ -136,7 +137,8 @@ prod GitHub enforcement), `DATABASE_SSL_INSECURE`.
 
 GitHub App settings: callback
 `https://<vercel-app>/api/auth/callback/github`, webhook
-`https://<vercel-app>/api/github/webhook` (events `push`, `pull_request`).
+`https://<vercel-app>/api/github/webhook` (event `push` only; PR feedback
+arrives via the merge-push scan).
 
 ## 4. Monitoring
 

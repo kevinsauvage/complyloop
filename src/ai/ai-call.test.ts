@@ -4,7 +4,12 @@ import { z } from "zod";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
-import { AI_MODEL, aiCall, type AiErrorReport, resolveAiModel } from "./ai-call";
+import {
+  AI_MODEL,
+  aiCall,
+  type AiErrorReport,
+  resolveAiModel,
+} from "./ai-call";
 
 const NoObjectGeneratedError = vi.hoisted(
   () =>

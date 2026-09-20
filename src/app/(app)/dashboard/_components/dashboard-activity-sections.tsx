@@ -27,7 +27,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { EVIDENCE_TONE_DOT,evidenceDisplay } from "@/core/display";
+import { EVIDENCE_TONE_DOT, evidenceDisplay } from "@/core/display";
 import { cn } from "@/lib/utils";
 
 function ActivityCard({

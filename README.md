@@ -45,7 +45,7 @@ No worker process, no Vercel Cron (see [`docs/vercel.md`](./docs/vercel.md)).
 1. Create a [GitHub App](https://github.com/settings/apps):
    - Homepage: `http://localhost:3000`
    - Callback: `http://localhost:3000/api/auth/callback/github`
-   - Webhook URL: `http://localhost:3000/api/github/webhook` (events: `push`, `pull_request`)
+   - Webhook URL: `http://localhost:3000/api/github/webhook` (event: `push`; PR feedback arrives via the merge-push scan)
    - Permissions: Contents R/W, Pull requests R/W, Checks R/W, Metadata R
    - Request user authorization (OAuth) during installation
 2. In `.env.local`: `AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`, `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY` (+ `GITHUB_APP_SLUG`, `GITHUB_WEBHOOK_SECRET`)

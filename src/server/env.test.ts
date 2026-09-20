@@ -42,7 +42,8 @@ describe("server env", () => {
     expect(quota.scanTimeoutMs).toBe(30_000);
   });
 
-  it("reads support email, app URL fallbacks, and node env", () => {    vi.stubEnv("COMPLYLOOP_SUPPORT_EMAIL", "  support@example.com  ");
+  it("reads support email, app URL fallbacks, and node env", () => {
+    vi.stubEnv("COMPLYLOOP_SUPPORT_EMAIL", "  support@example.com  ");
     expect(supportEmail()).toBe("support@example.com");
     vi.stubEnv("COMPLYLOOP_SUPPORT_EMAIL", "");
     expect(supportEmail()).toBeNull();

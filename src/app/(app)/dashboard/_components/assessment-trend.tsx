@@ -27,7 +27,10 @@ export function AssessmentTrend({
   const x = (index: number) => (index / (trend.length - 1)) * 100;
   const y = (rate: number) => ((hi - rate) / span) * 100;
   const line = trend
-    .map((point, index) => `${x(index).toFixed(1)},${y(point.passRate).toFixed(1)}`)
+    .map(
+      (point, index) =>
+        `${x(index).toFixed(1)},${y(point.passRate).toFixed(1)}`,
+    )
     .join(" ");
   const area = `0,100 ${line} 100,100`;
 
@@ -70,13 +73,7 @@ export function AssessmentTrend({
           aria-label={`Pass rate trend: ${first.passRate}% to ${last.passRate}% over ${trend.length} assessments (${deltaLabel})`}
         >
           <defs>
-            <linearGradient
-              id={gradientId}
-              x1="0"
-              y1="0"
-              x2="0"
-              y2="1"
-            >
+            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="currentColor" stopOpacity="0.25" />
               <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
             </linearGradient>

@@ -94,5 +94,3 @@ export async function waitForJobSuccess(options: {
     throw new Error(`Timed out after ${timeoutMs}ms waiting for job ${jobId}.`);
   });
 }
-
-
