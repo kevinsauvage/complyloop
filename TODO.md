@@ -195,38 +195,3 @@ reliability → architecture → complexity → performance → UX → tests/doc
 **Change:** Point the spec at the real authenticated pages, include WCAG 2.1/2.2 AA and all impacts (or a documented severity floor), cover login/404/dialog states, and replace `networkidle`.
 
 **Impact:** Low
-
----
-
-### [x] Reconcile docs and comments with the code
-
-**Why:** README and `docs/vercel.md` still instruct subscribing to `push, pull_request`, but only `push` is handled; documented assessment limits differ from `.env.example`; and `assessment-scheduler.ts` references a "Vercel worker route" that does not exist. Operators following the docs misconfigure the deployment.
-
-**Where:** `README.md:48`, `docs/vercel.md:126-139`, `.env.example:69-72`, `src/server/assessment/assessment-scheduler.ts:11-16`.
-
-**Change:** Update the docs/comments to match the implemented events, defaults, and topology.
-
-**Impact:** Low
-
----
-
-## Biggest Wins
-
-1. **Close the cross-tenant membership takeover** — membership keyed on mutable login is the most serious data-integrity/security defect; one root cause, one fix.
-2. **Eliminate assessment false-pass paths** (partial runtime coverage + scoped scan on scope change) — the core promise is verified compliance; silent `passed` is the worst possible failure.
-3. **Make assessment job finalization atomic** — the lease/complete races produce duplicate or lost results and `cancelled` jobs with persisted state.
-4. **Restore a trustworthy gate that covers DB and the product-critical read paths** — without it, every other fix is unverifiable.
-5. **Make migrations transactional and deploy-safe** — protects against a stuck/failed schema and schema-ahead-of-code deploys.
-
-## Target State
-
-- The gate is green and meaningful: lint, typecheck, unit + coverage, build, DB integration, and e2e all run, and schema↔migration drift is actually detected.
-- Membership and access are keyed on immutable user ids; no cross-tenant read or takeover, and every mutation (including alerts) is permission-gated.
-- A scan either covers everything or reports `unable_to_verify`; no requirement passes and no finding resolves without complete evidence.
-- Each assessment persists exactly once regardless of cancels, retries, lease recovery, or redelivered webhooks.
-- Webhook deliveries are idempotent, coalesced without duplicates, and never silently skip a matching tenant.
-- Migrations apply atomically on production deploys only, with a documented rollback path.
-- The findings list and filtered views are index-backed and scale with data.
-- Ops checks fail loudly on missing production config, and failure alerts actually fire.
-- Docs and comments match the implemented events, limits, and topology.
-- Dead exports and duplicated helpers are gone, leaving a smaller surface to maintain.

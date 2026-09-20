@@ -3,6 +3,10 @@ import userEvent from "@testing-library/user-event";
 import Link from "next/link";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+// Static import: the module transform must not run inside a test body, where
+// it counts against the per-test timeout under parallel load.
+import { AppShell } from "./app-shell";
+
 vi.mock("next/navigation", () => ({
   usePathname: () => "/dashboard",
 }));
@@ -18,7 +22,6 @@ afterEach(() => {
 describe("AppShell", () => {
   it("exposes a skip link to main content and a mobile menu control", async () => {
     const user = userEvent.setup();
-    const { AppShell } = await import("./app-shell");
     render(
       <AppShell
         workspaceContext={<div>Context</div>}
@@ -43,7 +46,6 @@ describe("AppShell", () => {
 
   it("closes the mobile sheet when a server-rendered nav link is clicked", async () => {
     const user = userEvent.setup();
-    const { AppShell } = await import("./app-shell");
     render(
       <AppShell
         workspaceContext={<div>Context</div>}

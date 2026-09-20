@@ -6,6 +6,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import AppError from "./error";
 import NotFound from "./not-found";
 
+// `not-found.tsx` is a server page that reads the session via `@/auth`.
+// Mock the auth entry so the test never loads next-auth (whose `next/server`
+// import Vitest cannot resolve) and renders the unauthenticated branch.
+vi.mock("@/auth", () => ({
+  isGitHubAuthConfigured: () => false,
+}));
+
 afterEach(() => {
   cleanup();
 });
@@ -41,8 +48,8 @@ describe("app error and not-found pages", () => {
     expect(Sentry.captureException).toHaveBeenCalled();
   });
 
-  it("renders not-found with a path back to the dashboard", () => {
-    render(<NotFound />);
+  it("renders not-found with a path back to the dashboard", async () => {
+    render(await NotFound());
     expect(
       screen.getByRole("heading", { name: "Page not found" }),
     ).toBeInTheDocument();

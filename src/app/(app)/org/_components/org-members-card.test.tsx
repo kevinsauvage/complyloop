@@ -4,6 +4,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { OrgMembership } from "@complyloop/analysis-core/contract/project-types";
 
+// Static import: the module transform must not run inside a test body, where
+// it counts against the per-test timeout under parallel load.
+import { OrgMembersCard } from "./org-members-card";
+
 vi.mock("@/server/actions/org", () => ({
   changeOrgMemberRoleAction: vi.fn(async () => ({
     error: null,
@@ -37,7 +41,6 @@ function member(
 describe("OrgMembersCard", () => {
   it("lets managers change member/viewer roles and revoke pending invites", async () => {
     const user = userEvent.setup();
-    const { OrgMembersCard } = await import("./org-members-card");
 
     render(
       <OrgMembersCard
@@ -85,8 +88,7 @@ describe("OrgMembersCard", () => {
     );
   });
 
-  it("hides admin peer controls unless canAssignAdmin", async () => {
-    const { OrgMembersCard } = await import("./org-members-card");
+  it("hides admin peer controls unless canAssignAdmin", () => {
     render(
       <OrgMembersCard
         orgId="org-1"
@@ -108,8 +110,7 @@ describe("OrgMembersCard", () => {
     expect(screen.queryByRole("button", { name: /remove/i })).toBeNull();
   });
 
-  it("hides management controls when canManage is false", async () => {
-    const { OrgMembersCard } = await import("./org-members-card");
+  it("hides management controls when canManage is false", () => {
     render(
       <OrgMembersCard
         orgId="org-1"
