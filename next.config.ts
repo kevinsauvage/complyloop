@@ -50,15 +50,14 @@ const nextConfig: NextConfig = {
   // file tracing only follows JS imports — on Vercel the JSON never made it
   // into the function bundle (`Cannot find module .../browsers.json`, surfaced
   // as generic "Runtime scan failed."). 1 KB, so it goes to every route.
-  // `axe-core/axe.min.js` is disk-loaded by the runtime checks; the runtime
-  // audit now runs on the GitHub Actions executor, not in a Vercel function,
-  // but the include is kept (1 KB) so a future in-app runtime path does not
-  // silently lose it.
+  // Only `browsers.json` is included here. The old `/*` include of
+  // `axe-core/axe.min.js` was dropped: the runtime audit runs on the GitHub
+  // Actions executor, so no Vercel function loads it, yet the `/*` glob pulled
+  // axe-core into all 24 functions (~17 MB of Deployment Storage per
+  // deployment). The executor resolves it from `node_modules` and ignores this
+  // config entirely.
   outputFileTracingIncludes: {
-    "/*": [
-      "./node_modules/playwright-core/browsers.json",
-      "./node_modules/axe-core/axe.min.js",
-    ],
+    "/*": ["./node_modules/playwright-core/browsers.json"],
   },
   // Belt-and-braces guard: no Vercel-reachable module imports the runtime scan
   // stack anymore (remediation verify moved to the `verify_remediation`
@@ -70,10 +69,16 @@ const nextConfig: NextConfig = {
   // (`node_modules/playwright-core-<hash>`), which a bare `/` path misses.
   // The GitHub Actions executor resolves both packages from `node_modules`
   // and ignores this config entirely.
+  // Runtime-audit engines are worker-only (GitHub Actions executor). Nothing
+  // Vercel-reachable imports them at runtime, but they are still traced into
+  // the functions that reach the worker graph, so they are excluded here too.
   outputFileTracingExcludes: {
     "/*": [
       "./node_modules/@sparticuz/chromium*",
       "./node_modules/playwright-core*",
+      "./node_modules/axe-core*",
+      "./node_modules/html-validate*",
+      "./node_modules/linkinator*",
     ],
   },
   transpilePackages: [
