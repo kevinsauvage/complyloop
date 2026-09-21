@@ -50,17 +50,30 @@ const nextConfig: NextConfig = {
   // file tracing only follows JS imports — on Vercel the JSON never made it
   // into the function bundle (`Cannot find module .../browsers.json`, surfaced
   // as generic "Runtime scan failed."). 1 KB, so it goes to every route.
-  // Same for `axe-core/axe.min.js`: the remediation-verify re-checks run
-  // inside finding-page actions, so only a global
-  // include keeps them working in production.
-  // `@sparticuz/chromium` stays in `serverExternalPackages` above (never
-  // bundled) but its `bin/*.br` binaries are no longer force-included
-  // anywhere: the only consumer was the deleted Vercel worker route, and
-  // the GitHub Actions executor resolves the package from `node_modules`.
+  // `axe-core/axe.min.js` is disk-loaded by the runtime checks; the runtime
+  // audit now runs on the GitHub Actions executor, not in a Vercel function,
+  // but the include is kept (1 KB) so a future in-app runtime path does not
+  // silently lose it.
   outputFileTracingIncludes: {
     "/*": [
       "./node_modules/playwright-core/browsers.json",
       "./node_modules/axe-core/axe.min.js",
+    ],
+  },
+  // Belt-and-braces guard: no Vercel-reachable module imports the runtime scan
+  // stack anymore (remediation verify moved to the `verify_remediation`
+  // worker job), so chromium/playwright must never be traced into a function.
+  // These excludes keep the ~80 MB out of every function's trace even if a
+  // future import re-introduces reachability — the two small includes above
+  // are unaffected (different paths). The trailing `*` also matches the
+  // hashed external-package staging dirs Turbopack emits
+  // (`node_modules/playwright-core-<hash>`), which a bare `/` path misses.
+  // The GitHub Actions executor resolves both packages from `node_modules`
+  // and ignores this config entirely.
+  outputFileTracingExcludes: {
+    "/*": [
+      "./node_modules/@sparticuz/chromium*",
+      "./node_modules/playwright-core*",
     ],
   },
   transpilePackages: [

@@ -16,6 +16,10 @@ export const ASSESSMENT_JOB_STATUSES = [
 
 export type AssessmentJobStatus = (typeof ASSESSMENT_JOB_STATUSES)[number];
 
-export const ASSESSMENT_JOB_TRIGGERS = ["manual", "webhook"] as const;
+export const ASSESSMENT_JOB_TRIGGERS = [
+  "manual",
+  "webhook",
+  "verify_remediation",
+] as const;
 
 export type AssessmentJobTrigger = (typeof ASSESSMENT_JOB_TRIGGERS)[number];

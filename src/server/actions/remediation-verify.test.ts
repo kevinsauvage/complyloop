@@ -2,7 +2,6 @@ import "@/test-fixtures/register-action-workspace-mock";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SITE_VERIFY_TIMEOUT_MS } from "@complyloop/analysis-core/contract/assessment-limits";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 
 import { initialActionState } from "@/core/actions/action-state";
@@ -25,10 +24,9 @@ import {
 } from "./remediation-verify";
 
 const { getWorkspace } = actionWorkspaceMocks;
-const locateViolationInProject = vi.hoisted(() => vi.fn());
-const runtimeViolationStillPresent = vi.hoisted(() => vi.fn());
-const scanRuntime = vi.hoisted(() => vi.fn());
-const applyRequirementStatusRefresh = vi.hoisted(() => vi.fn());
+const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
+const recoverExpiredAssessmentLeases = vi.hoisted(() => vi.fn());
+const scheduleAssessmentDrain = vi.hoisted(() => vi.fn());
 const assertRemediationRateLimit = vi.hoisted(() => vi.fn());
 
 vi.mock("../rate-limit", async () => {
@@ -41,13 +39,28 @@ vi.mock("../rate-limit", async () => {
   };
 });
 
-vi.mock("../assessment/repo-checkout", () => ({
-  withProjectCheckout: async (
-    _project: unknown,
-    fn: (rootPath: string) => Promise<unknown>,
-  ) => fn("/tmp/ephemeral-checkout"),
-  withRepoCheckout: vi.fn(),
-}));
+vi.mock("../assessment/assessment-jobs", async () => {
+  const actual = await vi.importActual<
+    typeof import("../assessment/assessment-jobs")
+  >("../assessment/assessment-jobs");
+  return {
+    ...actual,
+    enqueueAssessmentJob: (...args: unknown[]) => enqueueAssessmentJob(...args),
+    recoverExpiredAssessmentLeases: (...args: unknown[]) =>
+      recoverExpiredAssessmentLeases(...args),
+  };
+});
+
+vi.mock("../assessment/assessment-scheduler", async () => {
+  const actual = await vi.importActual<
+    typeof import("../assessment/assessment-scheduler")
+  >("../assessment/assessment-scheduler");
+  return {
+    ...actual,
+    scheduleAssessmentDrain: (...args: unknown[]) =>
+      scheduleAssessmentDrain(...args),
+  };
+});
 
 vi.mock("../observability", () => ({
   reportError: vi.fn(),
@@ -55,35 +68,13 @@ vi.mock("../observability", () => ({
   reportAppError: vi.fn(),
 }));
 
-vi.mock("../assessment/assessment-findings", async () => {
-  const actual = await vi.importActual<
-    typeof import("../assessment/assessment-findings")
-  >("../assessment/assessment-findings");
-  return {
-    ...actual,
-    buildSuggestion: vi.fn(() => null),
-    locateViolationInProject: (...args: unknown[]) =>
-      locateViolationInProject(...args),
-    mergeFix: vi.fn((existing, fresh) => fresh ?? existing),
-  };
+// This suite runs on the inline-drain path (dev/e2e) so the enqueue result
+// surfaces as the action's return message without needing `after()`.
+vi.mock("../e2e-harness", async () => {
+  const actual =
+    await vi.importActual<typeof import("../e2e-harness")>("../e2e-harness");
+  return { ...actual, isE2EHarnessEnabled: () => true };
 });
-
-vi.mock("../assessment/assessment-status", async () => {
-  const actual = await vi.importActual<
-    typeof import("../assessment/assessment-status")
-  >("../assessment/assessment-status");
-  return {
-    ...actual,
-    applyRequirementStatusRefresh: (...args: unknown[]) =>
-      applyRequirementStatusRefresh(...args),
-  };
-});
-
-vi.mock("@complyloop/analysis-core/runtime/scan", () => ({
-  runtimeViolationStillPresent: (...args: unknown[]) =>
-    runtimeViolationStillPresent(...args),
-  scanRuntime: (...args: unknown[]) => scanRuntime(...args),
-}));
 
 const project = testProject({ orgId: "org-1" });
 const finding = testFinding();
@@ -109,13 +100,25 @@ function baseWorkspace(
   });
 }
 
+const domFinding = () =>
+  testFinding({
+    location: {
+      kind: "dom",
+      url: "https://preview.test/",
+      selector: "img",
+      snippet: "<img>",
+    },
+  });
+
 afterEach(() => {
   clearProjectWritePayloads();
   vi.clearAllMocks();
+  scheduleAssessmentDrain.mockReset();
+  enqueueAssessmentJob.mockReset();
 });
 
 describe("verifyRemediationAction", () => {
-  it("denies viewers before running any re-audit", async () => {
+  it("denies viewers before enqueueing", async () => {
     const viewer = baseWorkspace({}, "viewer");
     viewer.access.memberships = [];
     getWorkspace.mockResolvedValue(viewer);
@@ -127,12 +130,11 @@ describe("verifyRemediationAction", () => {
     );
 
     expect(result.ok ? null : result.message).toMatch(/Not allowed/);
-    expect(scanRuntime).not.toHaveBeenCalled();
-    expect(runtimeViolationStillPresent).not.toHaveBeenCalled();
+    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
     expect(projectWritePayload()).toBeUndefined();
   });
 
-  it("refuses to verify a source finding by applying a local patch", async () => {
+  it("refuses to verify a source finding", async () => {
     const workspace = baseWorkspace();
     getWorkspace.mockResolvedValue(workspace);
 
@@ -145,8 +147,8 @@ describe("verifyRemediationAction", () => {
     expect(result.ok ? null : result.message).toMatch(
       /draft pull request|re-assess/i,
     );
+    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
     expect(projectWritePayload()).toBeUndefined();
-    expect(locateViolationInProject).not.toHaveBeenCalled();
   });
 
   it("rejects automated verify until the remediation is implemented", async () => {
@@ -164,64 +166,29 @@ describe("verifyRemediationAction", () => {
     );
 
     expect(result.ok ? null : result.message).toMatch(/implemented/);
+    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
     expect(projectWritePayload()).toBeUndefined();
   });
 
-  it("rejects when a concurrent write already verified the remediation", async () => {
-    const domFinding = testFinding({
-      location: {
-        kind: "dom",
-        url: "https://preview.test/",
-        selector: "img",
-        snippet: "<img>",
-      },
-    });
-    const preview = baseWorkspace({
-      findings: [domFinding],
-      remediations: [
-        testRemediation({
-          status: "implemented",
-          suggestion: null,
-          history: [],
-        }),
-      ],
-    });
-    const locked = baseWorkspace({
-      findings: [domFinding],
-      remediations: [
-        testRemediation({ status: "verified", suggestion: null, history: [] }),
-      ],
-    });
-    getWorkspace.mockResolvedValue(preview);
-    mockProjectWrite(locked);
-    runtimeViolationStillPresent.mockResolvedValue(false);
-
-    const result = await verifyRemediationAction(
-      "f1",
-      initialActionState,
-      new FormData(),
-    );
-
-    expect(result.ok ? null : result.message).toMatch(/implemented/);
-    expect(projectWritePayload()).toBeUndefined();
-  });
-
-  it("verifies a runtime finding when the DOM re-audit is clean", async () => {
-    const workspace = baseWorkspace({
-      findings: [
-        testFinding({
-          location: {
-            kind: "dom",
-            url: "https://preview.test/",
-            selector: "img",
-            snippet: "<img>",
-          },
-        }),
-      ],
-    });
+  it("enqueues a verify_remediation job for a runtime finding", async () => {
+    const workspace = baseWorkspace({ findings: [domFinding()] });
     getWorkspace.mockResolvedValue(workspace);
     mockProjectWrite(workspace);
-    runtimeViolationStillPresent.mockResolvedValue(false);
+    enqueueAssessmentJob.mockResolvedValue({
+      id: "job-1",
+      projectId: "p1",
+      status: "queued",
+      trigger: "verify_remediation",
+      payload: { findingId: "f1" },
+      attempts: 0,
+      maxAttempts: 3,
+      availableAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    scheduleAssessmentDrain.mockResolvedValue(
+      "Fix verified by automated re-check.",
+    );
 
     const result = await verifyRemediationAction(
       "f1",
@@ -229,236 +196,19 @@ describe("verifyRemediationAction", () => {
       new FormData(),
     );
 
-    expect(result).toEqual({
-      ok: true,
-      message: "Fix verified by automated re-check.",
-    });
-    expect(projectWritePayload()?.remediations?.[0]?.status).toBe("verified");
-    expect(projectWritePayload()?.findings?.[0]?.status).toBe("resolved");
+    expect(enqueueAssessmentJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "p1",
+        trigger: "verify_remediation",
+        payload: { findingId: "f1" },
+      }),
+    );
+    expect(result.ok ? result.message : null).toMatch(/verified|queued/i);
+    expect(projectWritePayload()?.evidence?.[0]?.kind).toBe("assessment_job");
     expect(assertRemediationRateLimit).toHaveBeenCalled();
-    expect(applyRequirementStatusRefresh).toHaveBeenCalledWith(
-      expect.any(Object),
-      expect.objectContaining({ id: "p1" }),
-      expect.objectContaining({
-        controlIds: ["ctl-img-alt"],
-        runtimeRan: true,
-      }),
-    );
   });
 
-  it("verifies a site-level finding only after a clean site-level re-audit", async () => {
-    const workspace = baseWorkspace({
-      findings: [
-        testFinding({
-          checkId: "consistent-nav",
-          location: {
-            kind: "site",
-            pages: ["/", "/about"],
-            detail: "Navigation differs across pages",
-          },
-        }),
-      ],
-    });
-    getWorkspace.mockResolvedValue(workspace);
-    mockProjectWrite(workspace);
-    scanRuntime.mockResolvedValue({
-      findings: [],
-      pagesScanned: 2,
-      siteLevelChecksRan: true,
-    });
-
-    const result = await verifyRemediationAction(
-      "f1",
-      initialActionState,
-      new FormData(),
-    );
-
-    expect(result).toEqual({
-      ok: true,
-      message: "Fix verified by automated re-check.",
-    });
-    expect(locateViolationInProject).not.toHaveBeenCalled();
-    // Only the finding's own pages are re-audited, not the project's full
-    // route set.
-    expect(scanRuntime).toHaveBeenCalledWith(
-      expect.objectContaining({ runtimeRoutes: ["/", "/about"] }),
-    );
-    expect(projectWritePayload()?.remediations?.[0]?.status).toBe("verified");
-    expect(applyRequirementStatusRefresh).toHaveBeenCalledWith(
-      expect.any(Object),
-      expect.objectContaining({ id: "p1" }),
-      expect.objectContaining({
-        controlIds: ["ctl-img-alt"],
-        runtimeRan: true,
-        siteLevelChecksRan: true,
-      }),
-    );
-  });
-
-  it("does not verify a site-level finding when the site-level audit did not run", async () => {
-    const workspace = baseWorkspace({
-      findings: [
-        testFinding({
-          checkId: "consistent-nav",
-          location: {
-            kind: "site",
-            pages: ["/", "/about"],
-            detail: "Navigation differs across pages",
-          },
-        }),
-      ],
-    });
-    getWorkspace.mockResolvedValue(workspace);
-    mockProjectWrite(workspace);
-    scanRuntime.mockResolvedValue({
-      findings: [],
-      pagesScanned: 1,
-      siteLevelChecksRan: false,
-    });
-
-    const result = await verifyRemediationAction(
-      "f1",
-      initialActionState,
-      new FormData(),
-    );
-
-    expect(result.message).toMatch(/Site checks did not run/i);
-    expect(result.ok ? null : result.message).toBeNull();
-    expect(projectWritePayload()?.remediations?.[0]?.status).toBe(
-      "implemented",
-    );
-  });
-
-  it("fails closed with a timeout message when the site re-audit hangs", async () => {
-    const workspace = baseWorkspace({
-      findings: [
-        testFinding({
-          checkId: "consistent-nav",
-          location: {
-            kind: "site",
-            pages: ["/", "/about"],
-            detail: "Navigation differs across pages",
-          },
-        }),
-      ],
-    });
-    getWorkspace.mockResolvedValue(workspace);
-    mockProjectWrite(workspace);
-    scanRuntime.mockReturnValue(new Promise(() => {}));
-
-    vi.useFakeTimers();
-    try {
-      const pending = verifyRemediationAction(
-        "f1",
-        initialActionState,
-        new FormData(),
-      );
-      await vi.advanceTimersByTimeAsync(SITE_VERIFY_TIMEOUT_MS + 1);
-      const result = await pending;
-
-      expect(result.message).toMatch(/timed out/i);
-      expect(scanRuntime).toHaveBeenCalledTimes(1);
-      // Fail closed: recorded as still-failing, never verified.
-      expect(projectWritePayload()?.remediations?.[0]?.status).toBe(
-        "implemented",
-      );
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("reports still-failing when the runtime finding is still on the page", async () => {
-    const workspace = baseWorkspace({
-      findings: [
-        testFinding({
-          location: {
-            kind: "dom",
-            url: "https://preview.test/",
-            selector: "img",
-            snippet: "<img>",
-          },
-        }),
-      ],
-    });
-    getWorkspace.mockResolvedValue(workspace);
-    mockProjectWrite(workspace);
-    runtimeViolationStillPresent.mockResolvedValue(true);
-
-    const result = await verifyRemediationAction(
-      "f1",
-      initialActionState,
-      new FormData(),
-    );
-
-    expect(result.message).toMatch(/still failing|still detected/i);
-    expect(result.ok ? null : result.message).toBeNull();
-    expect(projectWritePayload()?.remediations?.[0]?.status).toBe(
-      "implemented",
-    );
-  });
-
-  it("verifies a resolved runtime finding when the DOM re-audit is clean", async () => {
-    const resolvedFinding = testFinding({
-      status: "resolved",
-      resolvedNote: "No longer detected by the latest assessment.",
-      location: {
-        kind: "dom",
-        url: "https://preview.test/",
-        selector: "img",
-        snippet: "<img>",
-      },
-    });
-    const workspace = baseWorkspace({
-      findings: [resolvedFinding],
-    });
-    getWorkspace.mockResolvedValue(workspace);
-    mockProjectWrite(workspace);
-    runtimeViolationStillPresent.mockResolvedValue(false);
-
-    const result = await verifyRemediationAction(
-      "f1",
-      initialActionState,
-      new FormData(),
-    );
-
-    expect(result).toEqual({
-      ok: true,
-      message: "Fix verified by automated re-check.",
-    });
-    expect(projectWritePayload()?.remediations?.[0]?.status).toBe("verified");
-    // The resolution stands — the finding row is untouched by the verify.
-    expect(projectWritePayload()?.findings?.[0]?.status).toBe("resolved");
-  });
-
-  it("re-opens a resolved finding when the re-audit still detects it", async () => {
-    const resolvedFinding = testFinding({
-      status: "resolved",
-      resolvedNote: "No longer detected by the latest assessment.",
-      location: {
-        kind: "dom",
-        url: "https://preview.test/",
-        selector: "img",
-        snippet: "<img>",
-      },
-    });
-    const workspace = baseWorkspace({
-      findings: [resolvedFinding],
-    });
-    getWorkspace.mockResolvedValue(workspace);
-    mockProjectWrite(workspace);
-    runtimeViolationStillPresent.mockResolvedValue(true);
-
-    const result = await verifyRemediationAction(
-      "f1",
-      initialActionState,
-      new FormData(),
-    );
-
-    expect(result.message).toMatch(/still failing|still detected/i);
-    expect(projectWritePayload()?.findings?.[0]?.status).toBe("open");
-  });
-
-  it("rejects verify for a dismissed finding", async () => {
+  it("rejects a dismissed finding", async () => {
     const workspace = baseWorkspace({
       findings: [
         testFinding({
@@ -468,18 +218,12 @@ describe("verifyRemediationAction", () => {
             note: "decorative",
             at: "2026-01-01T00:00:00.000Z",
           },
-          location: {
-            kind: "dom",
-            url: "https://preview.test/",
-            selector: "img",
-            snippet: "<img>",
-          },
+          location: domFinding().location,
         }),
       ],
     });
     getWorkspace.mockResolvedValue(workspace);
     mockProjectWrite(workspace);
-    runtimeViolationStillPresent.mockResolvedValue(false);
 
     const result = await verifyRemediationAction(
       "f1",
@@ -487,8 +231,9 @@ describe("verifyRemediationAction", () => {
       new FormData(),
     );
 
-    expect(result.ok ? null : result.message).toMatch(/no longer open/i);
+    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
     expect(projectWritePayload()).toBeUndefined();
+    expect(result.ok ? result.message : "").not.toMatch(/verified/i);
   });
 });
 
@@ -531,7 +276,7 @@ describe("attestRemediationVerifiedAction", () => {
     expect(
       evidence.some((item) => item.kind === "remediation_manually_verified"),
     ).toBe(true);
-    expect(runtimeViolationStillPresent).not.toHaveBeenCalled();
+    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
   });
 
   it("requires a confirmation note", async () => {

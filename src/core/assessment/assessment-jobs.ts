@@ -32,6 +32,10 @@ export const assessmentJobPayloadSchema = z.object({
   // parse — the worker treats any non-push webhook job as non-authoritative.
   eventName: z.enum(["push", "pull_request"]).optional(),
   supersededRefs: z.array(z.string()).optional(),
+  // `verify_remediation` jobs only: the finding whose implemented remediation
+  // should be re-audited. Carried on the payload (not a new column) so the
+  // queue stays one table and the worker can resolve the finding itself.
+  findingId: z.string().optional(),
   stage: assessmentJobStageSchema.optional(),
   stageStartedAt: z.string().optional(),
 });

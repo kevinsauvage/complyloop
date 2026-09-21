@@ -18,9 +18,9 @@ import path from "node:path";
 
 import {
   ASSESSMENT_DRAIN_DEFAULTS,
-  closeAssessmentWorker,
   runAssessmentJobBatch,
 } from "../src/server/assessment/assessment-scheduler";
+import { closeAssessmentWorker } from "../src/server/assessment/assessment-worker";
 import { loadLocalEnv } from "./env";
 
 function numeric(name: string, fallback: number): number {

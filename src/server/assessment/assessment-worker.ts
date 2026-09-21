@@ -182,6 +182,57 @@ export type RunningAssessmentJobResult = Exclude<
 >;
 
 /**
+ * Executes a claimed `verify_remediation` job: re-audit one finding's
+ * implemented remediation on the worker and apply the verdict. Much shorter
+ * than an assessment (no checkout, no full pipeline), and its single browser
+ * re-audit is far below the lease, so it needs no heartbeat. The handler is
+ * reached through dynamic `import()` so the scan stack never enters this
+ * module's static graph.
+ */
+async function settleRunningVerifyJob(
+  job: AssessmentJob,
+): Promise<RunningAssessmentJobResult> {
+  const findingId = job.payload.findingId;
+  reportEvent("remediation verify job claimed", {
+    code: "remediation_verify_job_claimed",
+    jobId: job.id,
+    projectId: job.projectId,
+    findingId,
+    attempts: job.attempts,
+  });
+  if (!findingId) {
+    await failAssessmentJob(job, new Error("Verify job missing findingId."));
+    return { kind: "failed", jobId: job.id };
+  }
+  try {
+    const { runRemediationVerifyJob } =
+      await import("./remediation-verify-worker");
+    await runRemediationVerifyJob(findingId);
+    await completeAssessmentJob(job);
+    reportEvent("remediation verify job completed", {
+      code: "remediation_verify_job_succeeded",
+      jobId: job.id,
+      projectId: job.projectId,
+      findingId,
+    });
+    return { kind: "succeeded", jobId: job.id };
+  } catch (error) {
+    const status = await failAssessmentJob(job, error);
+    reportError(error, {
+      code:
+        status === "failed"
+          ? "remediation_verify_job_failed"
+          : "remediation_verify_job_retrying",
+      jobId: job.id,
+      projectId: job.projectId,
+      findingId,
+      attempts: job.attempts,
+    });
+    return { kind: status === "failed" ? "failed" : "retrying", jobId: job.id };
+  }
+}
+
+/**
  * Executes an already-`running` job to a terminal state: run the scan, then
  * complete, cancel, or fail it. Shared by the claim loop below, so worker
  * runs have identical persistence, cancellation, and retry semantics no
@@ -190,6 +241,9 @@ export type RunningAssessmentJobResult = Exclude<
 export async function settleRunningAssessmentJob(
   job: AssessmentJob,
 ): Promise<RunningAssessmentJobResult> {
+  if (job.trigger === "verify_remediation") {
+    return settleRunningVerifyJob(job);
+  }
   reportEvent("assessment job claimed", {
     code: "assessment_job_claimed",
     jobId: job.id,
@@ -257,4 +311,34 @@ export async function settleRunningAssessmentJob(
     return { kind: "idle" };
   }
   return settleRunningAssessmentJob(job);
+}
+
+/**
+ * Long-lived executor teardown (GitHub Actions drain script): close the
+ * cached browser and the DB pool so the process can exit after the batch
+ * summary prints. Serverless invocations never call this — the container
+ * dies with the request, and this module is never statically reached from a
+ * Vercel route. Best-effort and never throws; the caller still exits with
+ * its own code.
+ */
+export async function closeAssessmentWorker(): Promise<void> {
+  try {
+    const { closeRuntimeBrowser } =
+      await import("@complyloop/analysis-core/runtime/scan");
+    await closeRuntimeBrowser();
+  } catch (error) {
+    reportWarning("Assessment worker browser close failed.", {
+      code: "assessment_worker_teardown_failed",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+  try {
+    const { closeDrizzle } = await import("@complyloop/db/postgres");
+    await closeDrizzle();
+  } catch (error) {
+    reportWarning("Assessment worker DB close failed.", {
+      code: "assessment_worker_teardown_failed",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }

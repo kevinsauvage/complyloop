@@ -26,6 +26,12 @@ const listAlertsForProject = vi.hoisted(() => vi.fn());
 const insertEvidence = vi.hoisted(() => vi.fn());
 const acquireNamedPostgresAdvisoryLock = vi.hoisted(() => vi.fn());
 const transaction = vi.hoisted(() => vi.fn());
+const runRemediationVerifyJob = vi.hoisted(() => vi.fn());
+
+vi.mock("./remediation-verify-worker", () => ({
+  runRemediationVerifyJob: (...args: unknown[]) =>
+    runRemediationVerifyJob(...args),
+}));
 
 vi.mock("./assessment-jobs", async () => {
   const actual =
@@ -192,6 +198,43 @@ afterEach(() => {
 });
 
 describe("settleRunningAssessmentJob", () => {
+  it("routes a verify_remediation job to the remediation verify handler", async () => {
+    runRemediationVerifyJob.mockResolvedValue(undefined);
+    completeAssessmentJob.mockResolvedValue(undefined);
+
+    const verifyJob = job({
+      trigger: "verify_remediation",
+      payload: { findingId: "f1" },
+    });
+    await expect(settleRunningAssessmentJob(verifyJob)).resolves.toEqual({
+      kind: "succeeded",
+      jobId: "job-1",
+    });
+    expect(runRemediationVerifyJob).toHaveBeenCalledWith("f1");
+    // The verify path must not run the assessment pipeline.
+    expect(runAssessment).not.toHaveBeenCalled();
+  });
+
+  it("fails a verify_remediation job that carries no findingId", async () => {
+    failAssessmentJob.mockResolvedValue("failed");
+
+    await expect(
+      settleRunningAssessmentJob(job({ trigger: "verify_remediation" })),
+    ).resolves.toEqual({ kind: "failed", jobId: "job-1" });
+    expect(runRemediationVerifyJob).not.toHaveBeenCalled();
+  });
+
+  it("retries a verify_remediation job when the re-audit throws", async () => {
+    runRemediationVerifyJob.mockRejectedValue(new Error("browser died"));
+    failAssessmentJob.mockResolvedValue("queued");
+
+    await expect(
+      settleRunningAssessmentJob(
+        job({ trigger: "verify_remediation", payload: { findingId: "f1" } }),
+      ),
+    ).resolves.toEqual({ kind: "retrying", jobId: "job-1" });
+  });
+
   it("runs an already-running job to completion without claiming", async () => {
     const db = projectDb();
     loadProjectDb.mockResolvedValue(db);

@@ -196,9 +196,13 @@ function ActControls({
           <StatefulActionForm
             action={verifyRemediationAction.bind(null, finding.id)}
             submitLabel="Verify fix (automated re-check)"
-            pendingLabel="Verifying…"
+            pendingLabel="Queueing…"
             variant="default"
           />
+          <p className="text-xs text-muted-foreground">
+            The re-audit runs on the worker and can take a minute — the result
+            appears on this finding when it finishes.
+          </p>
           {finding.status === "resolved" ? (
             <StatefulActionForm
               action={attestRemediationVerifiedAction.bind(null, finding.id)}

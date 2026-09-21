@@ -32,12 +32,15 @@ export interface AssessmentJobBatchOptions {
 
 /**
  * Module-boundary contract (documented once, here): trigger sites
- * (`actions/assessment.ts`, the webhook route) import only
- * `scheduleAssessmentDrain` / `shouldDrainAssessmentJobsInline` from this
- * module and must never statically reach the scan stack. The batch loop
- * below therefore reaches `assessment-worker.ts` (and the teardown reaches
- * the browser/DB singletons) through dynamic `import()` — the static graph
- * of this module is dispatch + harness + rate-limit + observability only.
+ * (`actions/assessment.ts`, `actions/remediation-verify.ts`, the webhook
+ * route) import only `scheduleAssessmentDrain` / `shouldDrainAssessmentJobsInline`
+ * from this module and must never statically reach the scan stack. The batch
+ * loop below therefore reaches `assessment-worker.ts` through dynamic
+ * `import()` — the static graph of this module is dispatch + harness +
+ * rate-limit + observability only. The browser/DB teardown lives in
+ * `assessment-worker.ts` (worker-only) for the same reason: it is the only
+ * `runtime/scan` reachability left, and it must never be traced into a
+ * Vercel function.
  */
 async function runSequential(
   runNext: () => Promise<AssessmentWorkerResult>,
@@ -114,35 +117,6 @@ export async function runAssessmentJobBatch(
 
   await Promise.all(Array.from({ length: concurrency }, () => worker()));
   return results;
-}
-
-/**
- * Long-lived executor teardown (GitHub Actions drain script): close the
- * cached browser and the DB pool so the process can exit after the batch
- * summary prints. Serverless invocations never call this — the container
- * dies with the request. Best-effort and never throws; the caller still
- * exits with its own code.
- */
-export async function closeAssessmentWorker(): Promise<void> {
-  try {
-    const { closeRuntimeBrowser } =
-      await import("@complyloop/analysis-core/runtime/scan");
-    await closeRuntimeBrowser();
-  } catch (error) {
-    reportWarning("Assessment worker browser close failed.", {
-      code: "assessment_worker_teardown_failed",
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-  try {
-    const { closeDrizzle } = await import("@complyloop/db/postgres");
-    await closeDrizzle();
-  } catch (error) {
-    reportWarning("Assessment worker DB close failed.", {
-      code: "assessment_worker_teardown_failed",
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
 }
 
 /**
