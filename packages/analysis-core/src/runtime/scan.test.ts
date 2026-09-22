@@ -58,50 +58,47 @@ describe("runAxeOnPage", () => {
     30_000,
   );
 
-  it("continues when injection throws but axe landed (CSP race noise)", async () => {
-    // Models Playwright's `_raceWithCSPError`: a third-party beacon blocked
-    // by the page's own CSP rejects addScriptTag even though the script
-    // appended fine. The presence re-check distinguishes noise from failure.
-    // Present-check calls pass a single arg; the axe.run call passes two.
-    let presentCalls = 0;
-    let injections = 0;
-    const page = {
-      evaluate: async (...args: unknown[]) => {
-        if (args.length === 1) {
-          presentCalls++;
-          return presentCalls >= 2;
-        }
-        return { violations: [], incomplete: [] };
-      },
-      addScriptTag: async () => {
-        injections++;
-        throw new Error(
-          "page.addScriptTag: Connecting to 'https://tracker.example.com/api/send' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-        );
-      },
-    } as unknown as Page;
-    const result = await runAxeOnPage(page);
-    expect(result.violations).toEqual([]);
-    expect(injections).toBe(1);
-  });
-
-  it("fails closed with a CSP message when injection never lands", async () => {
-    let injections = 0;
+  it("fails closed when the engine never initializes", async () => {
     const page = {
       evaluate: async (...args: unknown[]) => {
         if (args.length === 1) return false;
         return { violations: [], incomplete: [] };
       },
-      addScriptTag: async () => {
-        injections++;
-        throw new Error(
-          "page.addScriptTag: Refused to execute inline script because it violates the following Content Security Policy directive: \"script-src 'self'\".",
-        );
-      },
     } as unknown as Page;
-    await expect(runAxeOnPage(page)).rejects.toThrow(/Content Security Policy/);
-    expect(injections).toBe(3);
+    await expect(runAxeOnPage(page)).rejects.toThrow(
+      /Could not initialize the accessibility engine/,
+    );
   });
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "loads the engine on a page whose script-src blocks injected <script> elements",
+    async () => {
+      // addScriptTag appends a <script> element, which the page's script-src
+      // governs; page.evaluate goes through the debugger protocol and is not
+      // restricted. This is the strict-CSP preview that previously failed.
+      if (!browser) browser = await chromium.launch({ headless: true });
+      const context = await browser.newContext();
+      try {
+        const page = await context.newPage();
+        await page.route("https://strict-csp.example/**", (route) =>
+          route.fulfill({
+            contentType: "text/html",
+            headers: {
+              "content-security-policy":
+                "default-src 'self'; script-src 'self'",
+            },
+            body: `<!doctype html><html lang="en"><head><title>t</title></head><body><img src="x"></body></html>`,
+          }),
+        );
+        await page.goto("https://strict-csp.example/");
+        const result = await runAxeOnPage(page);
+        expect(result.violations.some((v) => v.id === "image-alt")).toBe(true);
+      } finally {
+        await context.close();
+      }
+    },
+    30_000,
+  );
 
   it.skipIf(!chromiumExecutableAvailable())(
     "survives third-party CSP beacon noise during axe injection",

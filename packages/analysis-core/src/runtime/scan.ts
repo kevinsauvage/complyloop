@@ -6,6 +6,7 @@
  * `custom-checks/*` or `site-level/*` internals. See
  * `packages/analysis-core/README.md`.
  */
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 
@@ -239,32 +240,31 @@ async function axePresentOnPage(page: Page): Promise<boolean> {
 
 async function ensureAxeOnPage(page: Page): Promise<void> {
   if (await axePresentOnPage(page)) return;
-  // Playwright races addScriptTag against *any* page CSP console error
-  // (`_raceWithCSPError`): a third-party beacon blocked by the page's own CSP
-  // (e.g. a misconfigured analytics endpoint) can reject this call even
-  // though our script appended fine. A failed injection is therefore
-  // verified, never trusted: if axe landed, the throw was page noise.
-  // Bounded (axe double-append is idempotent); a genuinely blocked injection
-  // (script-src without inline allowance) fails every presence check and
-  // surfaces as an operator-actionable PublicError below.
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      await page.addScriptTag({ path: resolveAxeMinJsPath() });
-    } catch {
-      // Fall through to the presence check.
-    }
-    if (await axePresentOnPage(page)) return;
+  // Evaluate the engine as an expression instead of appending a <script>
+  // element. Only DOM-inserted scripts are governed by the page's
+  // `script-src`; `page.evaluate` goes through the debugger protocol, which
+  // CSP does not restrict. Verified against strict (`script-src 'self'`),
+  // nonce-based and hash-only policies — `addScriptTag` is blocked by all
+  // three. This keeps the audited page's policy fully enforced (no
+  // `bypassCSP`), so hosts the site blocks — analytics, tag managers,
+  // personalisation widgets — stay blocked and the DOM still matches what
+  // real users get. Same reason the `new Function` probes in
+  // `custom-checks/hit-capture-evaluate.ts` survive strict CSP.
+  await page.evaluate(readFileSync(resolveAxeMinJsPath(), "utf8"));
+  if (!(await axePresentOnPage(page))) {
+    throw new PublicError(
+      "Could not initialize the accessibility engine on the audited page.",
+    );
   }
-  throw new PublicError(
-    "The preview page blocks audit script injection (Content Security Policy). Relax script-src for the preview deployment, then re-run the assessment.",
-  );
 }
 
 /**
- * Inject axe from disk and analyze the current page (main frame).
+ * Load axe from disk and analyze the current page (main frame).
  * Do not switch to `@axe-core/playwright`: it injects `axe-core`'s `source`
  * string by default, which Next/webpack rewrites (`module is not defined`).
- * Disk `axe.min.js` plus our SSRF `context.route` interceptor is the adapter.
+ * Disk `axe.min.js`, evaluated as an expression (never a <script> element —
+ * see `ensureAxeOnPage`), plus our SSRF `context.route` interceptor is the
+ * adapter.
  */
 export async function runAxeOnPage(
   page: Page,
