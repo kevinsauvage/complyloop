@@ -102,7 +102,7 @@ test.describe("organization account", () => {
 
     await expect(
       page
-        .getByText(/Organization deleted\. Evidence history was retained/i)
+        .getByText(/Organization deleted, including its evidence history/i)
         .first(),
     ).toBeVisible({ timeout: 15_000 });
 
