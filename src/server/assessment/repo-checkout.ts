@@ -24,18 +24,6 @@ import {
 } from "../github/github";
 import { getProjectToken } from "../github/github-connector";
 
-function maxCheckoutBytes(): number {
-  return assessmentCheckoutQuota().maxBytes;
-}
-
-function maxCheckoutFiles(): number {
-  return assessmentCheckoutQuota().maxFiles;
-}
-
-function maxCheckoutScanMs(): number {
-  return assessmentCheckoutQuota().scanTimeoutMs;
-}
-
 /**
  * Rejects oversized clones before AST parsing or Playwright can consume
  * capacity. Async + time-budgeted so a huge tree cannot block the event loop.
@@ -43,9 +31,12 @@ function maxCheckoutScanMs(): number {
 export async function assertCheckoutWithinQuota(
   rootPath: string,
 ): Promise<void> {
-  const byteLimit = maxCheckoutBytes();
-  const fileLimit = maxCheckoutFiles();
-  const deadline = Date.now() + maxCheckoutScanMs();
+  const {
+    maxBytes: byteLimit,
+    maxFiles: fileLimit,
+    scanTimeoutMs,
+  } = assessmentCheckoutQuota();
+  const deadline = Date.now() + scanTimeoutMs;
   const { opendir, stat } = fs.promises;
   let bytes = 0;
   let files = 0;

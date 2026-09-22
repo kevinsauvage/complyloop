@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Suspense } from "react";
 
@@ -12,6 +13,12 @@ import { WorkspaceContext } from "@/components/shell/workspace-context";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getSession } from "@/server/auth-session";
+
+// Authenticated workspace routes must never be indexed: robots.txt disallows
+// are advisory and do not prevent indexing of linked URLs.
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const configured = isGitHubAuthConfigured();

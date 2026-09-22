@@ -3,9 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
-  registerPlaywrightBrowserTeardown,
   withProbePage,
 } from "./playwright-page";
+import { registerPlaywrightBrowserTeardown } from "./playwright-test-teardown";
 import { reflowViolation } from "./reflow";
 import { resizeTextViolation } from "./resize-text";
 

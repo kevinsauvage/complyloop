@@ -26,15 +26,11 @@ export function collapseWhitespace(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
 
-export function truncateSnippet(text: string): string {
-  return text.length > 200 ? `${text.slice(0, 197)}…` : text;
-}
-
 /**
  * Collapses whitespace and truncates an element's HTML to ≤200 chars.
  * Self-contained for Playwright injection (`htmlSnippet.toString()` runs in
  * the page and cannot call sibling helpers) — keep logic identical to
- * {@link collapseWhitespace} + {@link truncateSnippet}.
+ * {@link collapseWhitespace} + the 200-char truncation.
  */
 export function htmlSnippet(html: string): string {
   const trimmed = html.replace(/\s+/g, " ").trim();

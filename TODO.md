@@ -1,179 +1,200 @@
-# TODO — Global Project Audit
+# TODO — ComplyLoop
 
-### [ ] Tie org membership to immutable user id (cross-tenant takeover)
+Prioritised backlog after a full-repo audit (Sep 2026).
 
-**Why:** Membership lookup and claiming are keyed on the mutable `github_login`. `listOrgIdsForUser` grants org access to any account whose login matches a row — even one already claimed by another user — and `claimMembershipsForLogin` reassigns an existing claimed row (including `owner`) to whoever next signs in with that login. A recycled/renamed GitHub username inherits another tenant's org and projects.
+**Legend** — **P0** = critical (security, data loss, trust-breaking, or blocks the core
+loop) · **P1** = important, non-blocking.
 
-**Where:** `packages/db/src/repo/orgs.ts:36-57` (`listOrgIdsForUser`), `:65-90` (`isPersonalOrgProvisioned`), `:240-270` (`claimMembershipsForLogin`).
+**Provenance** — items tagged `[verified]` were confirmed in the working tree during
+this audit; `[GH-n]` come from [`docs/ai/github-integration-audit.md`](./docs/ai/github-integration-audit.md);
+`[cleanup]` from [`docs/ai/over-engineering-audit.md`](./docs/ai/over-engineering-audit.md).
 
-**Change:** Resolve access and ownership by immutable `userId` only. Claim exclusively `userId IS NULL` unexpired invites; never reassign a row that already has a `userId`. On login collision with a claimed row, ignore it rather than granting.
-
-**Impact:** High
-
----
-
-### [ ] Stop false `passed`/resolves when a runtime audit only partially succeeds
-
-**Why:** `runtimeRan` is `error === undefined && pagesScanned > 0`, ignoring `pageFailures`/`probeFailures` returned by the scanner. With some routes crashing, runtime-only/site-level/html-validate requirements can be derived `passed` and DOM/site findings on unaudited URLs are resolved as fixed — an unverified compliance claim, the exact thing the product must never do.
-
-**Where:** `src/server/assessment/assessment.ts:466-493`, `src/server/assessment/assessment-findings.ts:218-240`, `packages/analysis-core/src/runtime/scan.ts:603-653`.
-
-**Change:** Consume `pageFailures`/`probeFailures`: require full page coverage before any `passed` or DOM/site resolution; otherwise degrade to `unable_to_verify` (or scope resolution strictly to audited URLs).
-
-**Impact:** High
+**Baseline at audit time:** `tsc --noEmit` clean · `eslint .` clean · 1755 tests pass
+(221 files) · 0 committed secrets · CI covers format/lint/typecheck/coverage/build,
+bundle analysis, Postgres integration, and Playwright e2e. The tree is healthy; the
+items below are known gaps, not breakage.
 
 ---
 
-### [ ] Force a full scan when control scope or engine version changes
+## P0 — critical
 
-**Why:** A preset expansion or `ANALYSIS_ENGINE_VERSION` bump makes `sourcesUnchanged` false, but if the pushed commit also touched a JSX file, `useScoped` stays true and only changed files are scanned. Newly in-scope per-file checks then produce no findings on the unchanged tree and are derived `passed` under standard authority — silently missed checks.
+- [x] **P0-1 · Test runner shipped in the production analysis engine** `[verified]`
+      **Fixed:** `registerPlaywrightBrowserTeardown` moved to the test-only
+      `playwright-test-teardown.ts`; shipped code exposes `closeSharedBrowser()` instead.
+      29 test files updated (import source only). No non-test module imports `vitest`.
 
-**Where:** `src/server/assessment/assessment.ts:353-416` (esp. `useScoped` vs `snapshotKey`/`forceFullScan`).
+- [ ] **P0-2 · No stable cross-run finding identity** `[verified]`
+      Findings carry `filePath:line`-style locations and are deduped **within a run only**
+      (`packages/analysis-core/src/merge-findings.ts:133-179`); nothing persists a stable
+      fingerprint. Without it, run N+1 cannot classify `new | persisted | resolved` — the
+      prerequisite for every trustworthy pre-merge signal.
+      **Fix:** pure fingerprint fn (`checkId + normalized path + anchor(selector/hash)`) in
+      analysis-core + a persisted fingerprint column/map. Migration — ask-first per AGENTS.md.
 
-**Change:** Force a full-tree scan whenever `snapshot.controlScopeKey !== snapshotKey` (scope/engine changed), in addition to deletions and cross-file checks.
+- [ ] **P0-3 · PR Check is a bare count with no lifecycle or link** `[GH-1]`
+      `src/server/github/github-checks.ts:71-125` posts a single `completed` run with counts
+      and an assessment id: no `in_progress`, no severity breakdown, no `details_url`.
+      **Fix:** `queued` on enqueue → `in_progress` on claim → `completed` with breakdown +
+      `details_url` deep link; keep crash ("failed to run — not a verdict") distinct from
+      verdict. Warn-never-throw on API error.
 
-**Impact:** High
+- [ ] **P0-4 · New-vs-fixed delta (V1)** `[GH-2]`
+      Absolute counts punish small PRs for legacy debt and train teams to ignore the check.
+      Baseline = latest authoritative assessment (already the persistence semantic).
+      **Fix:** classify preview findings vs baseline → `+N new · −M resolved · net Δ` in the
+      Check summary. Renames reported as new+resolved pair with a note, not fake certainty.
 
----
+- [ ] **P0-5 · Check annotations on changed lines** `[GH-3]`
+      Counts + links still require leaving the diff.
+      **Fix:** annotate **new deterministic source findings on changed lines only**, cap
+      (10–20, overflow summarized), batch ≤50/request; no pre-existing, heuristic-only, or
+      runtime-only annotations in V1.
 
-### [ ] Make assessment job finalization atomic (no duplicate or dropped results)
+- [ ] **P0-6 · Upserted PR summary comment** `[GH-4]`
+      A share of developers never open the Checks tab.
+      **Fix:** one `<!-- complyloop:summary -->`-marked issue comment per PR, `PATCH`ed on
+      later pushes (find-by-marker), never a second comment. Serialize per PR; last-wins.
 
-**Why:** Completion matches on the claim-time `(startedAt, leaseExpiresAt)` pair while the heartbeat mutates the lease asynchronously; a renewal resolving during `complete` makes the write no-op, leaving the job `running` so lease recovery re-runs it and persists a duplicate assessment/evidence. The apply-time re-check verifies only `status`, not lease ownership, so a reclaimed job can be applied twice; and a cancel landing after the apply commit leaves a `cancelled` job with fully persisted results.
+- [ ] **P0-7 · `check_run.rerequested` → re-enqueue** `[GH-5]`
+      A red check has no self-serve retry today ("push an empty commit" behavior).
+      **Fix:** handle `check_run` `rerequested` for our check name — re-verify installation
+      binding, rate-limit on the `webhook:<projectId>` bucket, enqueue by delivery id.
+      Ignore other apps' runs.
 
-**Where:** `src/server/assessment/assessment-worker.ts:62-90,190-231`, `src/server/assessment/assessment-pipeline.ts:192-264` (re-check at `:213-219`), `src/server/assessment/assessment-jobs.ts:443-505,564-587`.
+- [ ] **P0-8 · AI defaults to a free third-party model** `[verified]`
+      `src/ai/ai-call.ts:30` defaults to `poolside/laguna-s-2.1-free`. With
+      `AI_GATEWAY_API_KEY` set, customer source snippets + finding context leave the tenant
+      to a free tier by default — a data-handling and availability risk for a compliance
+      product (and a free tier is not a reliability commitment).
+      **Fix:** make AI strictly opt-in with a documented data-flow statement, or default to
+      a paid/enterprise model; surface the active model + provider in the UI.
 
-**Change:** Finalize the job status inside the same transaction/lock as the apply write (or re-read the current lease under the lock before completing), verify lease ownership in the apply re-check, and make cancel and complete mutually exclusive so a cancel always means "saves nothing".
+- [x] **P0-9 · No HTTP security headers / CSP** `[verified]`
+      **Fixed:** additive `headers()` in `next.config.ts` — HSTS, nosniff, referrer,
+      permissions-policy, and a script-neutral CSP (`frame-ancestors`/`object-src`/
+      `base-uri` only, so Next/Turbopack/Sentry keep working).
 
-**Impact:** High
+- [ ] **P0-10 · Database restore never drilled** `[verified]`
+      `docs/vercel.md` pre-launch checklist: provider backups enabled but the restore drill
+      is "pending — not yet drilled". There is no proven recovery from data loss.
+      **Fix:** run the documented point-in-time drill to staging, verify dashboard + one
+      finding + `ops:check`, record date + owner in `docs/vercel.md`.
 
----
+- [ ] **P0-11 · `postinstall` mutates `node_modules`** `[verified]`
+      `scripts/postinstall-ssrf-guard.mjs` rewrites `node_modules/ssrf-guard/package.json`
+      to add a `require` export condition. It is skipped under `--ignore-scripts`, and the
+      worker drain then crashes at import with `ERR_PACKAGE_PATH_NOT_EXPORTED` — a
+      production outage caused by an install flag.
+      **Fix:** pin a working revision via `overrides`, or vendor/patch the package properly.
 
-### [ ] Make webhook redeliveries idempotent through coalescing
+- [ ] **P0-12 · `evidence` grows unbounded with no alert/runbook** `[verified]`
+      Append-only by design (`docs/vercel.md` §5). `ops:check` can check
+      `OPS_MAX_EVIDENCE_MB` but the prune is "a superuser-level migration" with no written
+      runbook. DB growth to the cap is an outage on the system of record.
+      **Fix:** write the superuser prune runbook (keep decision records forever, prune only
+      noise kinds), and alert on `pg_total_relation_size('evidence')` growth trend.
 
-**Why:** The route computes `firstDelivery` but never short-circuits on it, and webhook coalescing refreshes the pending job's payload without persisting the incoming `idempotencyKey`. Once the merged job leaves `queued`, a GitHub redelivery of the same `x-github-delivery` no longer matches any key and enqueues a duplicate scan.
+- [x] **P0-13 · `.env.example` drifted from production requirements** `[verified]`
+      Audit claim was overstated: the file already documented every required key except
+      the `ops:check` thresholds.
+      **Fixed:** added commented `OPS_MAX_QUEUED_JOBS` / `OPS_MAX_EVIDENCE_MB` to the
+      monitoring section of `.env.example`.
 
-**Where:** `src/app/api/github/webhook/route.ts:78-99,124-129`, `src/server/assessment/assessment-jobs.ts:165-227`.
+- [x] **P0-14 · No `noindex` on authenticated routes** `[verified]`
+      **Fixed:** `robots: { index: false, follow: false }` metadata on the `(app)` layout
+      (`src/app/(app)/layout.tsx`); marketing routes stay indexable.
 
-**Change:** Skip processing when the delivery was already claimed (or return the existing job), and merge/persist the incoming idempotency key (or key deliveries per ref) so redeliveries map to the coalesced job.
-
-**Impact:** High
-
----
-
-### [ ] Apply migrations atomically and make them replay-safe
-
-**Why:** `db-migrate.ts` runs each migration's DDL and its `_complyloop_migrations` insert as separate statements with no transaction; `0003_findings_engine.sql` guards nothing with `IF NOT EXISTS`. A crash between commit and the tracking insert replays the DDL and permanently fails ("constraint already exists"), and there is no down-migration path.
-
-**Where:** `scripts/db-migrate.ts:39-53`, `drizzle/0003_findings_engine.sql:24-26`, `package.json:11` (`vercel-build`), `docs/vercel.md`.
-
-**Change:** Wrap each migration plus its tracking insert in one transaction, make DDL re-runnable, and stop running migrations from `vercel-build` (see deploy item) so schema can't drift ahead of running code.
-
-**Impact:** High
-
----
-
-### [ ] Serialize org mutations per org, not per user
-
-**Why:** `withOrgWrite` takes a lock keyed on `userId` (`orgWriteLockKey`), so two owners of the same org mutate under different locks and act on stale snapshots. Concurrent `leaveOrgMember` calls can each see the other as a remaining owner and delete both, leaving the org ownerless; role changes and invites similarly lose updates.
-
-**Where:** `packages/db/src/postgres.ts:252-255`, `src/server/workspace/workspace-write.ts:269`, `src/server/workspace/org-membership.ts:139-148`.
-
-**Change:** Lock org mutations on the org id (keep the user-scoped lock only for personal-org provisioning).
-
-**Impact:** High
-
----
-
-### [ ] Fail closed on ambiguous multi-org webhooks
-
-**Why:** When a repo is connected in several orgs sharing one installation id, `candidates.find(...)` returns the first match and queues only that project; the ambiguity guard covers only the missing-installation branch. The other tenant's continuous re-assessment silently stops and its compliance state goes stale.
-
-**Where:** `src/server/github/webhook.ts:159-189`.
-
-**Change:** Reject the delivery (or enqueue for all matched projects) when more than one candidate matches, so no tenant is silently skipped.
-
-**Impact:** Medium
-
----
-
-### [ ] Authorize and rate-limit before expensive request work
-
-**Why:** `updateRuntimeAuditAction` runs `assertSafeRuntimeUrl` (Node DNS resolution of an attacker-chosen host) before the permission check and rate limit, returning distinct messages that form a server-side DNS oracle usable by any signed-in user. The evidence report and GitHub repo-list routes have no rate limit despite loading up to 5,000 evidence rows or paginating all installations.
-
-**Where:** `src/server/actions/runtime-audit.ts:50-61`, `src/app/(app)/evidence/report/route.ts`, `src/app/(app)/evidence/report/html/route.ts`, `src/app/api/github/repos/route.ts`.
-
-**Change:** Do the permission check and rate limit before the DNS lookup, and add rate limits to the expensive read routes.
-
-**Impact:** Medium
-
----
-
-### [ ] Fix alert read-state authorization
-
-**Why:** `markAlertReadAction` / `markAllAlertsReadAction` are gated on `project.view`, and the alert `read` flag is a single project-wide column. A `viewer` (read-only role) can clear every unread regression alert for all users, hiding compliance regressions from admins.
-
-**Where:** `src/server/actions/alerts.ts:38,59`, `packages/db/src/schema.ts:262`.
-
-**Change:** Require a write permission for mark-read (matching who owns decisions), or make read state per-user.
-
-**Impact:** Medium
-
----
-
-### [ ] Add indexes for the findings list and filters
-
-**Why:** The main findings list orders by `severity_rank, id`; the only severity index is `(project_id, status, severity_rank, id)`, which cannot serve the unfiltered list. `control_id` and `engine` filters and the remediations `EXISTS` also have no supporting index, so the core list degrades as data grows.
-
-**Where:** `packages/db/src/schema.ts:213-224,247`, `packages/db/src/repo/findings.ts:62-112`.
-
-**Change:** Add the missing composite indexes for the unfiltered severity-first load and the filter columns, and back them with a migration.
-
-**Impact:** Medium
+- [ ] **P0-15 · Policy-gated conclusions (deterministic-authority gate)** `[GH-6]`
+      The product's differentiator is deterministic authority; today the Check cannot
+      express it. Blocking on heuristic/AI signals is unsound and gets gates disabled.
+      **Fix:** `failure` **iff** new deterministic high-confidence source findings on
+      changed lines; `neutral` + "advisory, not a verdict" otherwise. Opt-in per project.
+      Gate behind P0-2/P0-4 precision data (pre-commit a ≥95% bar).
 
 ---
 
-### [ ] Make the gate cover the DB and product-critical read paths
+## P1 — important
 
-**Why:** `verify:gate` omits `test:db` and `test:e2e`; the CI "schema↔migration drift gate" (`drizzle-kit check`) is a no-op because `drizzle/meta/` is not committed; and every page loader (`findings-view`, `dashboard-view`, `evidence-queries`, `report`, …) is excluded from coverage with "covered via e2e", which the gate never runs. `test:db` also silently passes with zero tests when `DATABASE_URL` is unset.
+- [ ] **P1-1 · Scoped PR scan for speed** `[GH-7]` — PR-files-derived scope set on the
+      `scanChangedFiles` fast path for the summary pass; **full scan stays the verdict**
+      until scoped/full parity is measured. Surface `scanMode` honestly in the Check text.
 
-**Where:** `scripts/verify-gate.sh:8`, `vitest.config.mts:52-102`, `.github/workflows/ci.yml:71-73`, `packages/db/src/*.test.ts` (`describe.skipIf`).
+- [ ] **P1-2 · Repository intelligence + CODEOWNERS display** `[GH-8]` — connect-time +
+      weekly drift read of framework/deps/a11y-tooling presence and `CODEOWNERS` (Contents
+      read, no new permission). Surface as glass-box config help; no auto-assign.
 
-**Change:** Run DB integration in the gate (or fail loudly when it is skipped), add minimal tests for the excluded loaders, and make the drift check actually compare schema to migrations.
+- [ ] **P1-3 · Narrow inline review comments** `[GH-9]` — only if annotation data shows
+      criticals are missed: new critical deterministic source findings only, cap ~3/PR,
+      update-in-place, default off.
 
-**Impact:** Medium
+- [x] **P1-4 · Remove test scaffolding / dead symbols from shipped code** `[cleanup]`
+      **Fixed:** `isDismissalReason` (kept `DISMISSAL_REASONS` — it backs the zod schemas
+      in `remediation.ts`), `truncateSnippet` (kept the sync-guard constants — covered by
+      `hit-capture.test.ts`), `hasName`, `normalizeSnippet` wrapper, single-use checkout
+      quota accessors. Kept `parseRgb` — it is serialized into the page by
+      `browser-src-robustness.test.ts`, so the audit's "dead" claim was wrong.
+      Remaining (behavior-adjacent, not done): `fast-glob` → `node:fs`, `linkinator` →
+      native fetch, `report-tones.ts` / `status.ts` collapse.
+
+- [x] **P1-5 · Drop unused `ui/*` exports** `[cleanup]` — repo rule is "no primitive
+      without 2+ consumers". **Fixed (dead exports):** removed `AlertAction`,
+      `DialogClose`/`DialogFooter`, `CardAction`/`CardFooter`,
+      `AlertDialogMedia`/`AlertDialogAction`, `Tooltip`/`Trigger`/`Content`, and the
+      unused menu Portal/Group/Checkbox/Radio/Shortcut/Sub* (~-330 lines, zero importers
+      each, verified by grep).
+      Remaining (needs visual review per DESIGN.md §43, not done): collapse
+      single-consumer `table.tsx` / `sheet.tsx` / `avatar.tsx` / `separator.tsx` /
+      `collapsible.tsx` to native elements.
+
+- [ ] **P1-6 · Merge duplicate runtime evaluators** `[cleanup]` —
+      `hit-capture-evaluate.ts:42-145` has two ~50-line near-identical bodies
+      (`pageEvaluateWithHitCapture` / `locatorEvaluateWithHitCapture`); hoist the duplicated
+      `backgroundRgb` in `non-text-contrast.ts`.
+
+- [ ] **P1-7 · Replace `fast-glob` with `node:fs` `globSync`** `[cleanup]` —
+      `source-files.ts:3,46-58`; engines already require Node ≥22.22. −1 dependency.
+
+- [ ] **P1-8 · Replace `linkinator` with a native `fetch` loop** `[cleanup]` —
+      `runtime/site-level/link-check.ts:151-193`; anchors are already enumerated and each
+      URL already SSRF-gated. −1 dependency.
+
+- [ ] **P1-9 · Inline single-caller `ConnectProjectDialog`** `[cleanup]` —
+      `src/components/github/connect-project-dialog.tsx:1-48` has one production caller;
+      fold into `connect-project-panel.tsx`.
+
+- [ ] **P1-10 · Collapse display tables** `[cleanup]` — `report-tones.ts:102-142` (five
+      hand-listed derived records → one `mapTone(pick)`) and `status.ts:21-281` (eight
+      near-identical interfaces → shared `ToneDisplay`/`BadgeDisplay`/`SeverityDisplay`).
+
+- [ ] **P1-11 · `GH_WORKER_DISPATCH_TOKEN` least privilege + rotation** `[verified]` —
+      it is a long-lived fine-grained PAT with Actions write used only to fire
+      `repository_dispatch`. Document scope, add a rotation runbook (or mint a short-lived
+      App token instead).
+
+- [ ] **P1-12 · CI / supply-chain hardening** `[verified]` — no Dependabot or `npm audit`
+      step; Node version is 22 in CI but `engines` is absent and `.nvmrc` missing
+      (worker workflow pins 24). Add Dependabot, an audit gate, and pin Node once.
+
+- [ ] **P1-13 · Client-component / bundle budget pass** `[verified]` — DESIGN §41 wants
+      server rendering preferred. Audit `(app)` leaves for unnecessary `"use client"`,
+      confirm the `radix-ui` barrel optimization is effective, and set a bundle-size budget
+      from `npm run analyze` (bundle-analysis job currently uploads but never fails).
+
+- [ ] **P1-14 · Evidence/report deep links + `details_url` V2** `[GH-1]/[GH-2]` — V1 links
+      to the assessment page; per-finding deep links from the PR/Check are the payoff.
+      Confirm router readiness, then link resolved findings to their verify evidence.
+
+- [ ] **P1-15 · Widen the axe e2e gate** `[verified]` — `e2e/a11y.spec.ts` already runs axe
+      over a few targets; extend it to every authenticated route plus keyboard/focus-order
+      assertions so the product keeps holding itself to the bar it sells.
 
 ---
 
-### [ ] Close production/deploy operability gaps
+## Notes
 
-**Why:** `ops:check` only warns on missing production env (AUTH_SECRET, AUTH_URL, GITHUB_APP_*, webhook secret, dispatch token, SENTRY_DSN) despite docs claiming non-zero exit; the ops-check workflow's health ping and Slack failure conditions use `if: env.*` inside the same step that defines those vars, so both are always false; and `vercel-build` migrates the shared production DB on preview deploys.
-
-**Where:** `scripts/operations-check.ts:95-98`, `.github/workflows/ops-check.yml:43,52`, `package.json:11`, `docs/vercel.md`.
-
-**Change:** Fail `ops:check` on missing required production config, move the workflow env to job/step scope so the conditions evaluate, and restrict migrations to production deploys.
-
-**Impact:** Medium
-
----
-
-### [ ] Remove dead exports and consolidate duplicated helpers
-
-**Why:** Multiple exported symbols have no importers (e.g. `getStoredGitHubToken`, `canManageOrgMembers`), the OAuth-configured predicate and `AUTH_URL` assertions are duplicated across `proxy.ts`/`auth.ts`, and `isUniqueViolation` is reimplemented in more than one place with divergent correctness. Oversized functions/files add navigation cost for no benefit.
-
-**Where:** `src/server/github/github-tokens.ts:112`, `src/server/workspace/org-queries.ts:105`, `src/proxy.ts:12-18`, `packages/db/src/repo/orgs.ts:161-173`.
-
-**Change:** Delete unused exports, collapse duplicated predicates/helpers into one canonical implementation, and split the largest functions where it reduces risk.
-
-**Impact:** Medium
-
----
-
-### [ ] Strengthen the product's own accessibility e2e
-
-**Why:** `e2e/a11y.spec.ts` labels `/` as "dashboard", but `/` is the public marketing page, so the real `/dashboard` is never axe-scanned; it only runs `wcag2a`/`wcag2aa`, discards anything below "serious", skips `/login`, error/not-found, and dialog states, and uses the flaky `networkidle` wait — weak coverage for an accessibility product.
-
-**Where:** `e2e/a11y.spec.ts:29-63`.
-
-**Change:** Point the spec at the real authenticated pages, include WCAG 2.1/2.2 AA and all impacts (or a documented severity floor), cover login/404/dialog states, and replace `networkidle`.
-
-**Impact:** Low
+- P0-1, P0-2, P0-8, P0-9, P0-10, P0-11, P0-12, P0-13, P0-14 were verified in-tree; the
+  GH-1…GH-6 items are the audit's own "Now" set and remain unimplemented.
+- The GH audit's **Avoid** list (per-finding issue sync, SARIF-as-primary, external-CI-as-
+  evidence, per-commit scans, auto-review-requests, merge-blocking on heuristic/AI) is a
+  recorded decision — do not reopen without new evidence.
+- Definition of done: `npm run verify:gate`.

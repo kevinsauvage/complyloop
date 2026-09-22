@@ -1,7 +1,6 @@
 import fs from "node:fs";
 
 import { type Browser, chromium, type Page } from "playwright-core";
-import { afterAll } from "vitest";
 
 let sharedBrowser: Browser | null = null;
 
@@ -40,11 +39,10 @@ export async function withPlaywrightPage(
   };
 }
 
-export function registerPlaywrightBrowserTeardown(): void {
-  afterAll(async () => {
-    await sharedBrowser?.close();
-    sharedBrowser = null;
-  });
+/** Closes the shared browser; called by the test-only teardown helper. */
+export async function closeSharedBrowser(): Promise<void> {
+  await sharedBrowser?.close();
+  sharedBrowser = null;
 }
 
 /**

@@ -101,6 +101,28 @@ const nextConfig: NextConfig = {
   // so full URLs paste safely. Use a wildcard ("*.ngrok-free.dev") — ngrok
   // free subdomains change on every restart.
   allowedDevOrigins: parseAllowedDevOrigins(process.env.ALLOWED_DEV_ORIGINS),
+  // Baseline hardening with zero app-behavior change: framing, MIME sniffing,
+  // TLS, referrer, and device APIs. Deliberately no script/style CSP —
+  // Next.js, Turbopack HMR, and the Sentry tunnel rely on inline scripts.
+  async headers() {
+    const securityHeaders = [
+      {
+        key: "Strict-Transport-Security",
+        value: "max-age=63072000; includeSubDomains",
+      },
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      {
+        key: "Permissions-Policy",
+        value: "camera=(), microphone=(), geolocation=()",
+      },
+      {
+        key: "Content-Security-Policy",
+        value: "frame-ancestors 'self'; object-src 'none'; base-uri 'self'",
+      },
+    ];
+    return [{ source: "/:path*", headers: securityHeaders }];
+  },
 };
 
 export default withSentryConfig(nextConfig, {

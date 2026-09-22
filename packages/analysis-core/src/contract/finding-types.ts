@@ -159,15 +159,6 @@ export interface Dismissal {
   at: string;
 }
 
-export function isDismissalReason(
-  value: unknown,
-): value is Dismissal["reason"] {
-  return (
-    typeof value === "string" &&
-    (DISMISSAL_REASONS as readonly string[]).includes(value)
-  );
-}
-
 export interface RemediationSuggestion {
   description: string;
   /** The offending line as it would look after the fix. */

@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
-  registerPlaywrightBrowserTeardown,
   withPlaywrightPage,
 } from "./custom-checks/playwright-page";
+import { registerPlaywrightBrowserTeardown } from "./custom-checks/playwright-test-teardown";
 import {
   COARSE_POINTER_LABEL,
   emulateCoarsePointer,

@@ -66,10 +66,6 @@ function effectiveAnalyzerId(finding: RawFinding): AnalyzerId {
   return "ast";
 }
 
-function normalizeSnippet(snippet: string): string {
-  return normalizeSnippetKey(snippet);
-}
-
 /** Stable key for collapsing dom/runtime findings on the same node. */
 function runtimeFindingLocationKey(finding: RawFinding): string | null {
   const location = finding.location;
@@ -80,9 +76,9 @@ function runtimeFindingLocationKey(finding: RawFinding): string | null {
     // no usable selector is reported.
     const selector =
       location.selector && location.selector !== "(unknown)"
-        ? normalizeSnippet(location.selector)
+        ? normalizeSnippetKey(location.selector)
         : "";
-    return `${location.url}::${finding.checkId}::${selector}::${normalizeSnippet(location.snippet)}`;
+    return `${location.url}::${finding.checkId}::${selector}::${normalizeSnippetKey(location.snippet)}`;
   }
   return null;
 }

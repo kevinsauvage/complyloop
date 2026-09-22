@@ -9,9 +9,9 @@ import { layoutTableLinearizationViolation } from "./layout-table-linearization"
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
-  registerPlaywrightBrowserTeardown,
   withProbePage,
 } from "./playwright-page";
+import { registerPlaywrightBrowserTeardown } from "./playwright-test-teardown";
 
 registerPlaywrightBrowserTeardown();
 

@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
-  registerPlaywrightBrowserTeardown,
   withProbePage,
 } from "./playwright-page";
+import { registerPlaywrightBrowserTeardown } from "./playwright-test-teardown";
 import { textSpacingRuntimeViolation } from "./text-spacing-runtime";
 
 registerPlaywrightBrowserTeardown();
