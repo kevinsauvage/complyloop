@@ -1,20 +1,6 @@
 # next-reco-todo.md — Next.js conformance audit
 
-## P2 — performance
-
-- [ ] **9. Consider the React Compiler (optional).**
-      Left open — adds `babel-plugin-react-compiler` and build-time cost. Needs a
-      deliberate call, not a silent flag flip —
-      `02-guides/upgrading/version-16.md:395-438`,
-      `05-config/01-next-config-js/reactCompiler.md:40`.
-
 ## P2 — SEO / metadata
-
-- [ ] **11. Add an Open Graph image.**
-      No `opengraph-image`/`twitter-image` file exists, so shared links have no
-      image — `02-guides/production-checklist.md:114`,
-      `03-file-conventions/01-metadata/opengraph-image.md`. Add
-      `src/app/opengraph-image.tsx` (`ImageResponse`) or a static asset.
 
 - [ ] **12. Add JSON-LD to the marketing pages.**
       No structured data today (`02-guides/json-ld.md:9-11`). Use a native
@@ -42,3 +28,17 @@
       `02-guides/production-checklist.md:88`,
       `03-file-conventions/not-found.md:60-66`. Requires
       `experimental.globalNotFound: true`.
+
+## Known upstream issues
+
+- [ ] **17. `MaxListenersExceededWarning` on the Sentry tunnel rewrite.**
+      Requests through the Sentry `tunnelRoute` (`/monitoring` → external ingest,
+      `next.config.ts:165`) log `11 close listeners added to [ServerResponse]`.
+      Cause: Next 16's external-rewrite proxy
+      (`server/lib/router-utils/proxy-request.js` → `httpxy` → `Readable.pipe`, +3)
+      plus the Sentry APM SDK (+2) on top of Next's own 6, crossing Node's default of
+      10 — benign and per-request, not a leak (vercel/next.js#96973). Upstream fix
+      vercel/next.js#97818 is **open** (not in 16.3.6); delete this once an upgrade
+      carries it. Not silenced: `events.setMaxListeners(n, ServerResponse)` does not
+      scope (Node calls the inherited static, setting the process-wide default), and a
+      global bump would mask real leak warnings.

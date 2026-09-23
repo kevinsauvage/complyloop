@@ -106,10 +106,16 @@ const nextConfig: NextConfig = {
   // Statically typed `Link`/`redirect` hrefs (stable in Next 16). Route types
   // come from the generated `.next/types`; run `next typegen` after moving routes.
   typedRoutes: true,
+  // EXPERIMENT: auto-memoize components/hooks. Paired with the native Rust port
+  // below so this needs no `babel-plugin-react-compiler` (Turbopack-only).
+  reactCompiler: true,
   experimental: {
     // The consolidated `radix-ui` barrel is not in Next's default list; rewrite
     // it to per-primitive imports so unused primitives are not bundled.
     optimizePackageImports: ["radix-ui"],
+    // EXPERIMENT: run the React Compiler as native Rust inside Turbopack instead
+    // of the Babel transform (no Babel plugin dep, faster).
+    turbopackRustReactCompiler: true,
   },
   // Dev-only: allow tunnel hosts to fetch dev assets (403 otherwise).
   // Production ignores this setting. Set ALLOWED_DEV_ORIGINS="host1,host2".
