@@ -36,12 +36,11 @@ const nextConfig: NextConfig = {
   // guide before opting in.
   // Runtime analysis engines use dynamic requires Playwright/Node APIs; keep them
   // out of the Turbopack graph (same rationale as disk-loaded axe.min.js).
-  // `isomorphic-git` and `@sparticuz/chromium` are serverless-safe pure-JS /
-  // external-binary paths — same treatment so bundling never touches them.
+  // `isomorphic-git` is a serverless-safe pure-JS path — same treatment so
+  // bundling never touches it.
   serverExternalPackages: [
     "linkinator",
     "playwright-core",
-    "@sparticuz/chromium",
     "isomorphic-git",
     "axe-core",
     "html-validate",
@@ -74,7 +73,6 @@ const nextConfig: NextConfig = {
   // the functions that reach the worker graph, so they are excluded here too.
   outputFileTracingExcludes: {
     "/*": [
-      "./node_modules/@sparticuz/chromium*",
       "./node_modules/playwright-core*",
       "./node_modules/axe-core*",
       "./node_modules/html-validate*",

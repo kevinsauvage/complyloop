@@ -148,17 +148,11 @@ export async function closeRuntimeBrowser(): Promise<void> {
 }
 
 /**
- * Serverless Chromium (Vercel has no Playwright browser download step):
- * `@sparticuz/chromium` ships a compatible build with its own executable
- * path. Set `ASSESSMENT_RUNTIME_BROWSER=serverless` to use it; anything else
- * (or unset) uses the locally installed Playwright browser
- * (`npm run playwright:install`). Env is read directly (precedent:
- * `contract/assessment-limits.ts`) so the engine stays framework-agnostic.
+ * Runtime audits run on the GitHub Actions executor, which installs its own
+ * Playwright Chromium (`npm run playwright:install`); local dev does the same.
+ * There is no serverless-browser path — nothing Vercel-reachable imports this
+ * module (see `docs/vercel.md`).
  */
-function isServerlessBrowserEnabled(): boolean {
-  return process.env.ASSESSMENT_RUNTIME_BROWSER?.trim() === "serverless";
-}
-
 async function getBrowser(): Promise<Browser> {
   if (sharedBrowserTainted) {
     // A previous teardown timed out and may have leaked a context — do not
@@ -167,46 +161,9 @@ async function getBrowser(): Promise<Browser> {
     sharedBrowserTainted = false;
   }
   if (!sharedBrowser) {
-    // Cold-start marker: sparticuz extracts ~100MB to /tmp on first launch.
-    console.info(
-      `[progress] runtime browser launch started serverless=${isServerlessBrowserEnabled()}`,
-    );
-    if (isServerlessBrowserEnabled()) {
-      const [{ chromium }, sparticuz] = await Promise.all([
-        import("playwright-core"),
-        import("@sparticuz/chromium"),
-      ]);
-      try {
-        sharedBrowser = await chromium.launch({
-          args: sparticuz.default.args,
-          executablePath: await sparticuz.default.executablePath(),
-          headless: true,
-        });
-      } catch (error) {
-        // Prefix the raw launch failure so classifyRuntimeScanError can map it
-        // to an actionable message instead of the generic fallback. The raw
-        // error (missing binary, unsupported arch, fs issue) is the only clue
-        // the function logs get; keep its text stripped of filesystem paths.
-        const raw = error instanceof Error ? error.message : String(error);
-        throw new Error(
-          `sparticuz-launch: ${raw.replace(/\/[^\s"'<>]*\//g, "/")}`,
-        );
-      }
-    } else {
-      // Fail fast with an operator-actionable error: without the serverless
-      // flag the local Playwright browser path (`~/.cache/ms-playwright`)
-      // does not exist on Vercel, and the resulting "Executable doesn't
-      // exist" launch error misleads. `PublicError` passes classification
-      // through unchanged, so this exact message reaches the UI + evidence.
-      // Vercel-only: dev/CI/e2e legitimately use the local browser.
-      if (process.env.VERCEL === "1") {
-        throw new PublicError(
-          "Preview audits need ASSESSMENT_RUNTIME_BROWSER=serverless on Vercel — the local Playwright browser is not installed in serverless functions. Set it on the Vercel project and redeploy.",
-        );
-      }
-      const { chromium } = await import("playwright-core");
-      sharedBrowser = await chromium.launch({ headless: true });
-    }
+    console.info("[progress] runtime browser launch started");
+    const { chromium } = await import("playwright-core");
+    sharedBrowser = await chromium.launch({ headless: true });
     process.on("exit", () => {
       sharedBrowser?.close().catch(() => {});
     });
@@ -657,15 +614,15 @@ export async function scanRuntime(
     // not fail the job — so without this warn the root error never reaches
     // function logs or Sentry. Query strings are stripped (preview tokens).
     const raw = error instanceof Error ? error.message : String(error);
-    // Stage the raw serverless markers the classifier cannot map (launch vs
+    // Stage the raw browser markers the classifier cannot map (launch vs
     // navigation vs axe injection), so the next generic failure names where
     // the scan died instead of collapsing to "Runtime scan failed.".
     const stage =
-      /sparticuz-launch|browserType\.launch|browserType\.newPage|addScriptTag|page\.evaluate|page\.goto/.test(
+      /browserType\.launch|browserType\.newPage|addScriptTag|page\.evaluate|page\.goto/.test(
         raw,
       )
         ? raw.match(
-            /sparticuz-launch|browserType\.launch|browserType\.newPage|addScriptTag|page\.evaluate|page\.goto/,
+            /browserType\.launch|browserType\.newPage|addScriptTag|page\.evaluate|page\.goto/,
           )?.[0]
         : "unknown";
     console.warn(

@@ -45,8 +45,8 @@ import {
  *
  * Runtime (`dom`/`site`) findings are proven clean-or-still-failing by a
  * Playwright re-audit. That re-audit used to run inside the finding-page
- * server action, which traced `playwright-core` + `@sparticuz/chromium`
- * (~80 MB) into the Vercel function bundle on every deploy. It now runs on
+ * server action, which traced `playwright-core` (~80 MB) into the Vercel
+ * function bundle on every deploy. It now runs on
  * the GitHub Actions executor like every other runtime scan: the action only
  * enqueues a `verify_remediation` job; the worker resolves the finding
  * (no viewer session) and applies the verdict under the project write lock.
