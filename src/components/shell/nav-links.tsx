@@ -8,6 +8,7 @@ import {
   ScrollText,
   Settings,
 } from "lucide-react";
+import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -17,7 +18,7 @@ import { cn } from "@/lib/utils";
 
 const LINKS = [
   {
-    href: "/dashboard",
+    href: "/dashboard" as Route,
     label: "Dashboard",
     icon: LayoutDashboard,
     badgeKey: "unreadAlerts" as const,
@@ -79,7 +80,7 @@ export function NavLinks({
         return (
           <li key={link.href}>
             <Link
-              href={link.href}
+              href={link.href as Route}
               aria-current={active ? "page" : undefined}
               aria-label={badgeLabel}
               className={cn(

@@ -88,6 +88,9 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  // Statically typed `Link`/`redirect` hrefs (stable in Next 16). Route types
+  // come from the generated `.next/types`; run `next typegen` after moving routes.
+  typedRoutes: true,
   experimental: {
     // The consolidated `radix-ui` barrel is not in Next's default list; rewrite
     // it to per-primitive imports so unused primitives are not bundled.

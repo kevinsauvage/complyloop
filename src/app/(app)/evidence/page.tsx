@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Route } from "next";
 import Link from "next/link";
 
 import { EvidenceKindBadge } from "@/components/primitives/badges";
@@ -245,7 +245,7 @@ export default async function EvidencePage({
                     return (
                       <li key={record.id}>
                         {href ? (
-                          <Link href={href} className={rowClassName}>
+                          <Link href={href as Route} className={rowClassName}>
                             {content}
                           </Link>
                         ) : (

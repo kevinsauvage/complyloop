@@ -1,4 +1,5 @@
 import { TriangleAlert } from "lucide-react";
+import type { Route } from "next";
 import Link from "next/link";
 
 import type { Alert as AlertRecord } from "@complyloop/analysis-core/contract/entities";
@@ -12,7 +13,9 @@ import {
   markAllAlertsReadAction,
 } from "@/server/actions/alerts";
 
-function alertPrimaryHref(alert: AlertRecord): string | null {
+function alertPrimaryHref(
+  alert: AlertRecord,
+): `/findings/${string}` | "/requirements?status=failed" | null {
   const findingId = alert.detail?.findingId;
   if (typeof findingId === "string") return `/findings/${findingId}`;
   const controlId = alert.detail?.controlId;
@@ -37,7 +40,7 @@ function alertDetailLine(alert: AlertRecord): string | null {
 function changeContextLink(
   alert: AlertRecord,
   githubFullName?: string,
-): { href: string; label: string; external?: boolean } | null {
+): { href: Route; label: string; external?: boolean } | null {
   const commitSha = alert.detail?.commitSha;
   if (typeof commitSha === "string" && githubFullName) {
     const label =
@@ -45,7 +48,7 @@ function changeContextLink(
         ? alert.detail.changeContext
         : `Commit ${commitSha.slice(0, 7)}`;
     return {
-      href: `https://github.com/${githubFullName}/commit/${commitSha}`,
+      href: `https://github.com/${githubFullName}/commit/${commitSha}` as Route,
       label,
       external: true,
     };

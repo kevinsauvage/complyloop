@@ -2,6 +2,7 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { RotateCcw, TriangleAlert } from "lucide-react";
+import type { Route } from "next";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 
@@ -29,7 +30,7 @@ export function AppErrorCard({
   title: string;
   description: string;
   onReset: () => void;
-  secondaryHref?: string;
+  secondaryHref?: Route;
   secondaryLabel?: string;
   className?: string;
 }) {

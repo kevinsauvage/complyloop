@@ -4,9 +4,6 @@ import { getDrizzle } from "@complyloop/db/postgres";
 
 import { reportWarning } from "@/server/observability";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
 /**
  * Short cache for healthy responses: the probe is an unauthenticated scrape
  * target, so a burst of scrapes must not fan out into Postgres. Only 200s

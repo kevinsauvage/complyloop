@@ -1,4 +1,5 @@
 import { ArrowUpRight, GitBranch } from "lucide-react";
+import type { Route } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -8,7 +9,7 @@ import { cn } from "@/lib/utils";
 export type DashboardQuickStat = {
   label: string;
   value: number | string;
-  href?: string;
+  href?: Route;
   tone?: "default" | "signal" | "warning" | "review" | "success" | "muted";
 };
 

@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -22,14 +23,14 @@ export function FilterChipList({
   items,
 }: {
   "aria-label": string;
-  allHref: string;
+  allHref: Route;
   /** When false, hide the All chip (requirements page when nothing selected). */
   showAll: boolean;
   allSelected: boolean;
   allCount?: number;
   items: Array<{
     key: string;
-    href: string;
+    href: Route;
     selected: boolean;
     label: ReactNode;
     count: number;

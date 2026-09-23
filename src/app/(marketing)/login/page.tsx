@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Route } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -47,7 +47,7 @@ export default async function LoginPage({
   if (isGitHubAuthConfigured()) {
     const session = await getSession();
     if (session?.user) {
-      redirect(callbackUrl);
+      redirect(callbackUrl as Route);
     }
   }
 

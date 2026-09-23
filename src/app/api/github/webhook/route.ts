@@ -10,8 +10,6 @@ import {
 import { claimWebhookDelivery } from "@/server/github/webhook-deliveries";
 import { reportError } from "@/server/observability";
 
-export const runtime = "nodejs";
-
 const githubWebhookHeadersSchema = z.object({
   deliveryId: z
     .string()

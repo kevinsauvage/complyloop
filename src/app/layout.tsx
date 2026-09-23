@@ -16,7 +16,15 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Absolute base for URL-based metadata (canonical/OG/sitemap). A relative URL
+// without this is a build error. Same fallback chain as the sitemap.
+const appBaseUrl =
+  process.env.NEXT_PUBLIC_APP_URL ??
+  process.env.AUTH_URL ??
+  "http://localhost:3000";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(appBaseUrl),
   title: {
     default: "ComplyLoop — Compliance Engineering",
     template: "%s · ComplyLoop",

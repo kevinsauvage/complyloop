@@ -88,7 +88,9 @@ export function hasActiveFindingFilters(params: FindingListFilters): boolean {
   );
 }
 
-export function findingsListHref(params?: Partial<FindingListParams>): string {
+export function findingsListHref(
+  params?: Partial<FindingListParams>,
+): "/findings" | `/findings?${string}` {
   const merged: FindingListParams = { tab: "open", page: 1, ...params };
   const qs = new URLSearchParams(findingListQueryWithPage(merged)).toString();
   return qs ? `/findings?${qs}` : "/findings";
@@ -120,9 +122,9 @@ function findingListQueryWithPage(
 export function findingDetailHref(
   findingId: string,
   params: FindingListParams,
-): string {
+): `/findings/${string}` {
   const qs = new URLSearchParams(findingListQueryWithPage(params)).toString();
-  const base = `/findings/${findingId}`;
+  const base = `/findings/${findingId}` as const;
   return qs ? `${base}?${qs}` : base;
 }
 

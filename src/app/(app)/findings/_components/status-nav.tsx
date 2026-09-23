@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -8,7 +9,10 @@ import {
 } from "@/core/filter-params";
 import { cn } from "@/lib/utils";
 
-function tabHref(tab: FindingsTab, params: FindingListParams): string {
+function tabHref(
+  tab: FindingsTab,
+  params: FindingListParams,
+): "/findings" | `/findings?${string}` {
   return findingsListHref({ ...params, tab, page: 1 });
 }
 
@@ -17,7 +21,7 @@ function StatusNavLink({
   current,
   children,
 }: {
-  href: string;
+  href: Route;
   current: boolean;
   children: ReactNode;
 }) {

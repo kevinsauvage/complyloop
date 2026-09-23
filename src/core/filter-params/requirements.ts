@@ -23,7 +23,9 @@ export function parseRequirementsQueryParam(
   return trimmedQuery(raw);
 }
 
-export function requirementsStatusHref(status?: RequirementStatus): string {
+export function requirementsStatusHref(
+  status?: RequirementStatus,
+): "/requirements" | `/requirements?${string}` {
   return href("/requirements", { status });
 }
 
@@ -42,7 +44,7 @@ export function requirementsPageHref(options: {
   q?: string;
   page?: number;
   defaultPresetId: string;
-}): string {
+}): "/requirements" | `/requirements?${string}` {
   return href("/requirements", {
     presetId:
       options.presetId && options.presetId !== options.defaultPresetId

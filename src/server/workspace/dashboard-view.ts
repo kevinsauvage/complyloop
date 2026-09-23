@@ -7,6 +7,7 @@
  */
 import "server-only";
 
+import type { Route } from "next";
 import { cache } from "react";
 
 import type {
@@ -35,39 +36,40 @@ import {
   requirementsInScope,
 } from "@/server/workspace/project-scope";
 
+interface DashboardViewProject {
+  project: Project;
+  visibleProjects: Project[];
+  hasConnectedProject: boolean;
+  caps: ProjectCapabilities;
+  latestAssessment: Assessment | undefined;
+  counts: Record<(typeof REQUIREMENT_STATUSES)[number], number>;
+  openFindings: Finding[];
+  /** Exact open total from an index-only count (loaded rows are capped). */
+  openCount: number;
+  unreadAlerts: Alert[];
+  regressions: EvidenceRecord[];
+  recentVerified: EvidenceRecord[];
+  recentEvidence: EvidenceRecord[];
+  recentChanges: NonNullable<Assessment["changesSincePrevious"]>;
+  quickStats: Array<{
+    label: string;
+    value: string | number;
+    href?: Route;
+    tone: "warning" | "success" | "muted" | "signal" | "review";
+  }>;
+  nextAction: {
+    title: string;
+    description: string;
+    cta: string;
+    href: Route;
+  } | null;
+  showFirstRun: boolean;
+  /** Pass-rate history for the trend sparkline (oldest → newest, max 10). */
+  trend: Array<{ at: string; passRate: number }>;
+}
+
 export type DashboardView =
-  | { project: null; visibleProjects: Project[] }
-  | {
-      project: Project;
-      visibleProjects: Project[];
-      hasConnectedProject: boolean;
-      caps: ProjectCapabilities;
-      latestAssessment: Assessment | undefined;
-      counts: Record<(typeof REQUIREMENT_STATUSES)[number], number>;
-      openFindings: Finding[];
-      /** Exact open total from an index-only count (loaded rows are capped). */
-      openCount: number;
-      unreadAlerts: Alert[];
-      regressions: EvidenceRecord[];
-      recentVerified: EvidenceRecord[];
-      recentEvidence: EvidenceRecord[];
-      recentChanges: NonNullable<Assessment["changesSincePrevious"]>;
-      quickStats: Array<{
-        label: string;
-        value: string | number;
-        href?: string;
-        tone: "warning" | "success" | "muted" | "signal" | "review";
-      }>;
-      nextAction: {
-        title: string;
-        description: string;
-        cta: string;
-        href: string;
-      } | null;
-      showFirstRun: boolean;
-      /** Pass-rate history for the trend sparkline (oldest → newest, max 10). */
-      trend: Array<{ at: string; passRate: number }>;
-    };
+  { project: null; visibleProjects: Project[] } | DashboardViewProject;
 
 /**
  * Index-only open total, memoized per request like the rest of the loaders.
@@ -174,7 +176,7 @@ export async function loadDashboardView(): Promise<DashboardView> {
           ? ("signal" as const)
           : ("review" as const);
 
-  const quickStats = latestAssessment
+  const quickStats: DashboardViewProject["quickStats"] = latestAssessment
     ? [
         {
           label: "Open findings",
@@ -206,7 +208,7 @@ export async function loadDashboardView(): Promise<DashboardView> {
 
   // Single next action, most urgent first: alerts → failed
   // requirements → open findings → preview-URL coverage gap.
-  const nextAction =
+  const nextAction: DashboardViewProject["nextAction"] =
     unreadAlerts.length > 0
       ? {
           title: `${unreadAlerts.length} unread alert${unreadAlerts.length === 1 ? "" : "s"}`,

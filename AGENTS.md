@@ -14,12 +14,22 @@ Orientation for agents. **Do not duplicate** product principles, domain vocabula
 
 ## Doc map
 
-| Doc                                                                                       | Use when                                       |
-| ----------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| [`compliance-engineering-product-spec.md`](./docs/compliance-engineering-product-spec.md) | Product decisions, current scope               |
-| [`docs/ai/architecture.md`](./docs/ai/architecture.md)                                    | System shape, persistence, analysis            |
-| [`docs/ai/finding-flow.md`](./docs/ai/finding-flow.md)                                    | Finding page UX contract                       |
-| [`.cursor/rules/`](./.cursor/rules/)                                                      | Enforceable rules (domain, quality, AI, TS, …) |
+| Doc                                                                                       | Use when                                             |
+| ----------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| [`compliance-engineering-product-spec.md`](./docs/compliance-engineering-product-spec.md) | Product decisions, current scope                     |
+| [`docs/ai/architecture.md`](./docs/ai/architecture.md)                                    | System shape, persistence, analysis                  |
+| [`docs/ai/finding-flow.md`](./docs/ai/finding-flow.md)                                    | Finding page UX contract                             |
+| [`next-reco-todo.md`](./next-reco-todo.md)                                                | Next.js conformance findings (audit vs bundled docs) |
+| [`.cursor/rules/`](./.cursor/rules/)                                                      | Enforceable rules (domain, quality, AI, TS, …)       |
+
+## Next.js reference — source of truth
+
+The bundled docs are the authority for Next.js behavior, APIs, conventions, and
+breaking changes. Before writing any Next.js code, read the relevant guide in
+[`node_modules/next/dist/docs/`](./node_modules/next/dist/docs/) (App Router lives
+under `01-app/`). They are version-matched to the installed `next` package — do
+not rely on training data or the online docs. When this repo and the bundled docs
+disagree, the docs win: change the repo (see [`next-reco-todo.md`](./next-reco-todo.md)).
 
 ## What this is
 

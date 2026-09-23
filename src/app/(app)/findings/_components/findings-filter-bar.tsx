@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { type ReactNode, useState } from "react";
 
@@ -45,7 +46,7 @@ function ActiveChip({
   clearLabel,
   children,
 }: {
-  href: string;
+  href: Route;
   clearLabel: string;
   children: ReactNode;
 }) {

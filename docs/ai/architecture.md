@@ -323,9 +323,9 @@ pushes and PR events are ignored. Failures become
 - **Caching** — authenticated `(app)` pages rely on dynamic-from-usage
   (`getWorkspace` reads `auth()`/`cookies()`; list pages also await
   `searchParams`) plus targeted `revalidatePath` on mutation
-  (`src/server/actions/shared.ts`). No blanket `force-dynamic` on pages.
-  `force-dynamic` stays only on JSON Route Handlers
-  (`api/github/repos`, `assessment-jobs`, `health`).
+  (`src/server/actions/shared.ts`). No blanket `force-dynamic` anywhere:
+  pages are dynamic from usage, and Route Handlers are dynamic by default —
+  no handler needs the config export.
 - **Mutations vs routes** — mutations go through Server Actions. Route
   Handlers exist only for webhooks, polling/streaming (`assessment-jobs`,
   picker typeahead), auth, and health.

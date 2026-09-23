@@ -1,4 +1,5 @@
 import { Check } from "lucide-react";
+import type { Route } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -208,7 +209,7 @@ export function PageActionLink({
   href,
   children,
 }: {
-  href: string;
+  href: Route;
   children: ReactNode;
 }) {
   return (

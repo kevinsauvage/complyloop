@@ -8,8 +8,6 @@ import { listAvailableRepos } from "@/server/github/github-connector";
 import { projectCapabilities } from "@/server/workspace/project-capabilities";
 import { getWorkspace } from "@/server/workspace/workspace";
 
-export const dynamic = "force-dynamic";
-
 const githubReposQuerySchema = z.object({
   q: z
     .string()

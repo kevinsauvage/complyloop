@@ -74,7 +74,7 @@ export function evidenceKindHref(
   kind?: EvidenceKind,
   page?: number,
   filters?: EvidencePageFilters,
-): string {
+): "/evidence" | `/evidence?${string}` {
   return href("/evidence", {
     kind,
     q: filters?.q,
@@ -96,7 +96,14 @@ export function parseReportViewParam(
 
 export type ReportFormat = "markdown" | "html";
 
-export function reportHref(view: ReportView, format: ReportFormat): string {
+export function reportHref(
+  view: ReportView,
+  format: ReportFormat,
+):
+  | "/evidence/report"
+  | "/evidence/report/html"
+  | `/evidence/report?${string}`
+  | `/evidence/report/html?${string}` {
   const base = format === "html" ? "/evidence/report/html" : "/evidence/report";
   return href(base, { view });
 }
@@ -105,7 +112,7 @@ export function reportHref(view: ReportView, format: ReportFormat): string {
 export function evidenceRecordHref(
   record: EvidenceRecord,
   requirements: readonly Requirement[],
-): string | undefined {
+): `/findings/${string}` | `/requirements${string}` | "/dashboard" | undefined {
   if (record.findingId) {
     return `/findings/${record.findingId}`;
   }
