@@ -22,6 +22,10 @@ jobs:
       # 80+ assertions skip and the differentiating engine has no CI signal.
       - run: npx playwright install chromium --with-deps
       - run: npm run test:coverage
+      # Production executor bundle. Its own tripwire fails the build if probe
+      # sources leak `__name()` (see scripts/build-worker.mjs); without this
+      # step a break would only surface on the GitHub Actions drain.
+      - run: npm run worker:build
       - run: npm run build
 
   # Static bundle report (.next/diagnostics/analyze) — Next 16 Turbopack
