@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import {
   EmptyState,
@@ -74,7 +75,7 @@ export default async function OrgPage() {
           action={
             <div className="flex flex-wrap items-center justify-center gap-2">
               <Button size="sm" asChild>
-                <a href="/org">Retry</a>
+                <Link href="/org">Retry</Link>
               </Button>
               <form action={signOutAction}>
                 <Button type="submit" variant="outline" size="sm">
