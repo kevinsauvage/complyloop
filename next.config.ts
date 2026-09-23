@@ -29,6 +29,21 @@ const nextConfig: NextConfig = {
   // Don't leak framework fingerprinting via `X-Powered-By` (production
   // security checklist in node_modules/next/dist/docs).
   poweredByHeader: false,
+  // GitHub avatars are remote, so next/image needs an explicit allowlist.
+  // `images.domains` is deprecated in v16 — use `remotePatterns`
+  // (02-guides/upgrading/version-16.md). No `qualities` override: the default
+  // `[75]` is what we want and we never set a `quality` prop.
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "avatars.githubusercontent.com" },
+    ],
+  },
+  // Dev-only: log full fetch URLs (cache hits/misses) to the terminal.
+  // `experimental.serverComponentsHmrCache` already defaults to true, so no
+  // opt-in is needed there (03-api-reference/.../serverComponentsHmrCache.md).
+  logging: {
+    fetches: { fullUrl: true },
+  },
   // NOTE: `cacheComponents` is intentionally off. Enabling it is not a
   // rename-only change — it requires adopting the Cache Components model
   // (`use cache` + `<Suspense>` around every uncached/dynamic read). All
