@@ -268,6 +268,17 @@ non-push rows still draining) runs the same analysis but persists nothing
 and never resolves findings, flips statuses, or auto-verifies. There is no
 per-PR scan: PR feedback arrives via the merge-push scan.
 
+**Decision (permanent, Sep 2026): no per-PR Check Runs.** PR preview scans
+and the GitHub Checks surface were built, shipped (`a45401c`), then removed
+deliberately (`6644864`) and the PR webhook path deleted with them
+(`webhook.ts` handles `push` only). This is a product decision, not drift:
+pre-merge feedback is out of scope, and the merge-push scan plus the
+dashboard own the loop. Do not re-propose Check Runs, PR deltas, changed-line
+annotations, PR summary comments, `check_run` handling, or PR-scoped scans
+without a new product decision that explicitly reverses this one. The
+`Checks R/W` App permission remains granted but unused; treat it as
+removable the next time App permissions are touched.
+
 **Remediation:**
 
 - Source: patch → ComplyLoop → draft PR → merge → re-assess → `verified`.
