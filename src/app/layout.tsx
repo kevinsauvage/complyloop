@@ -6,6 +6,8 @@ import { headers } from "next/headers";
 import { ThemeProvider } from "next-themes";
 import type { ReactNode } from "react";
 
+import { WebVitals } from "@/components/web-vitals";
+
 const jakartaSans = Plus_Jakarta_Sans({
   variable: "--font-jakarta-sans",
   subsets: ["latin"],
@@ -70,6 +72,7 @@ export default async function RootLayout({
         >
           {children}
         </ThemeProvider>
+        <WebVitals />
       </body>
     </html>
   );
