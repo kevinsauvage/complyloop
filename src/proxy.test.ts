@@ -102,6 +102,36 @@ describe("proxy basic auth gate", () => {
     vi.stubEnv("BASIC_AUTH_USERNAME", "");
     vi.stubEnv("BASIC_AUTH_PASSWORD", "");
     getToken.mockResolvedValue({ sub: "123" });
-    await expect(proxy(request("/dashboard"))).resolves.toBeUndefined();
+    const response = await proxy(request("/dashboard"));
+    expect(response?.status).toBe(200);
+  });
+});
+
+describe("proxy content security policy", () => {
+  it("attaches a nonce-based CSP to authorized page responses", async () => {
+    baseEnv();
+    getToken.mockResolvedValue({ sub: "123" });
+    const response = await proxy(
+      request("/dashboard", basicAuthHeader("preview", "s3cret")),
+    );
+    const csp = response?.headers.get("content-security-policy") ?? "";
+    expect(csp).toContain("default-src 'self'");
+    expect(csp).toMatch(/script-src 'self' 'nonce-[^']+' 'strict-dynamic'/);
+    expect(csp).toContain("frame-ancestors 'self'");
+    expect(csp).toContain("https://avatars.githubusercontent.com");
+    // A nonce makes `'unsafe-inline'` meaningless for scripts — it must be absent.
+    expect(csp).not.toMatch(/script-src[^;]*'unsafe-inline'/);
+  });
+
+  it("relaxes script-src and connect-src in development", async () => {
+    baseEnv();
+    vi.stubEnv("NODE_ENV", "development");
+    getToken.mockResolvedValue({ sub: "123" });
+    const response = await proxy(
+      request("/dashboard", basicAuthHeader("preview", "s3cret")),
+    );
+    const csp = response?.headers.get("content-security-policy") ?? "";
+    expect(csp).toContain("'unsafe-eval'");
+    expect(csp).toContain("connect-src 'self' ws: wss:");
   });
 });

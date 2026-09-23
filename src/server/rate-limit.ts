@@ -82,7 +82,7 @@ export function assertExportRateLimit(userId: string): Promise<void> {
   return assertRateLimit(`export:${userId}`, 10, 60_000);
 }
 
-/** Draft PR creation (force-push + Checks API): 10 per user per hour. */
+/** Draft PR creation (force-push + pull request API): 10 per user per hour. */
 export function assertPrRateLimit(userId: string): Promise<void> {
   return assertRateLimit(`pr:${userId}`, 10, 3_600_000);
 }

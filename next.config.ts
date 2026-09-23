@@ -100,8 +100,9 @@ const nextConfig: NextConfig = {
   // free subdomains change on every restart.
   allowedDevOrigins: parseAllowedDevOrigins(process.env.ALLOWED_DEV_ORIGINS),
   // Baseline hardening with zero app-behavior change: framing, MIME sniffing,
-  // TLS, referrer, and device APIs. Deliberately no script/style CSP —
-  // Next.js, Turbopack HMR, and the Sentry tunnel rely on inline scripts.
+  // TLS, referrer, and device APIs. The Content-Security-Policy is *not* here:
+  // its nonce must be per-request, so it is built in `src/proxy.ts`
+  // (`buildContentSecurityPolicy`) and attached to every page response.
   async headers() {
     const securityHeaders = [
       {
@@ -113,10 +114,6 @@ const nextConfig: NextConfig = {
       {
         key: "Permissions-Policy",
         value: "camera=(), microphone=(), geolocation=()",
-      },
-      {
-        key: "Content-Security-Policy",
-        value: "frame-ancestors 'self'; object-src 'none'; base-uri 'self'",
       },
     ];
     return [{ source: "/:path*", headers: securityHeaders }];

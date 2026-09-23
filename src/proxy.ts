@@ -84,6 +84,49 @@ function isBasicAuthSatisfied(
   );
 }
 
+/**
+ * Per-request Content-Security-Policy with a nonce. Next.js parses the
+ * `Content-Security-Policy` **request** header and stamps the nonce onto the
+ * framework/page scripts it renders, so the pages it protects must be
+ * dynamically rendered — they are (every HTML route is `ƒ` in the build; only
+ * `robots.txt`/`sitemap.xml` are static and the matcher skips dotted paths).
+ *
+ * Dev is relaxed on purpose: React needs `'unsafe-eval'` to reconstruct
+ * server stacks, and Turbopack HMR opens a `ws:` socket. `style-src` keeps
+ * `'unsafe-inline'` because Radix primitives position with inline style
+ * attributes, which a nonce cannot cover (styles are a lower-risk surface than
+ * scripts). `img-src` allows GitHub avatars; `connect-src 'self'` covers
+ * server actions, polling, and the Sentry tunnel (`/monitoring`). No
+ * `upgrade-insecure-requests` — HSTS already forces HTTPS, and it would break
+ * the http e2e/`next start` runs.
+ */
+function buildContentSecurityPolicy(nonce: string): string {
+  const isDev = process.env.NODE_ENV === "development";
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' blob: data: https://avatars.githubusercontent.com",
+    "font-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'self'",
+    `connect-src 'self'${isDev ? " ws: wss:" : ""}`,
+  ].join("; ");
+}
+
+/** Continue to the page, exposing the nonce to SSR and the CSP to the browser. */
+function nextWithCsp(request: NextRequest, nonce: string): NextResponse {
+  const csp = buildContentSecurityPolicy(nonce);
+  const headers = new Headers(request.headers);
+  headers.set("x-nonce", nonce);
+  headers.set("Content-Security-Policy", csp);
+  const response = NextResponse.next({ request: { headers } });
+  response.headers.set("Content-Security-Policy", csp);
+  return response;
+}
+
 export async function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
   // Sentry browser-tunnel route (tunnelRoute: "/monitoring" in next.config.ts).
@@ -103,9 +146,13 @@ export async function proxy(req: NextRequest) {
     return;
   }
 
-  if (!isGitHubAuthConfigured()) return;
-
+  // API routes own their auth (webhook secret, session cookies) and return
+  // JSON, not a browser document — no CSP, and no per-request nonce needed.
   if (pathname.startsWith("/api/")) return;
+
+  const nonce = btoa(crypto.randomUUID());
+
+  if (!isGitHubAuthConfigured()) return nextWithCsp(req, nonce);
 
   // Private-preview gate: HTTP Basic Auth on every page. API routes above
   // keep their own auth (webhook secret, session cookies), and
@@ -153,6 +200,9 @@ export async function proxy(req: NextRequest) {
     dashboardUrl.search = "";
     return NextResponse.redirect(dashboardUrl);
   }
+
+  // Authorized page render: attach the nonce-bearing CSP.
+  return nextWithCsp(req, nonce);
 }
 
 export const config = {

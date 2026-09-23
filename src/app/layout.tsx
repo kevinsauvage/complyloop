@@ -2,6 +2,7 @@ import "./globals.css";
 
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { headers } from "next/headers";
 import { ThemeProvider } from "next-themes";
 import type { ReactNode } from "react";
 
@@ -34,7 +35,16 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  // Nonce from the proxy's CSP (`src/proxy.ts`). next-themes renders an inline
+  // theme script; without the nonce a strict `script-src` would block it and
+  // the page would flash the wrong theme / drift on hydration.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <html
       lang="en"
@@ -48,6 +58,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           defaultTheme="system"
           enableSystem
           storageKey="complyloop-theme"
+          nonce={nonce}
         >
           {children}
         </ThemeProvider>

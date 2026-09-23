@@ -52,7 +52,7 @@ export async function createPullRequestAction(
     );
     const control = controlById(finding.controlId);
     const remediation = await requireRemediationForFinding(findingId);
-    // Force-pushes + PR/Checks API calls are irreversible and expensive:
+    // Force-pushes + pull request API calls are irreversible and expensive:
     // throttle per user before any GitHub I/O.
     const sessionUserId = (await getSession())?.user?.id;
     if (sessionUserId) await assertPrRateLimit(sessionUserId);

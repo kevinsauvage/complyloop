@@ -276,8 +276,9 @@ pre-merge feedback is out of scope, and the merge-push scan plus the
 dashboard own the loop. Do not re-propose Check Runs, PR deltas, changed-line
 annotations, PR summary comments, `check_run` handling, or PR-scoped scans
 without a new product decision that explicitly reverses this one. The
-`Checks R/W` App permission remains granted but unused; treat it as
-removable the next time App permissions are touched.
+`Checks R/W` App permission was unused; it is no longer listed as required
+(`README.md` / `.env.example`) — remove it from the App registration the next
+time App permissions are touched.
 
 **Remediation:**
 
