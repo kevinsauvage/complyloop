@@ -1,5 +1,3 @@
-import { mustGet } from "./must-get";
-
 /**
  * Display data lives as one record per enum value: `{ label, description,
  * tone? }`. Adding a status edits a single table; badges read tone via
@@ -83,60 +81,47 @@ const STATUS_TONE_STYLE = {
 
 type SignallessTone = Exclude<StatusTone, "signal">;
 
-function toneStyle(tone: StatusTone): StatusToneStyle {
-  return mustGet(STATUS_TONE_STYLE, tone, "status tone");
+const SIGNALLESS_TONES: readonly SignallessTone[] = [
+  "passed",
+  "failed",
+  "review",
+  "na",
+  "unverifiable",
+];
+
+/**
+ * One `pick` per derived lookup: reads a single field off the tone table, so
+ * adding a tone edits `STATUS_TONE_STYLE` only and every map below follows.
+ */
+function mapTone<T>(
+  pick: (style: StatusToneStyle) => T,
+): Record<StatusTone, T> {
+  return Object.fromEntries(
+    (Object.keys(STATUS_TONE_STYLE) as StatusTone[]).map((tone) => [
+      tone,
+      pick(STATUS_TONE_STYLE[tone]),
+    ]),
+  ) as Record<StatusTone, T>;
 }
 
-function requiredReport(tone: SignallessTone): ReportColorPair {
-  const pair = toneStyle(tone).report;
-  if (!pair) throw new Error(`Missing report palette: ${tone}`);
-  return pair;
+/** Like {@link mapTone}, minus `signal` (which never appears in a report). */
+function mapSignallessTone<T>(
+  pick: (style: StatusToneStyle) => T,
+): Record<SignallessTone, T> {
+  return Object.fromEntries(
+    SIGNALLESS_TONES.map((tone) => [tone, pick(STATUS_TONE_STYLE[tone])]),
+  ) as Record<SignallessTone, T>;
 }
 
-function requiredReportClass(tone: SignallessTone): string {
-  const value = toneStyle(tone).reportClass;
-  if (!value) throw new Error(`Missing report class: ${tone}`);
-  return value;
-}
-
-export const STATUS_TONE_BADGE: Record<StatusTone, string> = {
-  passed: toneStyle("passed").badge,
-  failed: toneStyle("failed").badge,
-  review: toneStyle("review").badge,
-  na: toneStyle("na").badge,
-  unverifiable: toneStyle("unverifiable").badge,
-  signal: toneStyle("signal").badge,
-};
-
-export const STATUS_TONE_ACCENT: Record<SignallessTone, string> = {
-  passed: toneStyle("passed").accent,
-  failed: toneStyle("failed").accent,
-  review: toneStyle("review").accent,
-  na: toneStyle("na").accent,
-  unverifiable: toneStyle("unverifiable").accent,
-};
-
-export const STATUS_TONE_DOT: Record<StatusTone, string> = {
-  passed: toneStyle("passed").dot,
-  failed: toneStyle("failed").dot,
-  review: toneStyle("review").dot,
-  na: toneStyle("na").dot,
-  unverifiable: toneStyle("unverifiable").dot,
-  signal: toneStyle("signal").dot,
-};
-
-export const STATUS_TONE_REPORT: Record<SignallessTone, ReportColorPair> = {
-  passed: requiredReport("passed"),
-  failed: requiredReport("failed"),
-  review: requiredReport("review"),
-  na: requiredReport("na"),
-  unverifiable: requiredReport("unverifiable"),
-};
-
-export const STATUS_TONE_REPORT_CLASS: Record<SignallessTone, string> = {
-  passed: requiredReportClass("passed"),
-  failed: requiredReportClass("failed"),
-  review: requiredReportClass("review"),
-  na: requiredReportClass("na"),
-  unverifiable: requiredReportClass("unverifiable"),
-};
+export const STATUS_TONE_BADGE = mapTone((style) => style.badge);
+export const STATUS_TONE_ACCENT = mapSignallessTone((style) => style.accent);
+export const STATUS_TONE_DOT = mapTone((style) => style.dot);
+export const STATUS_TONE_REPORT = mapSignallessTone((style) => {
+  if (!style.report) throw new Error("Missing report palette for status tone.");
+  return style.report;
+});
+export const STATUS_TONE_REPORT_CLASS = mapSignallessTone((style) => {
+  if (!style.reportClass)
+    throw new Error("Missing report class for status tone.");
+  return style.reportClass;
+});

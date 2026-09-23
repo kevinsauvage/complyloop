@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { SITE_VERIFY_TIMEOUT_MS } from "@complyloop/analysis-core/contract/assessment-limits";
 import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
 import { testFinding } from "@/test-fixtures/finding";
@@ -72,6 +73,19 @@ const domFinding = (partial = {}) =>
     },
     ...partial,
   });
+
+const siteFinding = (partial = {}) =>
+  testFinding({
+    location: {
+      kind: "site",
+      detail: "missing lang",
+      pages: ["https://preview.test/"],
+    },
+    ...partial,
+  });
+
+const implementedRemediation = () =>
+  testRemediation({ status: "implemented", suggestion: null, history: [] });
 
 beforeEach(() => {
   getDrizzle.mockResolvedValue({});
@@ -147,5 +161,194 @@ describe("runRemediationVerifyJob", () => {
       /draft pull request/i,
     );
     expect(persistProjectRows).not.toHaveBeenCalled();
+  });
+
+  it("throws when the finding is unknown", async () => {
+    getFindingById.mockResolvedValue(undefined);
+    await expect(runRemediationVerifyJob("missing")).rejects.toThrow(
+      /unknown finding/i,
+    );
+  });
+
+  it("throws when the project is unknown", async () => {
+    getFindingById.mockResolvedValue(domFinding());
+    getProjectById.mockResolvedValue(undefined);
+    await expect(runRemediationVerifyJob("f1")).rejects.toThrow(
+      /unknown project/i,
+    );
+  });
+
+  it("skips the apply when the finding drifted during the re-audit", async () => {
+    const finding = domFinding();
+    getFindingById
+      .mockReset()
+      .mockResolvedValueOnce(finding)
+      .mockResolvedValueOnce(
+        domFinding({
+          location: {
+            kind: "dom",
+            url: "https://preview.test/",
+            selector: "button",
+            snippet: "<button>",
+          },
+        }),
+      );
+    listRemediationsForProject.mockResolvedValue([implementedRemediation()]);
+    runtimeViolationStillPresent.mockResolvedValue(false);
+
+    await runRemediationVerifyJob("f1");
+
+    expect(persistProjectRows).not.toHaveBeenCalled();
+  });
+
+  it("verifies a site finding when the re-audit is clean", async () => {
+    getFindingById.mockResolvedValue(siteFinding());
+    listRemediationsForProject.mockResolvedValue([implementedRemediation()]);
+    scanRuntime.mockResolvedValue({
+      findings: [],
+      pagesScanned: 2,
+      siteLevelChecksRan: true,
+    });
+
+    await runRemediationVerifyJob("f1");
+
+    const payload = persistProjectRows.mock
+      .calls[0]?.[1] as ProjectWritePayload;
+    expect(payload.remediations?.[0]?.status).toBe("verified");
+    expect(payload.findings?.[0]?.status).toBe("resolved");
+  });
+
+  it("keeps an already-resolved finding resolved on a clean site re-audit", async () => {
+    getFindingById.mockResolvedValue(siteFinding({ status: "resolved" }));
+    listRemediationsForProject.mockResolvedValue([implementedRemediation()]);
+    scanRuntime.mockResolvedValue({
+      findings: [],
+      pagesScanned: 2,
+      siteLevelChecksRan: true,
+    });
+
+    await runRemediationVerifyJob("f1");
+
+    const payload = persistProjectRows.mock
+      .calls[0]?.[1] as ProjectWritePayload;
+    expect(payload.remediations?.[0]?.status).toBe("verified");
+    expect(payload.findings?.[0]?.status).toBe("resolved");
+  });
+
+  it("records still-failing when the site finding is re-detected", async () => {
+    const finding = siteFinding();
+    getFindingById.mockResolvedValue(finding);
+    listRemediationsForProject.mockResolvedValue([implementedRemediation()]);
+    scanRuntime.mockResolvedValue({
+      findings: [{ location: finding.location }],
+      pagesScanned: 2,
+      siteLevelChecksRan: true,
+    });
+
+    await runRemediationVerifyJob("f1");
+
+    const payload = persistProjectRows.mock
+      .calls[0]?.[1] as ProjectWritePayload;
+    expect(payload.remediations?.[0]?.status).toBe("implemented");
+    expect(
+      payload.evidence?.some(
+        (row) => row.kind === "remediation_verification_failed",
+      ),
+    ).toBe(true);
+  });
+
+  it("records a site verdict when no pages were scanned", async () => {
+    getFindingById.mockResolvedValue(siteFinding());
+    listRemediationsForProject.mockResolvedValue([implementedRemediation()]);
+    scanRuntime.mockResolvedValue({
+      findings: [],
+      pagesScanned: 0,
+      siteLevelChecksRan: true,
+    });
+
+    await runRemediationVerifyJob("f1");
+
+    const payload = persistProjectRows.mock
+      .calls[0]?.[1] as ProjectWritePayload;
+    expect(payload.remediations?.[0]?.status).toBe("implemented");
+    expect(
+      payload.evidence?.some(
+        (row) => row.kind === "remediation_verification_failed",
+      ),
+    ).toBe(true);
+  });
+
+  it("records a site verdict when the site checks did not run", async () => {
+    getFindingById.mockResolvedValue(siteFinding());
+    listRemediationsForProject.mockResolvedValue([implementedRemediation()]);
+    scanRuntime.mockResolvedValue({
+      findings: [],
+      pagesScanned: 2,
+      siteLevelChecksRan: false,
+    });
+
+    await runRemediationVerifyJob("f1");
+
+    const payload = persistProjectRows.mock
+      .calls[0]?.[1] as ProjectWritePayload;
+    expect(payload.remediations?.[0]?.status).toBe("implemented");
+    expect(
+      payload.evidence?.some(
+        (row) => row.kind === "remediation_verification_failed",
+      ),
+    ).toBe(true);
+  });
+
+  it("records a preview-unreachable verdict when the scan errors", async () => {
+    getFindingById.mockResolvedValue(siteFinding());
+    listRemediationsForProject.mockResolvedValue([implementedRemediation()]);
+    scanRuntime.mockResolvedValue({
+      findings: [],
+      pagesScanned: 0,
+      error: "Runtime scan failed.",
+    });
+
+    await runRemediationVerifyJob("f1");
+
+    const payload = persistProjectRows.mock
+      .calls[0]?.[1] as ProjectWritePayload;
+    expect(payload.remediations?.[0]?.status).toBe("implemented");
+    expect(
+      payload.evidence?.some(
+        (row) => row.kind === "remediation_verification_failed",
+      ),
+    ).toBe(true);
+  });
+
+  it("fails closed with a timeout verdict when the re-audit never settles", async () => {
+    getFindingById.mockResolvedValue(siteFinding());
+    listRemediationsForProject.mockResolvedValue([implementedRemediation()]);
+    scanRuntime.mockImplementation(() => new Promise(() => {}));
+    vi.useFakeTimers();
+    try {
+      const job = runRemediationVerifyJob("f1");
+      await vi.advanceTimersByTimeAsync(SITE_VERIFY_TIMEOUT_MS);
+      await job;
+    } finally {
+      vi.useRealTimers();
+      scanRuntime.mockReset();
+    }
+
+    const payload = persistProjectRows.mock
+      .calls[0]?.[1] as ProjectWritePayload;
+    expect(payload.remediations?.[0]?.status).toBe("implemented");
+    expect(
+      payload.evidence?.some(
+        (row) => row.kind === "remediation_verification_failed",
+      ),
+    ).toBe(true);
+  });
+
+  it("propagates a non-timeout re-audit failure", async () => {
+    getFindingById.mockResolvedValue(siteFinding());
+    listRemediationsForProject.mockResolvedValue([implementedRemediation()]);
+    scanRuntime.mockRejectedValue(new Error("scan blew up"));
+
+    await expect(runRemediationVerifyJob("f1")).rejects.toThrow("scan blew up");
   });
 });

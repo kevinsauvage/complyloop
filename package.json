@@ -11,7 +11,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "vercel-build": "npm run db:migrate && npm run build",
+    "vercel-build": "node scripts/vercel-build.mjs",
     "build:core": "npm run build --workspace @complyloop/analysis-core",
     "build:db": "npm run build --workspace @complyloop/db",
     "analyze": "next experimental-analyze --output",

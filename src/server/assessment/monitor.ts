@@ -42,7 +42,7 @@ export async function captureSnapshot(
 ): Promise<AssessmentSnapshot> {
   // Single tree walk: quota-count every file but `.git` (same coverage as
   // `assertCheckoutWithinQuota`) while hashing exactly the snapshot set
-  // (`shouldSnapshotFile` mirrors the old fast-glob enumeration, so snapshot
+  // (`shouldSnapshotFile` mirrors `listSourceFiles` enumeration, so snapshot
   // bytes — and therefore `detectChanges` diffs — are unchanged). Async +
   // time-budgeted so a huge tree cannot block the event loop.
   const { maxBytes, maxFiles, scanTimeoutMs } = assessmentCheckoutQuota();

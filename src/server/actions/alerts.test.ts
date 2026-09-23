@@ -9,14 +9,17 @@ import {
 } from "@/test-fixtures/action-workspace-mocks";
 import { testMembership } from "@/test-fixtures/membership";
 import { testProject } from "@/test-fixtures/project";
+import { testWorkspace } from "@/test-fixtures/workspace";
 
-import { markAlertReadAction } from "./alerts";
+import { markAlertReadAction, markAllAlertsReadAction } from "./alerts";
 
 const { withProjectLock, getWorkspace } = actionWorkspaceMocks;
 const markAlertReadById = vi.hoisted(() => vi.fn());
 const getAlertById = vi.hoisted(() => vi.fn());
 const getProjectById = vi.hoisted(() => vi.fn());
 const listMembershipsForOrgs = vi.hoisted(() => vi.fn());
+const listAlertsForProject = vi.hoisted(() => vi.fn());
+const markAllProjectAlertsRead = vi.hoisted(() => vi.fn());
 const transaction = vi.hoisted(() => vi.fn());
 
 vi.mock("@complyloop/db/postgres", () => ({
@@ -26,6 +29,9 @@ vi.mock("@complyloop/db/postgres", () => ({
 vi.mock("@complyloop/db/repo/alerts", () => ({
   markAlertReadById: (...args: unknown[]) => markAlertReadById(...args),
   getAlertById: (...args: unknown[]) => getAlertById(...args),
+  listAlertsForProject: (...args: unknown[]) => listAlertsForProject(...args),
+  markAllProjectAlertsRead: (...args: unknown[]) =>
+    markAllProjectAlertsRead(...args),
 }));
 
 vi.mock("@complyloop/db/repo/projects", () => ({
@@ -38,21 +44,20 @@ vi.mock("@complyloop/db/repo/orgs", () => ({
 }));
 
 const project = testProject({ orgId: "org-1" });
+const alert = {
+  id: "alert-1",
+  projectId: "p1",
+  kind: "compliance_regression" as const,
+  summary: "Regressed",
+  at: "2026-01-01T00:00:00.000Z",
+  read: false,
+};
 
 afterEach(() => {
   vi.clearAllMocks();
 });
 
 describe("markAlertReadAction", () => {
-  const alert = {
-    id: "alert-1",
-    projectId: "p1",
-    kind: "compliance_regression" as const,
-    summary: "Regressed",
-    at: "2026-01-01T00:00:00.000Z",
-    read: false,
-  };
-
   function signIn(): void {
     actionAuthMocks.auth.mockResolvedValue({
       user: { id: "user-1", login: "alice" },
@@ -125,5 +130,76 @@ describe("markAlertReadAction", () => {
       new FormData(),
     );
     expect(result.ok ? null : result.message).toMatch(/Unknown alert/);
+  });
+});
+
+describe("markAllAlertsReadAction", () => {
+  function signIn(): void {
+    actionAuthMocks.auth.mockResolvedValue({
+      user: { id: "user-1", login: "alice" },
+    });
+  }
+
+  function form(projectId: string): FormData {
+    const data = new FormData();
+    data.set("projectId", projectId);
+    return data;
+  }
+
+  it("marks every unread alert and pluralizes the count", async () => {
+    signIn();
+    getWorkspace.mockResolvedValue(testWorkspace({ role: "member", project }));
+    withProjectLock.mockImplementation(async (_id, fn) => fn({}));
+    listAlertsForProject.mockResolvedValue([alert]);
+    markAllProjectAlertsRead.mockResolvedValue(2);
+
+    const result = await markAllAlertsReadAction(
+      initialActionState,
+      form(project.id),
+    );
+    expect(result.message).toBe("2 alerts marked as read.");
+  });
+
+  it("uses the singular for one alert", async () => {
+    signIn();
+    getWorkspace.mockResolvedValue(testWorkspace({ role: "member", project }));
+    withProjectLock.mockImplementation(async (_id, fn) => fn({}));
+    listAlertsForProject.mockResolvedValue([alert]);
+    markAllProjectAlertsRead.mockResolvedValue(1);
+
+    const result = await markAllAlertsReadAction(
+      initialActionState,
+      form(project.id),
+    );
+    expect(result.message).toBe("1 alert marked as read.");
+  });
+
+  it("reports no unread alerts", async () => {
+    signIn();
+    getWorkspace.mockResolvedValue(testWorkspace({ role: "member", project }));
+    withProjectLock.mockImplementation(async (_id, fn) => fn({}));
+    listAlertsForProject.mockResolvedValue([]);
+    markAllProjectAlertsRead.mockResolvedValue(0);
+
+    const result = await markAllAlertsReadAction(
+      initialActionState,
+      form(project.id),
+    );
+    expect(result.message).toBe("No unread alerts.");
+  });
+
+  it("rejects a viewer without the project permission", async () => {
+    signIn();
+    getWorkspace.mockResolvedValue(
+      testWorkspace({ role: "viewer", project, db: { memberships: [] } }),
+    );
+    withProjectLock.mockImplementation(async (_id, fn) => fn({}));
+
+    const result = await markAllAlertsReadAction(
+      initialActionState,
+      form(project.id),
+    );
+    expect(result.ok ? null : result.message).toMatch(/Not allowed/);
+    expect(markAllProjectAlertsRead).not.toHaveBeenCalled();
   });
 });

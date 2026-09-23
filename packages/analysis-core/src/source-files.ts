@@ -1,20 +1,16 @@
+import fs from "node:fs";
 import path from "node:path";
-
-import fg from "fast-glob";
 
 const IGNORED_DIRECTORIES = ["node_modules", ".next", ".git", "dist", "out"];
 
 export type SourceExtensionSet = "jsx" | "script";
 
-const GLOBS: Record<SourceExtensionSet, string[]> = {
+const EXTENSIONS: Record<SourceExtensionSet, ReadonlySet<string>> = {
   /** Assessed UI sources (AST checks). */
-  jsx: ["**/*.{tsx,jsx}"],
+  jsx: new Set(["tsx", "jsx"]),
   /** Broader tree for snapshots / connectability. */
-  script: ["**/*.{tsx,jsx,ts,js}"],
+  script: new Set(["tsx", "jsx", "ts", "js"]),
 };
-
-/** Extensions hashed into assessment snapshots (mirrors the `script` glob). */
-const SNAPSHOT_EXTENSIONS = new Set(["tsx", "jsx", "ts", "js"]);
 
 /**
  * Whether a checkout-relative path belongs in the assessment snapshot —
@@ -24,9 +20,16 @@ const SNAPSHOT_EXTENSIONS = new Set(["tsx", "jsx", "ts", "js"]);
  * one tree walk without changing snapshot bytes.
  */
 export function shouldSnapshotFile(relativePath: string): boolean {
+  return matchesSourceSet(relativePath, "script");
+}
+
+function matchesSourceSet(
+  relativePath: string,
+  extensions: SourceExtensionSet,
+): boolean {
   const segments = relativePath.split(path.sep);
   const basename = segments[segments.length - 1] ?? "";
-  // fast-glob `dot: false`: no dot-segment at any level.
+  // No dot-segment at any level (the old `dot: false`).
   if (segments.some((segment) => segment.startsWith("."))) return false;
   // Shared `**/<dir>/**` ignores apply to directories, not to a root-level
   // file that merely shares the name (e.g. `dist.ts` still snapshots).
@@ -39,41 +42,64 @@ export function shouldSnapshotFile(relativePath: string): boolean {
   }
   const dot = basename.lastIndexOf(".");
   if (dot < 0) return false;
-  // Case-sensitive like fast-glob on Linux: `App.TSX` does not snapshot.
-  return SNAPSHOT_EXTENSIONS.has(basename.slice(dot + 1));
+  // Case-sensitive like the old glob: `App.TSX` does not snapshot.
+  return EXTENSIONS[extensions].has(basename.slice(dot + 1));
 }
 
-function globRelative(
+function walkSourceFiles(
   rootPath: string,
   extensions: SourceExtensionSet,
 ): string[] {
-  return fg.sync(GLOBS[extensions], {
-    cwd: rootPath,
-    onlyFiles: true,
-    absolute: false,
-    dot: false,
-    ignore: IGNORED_DIRECTORIES.map((dir) => `**/${dir}/**`),
-    followSymbolicLinks: false,
-  });
+  const results: string[] = [];
+  const visit = (dir: string, relativeDir: string): void => {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      // Missing/unreadable root (e.g. a checkout that never landed) lists
+      // nothing, matching the old glob's empty result.
+      return;
+    }
+    for (const entry of entries) {
+      const relative = relativeDir
+        ? path.join(relativeDir, entry.name)
+        : entry.name;
+      if (entry.isDirectory()) {
+        if (
+          entry.name.startsWith(".") ||
+          IGNORED_DIRECTORIES.includes(entry.name)
+        ) {
+          continue;
+        }
+        visit(path.join(dir, entry.name), relative);
+      } else if (entry.isFile() && matchesSourceSet(relative, extensions)) {
+        // `isFile()` is lstat-based, so symlinks are skipped — the old
+        // `followSymbolicLinks: false`.
+        results.push(relative);
+      }
+    }
+  };
+  visit(rootPath, "");
+  return results;
 }
 
 /**
  * Absolute paths to source files under `rootPath`, sorted.
- * Uses fast-glob ignore semantics shared by scan, monitor, and connect.
+ * Shares one ignore/extension predicate with scan, monitor, and connect.
  */
 export function listSourceFiles(
   rootPath: string,
   extensions: SourceExtensionSet = "jsx",
 ): string[] {
-  return globRelative(rootPath, extensions)
+  return walkSourceFiles(rootPath, extensions)
     .map((file) => path.join(rootPath, file))
     .sort((a, b) => a.localeCompare(b));
 }
 
-/** True when at least one matching source file exists (stops early). */
+/** True when at least one matching source file exists. */
 export function hasSourceFiles(
   rootPath: string,
   extensions: SourceExtensionSet = "script",
 ): boolean {
-  return globRelative(rootPath, extensions).length > 0;
+  return walkSourceFiles(rootPath, extensions).length > 0;
 }

@@ -33,7 +33,51 @@ type EvaluatePayload = {
   bodySrc: string;
   loadSrc: string;
   hitCaptureSrc: string;
+  hasArg: boolean;
+  arg?: unknown;
 };
+
+/**
+ * Browser-side evaluator shared by page- and locator-scoped calls. Playwright
+ * serializes this function, so it must stay self-contained (no module refs).
+ * `locator.evaluate` passes the element first, `page.evaluate` does not — that
+ * arity difference is how the element is detected.
+ */
+function runHitCapture<T>(
+  elOrPayload: unknown,
+  maybePayload?: EvaluatePayload,
+): T {
+  const payload = (maybePayload ?? elOrPayload) as EvaluatePayload;
+  const el = maybePayload ? elOrPayload : undefined;
+  const loadHitCapture = new Function(`return (${payload.loadSrc})`)() as (
+    src: string,
+  ) => HitCaptureHelpers;
+  const { captureHit } = loadHitCapture(payload.hitCaptureSrc);
+  const run = new Function(`return (${payload.bodySrc})`)() as (
+    captureHit: CaptureHitFn,
+    ...rest: unknown[]
+  ) => T;
+  if (el !== undefined) {
+    return payload.hasArg
+      ? run(captureHit, el, payload.arg)
+      : run(captureHit, el);
+  }
+  return payload.hasArg ? run(captureHit, payload.arg) : run(captureHit);
+}
+
+function payloadFor(
+  body: { toString(): string },
+  hasArg: boolean,
+  arg: unknown,
+): EvaluatePayload {
+  return {
+    bodySrc: body.toString(),
+    loadSrc: LOAD_HIT_CAPTURE_SRC,
+    hitCaptureSrc: BROWSER_HIT_CAPTURE_SRC,
+    hasArg,
+    arg,
+  };
+}
 
 /**
  * Run `body` in the page with `captureHit` already bound.
@@ -53,39 +97,10 @@ export async function pageEvaluateWithHitCapture<T, Arg>(
   body: (captureHit: CaptureHitFn, arg?: Arg) => T,
   ...rest: [] | [Arg]
 ): Promise<T> {
-  const payload: EvaluatePayload = {
-    bodySrc: body.toString(),
-    loadSrc: LOAD_HIT_CAPTURE_SRC,
-    hitCaptureSrc: BROWSER_HIT_CAPTURE_SRC,
-  };
-
-  if (rest.length === 0) {
-    return page.evaluate(({ bodySrc, loadSrc, hitCaptureSrc }) => {
-      const loadHitCapture = new Function(`return (${loadSrc})`)() as (
-        src: string,
-      ) => HitCaptureHelpers;
-      const { captureHit } = loadHitCapture(hitCaptureSrc);
-      const run = new Function(`return (${bodySrc})`)() as (
-        captureHit: CaptureHitFn,
-      ) => T;
-      return run(captureHit);
-    }, payload);
-  }
-
   const [arg] = rest;
   return page.evaluate(
-    ({ bodySrc, loadSrc, hitCaptureSrc, arg: innerArg }) => {
-      const loadHitCapture = new Function(`return (${loadSrc})`)() as (
-        src: string,
-      ) => HitCaptureHelpers;
-      const { captureHit } = loadHitCapture(hitCaptureSrc);
-      const run = new Function(`return (${bodySrc})`)() as (
-        captureHit: CaptureHitFn,
-        arg: unknown,
-      ) => T;
-      return run(captureHit, innerArg);
-    },
-    { ...payload, arg },
+    runHitCapture as (payload: EvaluatePayload) => T,
+    payloadFor(body, rest.length > 0, arg),
   );
 }
 
@@ -106,40 +121,9 @@ export async function locatorEvaluateWithHitCapture<T, Arg>(
   body: (captureHit: CaptureHitFn, el: Element, arg?: Arg) => T,
   ...rest: [] | [Arg]
 ): Promise<T> {
-  const payload: EvaluatePayload = {
-    bodySrc: body.toString(),
-    loadSrc: LOAD_HIT_CAPTURE_SRC,
-    hitCaptureSrc: BROWSER_HIT_CAPTURE_SRC,
-  };
-
-  if (rest.length === 0) {
-    return locator.evaluate((el, { bodySrc, loadSrc, hitCaptureSrc }) => {
-      const loadHitCapture = new Function(`return (${loadSrc})`)() as (
-        src: string,
-      ) => HitCaptureHelpers;
-      const { captureHit } = loadHitCapture(hitCaptureSrc);
-      const run = new Function(`return (${bodySrc})`)() as (
-        captureHit: CaptureHitFn,
-        el: Element,
-      ) => T;
-      return run(captureHit, el);
-    }, payload);
-  }
-
   const [arg] = rest;
   return locator.evaluate(
-    (el, { bodySrc, loadSrc, hitCaptureSrc, arg: innerArg }) => {
-      const loadHitCapture = new Function(`return (${loadSrc})`)() as (
-        src: string,
-      ) => HitCaptureHelpers;
-      const { captureHit } = loadHitCapture(hitCaptureSrc);
-      const run = new Function(`return (${bodySrc})`)() as (
-        captureHit: CaptureHitFn,
-        el: Element,
-        arg: unknown,
-      ) => T;
-      return run(captureHit, el, innerArg);
-    },
-    { ...payload, arg },
+    runHitCapture as (el: Element, payload: EvaluatePayload) => T,
+    payloadFor(body, rest.length > 0, arg),
   );
 }

@@ -163,6 +163,12 @@ deleteMembershipIds, deleteOrgIds }` — no JSON-diff of the in-memory slice.
   resolve via `findProjectsByGithubFullName` (all matches, id order) pinned
   by installation id; ambiguous or foreign-installation deliveries are
   rejected, never run against an arbitrary row.
+- **Migrations** — `scripts/vercel-build.mjs` applies `drizzle/*.sql` on
+  production deploys only (`VERCEL_ENV=production` or unset). Preview and
+  development builds skip `db:migrate`: a preview pointed at a shared/staging
+  `DATABASE_URL` must never apply unreviewed SQL before review. Previews should
+  use an isolated database (`DATABASE_URL` scoped per Vercel environment), not
+  the production branch's.
 - **Validation** — shared zod primitives (`entityIdSchema`,
   `requiredField`, `parseForm` / `parseInput` / `parseEntityId`) live in
   `src/core/actions/validate.ts`; action- and route-specific schemas stay next to
