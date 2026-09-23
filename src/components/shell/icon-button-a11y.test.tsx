@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next-themes", () => ({
@@ -46,6 +46,44 @@ describe("icon-button a11y", () => {
     expect(
       screen.getByRole("button", { name: "Account: Ada Lovelace" }),
     ).toBeInTheDocument();
+  });
+
+  it("renders the GitHub avatar through next/image with an intrinsic size", async () => {
+    // Radix `Avatar.Image` probes `new window.Image()` and only renders its
+    // child once that probe reports "loaded"; jsdom never loads images, so
+    // stub the probe to succeed.
+    class LoadedImage {
+      complete = true;
+      naturalWidth = 1;
+      referrerPolicy = "";
+      crossOrigin: string | null = null;
+      src = "";
+      addEventListener() {}
+      removeEventListener() {}
+    }
+    vi.stubGlobal("Image", LoadedImage);
+    try {
+      const { container } = render(
+        <AuthControls
+          configured
+          user={{
+            image: "https://avatars.githubusercontent.com/u/1?v=4",
+            label: "Ada Lovelace",
+          }}
+        />,
+      );
+      await waitFor(() =>
+        expect(container.querySelector("img")).toBeInTheDocument(),
+      );
+      const img = container.querySelector("img");
+      expect(img).toHaveAttribute("width", "28");
+      expect(img).toHaveAttribute("height", "28");
+      expect(img?.getAttribute("src")).toContain(
+        "avatars.githubusercontent.com",
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("dialog close button exposes sr-only text", () => {

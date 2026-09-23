@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useId } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -78,7 +79,16 @@ export function AuthControls({
             aria-label={`Account: ${user.label}`}
           >
             <Avatar className="size-7">
-              {user.image ? <AvatarImage src={user.image} alt="" /> : null}
+              {user.image ? (
+                // Radix `AvatarImage` keeps the fallback/error logic; `asChild`
+                // lets it drive a `next/image` (intrinsic 28px size → no CLS,
+                // optimized + `remotePatterns` allowlisted in next.config.ts).
+                // `src` is required on `AvatarImage` itself: that is what Radix
+                // probes to decide when to swap the fallback for the image.
+                <AvatarImage asChild src={user.image}>
+                  <Image src={user.image} alt="" width={28} height={28} />
+                </AvatarImage>
+              ) : null}
               <AvatarFallback className="text-xs">{initials}</AvatarFallback>
             </Avatar>
             <span className="truncate text-sm font-medium">{user.label}</span>
