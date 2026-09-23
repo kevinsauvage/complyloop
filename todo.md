@@ -6,14 +6,6 @@ evidence and a concrete fix. Order = severity.
 
 ## P0 — security / data integrity
 
-- [ ] **1. Replace the `ssrf-guard` node_modules patch with a real fix.**
-      `scripts/postinstall-ssrf-guard.mjs` rewrites
-      `node_modules/ssrf-guard/package.json` at install time because published
-      1.0.0 flapped its exports map. It silently no-ops under
-      `npm ci --ignore-scripts`, breaks on any lockfile bump, and mutates a
-      dependency's manifest. Fix: pin a known-good revision, vendor the package, or
-      add the `require` condition via `overrides`/`patch-package` with a lockfile.
-
 - [ ] **2. Get off `next-auth@5.0.0-beta.32` in production.**
       Auth is the highest-risk surface and it runs on a beta release. Fix: track the
       stable v5 release, or pin a reviewed beta with a comment + Renovate rule.
