@@ -1,11 +1,63 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "plugin": ["@dietrichgebert/ponytail"],
+  "instructions": [".cursor/rules/*.mdc", "docs/ai/architecture.md"],
+  "permission": {
+    "edit": {
+      "*": "allow",
+      ".env*": "deny",
+      ".env.example": "allow"
+    },
+    "bash": {
+      "*": "ask",
+      "git status*": "allow",
+      "git diff*": "allow",
+      "git log*": "allow",
+      "git show*": "allow",
+      "git branch*": "allow",
+      "graft *": "allow",
+      "rg *": "allow",
+      "npm run verify:gate": "allow",
+      "npm run lint": "allow",
+      "npm run typecheck": "allow",
+      "npm run format:check": "allow",
+      "npm run test": "allow",
+      "npm run test:coverage": "allow",
+      "npm run test:db": "allow",
+      "npm run build": "allow",
+      "npm run build:core": "allow",
+      "npx vitest run*": "allow"
+    },
+    "external_directory": "ask",
+    "webfetch": "allow",
+    "websearch": "allow"
+  },
   "mcp": {
     "graft": {
       "type": "local",
       "command": ["graft", "mcp"],
       "enabled": true
+    }
+  },
+  "agent": {
+    "reviewer": {
+      "description": "Independent review of a high-risk diff (auth, evidence, status transitions, migrations, tenant isolation). Read-only.",
+      "mode": "subagent",
+      "permission": {
+        "edit": "deny",
+        "bash": {
+          "*": "deny",
+          "git status*": "allow",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "git show*": "allow",
+          "graft *": "allow",
+          "npm run lint": "allow",
+          "npm run typecheck": "allow",
+          "npx vitest run*": "allow"
+        }
+      },
+      "prompt": "You are an independent reviewer for the ComplyLoop codebase (RGAA/WCAG compliance engineering). Review the working-tree diff only — never edit. Report findings in severity order with file:line references, then a verdict: APPROVE or REQUEST CHANGES. Check: (1) evidence/audit integrity — evidence rows are insert-only, nothing mutates or deletes them; (2) tenant isolation — every DB read/write goes through withProjectWrite/withOrgWrite or an explicit org/project scope, never raw getDrizzle() in actions; (3) status transitions — canonical statuses only, exhaustive switch with a `never` default, and AI must never set requirement/finding statuses; (4) auth/authorization — server actions re-check authz, never trust layout/proxy checks alone; (5) secrets — no keys or tokens committed or logged; (6) accessibility — RGAA/WCAG regressions in UI changes; (7) tests — colocated *.test.ts[x] for new logic, and whether `npm run verify:gate` is expected to stay green. Flag assumptions as [ASSUMPTION]."
     }
   }
 }
