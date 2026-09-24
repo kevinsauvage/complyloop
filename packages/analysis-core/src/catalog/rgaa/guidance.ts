@@ -536,12 +536,6 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       "Place the <label> immediately before or above its control, or wrap the input inside the label.",
   },
-  "both-colors": {
-    impact:
-      "Setting only color or only background breaks when users apply their own stylesheet (WCAG 1.4.3 / RGAA 10.5).",
-    howToFix:
-      "Declare both color and background-color together on text containers.",
-  },
   "redundant-entry": {
     impact:
       "Re-asking for email, name, or address in the same flow wastes time and blocks users with cognitive disabilities (WCAG 3.3.7).",

@@ -309,6 +309,13 @@ export function reconcileControlFindings(
       // proven by resolves + per-run evidence, not by this id.
       existing.fix = mergeFix(existing.fix, raw.fix);
       existing.location = raw.location;
+      // The current check verdict wins. A check's kind/severity/confidence can
+      // change between runs (e.g. a heuristic downgraded to a warning); a
+      // re-detected open finding must reflect the latest assessment, not the
+      // one that first created it.
+      existing.kind = raw.kind;
+      existing.severity = raw.severity;
+      existing.confidence = raw.confidence;
       if (raw.analyzerId) existing.analyzerId = raw.analyzerId;
       if (raw.analyzerRuleId) existing.analyzerRuleId = raw.analyzerRuleId;
       if (raw.analyzerVersion) existing.analyzerVersion = raw.analyzerVersion;

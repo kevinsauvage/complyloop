@@ -28,6 +28,14 @@ export interface CheckRegistration {
   /** AST unreliable for this rule — runtime overrides source when it ran. */
   compositionSensitive?: boolean;
   /**
+   * Verdict rests on inference (text keywords, DOM heuristics, geometry that
+   * may be decorative) rather than a deterministic fact. Advisory checks never
+   * fail a requirement: their findings are emitted as `warning` (needs_review)
+   * so a human confirms. Set on heuristic-inference probes regardless of
+   * authority, so `runtime_only`/`site_level` inference cannot hard-fail.
+   */
+  advisory?: boolean;
+  /**
    * Verdict can depend on files beyond the one scanned (document order,
    * cross-node structure, id uniqueness): a scoped re-scan of only changed
    * files cannot confirm or clear these, so any run assessing them must scan
@@ -567,6 +575,7 @@ export const CHECK_REGISTRY = [
   {
     id: "non-text-contrast",
     authority: "runtime_only",
+    advisory: true,
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-non-text-contrast",
   },
@@ -593,12 +602,6 @@ export const CHECK_REGISTRY = [
     authority: "runtime_only",
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-label-adjacent",
-  },
-  {
-    id: "both-colors",
-    authority: "standard",
-    analyzers: ["ast"],
-    catalogControlId: "ctl-both-colors",
   },
   {
     id: "redundant-entry",
@@ -647,6 +650,7 @@ export const CHECK_REGISTRY = [
     authority: "site_level",
     // site_level ∩ runtime-only exception — see CheckRegistration.runtimeOnly
     runtimeOnly: true,
+    advisory: true,
     analyzers: ["site-level"],
     catalogControlId: "ctl-multiple-ways",
   },
@@ -853,12 +857,14 @@ export const CHECK_REGISTRY = [
   {
     id: "captcha-alternative",
     authority: "heuristic",
+    advisory: true,
     analyzers: ["ast", "playwright-custom"],
     catalogControlId: "ctl-captcha-alternative",
   },
   {
     id: "supplementary-content-keyboard",
     authority: "runtime_only",
+    advisory: true,
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-supplementary-content-keyboard",
   },

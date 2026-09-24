@@ -6,6 +6,7 @@ import {
   CONFIRM_LABEL,
   HIGH_RISK,
   RUNTIME_MATCHES_SRC,
+  RUNTIME_STRIP_BOILERPLATE_SRC,
 } from "../../patterns/multilingual.ts";
 import { type CapturedHit } from "./hit-capture.ts";
 import {
@@ -26,7 +27,7 @@ export async function errorPreventionViolation(
     page,
     (
       captureHit,
-      { highRiskSource, confirmSource, matchesSrc, datasetKeys },
+      { highRiskSource, confirmSource, matchesSrc, stripSrc, datasetKeys },
     ) => {
       const highRisk = new RegExp(highRiskSource, "i");
       const confirmLabel = new RegExp(confirmSource, "i");
@@ -35,6 +36,12 @@ export async function errorPreventionViolation(
         pattern: RegExp,
         text: string,
       ) => boolean;
+      // Consent boilerplate is not a transaction signal — strip it before
+      // matching so a reCAPTCHA "Terms of Service" notice cannot make a
+      // normal contact form look high-impact.
+      const stripBoilerplate = new Function(stripSrc)() as (
+        text: string,
+      ) => string;
 
       function formContext(form: HTMLFormElement): string {
         return [
@@ -60,7 +67,8 @@ export async function errorPreventionViolation(
 
       const violations: CapturedHit[] = [];
       for (const form of document.querySelectorAll("form")) {
-        if (!matchesPattern(highRisk, formContext(form))) continue;
+        if (!matchesPattern(highRisk, stripBoilerplate(formContext(form))))
+          continue;
         if (hasSafeguard(form)) continue;
         violations.push(captureHit(form));
         if (violations.length >= 5) break;
@@ -71,6 +79,7 @@ export async function errorPreventionViolation(
       highRiskSource: HIGH_RISK.source,
       confirmSource: RUNTIME_CONFIRM_LABEL.source,
       matchesSrc: RUNTIME_MATCHES_SRC,
+      stripSrc: RUNTIME_STRIP_BOILERPLATE_SRC,
       datasetKeys: [...ERROR_PREVENTION_CONFIRM_DATASET_KEYS],
     },
   );

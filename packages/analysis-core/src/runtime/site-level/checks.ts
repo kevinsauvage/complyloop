@@ -140,6 +140,9 @@ export function runSiteLevelChecks(
         pages,
         "Fewer than two navigation mechanisms detected",
         "The audited pages expose fewer than two ways to find other pages (navigation, search, or sitemap).",
+        // Advisory: only counts nav + search + a linked sitemap, so it can
+        // miss footer link lists. Surface for review, never fail.
+        "warning",
       ),
     );
   }

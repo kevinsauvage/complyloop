@@ -2,7 +2,10 @@ import "server-only";
 
 import fs from "node:fs";
 
-import { requiresFullTreeScan } from "@complyloop/analysis-core/check-authority";
+import {
+  isRegisteredCheck,
+  requiresFullTreeScan,
+} from "@complyloop/analysis-core/check-authority";
 import { checkRegistrySignature } from "@complyloop/analysis-core/checks/registry";
 import {
   type Assessment,
@@ -566,31 +569,38 @@ export async function runAssessment(
       });
     }
     // Orphan reconcile: a preset/scope change can drop controls the previous
-    // run assessed. Their open findings would otherwise sit open forever —
-    // no in-scope control ever matches or resolves them. Resolve with
-    // provenance; remediations are left untouched (no confirmed fix, so no
-    // auto-verify). Preview runs build rows that are discarded on apply, so
-    // this is safe to do unconditionally in-memory.
+    // run assessed, and a check can be retired from the engine entirely. In
+    // both cases the per-control loop (which skips manual controls) can never
+    // resolve their open findings, so they would sit open forever. Resolve
+    // with provenance; remediations are left untouched (no confirmed fix, so
+    // no auto-verify). Preview runs build rows discarded on apply, so this is
+    // safe to do unconditionally in-memory.
     const scopedControlIds = new Set(scoped.map((control) => control.id));
     for (const finding of rows.findings) {
-      if (
-        finding.projectId !== project.id ||
-        finding.status !== "open" ||
-        scopedControlIds.has(finding.controlId)
-      ) {
+      if (finding.projectId !== project.id || finding.status !== "open") {
         continue;
       }
+      const controlScoped = scopedControlIds.has(finding.controlId);
+      const checkRegistered = isRegisteredCheck(finding.checkId);
+      if (controlScoped && checkRegistered) continue;
+      const retired = !checkRegistered;
       finding.status = "resolved";
-      finding.resolvedNote =
-        "Control removed from the assessment scope; no longer evaluated.";
+      finding.resolvedNote = retired
+        ? "Check retired from the assessment engine; no longer evaluated."
+        : "Control removed from the assessment scope; no longer evaluated.";
       appendEvidence(rows, {
         kind: "finding",
-        summary: `${finding.checkId}: control ${finding.controlId} out of scope — finding closed`,
+        summary: retired
+          ? `${finding.checkId}: check retired — finding closed`
+          : `${finding.checkId}: control ${finding.controlId} out of scope — finding closed`,
         projectId,
         controlId: finding.controlId,
         findingId: finding.id,
         assessmentId,
-        detail: { event: "resolved", reason: "control_out_of_scope" },
+        detail: {
+          event: "resolved",
+          reason: retired ? "check_retired" : "control_out_of_scope",
+        },
       });
     }
     applyRequirementStatusRefresh(rows, project, {

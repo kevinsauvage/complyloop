@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   authorityForCheck,
   deriveStatusForCheck,
+  isAdvisoryCheck,
   isCompositionSensitiveCheck,
   isHeuristicCheck,
   isHtmlValidateOwnedCheck,
@@ -124,6 +125,15 @@ describe("check authority", () => {
     expect(isHeuristicCheck("img-alt")).toBe(false);
     expect(keepsRuntimeFindingsOpen("pointer-gesture")).toBe(false);
     expect(isRuntimeOnlyCheck("duplicate-page-title")).toBe(true);
+  });
+
+  it("flags inference checks as advisory (never hard-fail)", () => {
+    expect(isAdvisoryCheck("non-text-contrast")).toBe(true);
+    expect(isAdvisoryCheck("supplementary-content-keyboard")).toBe(true);
+    expect(isAdvisoryCheck("multiple-ways")).toBe(true);
+    expect(isAdvisoryCheck("captcha-alternative")).toBe(true);
+    expect(isAdvisoryCheck("img-alt")).toBe(false);
+    expect(isAdvisoryCheck("reflow")).toBe(false);
   });
 
   it("classifies with site_level → runtime_only → heuristic → standard", () => {

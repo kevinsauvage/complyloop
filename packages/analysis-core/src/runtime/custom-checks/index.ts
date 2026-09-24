@@ -2,6 +2,7 @@ import type { Page } from "playwright-core";
 
 import {
   HEURISTIC_RUNTIME_DOWNGRADE,
+  isAdvisoryCheck,
   isHeuristicCheck,
 } from "../../check-authority.ts";
 import type { RawFinding } from "../../types.ts";
@@ -39,9 +40,10 @@ export function findingsFromCustomViolations(
 ): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const violation of violations) {
-    const downgrade = isHeuristicCheck(violation.id)
-      ? HEURISTIC_RUNTIME_DOWNGRADE
-      : undefined;
+    const downgrade =
+      isHeuristicCheck(violation.id) || isAdvisoryCheck(violation.id)
+        ? HEURISTIC_RUNTIME_DOWNGRADE
+        : undefined;
     for (const node of violation.nodes) {
       findings.push(
         rawFindingFromDom({

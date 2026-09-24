@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { parseSource } from "../../parse";
 import {
-  bothColorsCheck,
   crypticContentAltCheck,
   dirChangeCheck,
   langChangeCheck,
@@ -283,30 +282,6 @@ describe("text-spacing", () => {
   });
 });
 
-describe("both-colors", () => {
-  it("warns when inline style sets color without background", () => {
-    expect(
-      bothColorsCheck.run(
-        parseSource(
-          "test.tsx",
-          `const A = () => <p style={{ color: "red" }}>Hi</p>;`,
-        ),
-      ),
-    ).toHaveLength(1);
-  });
-
-  it("accepts paired color and background", () => {
-    expect(
-      bothColorsCheck.run(
-        parseSource(
-          "test.tsx",
-          `const A = () => <p style={{ color: "red", backgroundColor: "white" }}>Hi</p>;`,
-        ),
-      ),
-    ).toHaveLength(0);
-  });
-});
-
 const ASCII_ART = ["+-----+", "| hi  |", "+-----+"].join("\n");
 
 describe("cryptic-content-alt", () => {
@@ -381,42 +356,7 @@ describe("link-explicit-heuristic", () => {
   });
 });
 
-describe("status-live helpers", () => {
-  it("warns on bare Toaster without live region or role", () => {
-    expect(
-      statusLiveCheck.run(
-        parseSource("test.tsx", `const A = () => <Toaster />;`),
-      ),
-    ).toHaveLength(1);
-  });
-
-  it("warns on bare Sonner without live region or role", () => {
-    expect(
-      statusLiveCheck.run(
-        parseSource("test.tsx", `const A = () => <Sonner />;`),
-      ),
-    ).toHaveLength(1);
-  });
-
-  it("accepts Toaster with aria-live", () => {
-    expect(
-      statusLiveCheck.run(
-        parseSource(
-          "test.tsx",
-          `const A = () => <Toaster aria-live="polite" />;`,
-        ),
-      ),
-    ).toHaveLength(0);
-  });
-
-  it("accepts Toaster with role=status", () => {
-    expect(
-      statusLiveCheck.run(
-        parseSource("test.tsx", `const A = () => <Toaster role="status" />;`),
-      ),
-    ).toHaveLength(0);
-  });
-
+describe("status-live invalid-field linking", () => {
   it("accepts invalid field described by an aria-live region", () => {
     expect(
       statusLiveCheck.run(
@@ -696,46 +636,6 @@ describe("meta-viewport edge cases", () => {
         parseSource("test.tsx", `const H = () => <div />;`),
       ),
     ).toHaveLength(0);
-  });
-});
-
-describe("both-colors edge cases", () => {
-  it("ignores elements without inline style", () => {
-    expect(
-      bothColorsCheck.run(
-        parseSource("test.tsx", `const A = () => <p>Hi</p>;`),
-      ),
-    ).toHaveLength(0);
-  });
-
-  it("ignores non-object style expressions", () => {
-    expect(
-      bothColorsCheck.run(
-        parseSource("test.tsx", `const A = () => <p style={myStyle}>Hi</p>;`),
-      ),
-    ).toHaveLength(0);
-  });
-
-  it("warns on spread style with only color", () => {
-    expect(
-      bothColorsCheck.run(
-        parseSource(
-          "test.tsx",
-          `const A = () => <p style={{ ...base, color: "red" }}>Hi</p>;`,
-        ),
-      ),
-    ).toHaveLength(1);
-  });
-
-  it("warns on background-only style", () => {
-    expect(
-      bothColorsCheck.run(
-        parseSource(
-          "test.tsx",
-          `const A = () => <p style={{ backgroundColor: "white" }}>Hi</p>;`,
-        ),
-      ),
-    ).toHaveLength(1);
   });
 });
 

@@ -27,6 +27,7 @@ import {
   CONFIRM_LABEL,
   HIGH_RISK,
   matchesMultilingual,
+  stripConsentBoilerplate,
 } from "../../patterns/multilingual.ts";
 import { isObjectRecognitionCaptchaSignal } from "../../patterns/object-recognition-captcha.ts";
 import type { AccessibilityCheck, RawFinding } from "../../types.ts";
@@ -553,7 +554,9 @@ function textAroundForm(formNode: JsxTagNode): string {
     const value = attr ? stringValueOf(attr) : undefined;
     if (value) parts.push(value);
   }
-  return parts.join(" ");
+  // Consent boilerplate ("Terms of Service", "Privacy Policy", …) is not a
+  // transaction signal — strip it before HIGH_RISK matching.
+  return stripConsentBoilerplate(parts.join(" "));
 }
 
 function subtreeHasSafeguard(formNode: JsxTagNode): boolean {
@@ -643,7 +646,8 @@ export const errorPreventionCheck: AccessibilityCheck = {
       const opening = element.openingElement;
       if (tagNameOf(opening) === "form") return;
       const text = textContentOf(element);
-      if (!matchesMultilingual(HIGH_RISK, text)) return;
+      if (!matchesMultilingual(HIGH_RISK, stripConsentBoilerplate(text)))
+        return;
 
       const submitLike = descendantTags(element).some((tag) => {
         const name = tagNameOf(tag);
@@ -994,7 +998,7 @@ export const captchaAlternativeCheck: AccessibilityCheck = {
 
       findings.push({
         checkId: "captcha-alternative",
-        kind: "violation",
+        kind: "warning",
         severity: "serious",
         confidence: "medium",
         reason:

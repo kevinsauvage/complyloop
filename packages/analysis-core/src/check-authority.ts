@@ -43,6 +43,20 @@ export const isRuntimeOnlyCheck = (checkId: string): boolean => {
 export const isHeuristicCheck = (checkId: string): boolean =>
   entryFor(checkId)?.authority === "heuristic";
 
+/**
+ * Checks whose verdict rests on inference (text keywords, DOM heuristic,
+ * decorative-geometry) rather than a deterministic fact. Their findings must
+ * never assert a `violation`; adapters downgrade them to `warning`
+ * (needs_review) so a human confirms. Independent of authority class.
+ */
+export const isAdvisoryCheck = (checkId: string): boolean =>
+  Boolean(entryFor(checkId)?.advisory);
+
+/** True when the check id is still registered in the engine (a stored finding
+ * for an unregistered check is a retired check — see the assessment GC). */
+export const isRegisteredCheck = (checkId: string): boolean =>
+  entryFor(checkId) !== undefined;
+
 export const isPackageTwinSourceCheck = (checkId: string): boolean =>
   Boolean(entryFor(checkId)?.packageTwinSource);
 

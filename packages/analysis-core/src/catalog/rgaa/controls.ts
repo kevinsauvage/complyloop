@@ -1128,7 +1128,9 @@ export const rgaaControls: Control[] = [
     title: "Foreground and background colors are paired",
     description:
       "Text containers set both color and background-color so user stylesheets do not break contrast.",
-    checkId: "both-colors",
+    // Automated inline-style inference removed (too many false positives);
+    // reviewed manually until a reliable signal exists.
+    checkId: null,
     complianceWeight: 1.2,
   },
   {

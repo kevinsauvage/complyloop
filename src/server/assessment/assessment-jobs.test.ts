@@ -303,7 +303,8 @@ function createDrizzle() {
               ).queryChunks.filter((chunk): chunk is string => {
                 return typeof chunk === "string";
               });
-              const { payload: _payload, ...rest } = patch;
+              const rest = { ...patch };
+              delete rest.payload;
               next = {
                 ...row,
                 ...(rest as Partial<JobRow>),

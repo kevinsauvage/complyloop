@@ -189,6 +189,63 @@ describe("reconcileControlFindings", () => {
     ).toBe(true);
   });
 
+  it("updates kind/severity/confidence when an open finding is re-detected with a changed verdict", () => {
+    const existing = testFinding({
+      id: "f-open",
+      projectId: project.id,
+      controlId: "ctl-x",
+      assessmentId: "a0",
+      status: "open",
+      kind: "violation",
+      severity: "serious",
+      confidence: "high",
+      location: sourceLoc({
+        filePath: "A.tsx",
+        line: 3,
+        snippet: "<a>x</a>",
+      }),
+    });
+    const rows = emptyRows();
+    rows.findings.push(existing);
+    const raw = {
+      checkId: "non-text-contrast" as const,
+      kind: "warning" as const,
+      severity: "moderate" as const,
+      confidence: "medium" as const,
+      reason: "Chrome contrast",
+      location: sourceLoc({ filePath: "A.tsx", line: 3, snippet: "<a>x</a>" }),
+      fix: null,
+    };
+
+    reconcileControlFindings({
+      rows,
+      project,
+      control: {
+        id: "ctl-x",
+        frameworkId: "rgaa",
+        code: "RGAA 3.3",
+        secondaryCode: "WCAG 1.4.11",
+        title: "Non-text contrast",
+        description: "Controls remain visible",
+        checkId: "non-text-contrast",
+      },
+      assessmentId: "a1",
+      rootPath: "/tmp",
+      rawForControl: [raw],
+      openFindings: rows.findings.filter(
+        (finding) => finding.status === "open",
+      ),
+      dismissedFindings: [],
+      scopedFileSet: null,
+      runtimeRan: true,
+      onFindingResolved: () => {},
+    });
+
+    expect(existing.kind).toBe("warning");
+    expect(existing.severity).toBe("moderate");
+    expect(existing.confidence).toBe("medium");
+  });
+
   it("keeps a dismissal when the re-detected snippet differs on the same line", () => {
     const dismissed = testFinding({
       id: "f-dismissed",
