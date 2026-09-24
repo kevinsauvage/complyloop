@@ -1,13 +1,32 @@
-import { describe, expect, it } from "vitest";
+import { Octokit } from "@octokit/rest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  createOctokit,
   filterReposByQuery,
   githubCloneUrl,
   githubPublicCloneUrl,
+  lookupGitHubUser,
   mapGitHubRepo,
   octokitErrorMessage,
   redactCloneUrl,
 } from "./github";
+
+const getByUsername = vi.fn();
+
+vi.mock("@octokit/rest", () => ({
+  Octokit: vi.fn(function MockOctokit(this: {
+    rest: { users: { getByUsername: typeof getByUsername } };
+  }) {
+    this.rest = { users: { getByUsername } };
+  }),
+}));
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  getByUsername.mockReset();
+  vi.mocked(Octokit).mockClear();
+});
 
 describe("githubPublicCloneUrl", () => {
   it("builds a token-free URL for a valid full name", () => {
@@ -140,6 +159,55 @@ describe("filterReposByQuery", () => {
   });
 });
 
+describe("createOctokit", () => {
+  it("uses api.github.com without an override", () => {
+    vi.stubEnv("GITHUB_API_BASE_URL", "");
+    createOctokit("gho_token");
+    expect(vi.mocked(Octokit)).toHaveBeenCalledWith({
+      auth: "gho_token",
+      userAgent: "ComplyLoop",
+      request: { timeout: 15_000 },
+    });
+  });
+
+  it("honors a GHES base URL override", () => {
+    vi.stubEnv("GITHUB_API_BASE_URL", "https://ghe.example/api/v3");
+    createOctokit("gho_token");
+    expect(vi.mocked(Octokit)).toHaveBeenCalledWith(
+      expect.objectContaining({ baseUrl: "https://ghe.example/api/v3" }),
+    );
+  });
+});
+
+describe("lookupGitHubUser", () => {
+  it("returns the login for an existing user, tolerating @ and whitespace", async () => {
+    getByUsername.mockResolvedValue({ data: { login: "octocat" } });
+    await expect(lookupGitHubUser("token", "  @octocat ")).resolves.toEqual({
+      status: "found",
+      login: "octocat",
+    });
+    expect(getByUsername).toHaveBeenCalledWith({ username: "octocat" });
+  });
+
+  it("maps 404 to not-found", async () => {
+    getByUsername.mockRejectedValue({ status: 404, message: "Not Found" });
+    await expect(lookupGitHubUser("token", "ghost")).resolves.toEqual({
+      status: "not-found",
+    });
+  });
+
+  it("maps outages to unverifiable so invites are never blocked", async () => {
+    getByUsername.mockRejectedValue(new Error("fetch failed"));
+    await expect(lookupGitHubUser("token", "octocat")).resolves.toEqual({
+      status: "unverifiable",
+    });
+    getByUsername.mockRejectedValue({ status: 500, message: "boom" });
+    await expect(lookupGitHubUser("token", "octocat")).resolves.toEqual({
+      status: "unverifiable",
+    });
+  });
+});
+
 describe("octokitErrorMessage", () => {
   it("includes the status code for API errors", () => {
     expect(
@@ -148,6 +216,12 @@ describe("octokitErrorMessage", () => {
         "GitHub PR API failed",
       ),
     ).toBe("GitHub PR API failed (404): Not Found");
+  });
+
+  it("falls back to the fallback message without a string message", () => {
+    expect(octokitErrorMessage({ status: 403 }, "failed")).toBe(
+      "failed (403): failed",
+    );
   });
 
   it("falls back for plain errors and garbage", () => {

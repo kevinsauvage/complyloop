@@ -7,6 +7,9 @@ import type {
 import type { WorkspaceSlice } from "@complyloop/db/types";
 import { emptyWorkspaceSlice } from "@complyloop/db/types";
 
+import { testFinding } from "@/test-fixtures/finding";
+import { testRemediation } from "@/test-fixtures/remediation";
+
 import {
   changeOrgMemberRole,
   findOrgMembershipByLogin,
@@ -376,6 +379,150 @@ describe("leaveOrgMember", () => {
 
     expect(() => leaveOrgMember(db, org.id, "user-a")).toThrow(/last member/);
     expect(() => leaveOrgMember(db, org.id, "ghost")).toThrow(/not a member/);
+  });
+});
+
+describe("createOrganization validation", () => {
+  it("rejects blank names and logins", () => {
+    const db = emptyWorkspaceSlice();
+    expect(() =>
+      createOrganization(db, {
+        name: "   ",
+        creatorUserId: "user-a",
+        githubLogin: "alice",
+      }),
+    ).toThrow(/name is required/);
+    expect(() =>
+      createOrganization(db, {
+        name: "Acme",
+        creatorUserId: "user-a",
+        githubLogin: "  ",
+      }),
+    ).toThrow(/login is required/);
+  });
+});
+
+describe("exportOrgData scoping", () => {
+  function seedOrgWithHistory(db: WorkspaceSlice): Organization {
+    const org = seedOwnerOrg(db, "user-a", "alice");
+    const other: Organization = {
+      id: "org-other",
+      name: "Other",
+      slug: "other",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    db.organizations.push(other);
+    for (const [id, orgId] of [
+      ["p1", org.id],
+      ["p2", other.id],
+    ] as const) {
+      db.projects.push({
+        id,
+        name: id,
+        source: "github",
+        orgId,
+        ownerUserId: "user-a",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      });
+      db.findings.push(testFinding({ id: `f-${id}`, projectId: id }));
+      db.requirements.push({
+        id: `req-${id}`,
+        projectId: id,
+        controlId: "ctl-img-alt",
+        status: "failed",
+        determination: "automated",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      });
+      db.assessments.push({
+        id: `a-${id}`,
+        projectId: id,
+        startedAt: "2026-01-01T00:00:00.000Z",
+        completedAt: "2026-01-01T00:00:00.000Z",
+        filesScanned: 1,
+        summary: {
+          passed: 0,
+          failed: 1,
+          needs_review: 0,
+          not_applicable: 0,
+          unable_to_verify: 0,
+        },
+      });
+      db.remediations.push(
+        testRemediation({ id: `r-${id}`, findingId: `f-${id}` }),
+      );
+      db.evidence.push({
+        id: `e-${id}`,
+        at: "2026-01-01T00:00:00.000Z",
+        kind: "assessment_completed",
+        summary: "ran",
+        projectId: id,
+      });
+      db.alerts.push({
+        id: `al-${id}`,
+        projectId: id,
+        kind: "compliance_regression",
+        summary: "regression",
+        at: "2026-01-01T00:00:00.000Z",
+        read: false,
+      });
+    }
+    return org;
+  }
+
+  it("exports only the org's own project history", () => {
+    const db = emptyWorkspaceSlice();
+    const org = seedOrgWithHistory(db);
+    applyMembership(
+      db,
+      inviteOrgMember(db, org.id, "user-a", "erin", "member"),
+    );
+    const exported = exportOrgData(db, org.id, "user-a") as Record<
+      string,
+      Array<{ id: string; userId?: string | null }>
+    >;
+    const idsOf = (key: string): string[] =>
+      (exported[key] as Array<{ id: string }>).map((row) => row.id);
+    expect(idsOf("projects")).toEqual(["p1"]);
+    expect(idsOf("requirements")).toEqual(["req-p1"]);
+    expect(idsOf("assessments")).toEqual(["a-p1"]);
+    expect(idsOf("findings")).toEqual(["f-p1"]);
+    expect(idsOf("remediations")).toEqual(["r-p1"]);
+    expect(idsOf("evidence")).toEqual(["e-p1"]);
+    expect(idsOf("alerts")).toEqual(["al-p1"]);
+    const memberships = (exported as Record<string, Array<unknown>>)
+      .memberships as Array<{ githubLogin: string; userId: string | null }>;
+    expect(
+      memberships.find((m) => m.githubLogin === "erin")?.userId,
+    ).toBeNull();
+    expect(exported.evidenceTruncated).toBe(false);
+  });
+
+  it("flags truncated evidence projects", () => {
+    const db = emptyWorkspaceSlice();
+    const org = seedOrgWithHistory(db);
+    const exported = exportOrgData(db, org.id, "user-a", {
+      evidenceTruncatedProjectIds: ["p1"],
+    });
+    expect(exported.evidenceTruncated).toBe(true);
+    expect(exported.evidenceTruncatedProjectIds).toEqual(["p1"]);
+  });
+
+  it("throws when the org row is missing", () => {
+    const db = emptyWorkspaceSlice();
+    db.memberships.push({
+      id: "m-ghost",
+      orgId: "org-missing",
+      role: "owner",
+      userId: "user-a",
+      githubLogin: "alice",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
+    expect(() => exportOrgData(db, "org-missing", "user-a")).toThrow(
+      /not found/,
+    );
+    expect(() => deleteOrganization(db, "org-missing", "user-a")).toThrow(
+      /not found/,
+    );
   });
 });
 

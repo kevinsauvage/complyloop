@@ -54,6 +54,11 @@ export default defineConfig({
         "src/**/*.test.{ts,tsx}",
         "packages/analysis-core/src/**/*.test.{ts,tsx}",
         "packages/db/src/**/*.test.{ts,tsx}",
+        // Type modules — named types by repo convention (*-types, types
+        // barrels), no executable logic worth covering.
+        "**/*-types.ts",
+        "**/types.ts",
+        "**/*.d.ts",
         // Runtime scan driver — exercised by test:e2e (needs a repo + browsers).
         "packages/analysis-core/src/runtime/scan.ts",
         // Playwright page probes — unit job has no Chromium, so these skip.
