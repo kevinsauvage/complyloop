@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 import { resolveAuthSecret, sessionCookieIsSecure } from "@/auth-secret";
+import { safeCallbackUrl } from "@/core/callback-url";
 
 const PUBLIC_PATHS = new Set(["/", "/login"]);
 
@@ -28,21 +29,6 @@ function isPublicPath(pathname: string): boolean {
   const normalized = normalizePath(pathname);
   if (PUBLIC_PATHS.has(normalized)) return true;
   return normalized === "/legal" || normalized.startsWith("/legal/");
-}
-
-// Mirror login page + auth action validation: internal path only,
-// no protocol-relative open redirect. Falls back to /dashboard so
-// deep links survive the /login bounce without breaking back behavior.
-function toSafeCallbackUrl(value: string | null): string {
-  if (
-    typeof value === "string" &&
-    value.startsWith("/") &&
-    !value.startsWith("//") &&
-    !value.startsWith("/\\")
-  ) {
-    return value;
-  }
-  return "/dashboard";
 }
 
 function basicAuthCredentials(): {
@@ -194,7 +180,7 @@ export async function proxy(req: NextRequest) {
 
   if (isLoggedIn && normalizePath(pathname) === "/login") {
     const dashboardUrl = req.nextUrl.clone();
-    dashboardUrl.pathname = toSafeCallbackUrl(
+    dashboardUrl.pathname = safeCallbackUrl(
       req.nextUrl.searchParams.get("callbackUrl"),
     );
     dashboardUrl.search = "";

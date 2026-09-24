@@ -31,12 +31,14 @@ export function RequirementCard({
   control,
   requirement,
   openCount,
+  maskedOpenCount,
   canRemediate,
   project,
 }: {
   control: Control;
   requirement: Requirement;
   openCount: number;
+  maskedOpenCount: number;
   canRemediate: boolean;
   project: Pick<Project, "runtimeBaseUrl">;
 }) {
@@ -142,6 +144,30 @@ export function RequirementCard({
                     className="text-sm font-medium text-foreground underline underline-offset-4 hover:text-foreground"
                   >
                     Set the Preview URL (runtime audit) in Settings
+                  </Link>
+                </span>
+              ) : null}
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
+        {maskedOpenCount > 0 ? (
+          <Alert className="border-status-unverifiable/30 bg-status-unverifiable/10">
+            <AlertTitle className="text-sm text-foreground">
+              Passed by exception — {maskedOpenCount} open{" "}
+              {maskedOpenCount === 1 ? "finding" : "findings"} since
+            </AlertTitle>
+            <AlertDescription className="text-sm text-muted-foreground">
+              The human decision is sticky, so these findings are not counted
+              against the ratio. Review or clear the exception to re-arm the
+              requirement.
+              {openFindingsHref ? (
+                <span className="mt-2 block">
+                  <Link
+                    href={openFindingsHref}
+                    className="text-sm font-medium text-foreground underline underline-offset-4 hover:text-foreground"
+                  >
+                    Review the findings
                   </Link>
                 </span>
               ) : null}

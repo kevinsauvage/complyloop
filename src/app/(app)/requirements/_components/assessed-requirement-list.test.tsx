@@ -43,6 +43,7 @@ describe("AssessedRequirementList", () => {
         controls={[img, form]}
         requirements={[requirementFor(img.id), requirementFor(form.id)]}
         openFindingCounts={new Map()}
+        maskedFindingCounts={new Map()}
         frameworkId={rgaaFramework.id}
         canRemediate={false}
         project={{ runtimeBaseUrl: undefined }}

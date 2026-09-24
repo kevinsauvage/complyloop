@@ -66,6 +66,18 @@ describe("deriveRequirementStatus", () => {
     ).toBe("unable_to_verify");
   });
 
+  it("keeps the sticky verdict even with open violations underneath (surfaced separately, not re-derived)", () => {
+    expect(
+      deriveRequirementStatus({
+        authority: "standard",
+        currentStatus: "passed",
+        determination: "human_review",
+        hasException: true,
+        openFindings: [{ kind: "violation" }],
+      }),
+    ).toBe("passed");
+  });
+
   it("fails on any open violation, before authority gates", () => {
     expect(
       deriveRequirementStatus({

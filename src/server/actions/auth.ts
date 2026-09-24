@@ -4,17 +4,11 @@ import { z } from "zod";
 
 import { signIn, signOut } from "@/auth";
 import { parseForm } from "@/core/actions/validate";
+import { safeCallbackUrl } from "@/core/callback-url";
 
 const signInInput = z.object({
   callbackUrl: z.string().optional(),
 });
-
-function safeCallbackUrl(value: string | undefined): string {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) {
-    return "/dashboard";
-  }
-  return value;
-}
 
 export async function signInWithGitHubAction(
   formData?: FormData,

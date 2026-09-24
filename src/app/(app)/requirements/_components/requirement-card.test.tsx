@@ -56,6 +56,7 @@ describe("RequirementCard", () => {
       control,
       requirement: requirement(),
       openCount: 3,
+      maskedOpenCount: 0,
       canRemediate: false,
       project: { runtimeBaseUrl: undefined },
     });
@@ -72,6 +73,7 @@ describe("RequirementCard", () => {
       control,
       requirement: requirement({ status: "passed" }),
       openCount: 0,
+      maskedOpenCount: 0,
       canRemediate: false,
       project: { runtimeBaseUrl: undefined },
     });
@@ -85,6 +87,7 @@ describe("RequirementCard", () => {
       control,
       requirement: requirement(),
       openCount: 2,
+      maskedOpenCount: 0,
       canRemediate: false,
       project: { runtimeBaseUrl: undefined },
     });
@@ -113,6 +116,7 @@ describe("RequirementCard", () => {
         status: "unable_to_verify",
       }),
       openCount: 0,
+      maskedOpenCount: 0,
       canRemediate: false,
       project: { runtimeBaseUrl: undefined },
     });

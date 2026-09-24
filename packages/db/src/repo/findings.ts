@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, type SQL, sql } from "drizzle-orm";
+import { and, asc, count, eq, gt, inArray, type SQL, sql } from "drizzle-orm";
 
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import type { AssessmentEngine } from "@complyloop/analysis-core/contract/finding-types";
@@ -234,11 +234,50 @@ export async function countFindingsByStatusForProject(
 export async function countOpenFindingsByControlForProject(
   drizzle: DrizzleDb,
   projectId: string,
+  controlIds?: readonly string[],
 ): Promise<Map<string, number>> {
+  if (controlIds && controlIds.length === 0) return new Map();
   const rows = await drizzle
     .select({ controlId: findings.controlId, value: count() })
     .from(findings)
-    .where(and(eq(findings.projectId, projectId), eq(findings.status, "open")))
+    .where(
+      and(
+        eq(findings.projectId, projectId),
+        eq(findings.status, "open"),
+        controlIds ? inArray(findings.controlId, [...controlIds]) : undefined,
+      ),
+    )
+    .groupBy(findings.controlId);
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    counts.set(row.controlId, Number(row.value ?? 0));
+  }
+  return counts;
+}
+
+/**
+ * Open findings detected strictly after `since`, keyed by control id. Used to
+ * show findings that a sticky human decision (exception / human pass) is
+ * masking — the decision never surfaces regressions on its own.
+ */
+export async function countsOfOpenFindingsDetectedAfterForControls(
+  drizzle: DrizzleDb,
+  projectId: string,
+  controlIds: readonly string[],
+  since: Date,
+): Promise<Map<string, number>> {
+  if (controlIds.length === 0) return new Map();
+  const rows = await drizzle
+    .select({ controlId: findings.controlId, value: count() })
+    .from(findings)
+    .where(
+      and(
+        eq(findings.projectId, projectId),
+        eq(findings.status, "open"),
+        inArray(findings.controlId, [...controlIds]),
+        gt(sql`${findings.payload} ->> 'detectedAt'`, since.toISOString()),
+      ),
+    )
     .groupBy(findings.controlId);
   const counts = new Map<string, number>();
   for (const row of rows) {
