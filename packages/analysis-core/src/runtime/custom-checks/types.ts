@@ -17,7 +17,6 @@ export interface CustomViolation {
   nodes: CustomViolationNode[];
 }
 
-/** Catalog ids Playwright custom probes can emit. */
 export const CUSTOM_PROBE_CHECK_IDS = [
   "accessible-auth-enhanced",
   "captcha-alternative",

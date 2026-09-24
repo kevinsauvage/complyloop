@@ -21,7 +21,6 @@ export function slugifyOrgName(input: string): string {
   return cleaned.length > 0 ? cleaned : "org";
 }
 
-/** Next unused slug given an already-loaded set of taken slugs. */
 export function nextUniqueSlug(
   base: string,
   taken: ReadonlySet<string>,

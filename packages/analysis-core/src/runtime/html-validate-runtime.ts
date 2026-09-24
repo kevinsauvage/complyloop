@@ -179,7 +179,6 @@ export function serializeDocument(voidTags: string[]): SerializeDocumentResult {
   return out;
 }
 
-/** Captures the serialized document (with node→offset map) from a live page. */
 async function captureSerializedDom(
   page: Page,
 ): Promise<SerializeDocumentResult> {
@@ -304,7 +303,6 @@ export async function htmlValidateFindingsFromSerialized(
   return findings;
 }
 
-/** Rendered pass (Pass B): validate a page's DOM and return runtime findings. */
 export async function htmlValidateFindingsForPage(
   page: Page,
   url: string,

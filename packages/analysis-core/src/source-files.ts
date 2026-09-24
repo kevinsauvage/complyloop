@@ -96,7 +96,6 @@ export function listSourceFiles(
     .sort((a, b) => a.localeCompare(b));
 }
 
-/** True when at least one matching source file exists. */
 export function hasSourceFiles(
   rootPath: string,
   extensions: SourceExtensionSet = "script",

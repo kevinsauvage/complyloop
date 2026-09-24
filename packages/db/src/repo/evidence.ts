@@ -38,7 +38,6 @@ export const EVIDENCE_EXPORT_LIMIT = 5_000;
  */
 export const FINDING_EVIDENCE_LIMIT = 500;
 
-/** How many rows an export should take, and whether the table was larger. */
 export function evidenceExportWindow(
   total: number,
   limit: number,
@@ -110,7 +109,7 @@ export function escapeLikeLiteral(value: string): string {
   return value.replace(/[\\%_]/g, (match) => `\\${match}`);
 }
 
-/** Pure WHERE-clause builder — unit-testable without a database. */
+/** Pure — unit-testable without a database. */
 export function evidenceFilterConditions(
   projectId: string,
   filter: EvidenceFilter = {},

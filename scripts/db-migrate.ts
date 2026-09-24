@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /**
  * Applies SQL migrations in drizzle/ against DATABASE_URL (in filename order).
- * Loads `.env.local` then `.env` (same as local Next.js) when the var is unset.
+ * Loads local `.env` files when the var is unset (`./db`).
  * Usage: npm run db:migrate
  *
  * Runs inside a Postgres advisory lock so concurrent invocations (e.g. a

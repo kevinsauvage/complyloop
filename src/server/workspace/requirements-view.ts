@@ -1,10 +1,4 @@
-/**
- * Requirements view loader — data-shaping for the `(app)/requirements` route.
- *
- * Split from the former `project-view.ts` god-loader: one loader module per
- * route. Pages stay routing + rendering: they parse params, call exactly one
- * loader here, and render. No JSX here.
- */
+/** Requirements view loader — data-shaping for the `(app)/requirements` route (no JSX here). */
 import "server-only";
 
 import { shippedCatalog } from "@complyloop/analysis-core/catalog/catalog";

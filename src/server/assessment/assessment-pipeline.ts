@@ -87,11 +87,7 @@ export function toPipelineInput(
   };
 }
 
-/**
- * Assessment-owned scratch rows: clone project rows, drop expired temporary
- * exceptions, and seed the run evidence. The only assessment-side composer
- * of the workspace/project-status helpers.
- */
+/** Assessment-owned scratch rows: clone project rows, drop expired temporary exceptions, seed run evidence. */
 export function createAssessmentScratch(
   input: AssessmentPipelineInput,
 ): ProjectRows {

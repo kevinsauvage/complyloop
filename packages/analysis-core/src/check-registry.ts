@@ -898,7 +898,6 @@ export const CHECK_REGISTRY = [
 /** The `CheckId` union — derived so the type and the list can never drift. */
 export type CheckId = (typeof CHECK_REGISTRY)[number]["id"];
 
-/** Every catalog check id, in registration order. */
 export const CHECK_IDS: readonly CheckId[] = CHECK_REGISTRY.map(
   (entry) => entry.id,
 );

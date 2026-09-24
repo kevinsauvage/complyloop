@@ -201,7 +201,6 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(dashboardUrl);
   }
 
-  // Authorized page render: attach the nonce-bearing CSP.
   return nextWithCsp(req, nonce);
 }
 

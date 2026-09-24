@@ -1,9 +1,7 @@
 /**
  * Findings list view loader — data-shaping for the `(app)/findings` route.
- *
- * Split from the former `project-view.ts` god-loader: one loader module per
- * route. Pages stay routing + rendering: they parse params, call exactly one
- * loader here, and render. No JSX here.
+ * Split from the former `project-view.ts` god-loader: one loader per route,
+ * pages stay routing + rendering (no JSX here).
  */
 import "server-only";
 

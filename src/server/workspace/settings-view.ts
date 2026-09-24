@@ -1,9 +1,4 @@
-/**
- * Settings view loader — data-shaping for the `(app)/settings` route.
- *
- * Brings settings under the one-loader-per-page rule every other `(app)`
- * page follows: the page calls exactly this and renders. No JSX here.
- */
+/** Settings view loader — data-shaping for the `(app)/settings` route (one loader per page, no JSX here). */
 import "server-only";
 
 import {

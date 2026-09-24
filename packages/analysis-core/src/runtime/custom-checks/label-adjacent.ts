@@ -19,7 +19,6 @@ export interface RectLike {
   height?: number;
 }
 
-/** Shortest edge-to-edge distance between two bounding boxes. */
 export function gapBetweenRects(a: RectLike, b: RectLike): number {
   const horizontal =
     a.right < b.left

@@ -1,10 +1,4 @@
-/**
- * Evidence view loader — data-shaping for the `(app)/evidence` route.
- *
- * Split from the former `project-view.ts` god-loader: one loader module per
- * route. Pages stay routing + rendering: they parse params, call exactly one
- * loader here, and render. No JSX here.
- */
+/** Evidence view loader — data-shaping for the `(app)/evidence` route (no JSX here). */
 import "server-only";
 
 import type {

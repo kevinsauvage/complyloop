@@ -20,7 +20,6 @@ export const ASSESSMENT_DRAIN_DEFAULTS = {
 } as const;
 
 export interface AssessmentJobBatchOptions {
-  /** Max jobs to attempt in this batch. */
   limit: number;
   /**
    * Max jobs to run concurrently within this process (default 1). Claims are
@@ -160,10 +159,7 @@ export async function drainQueue(
   return outcome;
 }
 
-/**
- * Dev/e2e-only inline drain for `scheduleAssessmentDrain`: drains the queue
- * and maps the outcome to user copy.
- */
+/** Dev/e2e-only inline drain used by `scheduleAssessmentDrain`. */
 export async function drainAssessmentJobsInline(): Promise<string> {
   const outcome = await drainQueue();
   if (outcome.ran > 0) {
@@ -196,13 +192,10 @@ export async function drainAssessmentJobsInline(): Promise<string> {
  *
  * Dev/e2e drains the queue inline and returns the user-facing message;
  * production kicks the GitHub Actions executor (`repository_dispatch`) and
- * returns `undefined`, so the caller falls back to the "queued" copy. A
- * dispatch that is unconfigured or rejected leaves the job `queued` — the
- * executor's 15-minute schedule reclaims it via lease recovery, so there is
- * no second executor path to maintain.
- *
- * Never throws — a failed dispatch leaves the job `queued` and the
- * scheduled worker reclaims it via lease recovery.
+ * returns `undefined`, so the caller falls back to the "queued" copy. Never
+ * throws — an unconfigured or rejected dispatch leaves the job `queued`, and
+ * the executor's 15-minute schedule reclaims it via lease recovery (no second
+ * executor path to maintain).
  */
 export async function scheduleAssessmentDrain(): Promise<string | undefined> {
   if (shouldDrainAssessmentJobsInline()) {

@@ -9,12 +9,11 @@ import { cn } from "@/lib/utils";
 
 export function ThemeToggle({ compact = false }: { compact?: boolean }) {
   const { theme, resolvedTheme, setTheme } = useTheme();
-  // Gate theme-dependent props behind mount: server (and pre-hydration
-  // client) render without resolved theme, so emitting aria-pressed from
-  // `resolvedTheme` mismatches when the stored theme is dark.
+  // Gate theme-dependent props behind mount: server (and pre-hydration client)
+  // render without resolved theme, so aria-pressed from `resolvedTheme`
+  // mismatches when the stored theme is dark. One-shot flag (no cascade) so
+  // SSR omits aria-pressed until the client theme resolves.
   const [mounted, setMounted] = useState(false);
-  // One-shot mount flag (no cascade) so SSR omits `aria-pressed` until the
-  // client theme resolves.
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
   const isDark = (resolvedTheme ?? theme) === "dark";

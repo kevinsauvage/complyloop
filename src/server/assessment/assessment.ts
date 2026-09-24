@@ -296,10 +296,6 @@ export function verifyRemediationOnResolve(
  * Reads the input but never mutates it — all writes live on an
  * assessment-owned scratch (see `assessment-pipeline.ts`) and are returned
  * for `applyAssessmentPayload` (or test materialization).
- *
- * Stage sequence: (1) scratch → (2) change detection → (3) AST scan →
- * (4) runtime scan → (5) merge → (6) reconcile findings → (7) refresh
- * statuses → (8) build assessment record.
  */
 export async function runAssessment(
   input: AssessmentPipelineInput,

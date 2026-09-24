@@ -216,12 +216,9 @@ async function ensureAxeOnPage(page: Page): Promise<void> {
 }
 
 /**
- * Load axe from disk and analyze the current page (main frame).
- * Do not switch to `@axe-core/playwright`: it injects `axe-core`'s `source`
- * string by default, which Next/webpack rewrites (`module is not defined`).
- * Disk `axe.min.js`, evaluated as an expression (never a <script> element —
- * see `ensureAxeOnPage`), plus our SSRF `context.route` interceptor is the
- * adapter.
+ * Load axe from disk and analyze the current page (main frame). Do not switch
+ * to `@axe-core/playwright`: it injects `axe-core`'s `source` string, which
+ * Next/webpack rewrites (`module is not defined`) — see `resolveAxeMinJsPath`.
  */
 export async function runAxeOnPage(
   page: Page,

@@ -48,7 +48,6 @@ export interface RuntimeScanPageResult {
   /** axe incomplete nodes — emitted as `warning` findings (`needs_review`). */
   incomplete?: AxeViolationLike[];
   snapshot?: RuntimePageSnapshot;
-  /** Playwright custom-probe findings for this page. */
   customFindings?: RawFinding[];
   htmlValidateFindings?: RawFinding[];
   htmlValidateRan?: boolean;
@@ -86,7 +85,6 @@ export interface RuntimeScanResult {
   error?: string;
 }
 
-/** One contained per-page runtime failure (axe crash, navigation, …). */
 export interface RuntimePageFailure {
   url: string;
   error: string;

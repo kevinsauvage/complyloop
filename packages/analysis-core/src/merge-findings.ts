@@ -67,7 +67,6 @@ export function filterAstFindingsForAuthority(
   });
 }
 
-/** Combines AST + runtime findings after applying runtime authority over AST. */
 export function mergeRawFindings(
   astFindings: RawFinding[],
   runtimeFindings: RawFinding[],
@@ -96,7 +95,6 @@ function effectiveAnalyzerId(finding: RawFinding): AnalyzerId {
   return "ast";
 }
 
-/** Stable key for collapsing dom/runtime findings on the same node. */
 function runtimeFindingLocationKey(finding: RawFinding): string | null {
   const location = finding.location;
   if (location.kind === "site") return null;

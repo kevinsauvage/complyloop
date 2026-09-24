@@ -20,7 +20,6 @@ import type { AccessibilityCheck, RawFinding } from "../types.ts";
  * split helpers without a dedicated design task.
  */
 
-/** React keyboard event handler prop names. */
 export const KEY_HANDLERS = ["onKeyDown", "onKeyUp", "onKeyPress"] as const;
 
 export function hasKeyboardHandlers(node: JsxTagNode): boolean {
@@ -56,20 +55,16 @@ export function walkMotionActuationCalls(
 
 const MEDIA_TRACK_TAGS = new Set(["track"]);
 
-/** Track `kind` values that count as captions/subtitles. */
 export const CAPTION_KINDS = new Set(["captions", "subtitles"]);
 
-/** Track `kind` values that count as audio description. */
 export const DESCRIPTION_KINDS = new Set(["descriptions"]);
 
-/** Track `kind` values for audio alternative text. */
 export const AUDIO_ALT_KINDS = new Set([
   "captions",
   "subtitles",
   "descriptions",
 ]);
 
-/** Opening or self-closing tag for a JSX child node, if any. */
 export function tagNodeOfJsxChild(child: ts.Node): JsxTagNode | undefined {
   if (ts.isJsxElement(child)) return child.openingElement;
   if (ts.isJsxSelfClosingElement(child)) return child;
@@ -99,7 +94,6 @@ const SPACING_STYLE_PROPS = new Set([
   "paragraphSpacing",
 ]);
 
-/** True when an inline style locks text spacing with `!important`. */
 export function styleLocksTextSpacing(node: JsxTagNode): boolean {
   const style = getAttribute(node, "style");
   if (!style || !style.initializer || !ts.isJsxExpression(style.initializer)) {
@@ -351,7 +345,6 @@ export function ariaDescribedByPointsToTranscript(
   return found;
 }
 
-/** True when the node has a matching track kind or an adjacent transcript alternative. */
 export function hasTrackOrTranscriptAlt(
   node: JsxTagNode,
   kinds: ReadonlySet<string>,

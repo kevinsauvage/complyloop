@@ -30,10 +30,7 @@ import { BadgeWithDescription } from "./badge-with-description";
 
 export { BadgeWithDescription };
 
-/**
- * The single status badge renderer — every status surface is
- * label + description + tone, fed from the unified `@/core/display` tables.
- */
+/** The single status badge renderer, fed from the unified `@/core/display` tables. */
 export function StatusBadge({
   description,
   label,

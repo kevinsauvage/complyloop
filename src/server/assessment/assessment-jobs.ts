@@ -136,7 +136,6 @@ export interface EnqueueAssessmentJobInput {
   payload?: AssessmentJobPayload;
 }
 
-/** Row values shared by the queued insert and the immediate-start insert. */
 function newAssessmentJobRow(
   id: string,
   input: EnqueueAssessmentJobInput,

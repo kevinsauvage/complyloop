@@ -222,7 +222,6 @@ interface FocusStopResult {
   appearance: FocusStopHit | null;
 }
 
-/** Records a first-seen hit; returns true when it is new. */
 function takeFocusHit(
   hit: FocusStopHit | null,
   seen: Set<string>,

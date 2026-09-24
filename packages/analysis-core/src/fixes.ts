@@ -26,7 +26,6 @@ export function applyFix(text: string, fix: ProposedFix): string {
   }
 }
 
-/** Returns the offending line as it would look after applying the fix. */
 export function previewFixedLine(
   text: string,
   fix: ProposedFix,

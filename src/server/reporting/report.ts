@@ -61,10 +61,7 @@ export function frameworkForProject(project: Project): Framework {
   return resolved;
 }
 
-/**
- * Catalog control themed for the project's framework. Direct lookup over the
- * static catalog — no memo Map (same rationale as `frameworkForProject`).
- */
+/** Catalog control themed for the project's framework (no memo Map — see `frameworkForProject`). */
 export function displayControl(controlId: string, project: Project): Control {
   const frameworkId = frameworkForProject(project).id;
   const control = CONTROLS_BY_ID.get(controlId);

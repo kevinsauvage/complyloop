@@ -42,8 +42,7 @@ export function resolveAiModel(): string {
 
 /** True when AI gateway credentials are configured. */
 export function aiAvailable(): boolean {
-  // Reads process.env directly (not via `@/server/env`): `src/ai` must stay
-  // importable without `@/server/*` (client-bundle/edge boundary, ESLint).
+  // Direct `process.env` read for the same boundary reason as `resolveAiModel`.
   return Boolean(process.env.AI_GATEWAY_API_KEY);
 }
 

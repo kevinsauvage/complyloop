@@ -1,17 +1,9 @@
-/**
- * Pure ops-threshold evaluation for `npm run ops:check`.
- * Kept dependency-free (no `server-only`, no Drizzle) so both the tsx script
- * (`scripts/operations-check.ts`) and unit tests import it directly.
- */
+/** Pure ops-threshold checks for `npm run ops:check`; dependency-free so `scripts/operations-check.ts` and tests share it. */
 
 export interface OpsSignals {
   /** Jobs in `queued`/`running` (same count `/api/health` reports). */
   queuedJobs: number;
-  /**
-   * Age (ms) of the oldest job waiting in `queued`, or `null` when none are
-   * waiting. A single stale job is the only signal when the dispatch token is
-   * missing or the scheduled drain stopped firing.
-   */
+  /** Age (ms) of the oldest `queued` job, or `null` if none; a single stale job is the only signal when the dispatch token is missing or the drain stopped. */
   oldestQueuedJobAgeMs: number | null;
   /** `pg_total_relation_size('evidence')` in bytes. */
   evidenceBytes: number;
@@ -33,8 +25,7 @@ export interface OpsEvaluation {
 
 export const DEFAULT_OPS_THRESHOLDS: OpsThresholds = {
   maxQueuedJobs: 50,
-  // 20 min: comfortably past the 15-min schedule backstop, so a normal
-  // dispatch delay never trips it while a genuinely stalled drain does.
+  // 20 min: past the 15-min schedule backstop, so a normal dispatch delay never trips it but a stalled drain does.
   maxQueuedJobAgeMs: 20 * 60 * 1000,
   maxEvidenceBytes: 1024 * 1024 * 1024,
 };
@@ -58,11 +49,7 @@ function formatDuration(ms: number): string {
     : `${Math.round(minutes)} min`;
 }
 
-/**
- * Fail-closed evaluation: every breached threshold is a failure so the
- * scheduled workflow alerts. Never throws on odd input — `NaN` signals fail
- * explicitly instead of passing silently.
- */
+/** Fail-closed: every breached threshold is a failure so the workflow alerts; odd input fails explicitly rather than passing silently. */
 export function evaluateOpsStatus(
   signals: OpsSignals,
   thresholds: OpsThresholds = DEFAULT_OPS_THRESHOLDS,

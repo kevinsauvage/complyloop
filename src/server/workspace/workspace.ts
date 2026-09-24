@@ -51,7 +51,6 @@ export interface Workspace {
   projects: Project[];
   /** Projects the current viewer may switch between (scoped to active org). */
   visibleProjects: Project[];
-  /** Orgs the signed-in user belongs to. */
   organizations: Organization[];
   /** Selected org for management + new connects; null when unsigned. */
   activeOrgId: string | null;

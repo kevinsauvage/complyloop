@@ -7,7 +7,6 @@ export function escapeAttr(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
-/** Implicit or explicit role label for human-facing element identity. */
 export function roleLabel(element: HTMLElement): string {
   const explicit = element.getAttribute("role");
   if (explicit) return explicit;

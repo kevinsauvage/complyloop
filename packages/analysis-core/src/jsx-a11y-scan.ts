@@ -130,7 +130,6 @@ function proposedFixForJsxA11y(
       return removeNamedAttribute(parsed, node, ["autoFocus", "autofocus"]);
     case "no-accesskey":
       return removeNamedAttribute(parsed, node, ["accessKey", "accesskey"]);
-    // Only a handful of jsx-a11y CheckIds have a structured template.
     default:
       return null;
   }

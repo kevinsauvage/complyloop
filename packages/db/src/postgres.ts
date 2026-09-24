@@ -9,7 +9,6 @@ import postgres from "postgres";
 import * as schema from "./schema.ts";
 
 /**
- * Maps libpq-style sslmode to postgres.js TLS options.
  * `require` / `prefer` encrypt **and** verify the server certificate by default.
  * Opt out only with an explicit insecure flag (documented for Aiven-style CAs
  * until `sslrootcert` is wired).
@@ -54,9 +53,9 @@ export function isDatabaseSslInsecureEnabled(
  * If the OS resolver NXDOMAINs the host (common right after Aiven create),
  * falls back to public DNS and connects by IP with the original TLS servername.
  *
- * TLS: `sslmode=require` verifies the server certificate by default. Set
- * `DATABASE_SSL_INSECURE=true` only when you intentionally skip CA verification
- * (e.g. temporary Aiven CA until `sslrootcert` is configured).
+ * TLS: `sslmode=require` verifies the server certificate by default; set
+ * `DATABASE_SSL_INSECURE=true` only when skipping CA verification intentionally
+ * (see {@link resolvePostgresSslOptions}).
  */
 export async function createPostgresClient(
   connectionString: string,
@@ -210,7 +209,7 @@ type GlobalDb = {
 /** Survive Turbopack/HMR so we do not leak a new pool on every reload. */
 const globalForDb = globalThis as typeof globalThis & GlobalDb;
 
-/** Lazy singleton for the app process (and across HMR in dev). */
+/** Lazy singleton for the app process. */
 export async function getDrizzle(): Promise<DrizzleDb> {
   if (globalForDb.__complyloopDb) return globalForDb.__complyloopDb;
   if (!globalForDb.__complyloopInit) {

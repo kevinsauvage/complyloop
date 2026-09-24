@@ -1,9 +1,8 @@
 #!/usr/bin/env tsx
 /**
- * Shared database helpers for local scripts.
- * Loads `.env.local` then `.env` (same order as Next.js) and opens the
- * postgres.js / Drizzle clients scripts use, so no script re-implements env
- * loading or connection setup.
+ * Shared database helpers for local scripts: env loading (see `./env`) plus
+ * the postgres.js / Drizzle clients scripts use, so no script re-implements
+ * connection setup.
  */
 import {
   createPostgresClient,

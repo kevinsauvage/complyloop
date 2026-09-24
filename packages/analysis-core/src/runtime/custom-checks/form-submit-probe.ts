@@ -17,7 +17,6 @@ export function submitFirstValidatableForm(): boolean {
   return false;
 }
 
-/** Whether a control fails native validity or is marked aria-invalid. */
 export function isInvalidField(el: Element): boolean {
   if (
     el instanceof HTMLInputElement ||

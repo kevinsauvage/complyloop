@@ -8,7 +8,6 @@ export function resolveE2EAuthSecret(): string {
   return resolveSecret("E2E_AUTH_SECRET", "e2e-secret");
 }
 
-/** Trimmed `process.env[name]`, or `fallback` when unset/blank. */
 export function resolveSecret(name: string, fallback: string): string {
   return process.env[name]?.trim() || fallback;
 }

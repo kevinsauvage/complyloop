@@ -13,10 +13,9 @@ export interface TimelineItem {
 
 /**
  * Single timeline renderer for audit-trail lists (finding evidence trail,
- * remediation history): bordered rail, highlight dot, Latest pill, date row.
- * Callers map their entries to items and keep their own wrappers (cards,
- * empty states, show-more disclosure) — only the repeated row markup lives
- * here.
+ * remediation history). Callers map their entries to items and keep their own
+ * wrappers (cards, empty states, show-more disclosure) — only the repeated row
+ * markup lives here.
  */
 export function EvidenceTimeline({
   items,
