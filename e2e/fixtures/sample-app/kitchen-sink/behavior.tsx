@@ -26,10 +26,7 @@ export function KitchenSinkBehavior() {
       {/* kitchen-sink: text-spacing */}
       <p style={{ letterSpacing: "0.12em !important" }}>Spaced text</p>
       {/* kitchen-sink: meta-viewport */}
-      <meta
-        name="viewport"
-        content="width=device-width, user-scalable=no"
-      />
+      <meta name="viewport" content="width=device-width, user-scalable=no" />
       {/* kitchen-sink: no-blink-marquee */}
       {/* @ts-expect-error - deliberate obsolete element for the check fixture */}
       <marquee>Breaking news ticker</marquee>

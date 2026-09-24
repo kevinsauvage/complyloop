@@ -19,12 +19,7 @@ import { scanProject } from "./scan.ts";
  * must stay empty-heading-free, so it is covered by a direct lint assertion
  * below instead of a sink file.
  */
-const SINK_ROOT = path.join(
-  process.cwd(),
-  "e2e",
-  "fixtures",
-  "sample-app",
-);
+const SINK_ROOT = path.join(process.cwd(), "e2e", "fixtures", "sample-app");
 
 const WEBHOOK_PINNED: ReadonlySet<CheckId> = new Set<CheckId>([
   "empty-heading",

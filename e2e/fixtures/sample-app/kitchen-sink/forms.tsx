@@ -25,7 +25,12 @@ export function KitchenSinkForms() {
       {/* kitchen-sink: autocomplete-purpose */}
       <input type="email" id="contact-email" aria-label="Email" />
       {/* kitchen-sink: redundant-entry */}
-      <input type="email" name="email" autoComplete="email" aria-label="Email" />
+      <input
+        type="email"
+        name="email"
+        autoComplete="email"
+        aria-label="Email"
+      />
       <input
         type="email"
         name="email"

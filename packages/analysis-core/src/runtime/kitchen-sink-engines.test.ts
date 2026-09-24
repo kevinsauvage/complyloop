@@ -111,7 +111,10 @@ const DORMANT_AXE_CHECKS: ReadonlyArray<{
 ];
 
 function axeCheckIds(
-  results: ReadonlyArray<{ violations: Array<{ id: string }>; incomplete: Array<{ id: string }> }>,
+  results: ReadonlyArray<{
+    violations: Array<{ id: string }>;
+    incomplete: Array<{ id: string }>;
+  }>,
 ): Set<CheckId> {
   const fired = new Set<CheckId>();
   for (const result of results) {
