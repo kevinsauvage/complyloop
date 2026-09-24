@@ -45,15 +45,18 @@ function badgeCount(
   return attention[badgeKey];
 }
 
-function badgeAccessibleLabel(
+export function badgeAccessibleLabel(
   label: string,
   count: number,
   badgeKey: NavBadgeKey,
 ): string {
-  if (badgeKey === "openFindings") {
-    return `${label}, ${count} open finding${count === 1 ? "" : "s"}`;
-  }
-  return `${label}, ${count} unread alert${count === 1 ? "" : "s"}`;
+  const noun =
+    badgeKey === "openFindings"
+      ? `open finding${count === 1 ? "" : "s"}`
+      : `unread alert${count === 1 ? "" : "s"}`;
+  // Keep the visible text (`${label} ${count}`) as a contiguous substring of
+  // the accessible name so the link satisfies WCAG 2.5.3 (label in name).
+  return `${label} ${count} ${noun}`;
 }
 
 export function NavLinks({
