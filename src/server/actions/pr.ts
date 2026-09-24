@@ -15,6 +15,7 @@ import {
 } from "../assessment/remediation-evidence";
 import { getSession } from "../auth-session";
 import { createProjectPullRequest } from "../github/github-connector";
+import { reportError } from "../observability";
 import { assertPrRateLimit } from "../rate-limit";
 import { listEvidenceForFindingScoped } from "../reporting/evidence-queries";
 import { appendEvidence } from "../workspace/project-rows";
@@ -122,9 +123,14 @@ export async function createPullRequestAction(
     } catch (error) {
       // The draft PR already exists on GitHub. Surface the URL so the write
       // can be retried — prepare force-pushes to the same branch and reuses
-      // the open PR instead of opening a second one.
+      // the open PR instead of opening a second one. The raw DB error goes to
+      // telemetry only, never into user-facing copy.
+      reportError(error, {
+        code: "pull_request_evidence_write_failed",
+        findingId,
+      });
       throw new PublicError(
-        `Draft pull request ${result.prUrl} was created on branch \`${result.branch}\` but the database write failed (${error instanceof Error ? error.message : "unknown error"}). Retry — the existing branch and PR will be reused.`,
+        `Draft pull request ${result.prUrl} was created on branch \`${result.branch}\` but the database write failed. Retry — the existing branch and PR will be reused.`,
       );
     }
     refresh(...COMPLIANCE_LOOP_ROUTES);

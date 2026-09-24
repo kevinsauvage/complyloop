@@ -222,6 +222,8 @@ export const findings = pgTable(
       table.severityRank,
       table.id,
     ),
+    // Control-scoped list filter + open-count group-by.
+    index("findings_project_control_idx").on(table.projectId, table.controlId),
     check(
       "findings_status_check",
       sqlIn(sql`${table.status}`, FINDING_STATUSES),

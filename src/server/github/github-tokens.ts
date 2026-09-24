@@ -212,6 +212,8 @@ export async function refreshGitHubToken({
       grant_type: "refresh_token",
       refresh_token: refreshToken,
     }),
+    // Bound the refresh: a stalled GitHub must not hang the request handler.
+    signal: AbortSignal.timeout(15_000),
   });
 
   if (!response.ok) {

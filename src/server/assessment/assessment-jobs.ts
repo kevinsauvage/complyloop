@@ -633,21 +633,16 @@ export async function updateAssessmentJobStage(
 ): Promise<boolean> {
   try {
     const drizzle = await getDrizzle();
-    const [row] = await drizzle
-      .select({ payload: assessmentJobs.payload })
-      .from(assessmentJobs)
-      .where(eq(assessmentJobs.id, jobId))
-      .limit(1);
-    if (!row) return false;
+    const now = new Date().toISOString();
+    // Single atomic jsonb merge — no SELECT-then-UPDATE, so two overlapping
+    // stage stamps converge on the last writer instead of clobbering each
+    // other's payload keys. Gated on `running` so it can neither resurrect a
+    // terminal job nor fight a cancel.
     const [updated] = await drizzle
       .update(assessmentJobs)
       .set({
-        payload: {
-          ...parseJobPayload(row.payload),
-          stage,
-          stageStartedAt: new Date().toISOString(),
-        },
-        updatedAt: new Date().toISOString(),
+        payload: sql`${assessmentJobs.payload} || jsonb_build_object('stage', ${stage}::text, 'stageStartedAt', ${now}::text)`,
+        updatedAt: now,
       })
       .where(
         and(eq(assessmentJobs.id, jobId), eq(assessmentJobs.status, "running")),

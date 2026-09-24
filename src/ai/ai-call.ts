@@ -30,6 +30,12 @@ export type AiCallOnError = (error: unknown, report: AiErrorReport) => void;
 export const AI_MODEL = "poolside/laguna-s-2.1-free";
 
 /**
+ * Hard bound on a single gateway call: a hung gateway must not stall a server
+ * action until the platform kills it.
+ */
+const AI_CALL_TIMEOUT_MS = 60_000;
+
+/**
  * Resolved gateway model id. Overridable via the `AI_MODEL` env var so
  * production can upgrade off the free-tier default without a code change.
  * Reads `process.env` directly (not via `@/server/env`): `src/ai` must stay
@@ -136,6 +142,7 @@ export async function aiCall<TSchema extends z.ZodType>(
       model: resolveAiModel(),
       schema: input.schema,
       prompt,
+      abortSignal: AbortSignal.timeout(AI_CALL_TIMEOUT_MS),
     });
     return object as z.infer<TSchema>;
   } catch (error) {
@@ -190,6 +197,7 @@ async function generateTextFallback<TSchema extends z.ZodType>(
         ? [`The object must have exactly these keys: ${keys.join(", ")}.`]
         : []),
     ].join("\n"),
+    abortSignal: AbortSignal.timeout(AI_CALL_TIMEOUT_MS),
   });
   const parsed = input.schema.safeParse(extractJson(text));
   if (!parsed.success) {

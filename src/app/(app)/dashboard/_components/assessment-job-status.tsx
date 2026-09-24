@@ -131,7 +131,13 @@ export function AssessmentJobStatus({
         <div>
           <h3 className="text-sm font-semibold">Assessment jobs</h3>
           {pollError ? (
-            <p className="text-xs text-destructive">{pollError}</p>
+            <p
+              className="text-xs text-destructive"
+              role="status"
+              aria-live="polite"
+            >
+              {pollError}
+            </p>
           ) : hasQueued ? (
             <p className="text-xs text-muted-foreground">
               Queued — the assessment worker picks it up automatically. This
@@ -157,7 +163,11 @@ export function AssessmentJobStatus({
           schedule, see docs/vercel.md).
         </p>
       ) : null}
-      <ul className="flex flex-col gap-2" aria-label="Recent assessment jobs">
+      <ul
+        className="flex flex-col gap-2"
+        aria-label="Recent assessment jobs"
+        aria-live="polite"
+      >
         {jobs.map((job) => (
           <li
             key={job.id}

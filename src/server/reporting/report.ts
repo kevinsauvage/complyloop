@@ -24,7 +24,9 @@ import { getDrizzle } from "@complyloop/db/postgres";
 import { listEvidenceForExport } from "@complyloop/db/repo/evidence";
 
 import { parseReportViewParam, type ReportView } from "@/core/filter-params";
+import { publicErrorMessage } from "@/server/action-state";
 
+import { assertExportRateLimit } from "../rate-limit";
 import { getProjectRuntime } from "../workspace/project-runtime";
 import {
   controlsInScope,
@@ -107,12 +109,25 @@ export function reportInputForProject(
 export async function loadReportInput(
   request: Request,
 ): Promise<ReportLoadResult> {
-  const { project } = await getWorkspace();
+  const { project, userId } = await getWorkspace();
   if (!project) {
     return {
       ok: false,
       response: new Response("No project connected.", { status: 404 }),
     };
+  }
+
+  // Exports read full finding history + up to 5,000 evidence rows: throttle
+  // before the load.
+  if (userId) {
+    try {
+      await assertExportRateLimit(userId);
+    } catch (error) {
+      return {
+        ok: false,
+        response: new Response(publicErrorMessage(error), { status: 429 }),
+      };
+    }
   }
 
   const view = parseReportViewParam(

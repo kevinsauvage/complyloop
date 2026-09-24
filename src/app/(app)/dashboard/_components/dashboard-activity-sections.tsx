@@ -83,12 +83,12 @@ export function DashboardRegressionsBanner({
           <Layers className="size-4" aria-hidden />
         </span>
         <div className="min-w-0">
-          <h3
+          <h2
             id="recent-regressions-heading"
             className="text-base font-medium text-foreground"
           >
             Recent compliance regressions
-          </h3>
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Requirement statuses that worsened since the last assessment.
           </p>

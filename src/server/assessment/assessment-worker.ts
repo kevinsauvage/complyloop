@@ -61,9 +61,15 @@ async function runClaimedAssessmentJob(
   // caller skips complete/fail/evidence instead of resurrecting the job.
   let expectedLease = job.leaseExpiresAt;
   let cancelledRemotely = false;
+  let renewInFlight = false;
   const heartbeat =
     expectedLease && job.startedAt
       ? setInterval(() => {
+          // Skip a tick while a renew is still in flight: overlapping renews
+          // carry a stale `expectedLease`, which the exact-match guard reads as
+          // a remote cancel — discarding a healthy long run.
+          if (renewInFlight) return;
+          renewInFlight = true;
           void (async () => {
             try {
               const renewed = await refreshAssessmentJobLease({
@@ -84,6 +90,8 @@ async function runClaimedAssessmentJob(
                 jobId: job.id,
                 error: error instanceof Error ? error.message : String(error),
               });
+            } finally {
+              renewInFlight = false;
             }
           })();
         }, ASSESSMENT_JOB_HEARTBEAT_MS)

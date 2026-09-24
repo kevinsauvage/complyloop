@@ -5,6 +5,7 @@ import { publicErrorMessage } from "@/server/action-state";
 import { getSession } from "@/server/auth-session";
 import { getGitHubAccessToken } from "@/server/github/access-token";
 import { listAvailableRepos } from "@/server/github/github-connector";
+import { assertReposRateLimit } from "@/server/rate-limit";
 import { projectCapabilities } from "@/server/workspace/project-capabilities";
 import { getWorkspace } from "@/server/workspace/workspace";
 
@@ -36,6 +37,14 @@ export async function GET(request: Request): Promise<Response> {
       { error: "Not allowed to connect repos." },
       { status: 403 },
     );
+  }
+
+  // Typeahead fans out to GitHub across every installation: throttle per user
+  // before any token read or API call.
+  try {
+    await assertReposRateLimit(session.user.id);
+  } catch (error) {
+    return Response.json({ error: publicErrorMessage(error) }, { status: 429 });
   }
 
   let token: string | null;

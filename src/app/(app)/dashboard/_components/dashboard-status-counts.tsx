@@ -95,12 +95,7 @@ export function DashboardStatusCounts({
                     {row}
                   </Link>
                 ) : (
-                  <span
-                    aria-label={`${display.label}: ${count}`}
-                    className={cn(rowClassName, "opacity-60")}
-                  >
-                    {row}
-                  </span>
+                  <span className={cn(rowClassName, "opacity-60")}>{row}</span>
                 )}
               </li>
             );

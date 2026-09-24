@@ -151,7 +151,7 @@ describe("generateAiFixAction", () => {
     expect(generatePatchCandidateOnCheckout).not.toHaveBeenCalled();
   });
 
-  it("does not consume the AI rate limit for a safe deterministic fix", async () => {
+  it("consumes the AI rate limit even for a safe deterministic fix (checkout still runs)", async () => {
     const current = workspace();
     current.db.findings[0] = {
       ...finding,
@@ -163,6 +163,10 @@ describe("generateAiFixAction", () => {
     };
     getWorkspace.mockResolvedValue(current);
     mockProjectWrite(current);
+    actionAuthMocks.auth.mockResolvedValue({
+      user: { id: "user-1", login: "user-1" },
+    });
+    assertAiRateLimit.mockResolvedValue(undefined);
     generatePatchCandidateOnCheckout.mockResolvedValue({
       description: "Remove autoFocus",
       provenance: "deterministic",
@@ -177,7 +181,9 @@ describe("generateAiFixAction", () => {
     );
 
     expect(result.ok ? null : result.message).toBeNull();
-    expect(assertAiRateLimit).not.toHaveBeenCalled();
+    // The checkout + scan runs regardless of a deterministic fix, so it must
+    // always be throttled.
+    expect(assertAiRateLimit).toHaveBeenCalledWith("user-1");
   });
 
   it("rejects when the project has no GitHub repo", async () => {

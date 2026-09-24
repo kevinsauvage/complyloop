@@ -5,7 +5,7 @@ import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 
 import { AI_MODEL } from "./ai-call";
-import { generateAiRemediation } from "./remediation";
+import { generateAiRemediation, remediationSchema } from "./remediation";
 
 vi.mock("ai", () => ({
   generateObject: vi.fn(),
@@ -146,5 +146,37 @@ describe("generateAiRemediation", () => {
     await expect(
       generateAiRemediation(sourceFinding(), control),
     ).resolves.toBeNull();
+  });
+});
+
+describe("remediationSchema attributeValue bounds", () => {
+  const base = {
+    description: "d",
+    proposedSnippet: "s",
+    confidence: "high" as const,
+  };
+
+  it("accepts a normal attribute value", () => {
+    expect(
+      remediationSchema.safeParse({ ...base, attributeValue: "l'image" })
+        .success,
+    ).toBe(true);
+  });
+
+  it("rejects an over-long value", () => {
+    expect(
+      remediationSchema.safeParse({ ...base, attributeValue: "x".repeat(257) })
+        .success,
+    ).toBe(false);
+  });
+
+  it("rejects angle brackets and control characters", () => {
+    expect(
+      remediationSchema.safeParse({ ...base, attributeValue: "<script>" })
+        .success,
+    ).toBe(false);
+    expect(
+      remediationSchema.safeParse({ ...base, attributeValue: "a\nb" }).success,
+    ).toBe(false);
   });
 });

@@ -4,6 +4,8 @@ import { GET } from "./route";
 
 const recentAssessmentJobsForProject = vi.hoisted(() => vi.fn());
 const viewerCanViewProject = vi.hoisted(() => vi.fn());
+const getSession = vi.hoisted(() => vi.fn());
+const assertJobPollRateLimit = vi.hoisted(() => vi.fn());
 
 vi.mock("@/server/assessment/assessment-jobs", () => ({
   recentAssessmentJobsForProject: (...args: unknown[]) =>
@@ -12,6 +14,15 @@ vi.mock("@/server/assessment/assessment-jobs", () => ({
 
 vi.mock("@/server/workspace/workspace", () => ({
   viewerCanViewProject: (...args: unknown[]) => viewerCanViewProject(...args),
+}));
+
+vi.mock("@/server/auth-session", () => ({
+  getSession: (...args: unknown[]) => getSession(...args),
+}));
+
+vi.mock("@/server/rate-limit", () => ({
+  assertJobPollRateLimit: (...args: unknown[]) =>
+    assertJobPollRateLimit(...args),
 }));
 
 function getRequest(
@@ -41,6 +52,7 @@ describe("GET /api/projects/[projectId]/assessment-jobs", () => {
 
   it("returns recent jobs for an authorized viewer", async () => {
     viewerCanViewProject.mockResolvedValue(true);
+    getSession.mockResolvedValue({ user: { id: "user-1" } });
     recentAssessmentJobsForProject.mockResolvedValue([{ id: "job-1" }]);
     const [request, ctx] = getRequest("p1");
     const response = await GET(request, ctx);
@@ -49,5 +61,16 @@ describe("GET /api/projects/[projectId]/assessment-jobs", () => {
       jobs: [{ id: "job-1" }],
     });
     expect(recentAssessmentJobsForProject).toHaveBeenCalledWith("p1");
+    expect(assertJobPollRateLimit).toHaveBeenCalledWith("user-1");
+  });
+
+  it("returns 429 when the poll rate limit is exhausted", async () => {
+    viewerCanViewProject.mockResolvedValue(true);
+    getSession.mockResolvedValue({ user: { id: "user-1" } });
+    assertJobPollRateLimit.mockRejectedValueOnce(new Error("Too many."));
+    const [request, ctx] = getRequest("p1");
+    const response = await GET(request, ctx);
+    expect(response.status).toBe(429);
+    expect(recentAssessmentJobsForProject).not.toHaveBeenCalled();
   });
 });

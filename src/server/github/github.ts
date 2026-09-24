@@ -10,11 +10,15 @@ import type { GitHubRepoSummary } from "./github-types";
 
 export type { GitHubRepoSummary } from "./github-types";
 
+/** Bound every GitHub REST call so a stalled upstream cannot hang a handler. */
+const GITHUB_REQUEST_TIMEOUT_MS = 15_000;
+
 /** Authenticated Octokit client for server-side GitHub REST calls. */
 export function createOctokit(accessToken: string): Octokit {
   return new Octokit({
     auth: accessToken,
     userAgent: "ComplyLoop",
+    request: { timeout: GITHUB_REQUEST_TIMEOUT_MS },
     // Test / GitHub Enterprise Server override; defaults to api.github.com.
     ...(githubApiBaseUrl() ? { baseUrl: githubApiBaseUrl() } : {}),
   });

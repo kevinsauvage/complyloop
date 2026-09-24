@@ -220,6 +220,7 @@ export default function HomePage() {
             </div>
 
             <div
+              role="group"
               className="rounded-xl border border-border/80 bg-card p-5 sm:p-6"
               aria-label="Sample evidence trail"
             >

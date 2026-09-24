@@ -7,9 +7,14 @@ const getWorkspace = vi.hoisted(() => vi.fn());
 const projectCapabilities = vi.hoisted(() => vi.fn());
 const getGitHubAccessToken = vi.hoisted(() => vi.fn());
 const listAvailableRepos = vi.hoisted(() => vi.fn());
+const assertReposRateLimit = vi.hoisted(() => vi.fn());
 
 vi.mock("@/server/auth-session", () => ({
   getSession: (...args: unknown[]) => getSession(...args),
+}));
+
+vi.mock("@/server/rate-limit", () => ({
+  assertReposRateLimit: (...args: unknown[]) => assertReposRateLimit(...args),
 }));
 
 vi.mock("@/server/workspace/workspace", () => ({
@@ -69,5 +74,20 @@ describe("GET /api/github/repos", () => {
       repos: [{ fullName: "acme/app" }],
       hasMore: false,
     });
+    expect(assertReposRateLimit).toHaveBeenCalledWith("user-1");
+  });
+
+  it("returns 429 when the typeahead rate limit is exhausted", async () => {
+    getSession.mockResolvedValue({ user: { id: "user-1" } });
+    getWorkspace.mockResolvedValue({
+      project: { id: "p1" },
+      access: {},
+      activeOrgId: "org-1",
+    });
+    projectCapabilities.mockReturnValue({ canConnect: true });
+    assertReposRateLimit.mockRejectedValueOnce(new Error("Too many requests."));
+    const response = await GET(getRequest());
+    expect(response.status).toBe(429);
+    expect(listAvailableRepos).not.toHaveBeenCalled();
   });
 });

@@ -14,11 +14,24 @@ import {
   resolveAiModel,
 } from "./ai-call";
 
-const remediationSchema = z.object({
+/**
+ * Bounded at the AI output boundary: `attributeValue` flows into
+ * `finding.fix.value` and later a source edit, so cap the length and reject
+ * characters that cannot land in an HTML/JSX attribute value (`<`, `>`,
+ * control chars). Quotes stay allowed for values like `l'image`.
+ */
+const attributeValueSchema = z
+  .string()
+  .max(256, { error: "Attribute value is too long." })
+  .refine((value) => !/[<>\u0000-\u001f]/.test(value), {
+    error: "Attribute value contains characters that are unsafe in source.",
+  });
+
+export const remediationSchema = z.object({
   description: z.string(),
   proposedSnippet: z.string(),
   /** Suggested attribute value when the fix inserts/edits an attribute. */
-  attributeValue: z.string().optional(),
+  attributeValue: attributeValueSchema.optional(),
   confidence: confidenceSchema,
 });
 

@@ -196,7 +196,6 @@ export function FindingsBulkList({
               onChange={toggleAll}
               className="size-4 rounded border-input accent-signal"
               aria-label="Select all findings on this page"
-              aria-checked={someSelected ? "mixed" : allSelected}
             />
             <Label htmlFor={selectAllId} className="text-xs font-medium">
               {selectedCount > 0
@@ -226,10 +225,15 @@ export function FindingsBulkList({
                   ))}
                 </StatefulActionForm>
               ) : (
-                <span title="Only findings with a generated suggestion — live-page findings or source findings with a deterministic fix — can be approved in bulk">
+                <span className="flex items-center gap-2">
                   <Button type="button" size="sm" variant="default" disabled>
                     Approve (suggestions only)
                   </Button>
+                  <span className="text-xs text-muted-foreground">
+                    Only findings with a generated suggestion — live-page
+                    findings or source findings with a deterministic fix — can
+                    be approved in bulk.
+                  </span>
                 </span>
               )}
               <Button

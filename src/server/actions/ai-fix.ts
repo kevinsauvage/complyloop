@@ -7,7 +7,6 @@ import { aiAvailable } from "@/ai/ai-call";
 import { assertSourceLocatedFinding } from "@/ai/verified-fix";
 import type { ActionState } from "@/core/actions/action-state";
 import { parseEntityId } from "@/core/actions/validate";
-import { hasSafeDeterministicFix } from "@/core/requirements/remediation-lifecycle";
 
 import { runAction } from "../action-state";
 import {
@@ -52,10 +51,10 @@ export async function generateAiFixAction(
         "Connect a GitHub repository before generating a patch.",
       );
     }
-    if (!hasSafeDeterministicFix(finding)) {
-      const sessionUserId = (await getSession())?.user?.id;
-      if (sessionUserId) await assertAiRateLimit(sessionUserId);
-    }
+    // Rate-limit before *any* checkout: even a deterministic fix drives the
+    // ephemeral clone + scan through `generatePatchCandidateOnCheckout`.
+    const sessionUserId = (await getSession())?.user?.id;
+    if (sessionUserId) await assertAiRateLimit(sessionUserId);
     const control = controlById(finding.controlId);
     // Checkout + AI + re-verify run outside any write lock (see P2-8 /
     // remediation-verify.ts); the write below only persists the candidate.

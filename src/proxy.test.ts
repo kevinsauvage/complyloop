@@ -105,6 +105,20 @@ describe("proxy basic auth gate", () => {
     const response = await proxy(request("/dashboard"));
     expect(response?.status).toBe(200);
   });
+
+  it("still gates with Basic auth when GitHub auth is unconfigured", async () => {
+    baseEnv();
+    // Basic auth set, AUTH_* unset: the gate must not fail open on the
+    // GitHub-auth early return.
+    vi.stubEnv("AUTH_SECRET", "");
+    vi.stubEnv("AUTH_GITHUB_ID", "");
+    vi.stubEnv("AUTH_GITHUB_SECRET", "");
+    const response = await proxy(request("/dashboard"));
+    expect(response?.status).toBe(401);
+    expect(response?.headers.get("www-authenticate")).toContain(
+      'Basic realm="ComplyLoop"',
+    );
+  });
 });
 
 describe("proxy content security policy", () => {

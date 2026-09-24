@@ -138,12 +138,12 @@ export async function proxy(req: NextRequest) {
 
   const nonce = btoa(crypto.randomUUID());
 
-  if (!isGitHubAuthConfigured()) return nextWithCsp(req, nonce);
-
-  // Private-preview gate: HTTP Basic Auth on every page. API routes above
-  // keep their own auth (webhook secret, session cookies), and
-  // browsers cache the Basic credential per origin so in-app fetch calls
-  // reuse it. Unset credentials = gate open (local dev).
+  // Private-preview gate: HTTP Basic Auth on every page. Evaluated *before*
+  // the GitHub-auth early return so a deployment with `BASIC_AUTH_*` set but
+  // `AUTH_*` unset is still gated (never fails open). API routes above keep
+  // their own auth (webhook secret, session cookies), and browsers cache the
+  // Basic credential per origin so in-app fetch calls reuse it. Unset
+  // credentials = gate open (local dev).
   const basicAuth = basicAuthCredentials();
   if (
     basicAuth &&
@@ -156,6 +156,8 @@ export async function proxy(req: NextRequest) {
       },
     });
   }
+
+  if (!isGitHubAuthConfigured()) return nextWithCsp(req, nonce);
 
   const token = await getToken({
     req,

@@ -287,7 +287,35 @@ function createDrizzle() {
               });
             }
             if (!match) continue;
-            const next = { ...row, ...patch } as JobRow;
+            // `updateAssessmentJobStage` merges via
+            // `payload || jsonb_build_object('stage', …, 'stageStartedAt', …)`.
+            // The double can't run SQL, so rebuild the merge from the bound
+            // string params carried on the drizzle SQL object's `queryChunks`.
+            const sqlPayload = (patch as { payload?: unknown }).payload;
+            let next: JobRow;
+            if (
+              sqlPayload &&
+              typeof sqlPayload === "object" &&
+              "queryChunks" in sqlPayload
+            ) {
+              const params = (
+                sqlPayload as { queryChunks: unknown[] }
+              ).queryChunks.filter((chunk): chunk is string => {
+                return typeof chunk === "string";
+              });
+              const { payload: _payload, ...rest } = patch;
+              next = {
+                ...row,
+                ...(rest as Partial<JobRow>),
+                payload: {
+                  ...row.payload,
+                  stage: params[0],
+                  stageStartedAt: params[1],
+                },
+              } as JobRow;
+            } else {
+              next = { ...row, ...patch } as JobRow;
+            }
             jobs.set(id, next);
             updated.push(next);
           }

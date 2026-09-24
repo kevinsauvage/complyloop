@@ -86,3 +86,13 @@ export function assertExportRateLimit(userId: string): Promise<void> {
 export function assertPrRateLimit(userId: string): Promise<void> {
   return assertRateLimit(`pr:${userId}`, 10, 3_600_000);
 }
+
+/** Repo picker typeahead: 30 per user per minute (each fans out to GitHub). */
+export function assertReposRateLimit(userId: string): Promise<void> {
+  return assertRateLimit(`repos:${userId}`, 30, 60_000);
+}
+
+/** Assessment-job polling: 60 per user per minute (client ticks every ~3s). */
+export function assertJobPollRateLimit(userId: string): Promise<void> {
+  return assertRateLimit(`job-poll:${userId}`, 60, 60_000);
+}

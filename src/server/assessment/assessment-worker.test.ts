@@ -393,6 +393,46 @@ describe("settleRunningAssessmentJob", () => {
     }
   });
 
+  it("skips an overlapping heartbeat tick instead of cancelling a healthy run", async () => {
+    vi.useFakeTimers();
+    try {
+      loadProjectDb.mockResolvedValue(projectDb());
+      withProjectCheckout.mockImplementation(
+        async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
+          fn("/tmp/checkout"),
+      );
+      let resolveRun!: (value: unknown) => void;
+      runAssessment.mockReturnValue(
+        new Promise((resolve) => {
+          resolveRun = resolve;
+        }),
+      );
+      // A renew that never settles: a second tick must be skipped rather than
+      // fired with a stale `expectedLease` (which the exact-match guard would
+      // read as a remote cancel).
+      refreshAssessmentJobLease.mockReturnValue(new Promise(() => {}));
+      completeAssessmentJob.mockResolvedValue(undefined);
+
+      const pending = settleRunningAssessmentJob(job());
+      await vi.advanceTimersByTimeAsync(ASSESSMENT_JOB_HEARTBEAT_MS * 2 + 1);
+      expect(refreshAssessmentJobLease).toHaveBeenCalledTimes(1);
+
+      resolveRun(
+        assessmentRun({
+          id: "a1",
+          projectId: "p1",
+          snapshot: { fileHashes: {} },
+        }),
+      );
+      await expect(pending).resolves.toEqual({
+        kind: "succeeded",
+        jobId: "job-1",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("fails with the renewed lease when the run throws after a renewal", async () => {
     vi.useFakeTimers();
     try {

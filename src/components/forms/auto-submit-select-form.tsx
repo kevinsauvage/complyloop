@@ -63,7 +63,7 @@ export function AutoSubmitSelectForm({
         className="shrink-0 text-xs font-medium text-muted-foreground"
       >
         {label}{" "}
-        <span aria-hidden="true" className="text-muted-foreground/70">
+        <span aria-hidden="true" className="text-muted-foreground">
           · {options.length}
         </span>
       </Label>

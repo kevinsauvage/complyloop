@@ -33,7 +33,7 @@ function StatusNavLink({
         "rounded-md px-3 py-1 text-sm font-medium whitespace-nowrap outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
         current
           ? "bg-background text-foreground shadow-sm ring-1 ring-border"
-          : "text-foreground/60",
+          : "text-muted-foreground",
       )}
     >
       {children}
