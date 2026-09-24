@@ -1,24 +1,28 @@
 # Ops check (replaces the old worker healthcheck).
 #
-# Runs `npm run ops:check` on a daily schedule: verifies DB reachability,
-# assessment-queue depth, and evidence-table growth (missing prod env vars
-# degrade the report instead of failing it). Any breach exits non-zero so the
-# workflow fails and stock Actions failure notifications fire — a red run
-# here means "dispatch/schedule stopped draining" or "evidence is outgrowing
-# the database".
+# Runs `npm run ops:check` hourly: verifies DB reachability, assessment-queue
+# depth, oldest-queued-job age, evidence-table growth, and that production
+# dispatch env is present. Any breach — including a missing
+# GH_WORKER_DISPATCH_TOKEN or a single job queued past the age threshold —
+# exits non-zero so the workflow fails and stock Actions failure notifications
+# fire. A red run here means "dispatch/schedule stopped draining" or "evidence
+# is outgrowing the database".
 #
-# Required repository secrets: `DATABASE_URL` (pooled Postgres).
-# Optional vars: `OPS_MAX_QUEUED_JOBS` (default 50), `OPS_MAX_EVIDENCE_MB`
-# (default 1024) — tighten once the first prod signals are known.
+# Required repository secrets: `DATABASE_URL` (pooled Postgres), and the
+# production env the check validates (`AUTH_SECRET`, `AUTH_URL`, `GITHUB_APP_ID`,
+# `GITHUB_APP_PRIVATE_KEY`, `GITHUB_WEBHOOK_SECRET`, `GH_WORKER_DISPATCH_TOKEN`).
+# Optional vars: `OPS_MAX_QUEUED_JOBS` (default 50), `OPS_MAX_QUEUED_AGE_MINUTES`
+# (default 20), `OPS_MAX_EVIDENCE_MB` (default 1024).
 # Optional secrets: `SLACK_WEBHOOK_URL` (failure posts), `HEALTH_URL`
 # (unauthenticated GET of the app `/api/health` endpoint).
 name: ops-check
 
 on:
   schedule:
-    # Daily 06:00 UTC — cheaper than per-tick, faster than weekly for a
-    # queue that can pile up in hours when the drain stops firing.
-    - cron: "0 6 * * *"
+    # Hourly: a stalled drain must page within the hour, not the day. The
+    # 15-min worker tick is the backstop, so an hour-old queued job means the
+    # backstop is down too (e.g. GitHub disabled the idle scheduled workflow).
+    - cron: "0 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -37,6 +41,14 @@ jobs:
         env:
           NODE_ENV: production
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # Required prod env — a missing dispatch token is the failure this
+          # check exists to catch, so it must be visible here, not skipped.
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          AUTH_URL: ${{ secrets.AUTH_URL }}
+          GITHUB_APP_ID: ${{ secrets.GITHUB_APP_ID }}
+          GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
+          GITHUB_WEBHOOK_SECRET: ${{ secrets.GITHUB_WEBHOOK_SECRET }}
+          GH_WORKER_DISPATCH_TOKEN: ${{ secrets.GH_WORKER_DISPATCH_TOKEN }}
       - name: Ping app health
         # Optional: set repository secret HEALTH_URL to the /api/health URL.
         # The endpoint is an unauthenticated scrape target; non-200 fails.

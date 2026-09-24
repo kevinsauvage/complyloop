@@ -502,6 +502,20 @@ export interface ScanRuntimeOptions {
 }
 
 /**
+ * Pathname of a rendered page URL, normalized for route↔file coverage matching
+ * (`merge-findings.ts`). Absolute page URLs are reduced to their path; query
+ * and hash are dropped (preview tokens), and the root collapses to `/`.
+ */
+function scannedRouteOf(url: string): string | null {
+  try {
+    const pathname = new URL(url).pathname.replace(/\/+$/, "");
+    return pathname === "" ? "/" : pathname;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Audits configured routes under `runtimeBaseUrl`.
  * Returns empty findings (with error) when the URL is missing or unreachable.
  */
@@ -601,6 +615,9 @@ export async function scanRuntime(
     return {
       findings,
       pagesScanned: pages.length,
+      scannedRoutes: pages
+        .map((page) => scannedRouteOf(page.url))
+        .filter((route): route is string => route !== null),
       siteLevelChecksRan,
       htmlValidateRan,
       linkCheckRan,

@@ -4,7 +4,10 @@ import { sql } from "drizzle-orm";
 
 import { getDrizzle } from "@complyloop/db/postgres";
 
-import { queuedAssessmentJobCount } from "../src/server/assessment/assessment-jobs";
+import {
+  oldestQueuedAssessmentJobAgeMs,
+  queuedAssessmentJobCount,
+} from "../src/server/assessment/assessment-jobs";
 import {
   DEFAULT_OPS_THRESHOLDS,
   evaluateOpsStatus,
@@ -13,6 +16,24 @@ import {
 import { loadLocalEnv } from "./env";
 
 loadLocalEnv();
+
+/**
+ * Env the core loop cannot run without. Missing any of these in production
+ * fails the check: a silently-missing dispatch token leaves every assessment
+ * waiting on the 15-min backstop (or forever, once GitHub disables an idle
+ * scheduled workflow), which is the exact failure this check exists to catch.
+ * `SENTRY_DSN` is monitoring-only, so it stays a warning.
+ */
+const REQUIRED_PROD_ENV = [
+  "AUTH_SECRET",
+  "AUTH_URL",
+  "GITHUB_APP_ID",
+  "GITHUB_APP_PRIVATE_KEY",
+  "GITHUB_WEBHOOK_SECRET",
+  "GH_WORKER_DISPATCH_TOKEN",
+] as const;
+
+const OPTIONAL_PROD_ENV = ["SENTRY_DSN"] as const;
 
 function required(name: string): string | null {
   return process.env[name]?.trim() ? null : `${name} is required.`;
@@ -30,28 +51,25 @@ function toNumber(value: unknown): number {
 }
 
 async function main(): Promise<void> {
-  // DATABASE_URL is the only hard requirement: without it no check can run.
-  // Missing prod env vars degrade the report (warn) instead of failing the
-  // run — otherwise the daily check fails for a false reason and masks real
-  // queue/evidence breaches.
+  // DATABASE_URL is the only hard requirement for the check to run at all.
   const dbMissing = required("DATABASE_URL");
   if (dbMissing) throw new Error(dbMissing);
-  const envIssues =
-    process.env.NODE_ENV === "production"
-      ? [
-          required("AUTH_SECRET"),
-          required("AUTH_URL"),
-          required("GITHUB_APP_ID"),
-          required("GITHUB_APP_PRIVATE_KEY"),
-          required("GITHUB_WEBHOOK_SECRET"),
-          required("GH_WORKER_DISPATCH_TOKEN"),
-          required("SENTRY_DSN"),
-        ].filter((failure): failure is string => Boolean(failure))
-      : [];
+  const isProd = process.env.NODE_ENV === "production";
+  const envFailures = isProd
+    ? REQUIRED_PROD_ENV.map((name) => required(name)).filter(
+        (failure): failure is string => Boolean(failure),
+      )
+    : [];
+  const envWarnings = isProd
+    ? OPTIONAL_PROD_ENV.map((name) => required(name)).filter(
+        (failure): failure is string => Boolean(failure),
+      )
+    : [];
 
   const drizzle = await getDrizzle();
   await drizzle.execute(sql`SELECT 1`);
   const queuedJobs = await queuedAssessmentJobCount();
+  const oldestQueuedJobAgeMs = await oldestQueuedAssessmentJobAgeMs();
 
   // Fast, lock-free size signals: exact byte size + planner row estimate
   // (no COUNT(*) seq scan on an ever-growing append-only table).
@@ -69,6 +87,11 @@ async function main(): Promise<void> {
       process.env.OPS_MAX_QUEUED_JOBS,
       DEFAULT_OPS_THRESHOLDS.maxQueuedJobs,
     ),
+    maxQueuedJobAgeMs:
+      positiveInt(
+        process.env.OPS_MAX_QUEUED_AGE_MINUTES,
+        DEFAULT_OPS_THRESHOLDS.maxQueuedJobAgeMs / 60_000,
+      ) * 60_000,
     maxEvidenceBytes: evidenceBytesFromMb(
       positiveInt(
         process.env.OPS_MAX_EVIDENCE_MB,
@@ -77,23 +100,28 @@ async function main(): Promise<void> {
     ),
   };
   const evaluation = evaluateOpsStatus(
-    { queuedJobs, evidenceBytes, evidenceRowsEstimate },
+    { queuedJobs, oldestQueuedJobAgeMs, evidenceBytes, evidenceRowsEstimate },
     thresholds,
   );
 
   console.info(
     JSON.stringify({
-      status: evaluation.ok ? "ok" : "failing",
+      status: evaluation.ok && envFailures.length === 0 ? "ok" : "failing",
       queuedJobs,
+      oldestQueuedJobAgeMs,
       evidenceBytes,
       evidenceRowsEstimate,
       thresholds,
-      envIssues,
+      envFailures,
+      envWarnings,
       at: new Date().toISOString(),
     }),
   );
-  if (envIssues.length > 0) {
-    console.warn(`prod env incomplete: ${envIssues.join(" ")}`);
+  if (envWarnings.length > 0) {
+    console.warn(`optional prod env unset: ${envWarnings.join(" ")}`);
+  }
+  if (envFailures.length > 0) {
+    throw new Error(`required prod env missing: ${envFailures.join(" ")}`);
   }
   if (!evaluation.ok) throw new Error(evaluation.failures.join(" "));
 }

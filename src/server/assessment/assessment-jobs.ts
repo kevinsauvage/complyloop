@@ -674,3 +674,26 @@ export async function queuedAssessmentJobCount(): Promise<number> {
     .where(inArray(assessmentJobs.status, ["queued", "running"]));
   return Number(row?.value ?? 0);
 }
+
+/**
+ * Age (ms) of the oldest job still waiting in `queued`, or `null` when none
+ * are waiting. `running` jobs are excluded on purpose: a long scan legitimately
+ * ages, and the lease/heartbeat already covers a wedged worker. `ops:check`
+ * uses this to alert on a stalled drain even when the depth is 1 — the
+ * dispatch-token / disabled-schedule failure mode leaves a single job waiting
+ * forever with no depth signal.
+ */
+export async function oldestQueuedAssessmentJobAgeMs(): Promise<number | null> {
+  const drizzle = await getDrizzle();
+  const [row] = await drizzle
+    .select({
+      ageMs: sql<
+        string | null
+      >`(EXTRACT(EPOCH FROM (now() - min(${assessmentJobs.createdAt}))) * 1000)::bigint`,
+    })
+    .from(assessmentJobs)
+    .where(eq(assessmentJobs.status, "queued"));
+  if (row?.ageMs === null || row?.ageMs === undefined) return null;
+  const parsed = Number(row.ageMs);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}

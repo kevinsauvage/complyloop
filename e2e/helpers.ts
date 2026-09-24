@@ -2,7 +2,7 @@ import type { BrowserContextOptions } from "@playwright/test";
 import { encode } from "next-auth/jwt";
 
 import { loadLocalEnv } from "../scripts/env";
-import { E2E_DEFAULT_DATABASE_URL, resolveE2EAuthSecret } from "./env";
+import { resolveE2EAuthSecret, resolveE2EDatabaseUrl } from "./env";
 
 /** Cookie name Auth.js uses for http:// AUTH_URL (no __Secure- prefix). */
 export const SESSION_COOKIE = "authjs.session-token";
@@ -53,13 +53,11 @@ export function storageState(
 
 /**
  * Resolves the DB URL the e2e suite queries. Loads `.env.local` then `.env`
- * (same order as scripts) and prefers `E2E_DATABASE_URL` over `DATABASE_URL`.
+ * (same order as scripts), then defers to `resolveE2EDatabaseUrl` — the same
+ * destructive-write guard the webServer uses, so the suite and the migrate/seed
+ * step can never disagree about which database they touch.
  */
 export function resolveE2EDbUrl(): string {
   loadLocalEnv();
-  return (
-    process.env.E2E_DATABASE_URL?.trim() ??
-    process.env.DATABASE_URL?.trim() ??
-    E2E_DEFAULT_DATABASE_URL
-  );
+  return resolveE2EDatabaseUrl();
 }

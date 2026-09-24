@@ -53,6 +53,7 @@ import {
   remediationEvidenceDetail,
   remediationEvidenceSummary,
 } from "./remediation-evidence";
+import { buildRuntimeCoverage } from "./runtime-coverage";
 
 interface RuntimeScanEngineInput {
   pagesScanned: number;
@@ -492,6 +493,14 @@ export async function runAssessment(
     runtimeResult,
   );
 
+  // Runtime authority is scoped to the routes the audit actually rendered.
+  // Without a route↔file map (`null`) the merge keeps AST findings rather than
+  // assuming the whole repo was covered — a false `passed` is worse than a
+  // duplicate finding.
+  const runtimeCoverage = runtimeRan
+    ? buildRuntimeCoverage(rootPath, runtimeResult.scannedRoutes ?? [])
+    : null;
+
   // — Stage 5: merge AST + runtime findings (dedupe, authority). —
   // — Stage 6: reconcile per-control findings (match / create / resolve). —
   // — Stage 7: refresh requirement statuses + summarize. —
@@ -502,6 +511,7 @@ export async function runAssessment(
       astFindings,
       runtimeResult.findings,
       runtimeRan,
+      runtimeCoverage,
     );
     // Shared for the whole run: many new findings share a source file, so the
     // suggestion builder should read each file once (see buildSuggestion).

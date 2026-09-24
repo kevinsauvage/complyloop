@@ -15,6 +15,7 @@ const unitIncludes = [
   "src/**/*.test.{ts,tsx}",
   "packages/analysis-core/src/**/*.test.{ts,tsx}",
   "packages/db/src/**/*.test.{ts,tsx}",
+  "e2e/**/*.test.ts",
 ];
 
 export default defineConfig({

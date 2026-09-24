@@ -17,7 +17,9 @@ stages and imports only their entries — never engine internals:
    html-validate + link checks → `RuntimeScanResult`.
 3. **Merge** — `src/merge-findings.ts` (`mergeRawFindings`,
    `dedupeRuntimeFindings`): combines AST + runtime rows, drops superseded
-   AST findings when runtime ran.
+   AST findings when runtime ran. The drop is scoped by `RuntimeFileCoverage`
+   (the app layer maps rendered routes → page files); omitted/unknown coverage
+   keeps AST findings rather than assuming the whole repo was rendered.
 4. **Status derivation** — `src/check-authority.ts`
    (`deriveStatusForCheck`) over `src/contract/requirement-status.ts`
    (`deriveRequirementStatus`): check id → authority class → requirement

@@ -8,6 +8,7 @@ import {
 
 const healthy = {
   queuedJobs: 3,
+  oldestQueuedJobAgeMs: 60_000,
   evidenceBytes: evidenceBytesFromMb(100),
   evidenceRowsEstimate: 12_000,
 };
@@ -17,6 +18,16 @@ describe("evaluateOpsStatus", () => {
     expect(evaluateOpsStatus(healthy).ok).toBe(true);
   });
 
+  it("passes when the queue is empty (no oldest age)", () => {
+    expect(
+      evaluateOpsStatus({
+        ...healthy,
+        queuedJobs: 0,
+        oldestQueuedJobAgeMs: null,
+      }).ok,
+    ).toBe(true);
+  });
+
   it("fails when the queue grows past the threshold", () => {
     const result = evaluateOpsStatus(
       { ...healthy, queuedJobs: 51 },
@@ -24,6 +35,17 @@ describe("evaluateOpsStatus", () => {
     );
     expect(result.ok).toBe(false);
     expect(result.failures.join(" ")).toMatch(/queuedJobs 51 exceeds max 50/);
+  });
+
+  it("fails on a single stale queued job even when depth is low", () => {
+    const result = evaluateOpsStatus(
+      { ...healthy, queuedJobs: 1, oldestQueuedJobAgeMs: 21 * 60_000 },
+      { ...DEFAULT_OPS_THRESHOLDS, maxQueuedJobAgeMs: 20 * 60_000 },
+    );
+    expect(result.ok).toBe(false);
+    expect(result.failures.join(" ")).toMatch(
+      /oldest queued assessment job is 21 min old/,
+    );
   });
 
   it("fails when the evidence table grows past the threshold", () => {
@@ -44,9 +66,10 @@ describe("evaluateOpsStatus", () => {
   it("reports every breach, not just the first", () => {
     const result = evaluateOpsStatus({
       queuedJobs: 999,
+      oldestQueuedJobAgeMs: 60 * 60_000,
       evidenceBytes: evidenceBytesFromMb(9999),
       evidenceRowsEstimate: 999_999,
     });
-    expect(result.failures).toHaveLength(2);
+    expect(result.failures).toHaveLength(3);
   });
 });

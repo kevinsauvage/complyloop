@@ -7,6 +7,12 @@
 export interface OpsSignals {
   /** Jobs in `queued`/`running` (same count `/api/health` reports). */
   queuedJobs: number;
+  /**
+   * Age (ms) of the oldest job waiting in `queued`, or `null` when none are
+   * waiting. A single stale job is the only signal when the dispatch token is
+   * missing or the scheduled drain stopped firing.
+   */
+  oldestQueuedJobAgeMs: number | null;
   /** `pg_total_relation_size('evidence')` in bytes. */
   evidenceBytes: number;
   /** `pg_class.reltuples` estimate for `evidence` (no seq scan). */
@@ -15,6 +21,8 @@ export interface OpsSignals {
 
 export interface OpsThresholds {
   maxQueuedJobs: number;
+  /** Fail when the oldest queued job is older than this (stalled-drain alarm). */
+  maxQueuedJobAgeMs: number;
   maxEvidenceBytes: number;
 }
 
@@ -25,6 +33,9 @@ export interface OpsEvaluation {
 
 export const DEFAULT_OPS_THRESHOLDS: OpsThresholds = {
   maxQueuedJobs: 50,
+  // 20 min: comfortably past the 15-min schedule backstop, so a normal
+  // dispatch delay never trips it while a genuinely stalled drain does.
+  maxQueuedJobAgeMs: 20 * 60 * 1000,
   maxEvidenceBytes: 1024 * 1024 * 1024,
 };
 
@@ -38,6 +49,13 @@ function formatBytes(bytes: number): string {
     return `${(bytes / 1024 ** 3).toFixed(1)} GiB`;
   if (bytes >= 1024 * 1024) return `${(bytes / 1024 ** 2).toFixed(1)} MiB`;
   return `${bytes} B`;
+}
+
+function formatDuration(ms: number): string {
+  const minutes = ms / 60_000;
+  return minutes >= 60
+    ? `${(minutes / 60).toFixed(1)} h`
+    : `${Math.round(minutes)} min`;
 }
 
 /**
@@ -58,6 +76,21 @@ export function evaluateOpsStatus(
       `queuedJobs ${signals.queuedJobs} exceeds max ${thresholds.maxQueuedJobs} — ` +
         "the dispatch/schedule drain stopped keeping up.",
     );
+  }
+
+  const { oldestQueuedJobAgeMs } = signals;
+  if (oldestQueuedJobAgeMs !== null) {
+    if (!Number.isFinite(oldestQueuedJobAgeMs) || oldestQueuedJobAgeMs < 0) {
+      failures.push(
+        `oldestQueuedJobAgeMs is not a usable duration: ${oldestQueuedJobAgeMs}.`,
+      );
+    } else if (oldestQueuedJobAgeMs > thresholds.maxQueuedJobAgeMs) {
+      failures.push(
+        `oldest queued assessment job is ${formatDuration(oldestQueuedJobAgeMs)} old ` +
+          `(max ${formatDuration(thresholds.maxQueuedJobAgeMs)}) — the drain stalled; ` +
+          "jobs are not being picked up (check GH_WORKER_DISPATCH_TOKEN and the worker schedule).",
+      );
+    }
   }
 
   if (

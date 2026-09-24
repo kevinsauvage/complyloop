@@ -45,10 +45,17 @@ async function applyMigrations(
         continue;
       }
       const body = fs.readFileSync(path.join(dir, file), "utf8");
-      await sql.unsafe(body);
-      await sql`
-        INSERT INTO "_complyloop_migrations" (id) VALUES (${file})
-      `;
+      // One transaction per file: a multi-statement body that fails midway
+      // rolls back completely and stays unrecorded, so the retry re-applies
+      // from a clean state instead of hitting half-created DDL. The
+      // session-scoped advisory lock above still serializes whole runs (so
+      // ordered files never interleave across processes).
+      await sql.begin(async (tx) => {
+        await tx.unsafe(body);
+        await tx`
+          INSERT INTO "_complyloop_migrations" (id) VALUES (${file})
+        `;
+      });
       console.log("Applied", file);
     }
   } finally {

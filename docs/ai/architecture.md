@@ -220,7 +220,12 @@ only a total outage (zero pages) fails the sub-scan.
 until `htmlValidateRan`. Duplicate ids stay on axe + AST.
 
 **Merge:** when runtime ran, drop composition-sensitive / runtime-only /
-package-twin AST findings (`merge-findings.ts`). Dedupe priority:
+package-twin AST findings (`merge-findings.ts`) **scoped to the pages the audit
+actually rendered** (`runtime-coverage.ts` maps `scannedRoutes` → page files).
+When the audit covered every discovered page the drop is repo-wide; when it
+covered a subset, only covered page files are dropped and AST findings on
+unrendered pages survive (a false `passed` is worse than a duplicate). Unknown
+coverage (no discoverable page files) keeps AST findings. Dedupe priority:
 axe > html-validate > playwright-custom > site-level > linkinator > ast > jsx-a11y.
 
 ### Check authority (`check-authority.ts`)

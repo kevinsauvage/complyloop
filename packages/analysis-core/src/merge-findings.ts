@@ -1,6 +1,7 @@
 /**
  * Merge stage (stage 3 of the analysis pipeline): combines AST + runtime raw
- * findings, drops superseded AST rows when runtime ran, and dedupes
+ * findings, drops superseded AST rows when runtime ran (scoped to the pages the
+ * audit rendered via `RuntimeFileCoverage`), and dedupes
  * (`dedupeRuntimeFindings`). Pure — authority classes come from
  * `check-authority.ts`. See `packages/analysis-core/README.md`.
  */
@@ -18,25 +19,52 @@ import { normalizeSnippetKey } from "./runtime/dom-location.ts";
 import type { RawFinding } from "./types.ts";
 
 /**
+ * Which source files the runtime audit actually rendered, so its authority can
+ * be scoped instead of applied to the whole repo. Built by the app layer from
+ * `RuntimeScanResult.scannedRoutes` + the checkout's route↔file map.
+ */
+export interface RuntimeFileCoverage {
+  /** True when a rendered route was found for every discovered page file. */
+  fullyCovered: boolean;
+  /** Page files the audit rendered (used when not `fullyCovered`). */
+  coveredFiles: ReadonlySet<string>;
+}
+
+/**
  * When runtime owns composition-sensitive OR runtime-only rules, drop AST
  * findings for those check ids so requirement status is not driven by false
  * primitive hits and a defect seen on both source and rendered DOM yields one
- * finding, not two. Same precedent as the runtime-authority gate
- * (composition-sensitive or runtime-only): the
- * runtime verdict wins when it ran; when it did not, source findings stay and
- * drive CI and the requirement.
+ * finding, not two.
+ *
+ * The runtime audit only renders `project.runtimeRoutes` (default `["/"]`), so
+ * the drop is scoped to what it covered:
+ * - `coverage` omitted/`null` → coverage is unknown (e.g. a checkout with no
+ *   discoverable Next.js page files). Keep AST findings: a false `passed` is
+ *   worse than a duplicate finding.
+ * - `fullyCovered` → every page was rendered; drop as before.
+ * - otherwise → drop only findings whose source file the audit rendered.
  */
 export function filterAstFindingsForAuthority(
   astFindings: ReadonlyArray<RawFinding>,
   runtimeRan: boolean,
+  coverage?: RuntimeFileCoverage | null,
 ): RawFinding[] {
   if (!runtimeRan) return [...astFindings];
-  return astFindings.filter(
-    (finding) =>
-      !isCompositionSensitiveCheck(finding.checkId) &&
-      !isRuntimeOnlyCheck(finding.checkId) &&
-      !isPackageTwinSourceCheck(finding.checkId),
-  );
+  const supersededByRuntime = (finding: RawFinding): boolean =>
+    isCompositionSensitiveCheck(finding.checkId) ||
+    isRuntimeOnlyCheck(finding.checkId) ||
+    isPackageTwinSourceCheck(finding.checkId);
+  if (!coverage) return [...astFindings];
+  if (coverage.fullyCovered) {
+    return astFindings.filter((finding) => !supersededByRuntime(finding));
+  }
+  return astFindings.filter((finding) => {
+    if (!supersededByRuntime(finding)) return true;
+    return !(
+      finding.location.kind === "source" &&
+      coverage.coveredFiles.has(finding.location.filePath)
+    );
+  });
 }
 
 /** Combines AST + runtime findings after applying runtime authority over AST. */
@@ -44,10 +72,12 @@ export function mergeRawFindings(
   astFindings: RawFinding[],
   runtimeFindings: RawFinding[],
   runtimeRan: boolean,
+  coverage?: RuntimeFileCoverage | null,
 ): RawFinding[] {
   const filteredAst = filterAstFindingsForAuthority(
     astFindings,
     runtimeRan,
+    coverage,
   ).map((finding) => ({
     ...finding,
     analyzerId: finding.analyzerId ?? ("ast" as const),

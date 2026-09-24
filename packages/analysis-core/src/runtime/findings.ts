@@ -61,6 +61,13 @@ export interface RuntimeScanPageResult {
 export interface RuntimeScanResult {
   findings: RawFinding[];
   pagesScanned: number;
+  /**
+   * Pathnames of the pages the audit actually rendered (`["/", "/about"]`).
+   * `pagesScanned` alone cannot scope runtime authority to the routes that
+   * were covered — a page with zero findings still counts as covered, and a
+   * failed page must not. `merge-findings.ts` maps these back to source files.
+   */
+  scannedRoutes?: string[];
   siteLevelChecksRan?: boolean;
   /** Whether html-validate's rendered pass ran on any page. */
   htmlValidateRan?: boolean;
