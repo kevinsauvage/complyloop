@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { isNativeInteractive } from "./a11y-model.ts";
-import { type JsxTagNode,parseSource, visitJsxTags } from "./parse.ts";
+import { type JsxTagNode, parseSource, visitJsxTags } from "./parse.ts";
 
 function firstTag(code: string): JsxTagNode {
   const source = parseSource("test.tsx", `const A = () => (${code});`);

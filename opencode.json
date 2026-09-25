@@ -1,6 +1,5 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["@dietrichgebert/ponytail"],
   "instructions": [".cursor/rules/*.mdc", "docs/ai/architecture.md"],
   "permission": {
     "edit": {

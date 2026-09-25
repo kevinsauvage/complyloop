@@ -526,6 +526,29 @@ describe("exportOrgData scoping", () => {
   });
 });
 
+describe("resolveActiveOrgId fallbacks", () => {
+  it("falls back to the personal owner org when the preference is foreign", () => {
+    const db = emptyWorkspaceSlice();
+    const personal = seedOwnerOrg(db, "user-a", "alice");
+    const team = applyOrg(
+      db,
+      createOrganization(db, {
+        name: "Team",
+        creatorUserId: "user-b",
+        githubLogin: "bob",
+      }),
+    );
+    expect(resolveActiveOrgId(db, "user-a", team.id)).toBe(personal.id);
+  });
+
+  it("returns undefined for strangers", () => {
+    const db = emptyWorkspaceSlice();
+    seedOwnerOrg(db, "user-a", "alice");
+    expect(resolveActiveOrgId(db, "ghost", null)).toBeUndefined();
+    expect(orgsForUser(db, "ghost")).toEqual([]);
+  });
+});
+
 describe("findOrgMembershipByLogin", () => {
   it("matches case-insensitively and tolerates @", () => {
     const db = emptyWorkspaceSlice();

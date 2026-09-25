@@ -4,6 +4,7 @@ import type { Requirement } from "@complyloop/analysis-core/contract/entities";
 
 import {
   clearRequirementHumanDetermination,
+  normalizeExpiryInstant,
   setRequirementHumanDetermination,
 } from "./requirement-human-determination";
 
@@ -103,5 +104,34 @@ describe("clearRequirementHumanDetermination", () => {
     );
     expect(cleared.exception).toBeUndefined();
     expect(cleared.determination).toBe("automated");
+  });
+});
+
+describe("normalizeExpiryInstant", () => {
+  it("extends date-only input to end of day UTC", () => {
+    expect(normalizeExpiryInstant("2026-09-30")).toBe(
+      "2026-09-30T23:59:59.999Z",
+    );
+    expect(normalizeExpiryInstant("  2026-09-30  ")).toBe(
+      "2026-09-30T23:59:59.999Z",
+    );
+  });
+
+  it("passes full instants through and rejects garbage", () => {
+    expect(normalizeExpiryInstant("2026-09-30T12:00:00.000Z")).toBe(
+      "2026-09-30T12:00:00.000Z",
+    );
+    expect(normalizeExpiryInstant("not a date")).toBeNull();
+  });
+});
+
+describe("exhaustive switches", () => {
+  it("fails loud on unknown override kinds and fields", () => {
+    expect(() =>
+      setRequirementHumanDetermination(base, { kind: "bogus" } as never),
+    ).toThrow(/Unhandled human determination/);
+    expect(() =>
+      clearRequirementHumanDetermination(base, "bogus" as never),
+    ).toThrow(/Unhandled clear field/);
   });
 });

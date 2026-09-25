@@ -8,8 +8,7 @@ const { listReposViaInstallations } = vi.hoisted(() => ({
 }));
 
 vi.mock("./github-app", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("./github-app")>();
+  const actual = await importOriginal<typeof import("./github-app")>();
   return {
     ...actual,
     listReposViaInstallations,

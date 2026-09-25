@@ -108,13 +108,21 @@ describe("gotoForRuntimeAudit", () => {
   it("fails closed on HTTP errors", async () => {
     await expect(
       gotoForRuntimeAudit(
-        stubPage({ status: 404, url: "https://app.example/x", hasDocument: true }),
+        stubPage({
+          status: 404,
+          url: "https://app.example/x",
+          hasDocument: true,
+        }),
         "https://app.example/x",
       ),
     ).rejects.toThrow(/HTTP 404/);
     await expect(
       gotoForRuntimeAudit(
-        stubPage({ status: 500, url: "https://app.example/x", hasDocument: true }),
+        stubPage({
+          status: 500,
+          url: "https://app.example/x",
+          hasDocument: true,
+        }),
         "https://app.example/x",
       ),
     ).rejects.toThrow(/HTTP 500/);
@@ -163,5 +171,4 @@ describe("gotoForRuntimeAudit on a live page", () => {
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
-
 });

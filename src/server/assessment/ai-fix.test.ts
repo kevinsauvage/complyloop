@@ -175,6 +175,53 @@ describe("runAiFixOnCheckout", () => {
     expect(result.complyLoop.passed).toBe(true);
   });
 
+  it("skips deterministic relocation for editable insert fixes", async () => {
+    const root = tempRoot('export const Hero = () => <img src="/x.png" />;\n');
+    const propose = vi.fn(async () => ({
+      description: "Add alt",
+      provenance: "ai" as const,
+      edits: [
+        {
+          path: "Footer.tsx",
+          oldText: '<img src="/x.png" />',
+          newText: '<img src="/x.png" alt="Hero" />',
+        },
+      ],
+    }));
+    const editable = finding({
+      kind: "insert_attribute",
+      attribute: "alt",
+      value: "",
+      editable: true,
+      span: { start: 0, end: 5 },
+    });
+    editable.checkId = "img-alt";
+
+    await runAiFixOnCheckout(root, editable, control, {
+      propose,
+      scan: () => [],
+    });
+    expect(propose).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails closed when a safe fix cannot be re-located", async () => {
+    const root = tempRoot(
+      "export const Hero = () => <p>No violation here</p>;\n",
+    );
+    const relocated = finding({
+      kind: "remove_attribute",
+      attribute: "role",
+      span: { start: 27, end: 56 },
+    });
+
+    await expect(
+      runAiFixOnCheckout(root, relocated, control, {
+        propose: vi.fn(),
+        scan: () => [],
+      }),
+    ).rejects.toThrow(/re-located/);
+  });
+
   it("fails with actionable copy when AI is unavailable and no deterministic fix exists", async () => {
     const root = tempRoot(
       'export const Footer = () => <footer role="contentinfo" />;\n',
@@ -234,6 +281,32 @@ describe("latestPatchState", () => {
       status: "ready",
       candidate: patchCandidateFromEvidence([ready]),
     });
+  });
+
+  it("skips holes when scanning evidence backwards", () => {
+    const ready = {
+      kind: "ai_patch_ready" as const,
+      summary: "Patch ready",
+      detail: {
+        description: "Add alt",
+        provenance: "ai",
+        model: "minimax/minimax-m3",
+        edits: [
+          {
+            path: "Hero.tsx",
+            oldText: "<img />",
+            newText: '<img alt="Hero" />',
+          },
+        ],
+        complyLoopPassed: true,
+        remaining: [],
+      },
+    };
+    const sparse = [ready];
+    sparse.length = 2;
+    expect(patchCandidateFromEvidence(sparse as never)).toEqual(
+      patchCandidateFromEvidence([ready]),
+    );
   });
 
   it("ignores malformed or non-passing patch evidence", () => {
@@ -345,6 +418,46 @@ describe("persistPatchCandidate", () => {
     expect(payload.remediations).toBeUndefined();
     expect(payload.evidence?.[0]?.kind).toBe("ai_patch_ready");
   });
+
+  it("skips byte-identical patch evidence already on the finding", () => {
+    const db = emptyWorkspaceSlice();
+    db.findings.push(patchFinding);
+    db.remediations.push(remediation);
+    const first: ProjectWritePayload = {};
+    persistPatchCandidate(db, patchFinding, candidate, first);
+    expect(first.evidence).toHaveLength(1);
+
+    const second: ProjectWritePayload = {};
+    persistPatchCandidate(
+      {
+        ...db,
+        evidence: [
+          {
+            id: "e-ready",
+            at: "2026-01-01T00:00:00.000Z",
+            kind: "ai_patch_ready",
+            summary: "Patch ready",
+            projectId: "p1",
+            controlId: "c1",
+            findingId: "f1",
+            detail: first.evidence?.[0]?.detail,
+          },
+        ],
+      },
+      patchFinding,
+      candidate,
+      second,
+    );
+    expect(second.evidence ?? []).toHaveLength(0);
+  });
+
+  it("throws without a remediation row for the finding", () => {
+    const db = emptyWorkspaceSlice();
+    db.findings.push(patchFinding);
+    expect(() =>
+      persistPatchCandidate(db, patchFinding, candidate, {}),
+    ).toThrow(/No remediation/);
+  });
 });
 
 describe("pullRequestUrlFromEvidence", () => {
@@ -365,5 +478,14 @@ describe("pullRequestUrlFromEvidence", () => {
 
   it("returns null when no PR evidence exists", () => {
     expect(pullRequestUrlFromEvidence([])).toBeNull();
+  });
+
+  it("ignores PR evidence without a URL string", () => {
+    expect(
+      pullRequestUrlFromEvidence([
+        { kind: "pull_request_prepared", detail: { prUrl: 42 } },
+        { kind: "pull_request_prepared", detail: {} },
+      ]),
+    ).toBeNull();
   });
 });

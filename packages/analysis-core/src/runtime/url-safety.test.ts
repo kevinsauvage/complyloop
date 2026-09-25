@@ -15,6 +15,7 @@ import {
   allowRuntimeNavigation,
   assertSafeRuntimeUrl,
   assertStableRuntimeDns,
+  createCachedDnsLookup,
   createRedirectHopGuard,
   type DnsLookup,
   TOO_MANY_REDIRECTS_MESSAGE,
@@ -350,5 +351,18 @@ describe("createRedirectHopGuard", () => {
     expect(() => guard.countHop("document")).toThrow(
       TOO_MANY_REDIRECTS_MESSAGE,
     );
+  });
+});
+
+describe("createCachedDnsLookup", () => {
+  it("resolves each hostname once per scan", async () => {
+    const base = vi.fn(async () => [{ address: "93.184.216.34", family: 4 }]);
+    const lookup = createCachedDnsLookup(base);
+    await expect(lookup("example.test")).resolves.toEqual([
+      { address: "93.184.216.34", family: 4 },
+    ]);
+    await lookup("example.test");
+    await lookup("other.test");
+    expect(base).toHaveBeenCalledTimes(2);
   });
 });

@@ -28,6 +28,14 @@ describe("button-name", () => {
       0,
     );
   });
+
+  it("skips spread hosts it cannot analyze", () => {
+    expect(
+      buttonNameCheck.run(
+        parseSource("test.tsx", `const A = (p) => <button {...p} />;`),
+      ),
+    ).toHaveLength(0);
+  });
 });
 
 describe("svg-name", () => {
@@ -35,6 +43,45 @@ describe("svg-name", () => {
     expect(
       svgNameCheck.run(
         parseSource("test.tsx", `const A = () => <svg viewBox="0 0 10 10" />;`),
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("accepts an svg with a titled child plus role=img", () => {
+    expect(
+      svgNameCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (
+            <svg role="img" viewBox="0 0 10 10"><title>Sales chart</title></svg>
+          );`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("still flags a titled svg without role=img", () => {
+    expect(
+      svgNameCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (
+            <svg viewBox="0 0 10 10"><title>Sales chart</title></svg>
+          );`,
+        ),
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("flags an svg whose title child is empty", () => {
+    expect(
+      svgNameCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (
+            <svg viewBox="0 0 10 10"><title /></svg>
+          );`,
+        ),
       ),
     ).toHaveLength(1);
   });

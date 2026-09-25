@@ -113,10 +113,13 @@ import {
   assertAssessRateLimit,
   assertConnectRateLimit,
   assertExportRateLimit,
+  assertJobPollRateLimit,
   assertOrgCreateRateLimit,
   assertOrgInviteRateLimit,
+  assertPrRateLimit,
   assertRateLimit,
   assertRemediationRateLimit,
+  assertReposRateLimit,
   assertRequirementsRateLimit,
   assertRuntimeAuditRateLimit,
   pruneRateLimitBuckets,
@@ -222,6 +225,9 @@ describe("wrappers", () => {
     await assertOrgCreateRateLimit("user-1");
     await assertOrgInviteRateLimit("user-1");
     await assertExportRateLimit("user-1");
+    await assertPrRateLimit("user-1");
+    await assertReposRateLimit("user-1");
+    await assertJobPollRateLimit("user-1");
     for (const key of [
       "remediation:user-1",
       "requirements:user-1",
@@ -229,6 +235,9 @@ describe("wrappers", () => {
       "org-create:user-1",
       "org-invite:user-1",
       "export:user-1",
+      "pr:user-1",
+      "repos:user-1",
+      "job-poll:user-1",
     ]) {
       expect(buckets.has(key)).toBe(true);
     }

@@ -82,6 +82,33 @@ describe("capturePageSnapshot", () => {
     expect(snapshot.fragmentLinks).toEqual([{ href: "#main", label: "Skip" }]);
   });
 
+  it("covers landmark, label, and fragment fallbacks", async () => {
+    document.body.innerHTML = `
+      <footer></footer>
+      <aside></aside>
+      <form><input name="plain" type="text" /></form>
+      <nav><a href="">empty</a><a href="/help">Help</a></nav>
+      <input type="text" />
+      <input name="lonely" />
+      <a href="page#">trailing</a>
+      <a href="#">bare</a>
+    `;
+    const snapshot = await capturePageSnapshot(
+      pageThatEvaluatesInJsdom(),
+      "https://example.test/edge",
+    );
+    expect(snapshot.landmarkRoles).toEqual(
+      expect.arrayContaining(["contentinfo", "complementary", "navigation"]),
+    );
+    expect(snapshot.landmarkRoles).not.toContain("search");
+    expect(snapshot.navLinks).toEqual(["Help::/help"]);
+    expect(snapshot.formFields).toEqual([
+      { name: "plain", label: "", autoComplete: undefined },
+      { name: "lonely", label: "", autoComplete: undefined },
+    ]);
+    expect(snapshot.fragmentLinks).toEqual([]);
+  });
+
   it("prefers aria-labelledby and aria-label over nearby text", async () => {
     document.body.innerHTML = `
       <span id="name-label">Full name</span>

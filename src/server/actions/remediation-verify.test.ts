@@ -208,6 +208,38 @@ describe("verifyRemediationAction", () => {
     expect(assertRemediationRateLimit).toHaveBeenCalled();
   });
 
+  it("re-checks source location and remediation under the lock", async () => {
+    const live = baseWorkspace({ findings: [domFinding()] });
+    getWorkspace.mockResolvedValue(live);
+
+    const sourceLive = baseWorkspace({ findings: [testFinding()] });
+    mockProjectWrite(sourceLive);
+    const sourceResult = await verifyRemediationAction(
+      "f1",
+      initialActionState,
+      new FormData(),
+    );
+    expect(sourceResult.ok ? null : sourceResult.message).toMatch(
+      /draft pull request|re-assess/i,
+    );
+    expect(projectWritePayload()).toBeUndefined();
+
+    const staleRemediation = baseWorkspace({
+      findings: [domFinding()],
+      remediations: [
+        testRemediation({ status: "approved", suggestion: null, history: [] }),
+      ],
+    });
+    mockProjectWrite(staleRemediation);
+    const staleResult = await verifyRemediationAction(
+      "f1",
+      initialActionState,
+      new FormData(),
+    );
+    expect(staleResult.ok ? null : staleResult.message).toMatch(/implemented/);
+    expect(projectWritePayload()).toBeUndefined();
+  });
+
   it("rejects a dismissed finding", async () => {
     const workspace = baseWorkspace({
       findings: [
@@ -331,6 +363,84 @@ describe("attestRemediationVerifiedAction", () => {
     expect(sourceResult.ok ? null : sourceResult.message).toMatch(
       /draft pull request/i,
     );
+    expect(projectWritePayload()).toBeUndefined();
+  });
+
+  it("refuses attestation when the preview remediation is not implemented", async () => {
+    const workspace = baseWorkspace({
+      findings: [
+        testFinding({
+          status: "resolved",
+          location: domFinding().location,
+        }),
+      ],
+      remediations: [
+        testRemediation({ status: "approved", suggestion: null, history: [] }),
+      ],
+    });
+    getWorkspace.mockResolvedValue(workspace);
+
+    const result = await attestRemediationVerifiedAction(
+      "f1",
+      initialActionState,
+      noteForm("Looks fixed."),
+    );
+    expect(result.ok ? null : result.message).toMatch(/implemented/);
+    expect(projectWritePayload()).toBeUndefined();
+  });
+
+  it("re-checks resolution, identity, and remediation under the lock", async () => {
+    const resolved = (selector: string) =>
+      testFinding({
+        status: "resolved",
+        location: {
+          kind: "dom",
+          url: "https://preview.test/",
+          selector,
+          snippet: "<img>",
+        },
+      });
+    const note = noteForm("Confirmed fixed.");
+
+    const live = baseWorkspace({ findings: [resolved("img")] });
+    getWorkspace.mockResolvedValue(live);
+
+    mockProjectWrite(baseWorkspace({ findings: [domFinding()] }));
+    const reopened = await attestRemediationVerifiedAction(
+      "f1",
+      initialActionState,
+      note,
+    );
+    expect(reopened.ok ? null : reopened.message).toMatch(/resolved findings/);
+    expect(projectWritePayload()).toBeUndefined();
+
+    mockProjectWrite(baseWorkspace({ findings: [resolved("img.other")] }));
+    const moved = await attestRemediationVerifiedAction(
+      "f1",
+      initialActionState,
+      note,
+    );
+    expect(moved.ok ? null : moved.message).toMatch(/changed since load/);
+    expect(projectWritePayload()).toBeUndefined();
+
+    mockProjectWrite(
+      baseWorkspace({
+        findings: [resolved("img")],
+        remediations: [
+          testRemediation({
+            status: "approved",
+            suggestion: null,
+            history: [],
+          }),
+        ],
+      }),
+    );
+    const stale = await attestRemediationVerifiedAction(
+      "f1",
+      initialActionState,
+      note,
+    );
+    expect(stale.ok ? null : stale.message).toMatch(/implemented/);
     expect(projectWritePayload()).toBeUndefined();
   });
 });

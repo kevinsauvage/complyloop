@@ -59,3 +59,29 @@ describe("e2e harness", () => {
     expect(isE2EHarnessEnabled()).toBe(true);
   });
 });
+
+describe("assertE2EFixtureRoot edge cases", () => {
+  it("throws when the harness itself is off", () => {
+    delete process.env.E2E_AUTH_ENABLED;
+    expect(() => assertE2EFixtureRoot()).toThrow(/not enabled/);
+  });
+
+  it("throws for a missing directory", () => {
+    process.env.E2E_AUTH_ENABLED = "1";
+    process.env.E2E_FIXTURE_ROOT = path.join(
+      os.tmpdir(),
+      "e2e-fixture-missing",
+    );
+    expect(() => assertE2EFixtureRoot()).toThrow(/not a directory/);
+  });
+
+  it("throws when the root is a file", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "e2e-fixture-"));
+    tempDirs.push(dir);
+    const file = path.join(dir, "file.txt");
+    fs.writeFileSync(file, "x");
+    process.env.E2E_AUTH_ENABLED = "1";
+    process.env.E2E_FIXTURE_ROOT = file;
+    expect(() => assertE2EFixtureRoot()).toThrow(/not a directory/);
+  });
+});

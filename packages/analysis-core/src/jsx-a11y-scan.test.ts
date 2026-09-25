@@ -5,6 +5,8 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { checkIdForJsxA11yRule, jsxA11yMappedCheckIds } from "./jsx-a11y-map";
+import { lintJsxA11y } from "./jsx-a11y-scan";
+import { parseSource } from "./parse";
 import { scanFile } from "./scan";
 
 const tempDirs: string[] = [];
@@ -142,5 +144,49 @@ describe("jsx-a11y source scan", () => {
     expect(findings.some((finding) => finding.checkId === "img-alt")).toBe(
       true,
     );
+  });
+});
+
+describe("jsx-a11y fix fallbacks", () => {
+  it("removes both accesskey spellings", () => {
+    const cases = [
+      {
+        source:
+          "export const Save = () => <button accesskey='s'>Save</button>;\n",
+        checkId: "no-accesskey",
+        pattern: /accesskey=/,
+      },
+      {
+        source:
+          "export const Save = () => <button accessKey='s'>Save</button>;\n",
+        checkId: "no-accesskey",
+        pattern: /accessKey=/,
+      },
+    ] as const;
+    for (const { source, checkId, pattern } of cases) {
+      const finding = scanSnippet(source).find(
+        (candidate) => candidate.checkId === checkId,
+      );
+      expect(finding?.fix?.kind).toBe("remove_attribute");
+      if (finding?.fix?.kind !== "remove_attribute") continue;
+      expect(
+        source.slice(finding.fix.span.start, finding.fix.span.end),
+      ).toMatch(pattern);
+    }
+  });
+
+  it("leaves redundant-alt findings without a fix when alt is present", () => {
+    const findings = scanSnippet(
+      `export const Hero = () => <img src="/cat.png" alt="picture of a cat" />;`,
+    );
+    const finding = findings.find(
+      (candidate) => candidate.checkId === "img-alt",
+    );
+    expect(finding).toBeDefined();
+    expect(finding?.fix).toBeNull();
+  });
+
+  it("skips fatal parse messages without a rule id", () => {
+    expect(lintJsxA11y(parseSource("bad.tsx", "const x = {{{;"))).toEqual([]);
   });
 });

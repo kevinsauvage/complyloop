@@ -67,6 +67,15 @@ describe("advanceRemediation", () => {
       advanceRemediation(remediation("verified"), "detected"),
     ).toThrow(/Invalid remediation transition/);
   });
+
+  it("fails loud on unknown statuses instead of guessing", () => {
+    expect(() =>
+      advanceRemediation(remediation("bogus" as never), "suggested"),
+    ).toThrow(/Unhandled remediation status/);
+    expect(() =>
+      refreshSuggestion(remediation("bogus" as never), suggestion),
+    ).toThrow(/Unhandled remediation status/);
+  });
 });
 
 describe("refreshSuggestion", () => {

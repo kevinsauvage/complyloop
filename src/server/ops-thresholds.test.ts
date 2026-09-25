@@ -63,6 +63,34 @@ describe("evaluateOpsStatus", () => {
     expect(result.failures.join(" ")).toMatch(/not a usable count/);
   });
 
+  it("formats evidence size in MiB below one GiB", () => {
+    const result = evaluateOpsStatus(
+      { ...healthy, evidenceBytes: evidenceBytesFromMb(100) },
+      { ...DEFAULT_OPS_THRESHOLDS, maxEvidenceBytes: evidenceBytesFromMb(10) },
+    );
+    expect(result.ok).toBe(false);
+    expect(result.failures.join(" ")).toMatch(/100\.0 MiB/);
+  });
+
+  it("fails closed on an unusable queued-job age", () => {
+    for (const age of [Number.NaN, -1]) {
+      const result = evaluateOpsStatus({
+        ...healthy,
+        oldestQueuedJobAgeMs: age,
+      });
+      expect(result.ok).toBe(false);
+      expect(result.failures.join(" ")).toMatch(/not a usable duration/);
+    }
+  });
+
+  it("fails closed on unusable evidence bytes", () => {
+    for (const bytes of [Number.NaN, -1]) {
+      const result = evaluateOpsStatus({ ...healthy, evidenceBytes: bytes });
+      expect(result.ok).toBe(false);
+      expect(result.failures.join(" ")).toMatch(/not a usable count/);
+    }
+  });
+
   it("reports every breach, not just the first", () => {
     const result = evaluateOpsStatus({
       queuedJobs: 999,
