@@ -51,7 +51,7 @@
 - **Why:** A requirement marked `passed` by a permanent exception/human pass returns the stored status before open findings are considered. New violations accumulate silently; the dashboard reads `passed` while the code is failing — a false compliance claim.
 - **Fix:** Masked counts are now surfaced in the UI (`masked-findings.ts`), but status still never re-arms. Narrow exceptions to finding fingerprints (or re-open on findings detected after the decision) per the product spec; pin precedence with a contract test.
 - **Confidence:** 95/100 · **Effort:** L
-- [ ] Done
+- [x] Done — a violation detected after the decision re-arms it (`stickyHumanDecisionHolds`); the refresh revokes the exception/pass with `reopened` evidence and re-derives status. Warnings still don't re-arm (they stay surfaced as masked counts).
 
 ### 2. Webhook buffers unbounded body before signature verification
 

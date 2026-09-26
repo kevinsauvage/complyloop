@@ -2,8 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import {
   deriveRequirementStatus,
+  hasViolationsSinceDecision,
   isStickyHumanDecision,
+  stickyHumanDecisionHolds,
 } from "./requirement-status";
+
+const DECIDED_AT = "2026-03-01T12:00:00.000Z";
+const BEFORE = "2026-02-01T00:00:00.000Z";
+const AFTER = "2026-03-02T00:00:00.000Z";
 
 describe("isStickyHumanDecision", () => {
   it("is false when the status was decided automatically", () => {
@@ -43,7 +49,137 @@ describe("isStickyHumanDecision", () => {
   });
 });
 
+describe("hasViolationsSinceDecision", () => {
+  it("is true only for violations detected strictly after the decision", () => {
+    expect(
+      hasViolationsSinceDecision(
+        [{ kind: "violation", detectedAt: AFTER }],
+        DECIDED_AT,
+      ),
+    ).toBe(true);
+    expect(
+      hasViolationsSinceDecision(
+        [{ kind: "violation", detectedAt: BEFORE }],
+        DECIDED_AT,
+      ),
+    ).toBe(false);
+    expect(
+      hasViolationsSinceDecision(
+        [{ kind: "violation", detectedAt: DECIDED_AT }],
+        DECIDED_AT,
+      ),
+    ).toBe(false);
+  });
+
+  it("ignores warnings detected after the decision", () => {
+    expect(
+      hasViolationsSinceDecision(
+        [{ kind: "warning", detectedAt: AFTER }],
+        DECIDED_AT,
+      ),
+    ).toBe(false);
+  });
+
+  it("never re-arms without parseable timestamps", () => {
+    expect(
+      hasViolationsSinceDecision([{ kind: "violation" }], DECIDED_AT),
+    ).toBe(false);
+    expect(
+      hasViolationsSinceDecision(
+        [{ kind: "violation", detectedAt: "not-a-date" }],
+        DECIDED_AT,
+      ),
+    ).toBe(false);
+    expect(
+      hasViolationsSinceDecision(
+        [{ kind: "violation", detectedAt: AFTER }],
+        undefined,
+      ),
+    ).toBe(false);
+    expect(hasViolationsSinceDecision(undefined, DECIDED_AT)).toBe(false);
+  });
+});
+
+describe("stickyHumanDecisionHolds", () => {
+  it("holds for a sticky decision with only pre-decision findings", () => {
+    expect(
+      stickyHumanDecisionHolds({
+        determination: "human_review",
+        hasException: true,
+        decisionAt: DECIDED_AT,
+        openFindings: [{ kind: "violation", detectedAt: BEFORE }],
+      }),
+    ).toBe(true);
+  });
+
+  it("does not hold once a violation is detected after the decision", () => {
+    expect(
+      stickyHumanDecisionHolds({
+        determination: "human_review",
+        hasHumanPass: true,
+        decisionAt: DECIDED_AT,
+        openFindings: [{ kind: "violation", detectedAt: AFTER }],
+      }),
+    ).toBe(false);
+  });
+
+  it("never holds for an automated determination", () => {
+    expect(
+      stickyHumanDecisionHolds({
+        determination: "automated",
+        hasException: true,
+        decisionAt: DECIDED_AT,
+      }),
+    ).toBe(false);
+  });
+});
+
 describe("deriveRequirementStatus", () => {
+  it("keeps a sticky pass over violations the decision already covered", () => {
+    expect(
+      deriveRequirementStatus({
+        authority: "standard",
+        currentStatus: "passed",
+        determination: "human_review",
+        hasException: true,
+        decisionAt: DECIDED_AT,
+        openFindings: [{ kind: "violation", detectedAt: BEFORE }],
+        audit: { filesScanned: 3 },
+      }),
+    ).toBe("passed");
+  });
+
+  it("re-arms a sticky pass to failed on a violation detected after the decision", () => {
+    expect(
+      deriveRequirementStatus({
+        authority: "standard",
+        currentStatus: "passed",
+        determination: "human_review",
+        hasException: true,
+        decisionAt: DECIDED_AT,
+        openFindings: [
+          { kind: "violation", detectedAt: BEFORE },
+          { kind: "violation", detectedAt: AFTER },
+        ],
+        audit: { filesScanned: 3 },
+      }),
+    ).toBe("failed");
+  });
+
+  it("keeps a sticky pass when only warnings appear after the decision", () => {
+    expect(
+      deriveRequirementStatus({
+        authority: "standard",
+        currentStatus: "passed",
+        determination: "human_review",
+        hasHumanPass: true,
+        decisionAt: DECIDED_AT,
+        openFindings: [{ kind: "warning", detectedAt: AFTER }],
+        audit: { filesScanned: 3 },
+      }),
+    ).toBe("passed");
+  });
+
   it("returns the sticky current status for a human decision", () => {
     expect(
       deriveRequirementStatus({
