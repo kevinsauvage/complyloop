@@ -20,9 +20,15 @@ import {
   type Control,
   type Project,
 } from "@complyloop/analysis-core/contract/project-types";
-import { isStickyHumanDecision } from "@complyloop/analysis-core/contract/requirement-status";
+import {
+  hasViolationsSinceDecision,
+  isStickyHumanDecision,
+} from "@complyloop/analysis-core/contract/requirement-status";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
+
+import { stickyDecisionAt } from "@/core/requirements/masked-findings";
+import { clearRequirementHumanDetermination } from "@/core/requirements/requirement-human-determination";
 
 import type { ProjectRows } from "../workspace/project-rows";
 import { controlsInScope } from "../workspace/project-scope";
@@ -225,6 +231,70 @@ function applyDerivedStatusChange(input: {
   });
 }
 
+/**
+ * Revoke a sticky human decision because violations were detected after it:
+ * the decision judged the findings a human saw, not later regressions. The
+ * cleared decision is kept in evidence so the history stays auditable.
+ */
+function rearmStickyDecision(input: {
+  existing: Requirement;
+  decisionAt: string | undefined;
+  openFindings: readonly Finding[];
+  control: Control;
+  projectId: string;
+  assessmentId: string | undefined;
+  now: string;
+  track: TrackRequirement;
+  evidence: EvidenceRecord[];
+}): Requirement {
+  const {
+    existing,
+    decisionAt,
+    openFindings,
+    control,
+    projectId,
+    assessmentId,
+    now,
+    track,
+    evidence,
+  } = input;
+  const decidedAt = Date.parse(decisionAt ?? "");
+  const newViolationIds = openFindings
+    .filter(
+      (finding) =>
+        finding.kind === "violation" &&
+        Date.parse(finding.detectedAt) > decidedAt,
+    )
+    .map((finding) => finding.id);
+  const field = existing.exception ? "exception" : "humanPass";
+  const cleared: Requirement = {
+    ...clearRequirementHumanDetermination(existing, field),
+    updatedAt: now,
+  };
+  evidence.push(
+    newEvidenceRecord({
+      kind:
+        field === "exception"
+          ? "requirement_exception_cleared"
+          : "requirement_human_pass_cleared",
+      summary: `${control.code} ${field === "exception" ? "exception" : "human pass"} re-opened — ${newViolationIds.length} new violation${newViolationIds.length === 1 ? "" : "s"} detected after the decision`,
+      projectId,
+      controlId: control.id,
+      assessmentId,
+      detail: {
+        reopened: true,
+        ...(field === "exception"
+          ? { previousException: existing.exception }
+          : { previousHumanPass: existing.humanPass }),
+        decisionAt,
+        newViolationFindingIds: newViolationIds,
+      },
+    }),
+  );
+  track(cleared);
+  return cleared;
+}
+
 function refreshRequirementForControl(
   workingByControlId: Map<string, Requirement>,
   openFindingsByControlId: ReadonlyMap<string, Finding[]>,
@@ -261,14 +331,27 @@ function refreshRequirementForControl(
     return;
   }
 
-  const existing = workingByControlId.get(control.id);
+  let existing = workingByControlId.get(control.id);
+  const openFindings = openFindingsByControlId.get(control.id) ?? [];
   // Human exceptions / human passes are sticky until explicitly cleared
-  // (temporary exceptions may expire earlier — see clearExpiredExceptions).
-  if (requirementIsSticky(existing)) {
-    return;
+  // (temporary exceptions may expire earlier — see clearExpiredExceptions)
+  // or re-armed by a violation the decision never judged.
+  if (existing && requirementIsSticky(existing)) {
+    const decisionAt = stickyDecisionAt(existing);
+    if (!hasViolationsSinceDecision(openFindings, decisionAt)) return;
+    existing = rearmStickyDecision({
+      existing,
+      decisionAt,
+      openFindings,
+      control,
+      projectId,
+      assessmentId,
+      now,
+      track,
+      evidence,
+    });
   }
 
-  const openFindings = openFindingsByControlId.get(control.id) ?? [];
   const status = deriveStatusForCheck(control.checkId, openFindings, {
     runtimeRan,
     siteLevelChecksRan,

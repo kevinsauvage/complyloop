@@ -13,8 +13,9 @@ export function stickyDecisionAt(requirement: Requirement): string | undefined {
 
 /**
  * The masked-residual detail: a sticky requirement whose status hides open
- * findings detected after the decision. Sticky decisions are never overwritten,
- * so without this the dashboard can read `passed` while regressions accumulate.
+ * findings detected after the decision. New violations re-arm the decision at
+ * the next status refresh (`stickyHumanDecisionHolds`), but warnings never do,
+ * so without this the dashboard can read `passed` while findings accumulate.
  * Returns `undefined` when nothing is masked.
  */
 export function maskedFindingDetail(

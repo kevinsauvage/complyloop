@@ -11,6 +11,8 @@ export type CheckAuthority =
 /** Minimal finding view needed to derive status. */
 export interface DerivationFinding {
   kind: FindingKind;
+  /** ISO timestamp of first detection; re-arms a sticky decision when newer. */
+  detectedAt?: string;
 }
 
 /** Which engines ran during the latest assessment — gates status derivation. */
@@ -34,12 +36,16 @@ export interface DeriveRequirementStatusInput {
   determination?: "automated" | "human_review";
   hasException?: boolean;
   hasHumanPass?: boolean;
+  /** ISO timestamp of the sticky human decision (`exception.at` / `humanPass.at`). */
+  decisionAt?: string;
   audit?: AuditEnginesRan;
 }
 
 /**
  * Human exceptions and human passes stick until explicitly cleared: a new
- * assessment must not overwrite a human's compliance decision.
+ * assessment must not overwrite a human's compliance decision about the
+ * findings it judged. Whether the decision still *holds* against violations
+ * detected later is {@link stickyHumanDecisionHolds}.
  *
  * Read side of sticky human decisions — the write side (storing/clearing
  * overrides) is `setRequirementHumanDetermination` /
@@ -58,8 +64,51 @@ export function isStickyHumanDecision(
 }
 
 /**
+ * True when an open violation was first detected after the human decision.
+ * A decision covers the findings a human saw when making it; a violation that
+ * appears later is a regression the decision never judged, so it must not be
+ * masked. Findings without a parseable `detectedAt`, or a decision without a
+ * parseable timestamp, never re-arm (no evidence of a later regression).
+ */
+export function hasViolationsSinceDecision(
+  openFindings: ReadonlyArray<DerivationFinding> | undefined,
+  decisionAt: string | undefined,
+): boolean {
+  if (!openFindings || openFindings.length === 0 || !decisionAt) return false;
+  const decidedAt = Date.parse(decisionAt);
+  if (Number.isNaN(decidedAt)) return false;
+  return openFindings.some((finding) => {
+    if (finding.kind !== "violation" || !finding.detectedAt) return false;
+    const detectedAt = Date.parse(finding.detectedAt);
+    return !Number.isNaN(detectedAt) && detectedAt > decidedAt;
+  });
+}
+
+/**
+ * A sticky human decision holds unless a violation was detected after it
+ * (see {@link hasViolationsSinceDecision}); then status re-arms and derives
+ * from findings as if no decision existed.
+ */
+export function stickyHumanDecisionHolds(
+  input: Pick<
+    DeriveRequirementStatusInput,
+    | "determination"
+    | "hasException"
+    | "hasHumanPass"
+    | "openFindings"
+    | "decisionAt"
+  >,
+): boolean {
+  return (
+    isStickyHumanDecision(input) &&
+    !hasViolationsSinceDecision(input.openFindings, input.decisionAt)
+  );
+}
+
+/**
  * Single source of truth for requirement status. Precedence:
- * 1. Sticky human decisions (exception / human pass) — never overwritten.
+ * 1. Sticky human decisions (exception / human pass) — hold until cleared,
+ *    unless an open violation was detected after the decision (re-arm).
  * 2. Open violations → failed; warnings → needs_review.
  * 3. Authority gates — runtime-only / site-level / heuristic checks stay
  *    `unable_to_verify` until their engine actually ran.
@@ -67,7 +116,7 @@ export function isStickyHumanDecision(
 export function deriveRequirementStatus(
   input: DeriveRequirementStatusInput,
 ): RequirementStatus {
-  if (isStickyHumanDecision(input)) {
+  if (stickyHumanDecisionHolds(input)) {
     return input.currentStatus ?? "unable_to_verify";
   }
 

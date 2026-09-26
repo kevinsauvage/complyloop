@@ -108,8 +108,9 @@ export async function loadRequirementsView(
     inScopeIds.has(requirement.controlId),
   );
 
-  // Sticky human decisions never surface regressions, so count open findings
-  // detected after each decision to show the mask on the card.
+  // Sticky human decisions re-arm on violations detected after them, but only
+  // at the next status refresh, and warnings never re-arm — count open findings
+  // detected after each decision to show what the decision still masks.
   const maskedByControlId = new Map<string, number>();
   const stickySince = new Map<string, Date>();
   for (const requirement of assessed) {

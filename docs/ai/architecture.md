@@ -249,8 +249,9 @@ list → runtime map if needed → catalog `checkId` → `guidance.ts`. Tests:
 
 ### Status derivation (`contract/requirement-status.ts`)
 
-1. Sticky human decisions (never overwritten; temp exceptions expire via
-   `clearExpiredExceptions`).
+1. Sticky human decisions (held until cleared; temp exceptions expire via
+   `clearExpiredExceptions`; an open violation detected after the decision
+   re-arms it — the decision is revoked with evidence and status re-derives).
 2. Open findings → `failed` / `needs_review`.
 3. Applicability (runtime absence) → `not_applicable`.
 4. Authority gates → `unable_to_verify` or `passed`.
