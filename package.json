@@ -42,7 +42,7 @@
     "@octokit/auth-app": "^8.3.1",
     "@octokit/rest": "^22.0.1",
     "@octokit/webhooks-methods": "^6.0.0",
-    "@sentry/nextjs": "^10.75.3",
+    "@sentry/nextjs": "^11.0.0",
     "ai": "^7.0.118",
     "axe-core": "^4.13.0",
     "class-variance-authority": "^0.7.1",
@@ -96,7 +96,7 @@
   },
   "overrides": {
     "esbuild": "^0.28.1",
-    "@sentry/core": "^10.75.3",
+    "@sentry/core": "^11.0.0",
     "nanoid": "^3.3.18"
   }
 }
