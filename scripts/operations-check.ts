@@ -35,6 +35,17 @@ const REQUIRED_PROD_ENV = [
 
 const OPTIONAL_PROD_ENV = ["SENTRY_DSN"] as const;
 
+/**
+ * The env audit only means something where the app's own env is loaded (a
+ * deploy gate, a shell with the production env pulled). The scheduled GitHub
+ * workflow runs with only `DATABASE_URL`, so it opts out instead of mirroring
+ * app secrets into Actions just to check they exist; a stalled drain still
+ * fails there via the queued-job age threshold.
+ */
+const checkProdEnv =
+  process.env.NODE_ENV === "production" &&
+  process.env.OPS_CHECK_PROD_ENV !== "0";
+
 function required(name: string): string | null {
   return process.env[name]?.trim() ? null : `${name} is required.`;
 }
@@ -54,13 +65,12 @@ async function main(): Promise<void> {
   // DATABASE_URL is the only hard requirement for the check to run at all.
   const dbMissing = required("DATABASE_URL");
   if (dbMissing) throw new Error(dbMissing);
-  const isProd = process.env.NODE_ENV === "production";
-  const envFailures = isProd
+  const envFailures = checkProdEnv
     ? REQUIRED_PROD_ENV.map((name) => required(name)).filter(
         (failure): failure is string => Boolean(failure),
       )
     : [];
-  const envWarnings = isProd
+  const envWarnings = checkProdEnv
     ? OPTIONAL_PROD_ENV.map((name) => required(name)).filter(
         (failure): failure is string => Boolean(failure),
       )

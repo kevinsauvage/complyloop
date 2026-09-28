@@ -153,7 +153,8 @@ arrives via the merge-push scan).
   prod env (`AUTH_SECRET`, `AUTH_URL`, `GITHUB_APP_ID`/`GITHUB_APP_PRIVATE_KEY`,
   `GITHUB_WEBHOOK_SECRET`, `GH_WORKER_DISPATCH_TOKEN`, `SENTRY_DSN`) + queue depth +
   evidence size. It exits non-zero on any breach so it gates deploys and
-  alerts.
+  alerts. `OPS_CHECK_PROD_ENV=0` skips the env audit (the scheduled workflow
+  sets it: the app env lives in Vercel, not in Actions secrets).
   - Thresholds via env (defaults are starting values — tighten after the
     first prod signals):
     | Variable              | Default | Meaning                                                      |
@@ -161,7 +162,7 @@ arrives via the merge-push scan).
     | `OPS_MAX_QUEUED_JOBS` | `50`    | Fail when queued+running jobs exceed this (drain behind).    |
     | `OPS_MAX_EVIDENCE_MB` | `1024`  | Fail when `pg_total_relation_size('evidence')` exceeds this. |
   - Run it on a schedule with failure alerting — the `ops-check` GitHub
-    Actions workflow (`.github/workflows/ops-check.yml`, daily 06:00 UTC +
+    Actions workflow (`.github/workflows/ops-check.yml`, hourly +
     manual dispatch) is that schedule. A red run means the 15-min
     `assessment-worker` drain stopped firing/failing or evidence is outgrowing
     the database.
