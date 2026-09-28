@@ -46,6 +46,15 @@ describe("OrgDataLifecycle", () => {
     const clickSpy = vi
       .spyOn(HTMLAnchorElement.prototype, "click")
       .mockImplementation(() => undefined);
+    // jsdom implements neither object-URL API; stub them rather than rely on
+    // whichever global `URL` the test environment happens to expose.
+    vi.stubGlobal(
+      "URL",
+      class extends URL {
+        static createObjectURL = vi.fn(() => "blob:org-export");
+        static revokeObjectURL = vi.fn();
+      },
+    );
 
     render(<OrgDataLifecycle orgId="org-1" orgName="Acme" />);
 
@@ -63,6 +72,7 @@ describe("OrgDataLifecycle", () => {
     });
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
     clickSpy.mockRestore();
+    vi.unstubAllGlobals();
   });
 
   it("requires typing DELETE before permanent deletion submits", async () => {

@@ -19,12 +19,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@typescript-eslint/parser": "^8.70.0",
     "aria-query": "^5.3.2",
     "axobject-query": "^4.1.0",
     "eslint": "^9",
     "eslint-plugin-jsx-a11y": "^6.10.2",
-    "html-validate": "^11.15.0",
+    "html-validate": "^11.16.1",
     "linkinator": "^8.1.0",
     "playwright-core": "^1.63.0",
     "ssrf-guard": "1.0.0",
@@ -52,5 +51,8 @@
         "default": "./dist/*.js"
       }
     }
+  },
+  "devDependencies": {
+    "@typescript-eslint/parser": "^8.70.1"
   }
 }
