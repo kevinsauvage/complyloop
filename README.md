@@ -1,12 +1,10 @@
 # ComplyLoop
 
-Developer-first **compliance engineering**: turn requirements into verifiable engineering work.
+ComplyLoop checks React, Next.js and TypeScript codebases for accessibility against RGAA 4 and WCAG 2.2. You connect a GitHub repo and it scans the source (custom AST checks plus `eslint-plugin-jsx-a11y`). If you give it a preview URL, it also audits the running pages with Playwright and axe, which catches things a source scan can't, like contrast and reflow.
 
-```
-Requirement → Assessment → Finding → Explanation → Remediation → Verification → Evidence → Monitoring
-```
+Each finding says what failed, where, and why it matters. Where a fix can be generated and verified, ComplyLoop opens it as a draft PR. A finding is only closed once a re-run confirms the fix, and every step is recorded in an evidence log you can export.
 
-**Product:** accessibility (RGAA 4 / WCAG 2.2) for React/Next.js/TypeScript.
+Live: [complyloop.vercel.app](https://complyloop.vercel.app)
 
 Full product spec: [`compliance-engineering-product-spec.md`](./docs/compliance-engineering-product-spec.md)
 
@@ -127,3 +125,9 @@ npm run test:e2e
 ```
 
 Gated harness (`E2E_AUTH_ENABLED`) — **never** on customer deploys. See [`docs/vercel.md`](./docs/vercel.md).
+
+---
+
+## License
+
+All rights reserved. The code is published for viewing only. See [LICENSE](./LICENSE).
