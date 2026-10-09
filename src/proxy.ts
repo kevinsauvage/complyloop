@@ -45,6 +45,20 @@ function isOpenMarketingPath(pathname: string): boolean {
   );
 }
 
+/**
+ * Browsers label a request with `Sec-Fetch-Dest`: `document`/`iframe` for a
+ * navigation, `empty` for fetch (router prefetch and RSC requests). Clients
+ * that send no label (curl, uptime checks) still get the challenge.
+ */
+function isBackgroundRequest(req: NextRequest): boolean {
+  const destination = req.headers.get("sec-fetch-dest");
+  return (
+    destination !== null &&
+    destination !== "document" &&
+    destination !== "iframe"
+  );
+}
+
 function basicAuthCredentials(): {
   username: string;
   password: string;
@@ -166,11 +180,14 @@ export async function proxy(req: NextRequest) {
     basicAuth &&
     !isBasicAuthSatisfied(req.headers.get("authorization"), basicAuth)
   ) {
+    // Only a page navigation gets the challenge. A background fetch (a
+    // `<Link>` prefetch of /login from the public landing page) would
+    // otherwise open the browser's password dialog on a page that is public.
     return new NextResponse("Authentication required.", {
       status: 401,
-      headers: {
-        "WWW-Authenticate": 'Basic realm="ComplyLoop", charset="UTF-8"',
-      },
+      headers: isBackgroundRequest(req)
+        ? undefined
+        : { "WWW-Authenticate": 'Basic realm="ComplyLoop", charset="UTF-8"' },
     });
   }
 

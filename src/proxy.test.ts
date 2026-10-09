@@ -70,6 +70,28 @@ describe("proxy basic auth gate", () => {
     expect(response?.headers.get("location")).toContain("/login");
   });
 
+  it("challenges a page navigation but not a background fetch", async () => {
+    baseEnv();
+    getToken.mockResolvedValue(null);
+    const navigation = await proxy(
+      new NextRequest("https://app.example/login", {
+        headers: { "sec-fetch-dest": "document" },
+      }),
+    );
+    expect(navigation?.status).toBe(401);
+    expect(navigation?.headers.get("www-authenticate")).toContain("Basic");
+
+    // A <Link> prefetch of /login from the public landing page must not pop
+    // the browser's password dialog.
+    const prefetch = await proxy(
+      new NextRequest("https://app.example/login?_rsc=abc", {
+        headers: { "sec-fetch-dest": "empty", rsc: "1" },
+      }),
+    );
+    expect(prefetch?.status).toBe(401);
+    expect(prefetch?.headers.get("www-authenticate")).toBeNull();
+  });
+
   it("keeps the marketing pages outside the gate", async () => {
     baseEnv();
     getToken.mockResolvedValue(null);
