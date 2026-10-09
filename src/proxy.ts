@@ -31,6 +31,20 @@ function isPublicPath(pathname: string): boolean {
   return normalized === "/legal" || normalized.startsWith("/legal/");
 }
 
+/**
+ * The public marketing pages stay outside the private-preview gate so the
+ * product can be linked and read. `/login` and the whole workspace stay behind
+ * it: GitHub sign-in is open to anyone, and the workspace runs scans.
+ */
+function isOpenMarketingPath(pathname: string): boolean {
+  const normalized = normalizePath(pathname);
+  return (
+    normalized === "/" ||
+    normalized === "/legal" ||
+    normalized.startsWith("/legal/")
+  );
+}
+
 function basicAuthCredentials(): {
   username: string;
   password: string;
@@ -138,13 +152,16 @@ export async function proxy(req: NextRequest) {
 
   const nonce = btoa(crypto.randomUUID());
 
-  // Private-preview gate: HTTP Basic Auth on every page. Evaluated *before*
+  // Private-preview gate: HTTP Basic Auth on every page except the marketing
+  // pages (`isOpenMarketingPath`). Evaluated *before*
   // the GitHub-auth early return so a deployment with `BASIC_AUTH_*` set but
   // `AUTH_*` unset is still gated (never fails open). API routes above keep
   // their own auth (webhook secret, session cookies), and browsers cache the
   // Basic credential per origin so in-app fetch calls reuse it. Unset
   // credentials = gate open (local dev).
-  const basicAuth = basicAuthCredentials();
+  const basicAuth = isOpenMarketingPath(pathname)
+    ? null
+    : basicAuthCredentials();
   if (
     basicAuth &&
     !isBasicAuthSatisfied(req.headers.get("authorization"), basicAuth)

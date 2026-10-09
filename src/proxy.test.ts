@@ -70,6 +70,25 @@ describe("proxy basic auth gate", () => {
     expect(response?.headers.get("location")).toContain("/login");
   });
 
+  it("keeps the marketing pages outside the gate", async () => {
+    baseEnv();
+    getToken.mockResolvedValue(null);
+    for (const path of ["/", "/legal", "/legal/privacy"]) {
+      const response = await proxy(request(path));
+      expect(response?.status).toBe(200);
+      expect(response?.headers.get("www-authenticate")).toBeNull();
+    }
+  });
+
+  it("still gates the login page and the workspace", async () => {
+    baseEnv();
+    getToken.mockResolvedValue(null);
+    for (const path of ["/login", "/dashboard", "/findings"]) {
+      const response = await proxy(request(path));
+      expect(response?.status).toBe(401);
+    }
+  });
+
   it("leaves API routes untouched (own auth, no browser credential cache)", async () => {
     baseEnv();
     await expect(proxy(request("/api/health"))).resolves.toBeUndefined();
