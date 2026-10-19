@@ -77,6 +77,26 @@ describe("reflowViolation", () => {
   );
 
   it.skipIf(!chromiumExecutableAvailable())(
+    "does not blame an over-wide element clipped by its section",
+    async () => {
+      await withProbePage(
+        `
+        <!doctype html><html lang="en"><body>
+          <section style="position:relative;overflow:hidden">
+            <div id="glow" style="position:absolute;top:0;right:-80px;width:384px;height:50px;background:#eee"></div>
+            <p>Hero copy that wraps normally.</p>
+          </section>
+        </body></html>
+      `,
+        async (page) => {
+          expect(await reflowViolation(page)).toBeNull();
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
     "passes a wide data table (2D exception)",
     async () => {
       await withProbePage(

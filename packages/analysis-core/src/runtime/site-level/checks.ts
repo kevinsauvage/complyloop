@@ -48,7 +48,12 @@ function mechanismCount(snapshots: ReadonlyArray<RuntimePageSnapshot>): number {
 
   for (const snapshot of snapshots) {
     if (snapshot.navLinks.length > 0) hasNav = true;
-    if (snapshot.searchInputs.length > 0) hasSearch = true;
+    if (
+      snapshot.searchInputs.length > 0 ||
+      (snapshot.searchEntries?.length ?? 0) > 0
+    ) {
+      hasSearch = true;
+    }
     if (snapshot.sitemapLinks.length > 0) hasSitemap = true;
   }
 

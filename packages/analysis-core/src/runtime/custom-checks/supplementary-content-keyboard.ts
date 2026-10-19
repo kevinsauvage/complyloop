@@ -38,7 +38,18 @@ export async function supplementaryContentKeyboardViolation(
           .join(" ")
           .trim();
       }
-      return (el.textContent ?? "").trim();
+      // Form controls are named by their <label>, not by content: a title
+      // repeating the label (or the placeholder) adds nothing hover-only.
+      const labels =
+        el instanceof HTMLInputElement ||
+        el instanceof HTMLSelectElement ||
+        el instanceof HTMLTextAreaElement
+          ? Array.from(el.labels ?? [])
+              .map((label) => label.textContent ?? "")
+              .join(" ")
+          : "";
+      const placeholder = el.getAttribute("placeholder") ?? "";
+      return `${labels} ${placeholder} ${el.textContent ?? ""}`.trim();
     }
 
     // Diagnostic counts: a pure-markup predicate must see the same DOM on

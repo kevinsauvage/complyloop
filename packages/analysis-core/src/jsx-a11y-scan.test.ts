@@ -238,4 +238,21 @@ describe("jsx-a11y recommended patterns", () => {
     expect(unscrollable.length).toBeGreaterThan(0);
     expect(unnamed.length).toBeGreaterThan(0);
   });
+
+  it("does not flag a link wrapper that forwards its props (children included)", () => {
+    const findings = lintJsxA11y(
+      parseSource(
+        "link.tsx",
+        `import Link from "next/link";\nexport const L = ({ href, ...rest }) => <Link {...rest} href={href} />;`,
+      ),
+    );
+    expect(findings).toHaveLength(0);
+  });
+
+  it("still flags an empty anchor with no forwarded props", () => {
+    const findings = lintJsxA11y(
+      parseSource("a.tsx", `export const A = () => <a href="/x"></a>;`),
+    );
+    expect(findings.length).toBeGreaterThan(0);
+  });
 });

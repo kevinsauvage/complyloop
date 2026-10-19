@@ -142,6 +142,41 @@ describe("nonTextContrastViolation interactive states", () => {
   );
 
   it.skipIf(!chromiumExecutableAvailable())(
+    "ignores controls that are not rendered at this viewport",
+    async () => {
+      const violation = await withProbePage(
+        `
+        <!doctype html><html lang="en"><body style="background:#fff">
+          <button aria-label="Menu" style="display:none;width:44px;height:44px;border:1px solid #eee"></button>
+        </body></html>
+      `,
+        (page) => nonTextContrastViolation(page),
+      );
+      expect(violation).toBeNull();
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "measures a translucent field fill against what is behind it, not as a solid",
+    async () => {
+      // A 30% black fill on white composites to ~#b3b3b3: a #555 border is
+      // ~4.4:1 against it. Measured as a solid #000 fill (the old reading), the
+      // same border would be ~2.8:1 and wrongly fail.
+      const violation = await withProbePage(
+        `
+        <!doctype html><html lang="en"><body style="background:#fff">
+          <input aria-label="Email" style="width:200px;height:44px;border:2px solid #555;background:rgba(0,0,0,0.3)" />
+        </body></html>
+      `,
+        (page) => nonTextContrastViolation(page),
+      );
+      expect(violation).toBeNull();
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
     "does not fail disabled chrome (WCAG 1.4.11 inactive exception)",
     async () => {
       const violation = await withProbePage(

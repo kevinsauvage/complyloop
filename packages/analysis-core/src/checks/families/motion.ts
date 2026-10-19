@@ -53,7 +53,13 @@ const CAROUSEL_TAGS = new Set([
   "Flickity",
 ]);
 const NONE_VALUES = new Set(["none", "unset", "initial", "inherit"]);
-const INFINITE_TAILWIND = /\banimate-(?:spin|pulse|bounce|ping)(?:\b|\[|\/)/i;
+/**
+ * Tailwind's built-in looping utilities only. A project's own
+ * `animate-pulse-subtle` / `animate-spin-slow` is defined in CSS this file
+ * cannot read (it may be a 5% opacity shift, or finite), so it is not guessed
+ * to be looping motion.
+ */
+const INFINITE_TAILWIND = /\banimate-(?:spin|pulse|bounce|ping)(?![\w-])/i;
 const ENTRANCE_MOTION =
   /\banimate-(?:in|out)\b|\b(?:fade|slide|zoom)-(?:in|out)\b/i;
 const PAUSE_LABEL = /\b(?:pause|stop|hide)\b/i;
@@ -139,6 +145,12 @@ function classNameHasInfiniteMotion(className: string): boolean {
  * indicator (WCAG 2.2.2 exempts it), not decorative motion to pause.
  */
 function insideStatusIndicator(node: JsxTagNode): boolean {
+  // The element is itself a loading indicator: a `Loader2`/`Spinner`
+  // component, or a decorative (aria-hidden) spinning icon. Nothing else
+  // legitimately spins on a timer.
+  if (/loader|spinner|loading/i.test(tagNameOf(node))) return true;
+  const spins = /\banimate-spin\b/.test(classNameTextOf(node));
+  if (spins && getAttribute(node, "aria-hidden") !== undefined) return true;
   let current: ts.Node | undefined = node.parent;
   while (current) {
     if (ts.isJsxElement(current)) {

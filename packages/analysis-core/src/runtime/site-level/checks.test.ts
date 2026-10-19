@@ -54,6 +54,22 @@ describe("runSiteLevelChecks", () => {
     ).toBe(false);
   });
 
+  it("counts a link to a search page as a search mechanism", () => {
+    const findings = runSiteLevelChecks([
+      snapshot("https://x.test/a", {
+        navLinks: ["Home::/"],
+        searchEntries: ["Search"],
+      }),
+      snapshot("https://x.test/b", {
+        navLinks: ["Home::/"],
+        searchEntries: ["Search"],
+      }),
+    ]);
+    expect(
+      findings.some((finding) => finding.checkId === "multiple-ways"),
+    ).toBe(false);
+  });
+
   it("warns when navigation signatures differ in order", () => {
     const findings = runSiteLevelChecks([
       snapshot("https://x.test/a", {

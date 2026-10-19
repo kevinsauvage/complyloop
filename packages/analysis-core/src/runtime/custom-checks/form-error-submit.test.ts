@@ -12,7 +12,7 @@ registerPlaywrightBrowserTeardown();
 
 describe("formErrorSubmitViolation", () => {
   it.skipIf(!chromiumExecutableAvailable())(
-    "flags missing aria association after invalid submit",
+    "leaves browser-native validation alone",
     async () => {
       await withProbePage(
         `
@@ -20,9 +20,36 @@ describe("formErrorSubmitViolation", () => {
           <form>
             <label for="email">Email</label>
             <input id="email" name="email" type="email" required />
-            <p id="email-error" hidden>Veuillez saisir un email valide.</p>
             <button type="submit">Envoyer</button>
           </form>
+        </body></html>
+      `,
+        async (page) => {
+          expect(await formErrorSubmitViolation(page)).toBeNull();
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "flags a custom error (aria-invalid) with no aria association after submit",
+    async () => {
+      await withProbePage(
+        `
+        <!doctype html><html lang="fr"><body>
+          <form id="f">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" />
+            <p id="email-error">Veuillez saisir un email valide.</p>
+            <button type="submit">Envoyer</button>
+          </form>
+          <script>
+            document.getElementById("f").addEventListener("submit", (e) => {
+              e.preventDefault();
+              document.getElementById("email").setAttribute("aria-invalid", "true");
+            });
+          </script>
         </body></html>
       `,
         async (page) => {
@@ -43,12 +70,18 @@ describe("formErrorSubmitViolation", () => {
       await withProbePage(
         `
         <!doctype html><html lang="fr"><body>
-          <form>
+          <form id="f">
             <label for="email">Email</label>
-            <input id="email" name="email" type="email" required aria-describedby="email-error" />
+            <input id="email" name="email" type="email" aria-describedby="email-error" />
             <p id="email-error">Veuillez saisir un email valide.</p>
             <button type="submit">Envoyer</button>
           </form>
+          <script>
+            document.getElementById("f").addEventListener("submit", (e) => {
+              e.preventDefault();
+              document.getElementById("email").setAttribute("aria-invalid", "true");
+            });
+          </script>
         </body></html>
       `,
         async (page) => {

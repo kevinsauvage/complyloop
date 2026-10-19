@@ -53,6 +53,30 @@ describe("resizeTextViolation", () => {
   );
 
   it.skipIf(!chromiumExecutableAvailable())(
+    "ignores decorative aria-hidden marquees and clipped carousel slides",
+    async () => {
+      await withProbePage(
+        `
+        <!doctype html><html lang="en"><body>
+          <div aria-hidden="true" style="width:200px;overflow:hidden;white-space:nowrap">
+            <span style="display:inline-block;width:600px">Free shipping on every order, always</span>
+          </div>
+          <div role="region" aria-roledescription="carousel" aria-label="Rail">
+            <div style="width:200px;overflow:hidden">
+              <div style="display:flex;width:600px"><p style="width:200px">One</p><p style="width:200px">Two</p><p style="width:200px">Three</p></div>
+            </div>
+          </div>
+        </body></html>
+      `,
+        async (page) => {
+          expect(await resizeTextViolation(page)).toBeNull();
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
     "passes a line-clamped excerpt that has a disclosure control",
     async () => {
       await withProbePage(

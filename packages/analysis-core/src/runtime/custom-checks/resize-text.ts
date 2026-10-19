@@ -83,6 +83,16 @@ export async function resizeTextViolation(
             if (el.closest("table, [role='grid'], [role='treegrid']")) {
               return false;
             }
+            // Decorative (aria-hidden) content is not read text, and a
+            // carousel clips its off-screen slides by design: each is one
+            // control activation away.
+            if (
+              el.closest(
+                "[aria-hidden='true'], [aria-roledescription], [class*='carousel' i], [class*='swiper' i], [class*='embla' i]",
+              )
+            ) {
+              return false;
+            }
             const overflows =
               el.scrollWidth > el.clientWidth + 1 ||
               el.scrollHeight > el.clientHeight + 1;

@@ -11,6 +11,7 @@ import type { ParsedSource } from "./parse.ts";
 import {
   attributeRemovalSpan,
   getAttribute,
+  isPropSpreadingHost,
   type JsxTagNode,
   offsetAt,
   snippetForSpan,
@@ -154,6 +155,8 @@ const POINTER_ON_STATIC_RULES = new Set([
  */
 function isRecommendedPattern(ruleId: string, node: JsxTagNode): boolean {
   const bare = ruleId.replace(/^jsx-a11y\//, "");
+  // `<Link {...props} />`: a wrapper forwarding its props, children included.
+  if (bare === "anchor-has-content") return isPropSpreadingHost(node);
   if (POINTER_ON_STATIC_RULES.has(bare)) return tagNameOf(node) === "dialog";
   if (bare !== "no-noninteractive-tabindex") return false;
   const role = getAttribute(node, "role");

@@ -34,6 +34,7 @@ import {
   siteLevelFindingsFromPages,
 } from "./findings.ts";
 import { htmlValidateFindingsForPage } from "./html-validate-runtime.ts";
+import { resolveIncompleteResults } from "./incomplete-resolver.ts";
 import {
   gotoForRuntimeAudit,
   runtimePageMatchesAuditedUrl,
@@ -367,7 +368,18 @@ function createPlaywrightAxeScanner(options?: {
           if (blockedReason) {
             throw new PublicError(blockedReason);
           }
-          const results = await timed("axe", () => runAxeOnPage(currentPage));
+          const axeResults = await timed("axe", () =>
+            runAxeOnPage(currentPage),
+          );
+          // Decide what axe could not (gradient/overlap backgrounds, heading
+          // order) from the rendered page before anything is reported.
+          const resolved = await timed("resolve", () =>
+            resolveIncompleteResults(currentPage, axeResults.incomplete),
+          );
+          const results = {
+            violations: [...axeResults.violations, ...resolved.confirmed],
+            incomplete: resolved.incomplete,
+          };
           const customChecks = await timed("custom", () =>
             runCustomRuntimeChecks(currentPage, url),
           );

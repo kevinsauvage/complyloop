@@ -18,6 +18,7 @@ export function submitFirstValidatableForm(): boolean {
 }
 
 export function isInvalidField(el: Element): boolean {
+  if (el.getAttribute("aria-invalid") === "true") return true;
   if (
     el instanceof HTMLInputElement ||
     el instanceof HTMLSelectElement ||
@@ -25,5 +26,5 @@ export function isInvalidField(el: Element): boolean {
   ) {
     return !el.checkValidity();
   }
-  return el.getAttribute("aria-invalid") === "true";
+  return false;
 }

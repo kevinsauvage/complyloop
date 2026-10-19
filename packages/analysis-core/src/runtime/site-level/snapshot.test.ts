@@ -147,4 +147,36 @@ describe("capturePageSnapshot", () => {
     );
     expect(snapshot.sitemapLinks).toEqual([]);
   });
+
+  it("takes primary navigation from the banner, not breadcrumbs or footer lists", async () => {
+    document.body.innerHTML = `
+      <header><nav aria-label="Main"><a href="/">Home</a><a href="/shop">Shop</a></nav></header>
+      <main><nav aria-label="Breadcrumb"><a href="/">Home</a><a href="/shop/ring">Ring</a></nav></main>
+      <footer><nav aria-label="Footer"><a href="/terms">Terms</a></nav></footer>
+    `;
+    const snapshot = await capturePageSnapshot(
+      pageThatEvaluatesInJsdom(),
+      "https://example.test/shop/ring",
+    );
+    expect(snapshot.navLinks).toEqual(["Home::/", "Shop::/shop"]);
+  });
+
+  it("falls back to every navigation landmark when there is no banner nav", async () => {
+    document.body.innerHTML = `<nav><a href="/a">A</a></nav><nav><a href="/b">B</a></nav>`;
+    const snapshot = await capturePageSnapshot(
+      pageThatEvaluatesInJsdom(),
+      "https://example.test/",
+    );
+    expect(snapshot.navLinks).toEqual(["A::/a", "B::/b"]);
+  });
+
+  it("records a link or button that leads to search", async () => {
+    document.body.innerHTML = `<header><a aria-label="Search" href="/en/search">icon</a></header>`;
+    const snapshot = await capturePageSnapshot(
+      pageThatEvaluatesInJsdom(),
+      "https://example.test/",
+    );
+    expect(snapshot.searchEntries).toEqual(["Search"]);
+    expect(snapshot.searchInputs).toEqual([]);
+  });
 });

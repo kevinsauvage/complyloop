@@ -308,7 +308,13 @@ describe("kitchen-sink custom probes", () => {
   probeCase(
     "form-error-association",
     `<!doctype html><html lang="en"><body>
-      <form id="signup"><input id="email" type="email" required aria-label="Email"><p id="email-error" hidden>Enter an email.</p><button>Sign up</button></form>
+      <form id="signup"><input id="email" type="email" aria-label="Email"><p id="email-error">Enter an email.</p><button>Sign up</button></form>
+      <script>
+        document.getElementById("signup").addEventListener("submit", (e) => {
+          e.preventDefault();
+          document.getElementById("email").setAttribute("aria-invalid", "true");
+        });
+      </script>
     </body></html>`,
     formErrorSubmitViolation,
   );

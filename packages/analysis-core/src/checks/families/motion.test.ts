@@ -342,6 +342,22 @@ describe("no-blink-marquee", () => {
         `const A = () => <output aria-live="polite"><svg className="animate-spin" /></output>;`,
       ),
     ).toHaveLength(0);
+    expect(
+      findingsFor(
+        `const A = () => <>{busy && <Loader2 className="animate-spin" size={16} />}</>;`,
+      ),
+    ).toHaveLength(0);
+    expect(
+      findingsFor(
+        `const A = () => <svg className="animate-spin" aria-hidden="true" />;`,
+      ),
+    ).toHaveLength(0);
+    // A project's own animation class is defined in CSS this check cannot read.
+    expect(
+      findingsFor(
+        `const A = () => <span className="animate-pulse-subtle size-2" />;`,
+      ),
+    ).toHaveLength(0);
     // Still flagged: the same class on load, outside a status region.
     expect(
       findingsFor(`const A = () => <svg className="animate-spin" />;`),

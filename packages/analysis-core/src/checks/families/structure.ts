@@ -102,15 +102,17 @@ export const listStructureCheck: AccessibilityCheck = {
         // A custom component parent (`<SiteMapGroup>`) may render the <ul>
         // itself: its output is unknowable here, so only host parents count.
         if (parent && /^[A-Z]/.test(parent)) return;
-        if (!parent || !LIST_TAGS.has(parent)) {
+        // No JSX parent in this file at all: the <li> is the root a component
+        // returns, and its <ul> lives in whoever renders it. The rendered-DOM
+        // `list`/`listitem` axe rules judge that; this file cannot.
+        if (!parent) return;
+        if (!LIST_TAGS.has(parent)) {
           findings.push({
             checkId: "list-structure",
             kind: "violation",
             severity: "moderate",
-            confidence: parent ? "high" : "medium",
-            reason: parent
-              ? `<li> must be a direct child of <ul>, <ol>, or <menu> (found under <${parent}>).`
-              : "<li> has no list parent in this file; wrap it in <ul>, <ol>, or <menu>.",
+            confidence: "high",
+            reason: `<li> must be a direct child of <ul>, <ol>, or <menu> (found under <${parent}>).`,
             location: locationOf(source, node),
             fix: null,
           });

@@ -135,8 +135,10 @@ export const allChecks: AccessibilityCheck[] = [
  * custom-component list parents, template-literal label ids, invisible
  * reCAPTCHA, shared new-tab hints, carousel/animation heuristics, jsx-a11y
  * dialog/scrollable-region patterns).
+ * 2026.10.19.2: root <li> and <Link {...props}/> wrappers are not judged,
+ * loading spinners and project-defined animate-* classes are not motion.
  */
-export const ANALYSIS_ENGINE_VERSION = "2026.10.19.1";
+export const ANALYSIS_ENGINE_VERSION = "2026.10.19.2";
 
 /**
  * Stable signature of the shipped AST engine: behavior version + check id set.

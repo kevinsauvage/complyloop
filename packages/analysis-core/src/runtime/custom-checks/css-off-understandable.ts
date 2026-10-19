@@ -49,8 +49,15 @@ export async function cssOffUnderstandableViolation(
       }
     }
 
+    /**
+     * Elements whose visual position differs from their DOM position because of
+     * `order`. A container where `order` values simply restate the DOM sequence
+     * (`order-1`, `order-2`, `order-3` on the first, second, third child) does
+     * not reorder anything and is not a finding.
+     */
     function flexOrderDependents(): HTMLElement[] {
       const hits: HTMLElement[] = [];
+      const parents = new Set<HTMLElement>();
       for (const el of document.querySelectorAll<HTMLElement>("*")) {
         const style = getComputedStyle(el);
         if (style.order === "0" || style.order === "normal") continue;
@@ -63,7 +70,22 @@ export async function cssOffUnderstandableViolation(
         ) {
           continue;
         }
-        hits.push(el);
+        parents.add(parent);
+      }
+      for (const parent of parents) {
+        const children = Array.from(parent.children).filter(
+          (child): child is HTMLElement => child instanceof HTMLElement,
+        );
+        const dom = children.map((child, index) => ({
+          child,
+          index,
+          order: Number.parseInt(getComputedStyle(child).order, 10) || 0,
+        }));
+        const visual = [...dom].sort(
+          (a, b) => a.order - b.order || a.index - b.index,
+        );
+        const moved = visual.find((entry, position) => dom[position] !== entry);
+        if (moved) hits.push(moved.child);
       }
       return hits;
     }

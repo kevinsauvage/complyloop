@@ -37,6 +37,28 @@ describe("cssOffUnderstandableViolation", () => {
   );
 
   it.skipIf(!chromiumExecutableAvailable())(
+    "passes when order values only restate the DOM sequence",
+    async () => {
+      await withProbePage(
+        `
+        <!doctype html><html lang="fr"><head><style>
+          .row { display: flex; }
+          .a { order: 1; } .b { order: 2; } .c { order: 3; }
+        </style></head><body>
+          <div class="row">
+            <p class="a">Logo</p><p class="b">Navigation</p><p class="c">Actions</p>
+          </div>
+        </body></html>
+      `,
+        async (page) => {
+          expect(await cssOffUnderstandableViolation(page)).toBeNull();
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
     "passes when essential text remains without CSS",
     async () => {
       await withProbePage(

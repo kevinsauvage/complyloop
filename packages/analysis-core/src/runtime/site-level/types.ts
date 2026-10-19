@@ -17,6 +17,8 @@ export interface RuntimePageSnapshot {
   navLinks: string[];
   helpLinks: string[];
   searchInputs: Array<{ name?: string; type: string }>;
+  /** Links/buttons that lead to search (`Search`, `/search`) without an input on this page. */
+  searchEntries?: string[];
   sitemapLinks: string[];
   formFields: Array<{ name: string; label: string; autoComplete?: string }>;
   /** First sitemap link href when present. */

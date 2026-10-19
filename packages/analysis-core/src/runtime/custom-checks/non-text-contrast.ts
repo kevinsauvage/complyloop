@@ -201,17 +201,46 @@ async function collectCurrentHits(page: Page): Promise<{
         ) => number,
       ) => boolean;
 
+      // Composites translucent layers (`bg-background/60`, `dark:bg-input/30`)
+      // over what is behind them up to the first opaque ancestor. Taking the
+      // first non-transparent layer's rgb alone would measure a 30% tint as if
+      // it were solid.
       function backgroundRgb(el: Element): [number, number, number] | null {
+        const layers: Array<{ rgb: [number, number, number]; alpha: number }> =
+          [];
         let current: Element | null = el;
         while (current) {
           const parsed = parseColor(getComputedStyle(current).backgroundColor);
-          if (parsed && parsed.alpha > 0) return parsed.rgb;
+          if (parsed && parsed.alpha > 0) {
+            layers.push(parsed);
+            if (parsed.alpha >= 1) break;
+          }
           current = current.parentElement;
         }
-        const bodyParsed = parseColor(
-          getComputedStyle(document.body).backgroundColor,
-        );
-        return bodyParsed && bodyParsed.alpha > 0 ? bodyParsed.rgb : null;
+        // Nothing opaque behind the layers: the canvas default is white.
+        const base: [number, number, number] =
+          layers.length > 0 && (layers[layers.length - 1]?.alpha ?? 0) >= 1
+            ? ([...(layers[layers.length - 1]?.rgb ?? [255, 255, 255])] as [
+                number,
+                number,
+                number,
+              ])
+            : [255, 255, 255];
+        const start =
+          layers.length > 0 && (layers[layers.length - 1]?.alpha ?? 0) >= 1
+            ? layers.length - 2
+            : layers.length - 1;
+        let color = base;
+        for (let index = start; index >= 0; index -= 1) {
+          const layer = layers[index];
+          if (!layer) continue;
+          color = [
+            layer.rgb[0] * layer.alpha + color[0] * (1 - layer.alpha),
+            layer.rgb[1] * layer.alpha + color[1] * (1 - layer.alpha),
+            layer.rgb[2] * layer.alpha + color[2] * (1 - layer.alpha),
+          ];
+        }
+        return color;
       }
 
       function isDisabled(el: Element): boolean {
@@ -245,7 +274,11 @@ async function collectCurrentHits(page: Page): Promise<{
       for (const el of controls) {
         if (!(el instanceof HTMLElement)) continue;
         if (isDisabled(el)) continue;
+        // Not rendered at this viewport (`lg:hidden`, `display: none`): no
+        // boundary exists to measure.
+        if (el.getClientRects().length === 0) continue;
         const style = getComputedStyle(el);
+        if (style.visibility === "hidden") continue;
         const borderWidth = parseFloat(style.borderTopWidth);
         if (borderWidth <= 0) continue;
         const parsedBorder = parseColor(style.borderTopColor);
@@ -307,17 +340,46 @@ async function collectHoverHit(locator: Locator): Promise<ContrastHit | null> {
         ) => number,
       ) => boolean;
 
+      // Composites translucent layers (`bg-background/60`, `dark:bg-input/30`)
+      // over what is behind them up to the first opaque ancestor. Taking the
+      // first non-transparent layer's rgb alone would measure a 30% tint as if
+      // it were solid.
       function backgroundRgb(node: Element): [number, number, number] | null {
+        const layers: Array<{ rgb: [number, number, number]; alpha: number }> =
+          [];
         let current: Element | null = node;
         while (current) {
           const parsed = parseColor(getComputedStyle(current).backgroundColor);
-          if (parsed && parsed.alpha > 0) return parsed.rgb;
+          if (parsed && parsed.alpha > 0) {
+            layers.push(parsed);
+            if (parsed.alpha >= 1) break;
+          }
           current = current.parentElement;
         }
-        const bodyParsed = parseColor(
-          getComputedStyle(document.body).backgroundColor,
-        );
-        return bodyParsed && bodyParsed.alpha > 0 ? bodyParsed.rgb : null;
+        // Nothing opaque behind the layers: the canvas default is white.
+        const base: [number, number, number] =
+          layers.length > 0 && (layers[layers.length - 1]?.alpha ?? 0) >= 1
+            ? ([...(layers[layers.length - 1]?.rgb ?? [255, 255, 255])] as [
+                number,
+                number,
+                number,
+              ])
+            : [255, 255, 255];
+        const start =
+          layers.length > 0 && (layers[layers.length - 1]?.alpha ?? 0) >= 1
+            ? layers.length - 2
+            : layers.length - 1;
+        let color = base;
+        for (let index = start; index >= 0; index -= 1) {
+          const layer = layers[index];
+          if (!layer) continue;
+          color = [
+            layer.rgb[0] * layer.alpha + color[0] * (1 - layer.alpha),
+            layer.rgb[1] * layer.alpha + color[1] * (1 - layer.alpha),
+            layer.rgb[2] * layer.alpha + color[2] * (1 - layer.alpha),
+          ];
+        }
+        return color;
       }
 
       const style = getComputedStyle(el);
