@@ -83,7 +83,8 @@ Webhook (enqueue + after() dispatch) → assessment-worker (GH); 15-min schedule
   projects, active project). Compliance rows load via
   `getProjectRuntime(projectId)` or repo `list*`/`get*` helpers. The compliance
   catalog is compile-time data (`shippedCatalog()`). File hashes live in
-  `assessment_snapshots` and load only for `runAssessment`. Evidence and
+  `assessment_snapshots` and load for the assessment scan
+  (`scanAssessment`). Evidence and
   findings pages load via `src/server/reporting/evidence-queries.ts` and
   `src/server/workspace/project-view.ts` (`loadFindingsView`).
 - **Writes (the write model)** — all mutations go through helpers in
@@ -112,11 +113,20 @@ deleteMembershipIds, deleteOrgIds }` — no JSON-diff of the in-memory slice.
   - Connect/disconnect uses `withConnectWrite` (tenancy load, org lock, no
     project lock — there may be no active project yet) and returns
     `{ result, insertProjects, deleteProjectIds, evidence }`.
-  - Structural entities go through `repo/*`. `runAssessment` returns
-    `{ assessment, evidence, findings, remediations, requirements }`; the worker
-    persists via `applyAssessmentPayload`.
-  - Stale-write guards take a single `loadedSlice` (`ProjectSlice`);
-    `persistProjectRows` derives the per-entity `updatedAt` maps.
+  - Structural entities go through `repo/*`. An assessment runs in two phases:
+    `scanAssessment` (pure: reads the checkout, returns raw findings + snapshot,
+    touches no rows) then `reconcileAssessment` (folds the scan into project
+    rows and builds the record + evidence). `runAssessment` composes both for
+    callers that already hold the rows; the worker scans once and lets
+    `applyAuthoritativeAssessment` reconcile on rows it loads **inside** the
+    apply transaction, under the project lock — so a scan that takes minutes
+    cannot reconcile a stale slice.
+  - Stale-write guards take a single `loadedSlice` (`ProjectSlice`) and apply
+    to **interactive** writes: `persistProjectRows` derives the per-entity
+    `updatedAt` maps. Assessment apply does not use the guard — it reconciles
+    against the same rows it loads under the lock (`applyAssessmentPayload`
+    with a `baseline`), so a row a user edited mid-scan is reconciled, not
+    silently skipped while its evidence lands.
   - Project-scoped filtering is shared via `projectScopedSlice` (used by
     `snapshotProjectSlice`, assessment scratch clones, and
     `buildAssessmentApplyPayload`).

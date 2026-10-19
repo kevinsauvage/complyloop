@@ -8,16 +8,6 @@
 
 ## P0 — Critical
 
-### [ ] Reconcile assessment results against current data, not the snapshot taken before the scan
-
-**Why:** The worker loads the project's findings and requirements, then spends minutes cloning and scanning, then applies changes computed from that old snapshot. Rows a user changed during the scan are silently skipped by the stale-write guard. Their evidence rows are still inserted, and requirement statuses are still written from the old findings. The audit trail then claims things the database doesn't reflect (for example, "resolved" evidence for a finding that stays open, or `failed` for a finding the user just dismissed).
-
-**Where:** `src/server/assessment/assessment-worker.ts` (`runClaimedAssessmentJob` loads `loadProjectDb` before checkout), `src/server/assessment/assessment.ts` (`runAssessment` scans and reconciles in one pass), `src/server/assessment/assessment-pipeline.ts` (`applyAuthoritativeAssessment`), `packages/db/src/repo/upsert-guard.ts`, `packages/db/src/repo/apply.ts`.
-
-**Change:** Split `runAssessment` into two steps. (1) A pure `scan()` that returns raw findings, the snapshot and engine facts, and never touches DB state. (2) A fast `reconcile()` that runs inside the apply transaction, under the project lock, on freshly loaded rows. Then delete the stale-guard path for assessments (`loadedSlice`, `filterStalePayloadWrites`) instead of keeping two consistency mechanisms. Add a test where a finding is dismissed during a scan and the final state and evidence still agree.
-
-**Impact:** High
-
 ### [ ] Tie runtime audit results to the commit that was scanned
 
 **Why:** The source-code (AST) scan runs on the pushed commit. The runtime audit runs on a fixed `project.runtimeBaseUrl` that is usually still serving the previous deploy when the push webhook fires. `mergeRawFindings` then drops composition-sensitive AST findings for pages the runtime audit "covered". A regression that isn't deployed yet disappears, and the requirement can read `passed` until the next push. Runtime-only checks can pass on code that was never scanned.
@@ -32,18 +22,6 @@
 - Keep the static URL only as a manual fallback, labeled "not tied to a commit".
 
 **Impact:** High
-
-### [ ] Stop sending client source code to a free-tier default AI model
-
-**Why:** `AI_MODEL` defaults to `poolside/laguna-s-2.1-free`, and patch prompts include full file contents from client repositories (`src/ai/patch.ts`). For agencies handling client code, a free-tier model with unknown data-retention terms is a confidentiality problem. Model output is also parsed by "tolerating fences and surrounding prose", which is fragile.
-
-**Where:** `src/ai/ai-call.ts:29-52,170-200`, `src/ai/patch.ts`, `src/ai/remediation.ts`, `src/server/env.ts`.
-
-**Change:** Remove the default model. AI is enabled only when `AI_MODEL` is explicitly set, to a provider with zero data retention, documented in `.env.example`/README. Switch to AI SDK structured output (`Output.object` with the existing zod schemas), delete the text-parsing fallback, and bound every output field (length and format) before it is persisted.
-
-**Impact:** High
-
----
 
 ## P1 — High
 
