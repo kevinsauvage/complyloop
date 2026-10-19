@@ -13,8 +13,12 @@ test.describe("viewer authorization", () => {
 
   test("viewer sees view-only notice on a finding", async ({ page }) => {
     await page.goto("/findings");
+    // Open whichever finding is listed first: earlier specs run assessments
+    // against the fixture, so the seeded img-alt finding is not guaranteed to
+    // be on page 1 of the (severity-sorted, paginated) list.
     await page
-      .getByRole("link", { name: /Images have a text alternative/i })
+      .getByRole("list", { name: "Findings" })
+      .getByRole("link")
       .first()
       .click();
     await expect(
