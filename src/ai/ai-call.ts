@@ -1,4 +1,4 @@
-import { generateObject, generateText, NoObjectGeneratedError } from "ai";
+import { generateText, Output } from "ai";
 import { z } from "zod";
 
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
@@ -26,9 +26,6 @@ export interface AiErrorReport {
  */
 export type AiCallOnError = (error: unknown, report: AiErrorReport) => void;
 
-/** Default Vercel AI Gateway model id (`provider/model`). */
-export const AI_MODEL = "poolside/laguna-s-2.1-free";
-
 /**
  * Hard bound on a single gateway call: a hung gateway must not stall a server
  * action until the platform kills it.
@@ -36,21 +33,42 @@ export const AI_MODEL = "poolside/laguna-s-2.1-free";
 const AI_CALL_TIMEOUT_MS = 60_000;
 
 /**
- * Resolved gateway model id. Overridable via the `AI_MODEL` env var so
- * production can upgrade off the free-tier default without a code change.
+ * Output bounds applied to every model-generated field before it is persisted.
+ * AI output is untrusted text: an unbounded field could bloat evidence/payload
+ * rows or smuggle control characters into the UI.
+ */
+export const AI_TEXT_MAX_CHARS = 2_000;
+export const AI_SNIPPET_MAX_CHARS = 4_000;
+export const AI_PATH_MAX_CHARS = 1_024;
+export const AI_EDIT_TEXT_MAX_CHARS = 200_000;
+
+/**
+ * Resolved gateway model id (`provider/model`), or `undefined` when the
+ * operator has not chosen one. There is deliberately **no default**: prompts
+ * can carry client source code, so AI stays disabled until a model on a
+ * zero-data-retention provider is configured explicitly.
+ *
  * Reads `process.env` directly (not via `@/server/env`): `src/ai` must stay
  * importable without `@/server/*` (client-bundle/edge boundary, ESLint) —
  * same precedent as `aiAvailable()`.
  */
-export function resolveAiModel(): string {
-  return process.env.AI_MODEL?.trim() || AI_MODEL;
+export function resolveAiModel(): string | undefined {
+  return process.env.AI_MODEL?.trim() || undefined;
 }
 
-/** True when AI gateway credentials are configured. */
+/**
+ * True when AI is configured: gateway credentials **and** an explicit model.
+ * A key alone is not enough — without a chosen zero-retention model we must
+ * not send repository contents anywhere.
+ */
 export function aiAvailable(): boolean {
-  // Direct `process.env` read for the same boundary reason as `resolveAiModel`.
-  return Boolean(process.env.AI_GATEWAY_API_KEY);
+  // Direct `process.env` reads for the same boundary reason as `resolveAiModel`.
+  return Boolean(process.env.AI_GATEWAY_API_KEY && resolveAiModel());
 }
+
+/** User-facing copy when an AI call cannot run because AI is not configured. */
+export const AI_UNAVAILABLE_MESSAGE =
+  "AI isn't enabled for this workspace. Set AI_GATEWAY_API_KEY and AI_MODEL (a zero-data-retention model) to turn it on.";
 
 /** User-facing copy when patch generation needs AI and none is configured. */
 export const AI_PATCH_UNAVAILABLE_MESSAGE =
@@ -80,7 +98,7 @@ export function findingPromptContext(
 
 interface AiCallInput<TSchema extends z.ZodType> {
   schema: TSchema;
-  /** Set when AI credentials are configured; false short-circuits. */
+  /** Pass `aiAvailable()`; false short-circuits without a gateway call. */
   available: boolean;
   /** When true, unavailable/failed calls throw PublicError instead of returning null. */
   throwIfUnavailable?: boolean;
@@ -100,24 +118,24 @@ interface AiCallInput<TSchema extends z.ZodType> {
 }
 
 /**
- * Shared AI gateway shell: availability check + structured `generateObject`,
- * with a `generateText` + parse fallback for models without structured-output
- * support (the gateway reports `responseFormat` unsupported for those —
- * `generateObject` then fails with `NoObjectGeneratedError` even though the
- * model can emit JSON as text). Returns `null` when AI is disabled or the
- * call fails unless `throwIfUnavailable` is set. Callers always keep a
- * deterministic baseline (AI never sets status), and failures surface through
- * `onError` so the server boundary owns observability.
+ * Shared AI gateway shell: availability check + structured output through
+ * `generateText` with `Output.object`, which makes the provider honor the zod
+ * schema. There is deliberately no text-parsing fallback — a model that cannot
+ * produce structured output fails the call instead of returning loosely parsed
+ * text. Returns `null` when AI is disabled or the call fails, unless
+ * `throwIfUnavailable` is set. Callers always keep a deterministic baseline
+ * (AI never sets status), and failures surface through `onError` so the server
+ * boundary owns observability.
  */
 export async function aiCall<TSchema extends z.ZodType>(
   input: AiCallInput<TSchema>,
 ): Promise<z.infer<TSchema> | null> {
-  if (!input.available) {
+  // Model is resolved here (not read from the caller) so a missing `AI_MODEL`
+  // fails closed even if a caller passed `available: true` by mistake.
+  const model = resolveAiModel();
+  if (!input.available || !model) {
     if (input.throwIfUnavailable) {
-      throw new PublicError(
-        input.failureMessage ??
-          "AI is unavailable. Check AI credentials or try again.",
-      );
+      throw new PublicError(input.failureMessage ?? AI_UNAVAILABLE_MESSAGE);
     }
     return null;
   }
@@ -138,72 +156,14 @@ export async function aiCall<TSchema extends z.ZodType>(
     return null;
   };
   try {
-    const { object } = await generateObject({
-      model: resolveAiModel(),
-      schema: input.schema,
+    const { output } = await generateText({
+      model,
+      output: Output.object({ schema: input.schema }),
       prompt,
       abortSignal: AbortSignal.timeout(AI_CALL_TIMEOUT_MS),
     });
-    return object as z.infer<TSchema>;
+    return output as z.infer<TSchema>;
   } catch (error) {
-    if (!isNoObjectGeneratedError(error)) return fail(error);
-    try {
-      return await generateTextFallback(input, prompt);
-    } catch (fallbackError) {
-      return fail(fallbackError);
-    }
+    return fail(error);
   }
-}
-
-/** True for the SDK's structured-output parse failure (incl. name match). */
-function isNoObjectGeneratedError(error: unknown): boolean {
-  if (error instanceof NoObjectGeneratedError) return true;
-  return error instanceof Error && error.name === "AI_NoObjectGeneratedError";
-}
-
-/** Required top-level keys for the JSON-only fallback prompt. */
-function schemaKeys(schema: z.ZodType): string[] {
-  if (schema instanceof z.ZodObject) return Object.keys(schema.shape);
-  return [];
-}
-
-/** Parses model text output, tolerating fences and surrounding prose. */
-function extractJson(text: string): unknown {
-  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const raw = (fenced?.[1] ?? text).trim();
-  const start = raw.indexOf("{");
-  const end = raw.lastIndexOf("}");
-  if (start === -1 || end <= start) return JSON.parse(raw);
-  return JSON.parse(raw.slice(start, end + 1));
-}
-
-/**
- * Single retry for models that cannot do structured output: ask for JSON-only
- * text, then parse + zod-validate exactly like the structured path. Throws
- * when the text is not valid JSON or fails the schema, so the caller reports
- * it through the same `onError` channel.
- */
-async function generateTextFallback<TSchema extends z.ZodType>(
-  input: AiCallInput<TSchema>,
-  prompt: string,
-): Promise<z.infer<TSchema>> {
-  const keys = schemaKeys(input.schema);
-  const { text } = await generateText({
-    model: resolveAiModel(),
-    prompt: [
-      prompt,
-      "Respond with ONLY a JSON object (no prose, no code fences).",
-      ...(keys.length > 0
-        ? [`The object must have exactly these keys: ${keys.join(", ")}.`]
-        : []),
-    ].join("\n"),
-    abortSignal: AbortSignal.timeout(AI_CALL_TIMEOUT_MS),
-  });
-  const parsed = input.schema.safeParse(extractJson(text));
-  if (!parsed.success) {
-    throw new Error(
-      `AI response did not match the expected shape: ${parsed.error.message}`,
-    );
-  }
-  return parsed.data as z.infer<TSchema>;
 }

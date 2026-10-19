@@ -6,6 +6,7 @@ import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type { Confidence } from "@complyloop/analysis-core/contract/statuses";
 
 import {
+  AI_TEXT_MAX_CHARS,
   aiAvailable,
   aiCall,
   type AiCallOnError,
@@ -15,9 +16,9 @@ import {
 } from "./ai-call";
 
 const explanationSchema = z.object({
-  whyItFailed: z.string(),
-  impact: z.string(),
-  howToFix: z.string(),
+  whyItFailed: z.string().max(AI_TEXT_MAX_CHARS),
+  impact: z.string().max(AI_TEXT_MAX_CHARS),
+  howToFix: z.string().max(AI_TEXT_MAX_CHARS),
   confidence: confidenceSchema,
 });
 

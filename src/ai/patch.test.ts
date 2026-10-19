@@ -1,27 +1,27 @@
-import { generateObject } from "ai";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { generateText } from "ai";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 
-import { AI_MODEL } from "./ai-call";
 import { proposeFixEdits } from "./patch";
 
+const TEST_MODEL = "acme/zero-retention-model";
+
 vi.mock("ai", () => ({
-  generateObject: vi.fn(),
   generateText: vi.fn(),
-  NoObjectGeneratedError: class extends Error {
-    constructor(message = "No object generated") {
-      super(message);
-      this.name = "AI_NoObjectGeneratedError";
-    }
-  },
+  Output: { object: (config: unknown) => config },
 }));
 
-const generate = vi.mocked(generateObject);
+const generate = vi.mocked(generateText);
 
 beforeEach(() => {
+  vi.stubEnv("AI_MODEL", TEST_MODEL);
   generate.mockReset();
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 const finding = {
@@ -47,7 +47,7 @@ const control = {
 describe("proposeFixEdits", () => {
   it("returns one typed patch for the Finding source file", async () => {
     generate.mockResolvedValue({
-      object: {
+      output: {
         description: "Add alt",
         edits: [
           {
@@ -68,7 +68,7 @@ describe("proposeFixEdits", () => {
     expect(result).toEqual({
       description: "Add alt",
       provenance: "ai",
-      model: AI_MODEL,
+      model: TEST_MODEL,
       edits: [
         {
           path: "Hero.tsx",
@@ -80,7 +80,7 @@ describe("proposeFixEdits", () => {
     expect(result.edits[0]?.newText).toContain("alt=");
     expect(generate).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: AI_MODEL,
+        model: TEST_MODEL,
         prompt: expect.stringContaining("Change only the Finding source file"),
       }),
     );
@@ -108,7 +108,7 @@ describe("proposeFixEdits", () => {
 
   it("truncates oversized file contents before prompting", async () => {
     generate.mockResolvedValue({
-      object: {
+      output: {
         description: "Add alt",
         edits: [
           { path: "Hero.tsx", oldText: "<img />", newText: '<img alt="x"/>' },
@@ -131,7 +131,7 @@ describe("proposeFixEdits", () => {
 
   it("caps total file contents under budget and tags files as untrusted", async () => {
     generate.mockResolvedValue({
-      object: {
+      output: {
         description: "Add alt",
         edits: [
           { path: "Hero.tsx", oldText: "<img />", newText: '<img alt="x"/>' },
@@ -160,7 +160,7 @@ describe("proposeFixEdits", () => {
 
   it("wraps injected instructions instead of passing them through", async () => {
     generate.mockResolvedValue({
-      object: {
+      output: {
         description: "Add alt",
         edits: [
           { path: "Hero.tsx", oldText: "<img />", newText: '<img alt="x"/>' },
@@ -186,10 +186,10 @@ describe("proposeFixEdits", () => {
   it("rejects empty and cross-file model edits", async () => {
     generate
       .mockResolvedValueOnce({
-        object: { description: "Nothing", edits: [] },
+        output: { description: "Nothing", edits: [] },
       } as never)
       .mockResolvedValueOnce({
-        object: {
+        output: {
           description: "Wrong file",
           edits: [{ path: "Other.tsx", oldText: "a", newText: "b" }],
         },

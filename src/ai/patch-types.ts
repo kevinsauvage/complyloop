@@ -3,17 +3,23 @@ import { z } from "zod";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { ExplanationProvenance } from "@complyloop/analysis-core/contract/statuses";
 
+import { AI_EDIT_TEXT_MAX_CHARS, AI_PATH_MAX_CHARS } from "./ai-call";
+
 export interface FileEdit {
   path: string;
   oldText: string;
   newText: string;
 }
 
-/** Source-edit shape shared by proposed patches and stored patch details. */
+/**
+ * Source-edit shape shared by proposed patches and stored patch details.
+ * Length-bounded: these fields are model-authored (and round-trip through
+ * evidence payloads), so cap them at the same limits the prompt enforces.
+ */
 export const fileEditSchema = z.object({
-  path: z.string(),
-  oldText: z.string(),
-  newText: z.string(),
+  path: z.string().max(AI_PATH_MAX_CHARS),
+  oldText: z.string().max(AI_EDIT_TEXT_MAX_CHARS),
+  newText: z.string().max(AI_EDIT_TEXT_MAX_CHARS),
 });
 
 export interface ProposedFixEdits {

@@ -79,10 +79,11 @@ Repos are **shallow-cloned per job** into a temp directory and deleted when done
 **Also on findings:** copy patch/PR body, mark runtime work implemented outside
 the platform, record human pass or exceptions on Requirements.
 
-**AI** (optional, `AI_GATEWAY_API_KEY`): explanations, remediation suggestions,
-constrained source patches. Model overridable via `AI_MODEL`
-(default `poolside/laguna-s-2.1-free`). Patches must pass ComplyLoop before **Create draft PR**.
-AI never sets requirement status.
+**AI** (optional, **off by default**): explanations, remediation suggestions,
+constrained source patches. Enabled only when both `AI_GATEWAY_API_KEY` and
+`AI_MODEL` are set; there is no default model, so point `AI_MODEL` at a
+zero-data-retention provider — prompts can include client source code. Patches
+must pass ComplyLoop before **Create draft PR**. AI never sets requirement status.
 
 ---
 

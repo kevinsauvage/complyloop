@@ -6,6 +6,8 @@ import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type { Confidence } from "@complyloop/analysis-core/contract/statuses";
 
 import {
+  AI_SNIPPET_MAX_CHARS,
+  AI_TEXT_MAX_CHARS,
   aiAvailable,
   aiCall,
   type AiCallOnError,
@@ -28,8 +30,8 @@ const attributeValueSchema = z
   });
 
 export const remediationSchema = z.object({
-  description: z.string(),
-  proposedSnippet: z.string(),
+  description: z.string().max(AI_TEXT_MAX_CHARS),
+  proposedSnippet: z.string().max(AI_SNIPPET_MAX_CHARS),
   /** Suggested attribute value when the fix inserts/edits an attribute. */
   attributeValue: attributeValueSchema.optional(),
   confidence: confidenceSchema,

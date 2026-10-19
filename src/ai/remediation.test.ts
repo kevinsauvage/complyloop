@@ -1,28 +1,27 @@
-import { generateObject } from "ai";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { generateText } from "ai";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 
-import { AI_MODEL } from "./ai-call";
 import { generateAiRemediation, remediationSchema } from "./remediation";
 
+const TEST_MODEL = "acme/zero-retention-model";
+
 vi.mock("ai", () => ({
-  generateObject: vi.fn(),
   generateText: vi.fn(),
-  NoObjectGeneratedError: class extends Error {
-    constructor(message = "No object generated") {
-      super(message);
-      this.name = "AI_NoObjectGeneratedError";
-    }
-  },
+  Output: { object: (config: unknown) => config },
 }));
 
-const generate = vi.mocked(generateObject);
+const generate = vi.mocked(generateText);
+
+beforeEach(() => {
+  vi.stubEnv("AI_MODEL", TEST_MODEL);
+  generate.mockReset();
+});
 
 afterEach(() => {
   vi.unstubAllEnvs();
-  generate.mockReset();
 });
 
 const control = {
@@ -78,7 +77,7 @@ describe("generateAiRemediation", () => {
   it("returns a suggestion with provenance when the model succeeds", async () => {
     vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
     generate.mockResolvedValue({
-      object: {
+      output: {
         description: "Add a descriptive alt",
         proposedSnippet: '<img src="/x.png" alt="Product photo" />',
         attributeValue: "Product photo",
@@ -94,7 +93,7 @@ describe("generateAiRemediation", () => {
         proposedSnippet: '<img src="/x.png" alt="Product photo" />',
         provenance: "ai",
         confidence: "high",
-        model: AI_MODEL,
+        model: TEST_MODEL,
       },
     });
     expect(result?.suggestion.generatedAt).toMatch(/^\d{4}-/);
@@ -103,7 +102,7 @@ describe("generateAiRemediation", () => {
   it("omits blank attributeValue and prompts for runtime findings", async () => {
     vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
     generate.mockResolvedValue({
-      object: {
+      output: {
         description: "Fix the call site",
         proposedSnippet: '<Input aria-label="Email" />',
         attributeValue: "   ",
@@ -177,6 +176,21 @@ describe("remediationSchema attributeValue bounds", () => {
     ).toBe(false);
     expect(
       remediationSchema.safeParse({ ...base, attributeValue: "a\nb" }).success,
+    ).toBe(false);
+  });
+
+  it("rejects an over-long description or snippet", () => {
+    expect(
+      remediationSchema.safeParse({
+        ...base,
+        description: "x".repeat(2_001),
+      }).success,
+    ).toBe(false);
+    expect(
+      remediationSchema.safeParse({
+        ...base,
+        proposedSnippet: "x".repeat(4_001),
+      }).success,
     ).toBe(false);
   });
 });

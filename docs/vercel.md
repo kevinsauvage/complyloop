@@ -130,7 +130,7 @@ below) and check the Vercel function logs (filter `[event]` for
 | `SENTRY_DSN` (+ `NEXT_PUBLIC_SENTRY_DSN`)     | Required by `ops:check` in production                                                                                                                                                          |
 | `BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD` | Private preview gate (Basic Auth on every page; unset = open). Set both on the deployed project until public launch                                                                            |
 | `COMPLYLOOP_SUPPORT_EMAIL`                    | Shown on the Organization page                                                                                                                                                                 |
-| `AI_GATEWAY_API_KEY`                          | Optional — AI explanations/patches                                                                                                                                                             |
+| `AI_GATEWAY_API_KEY` + `AI_MODEL`             | Optional — AI explanations/patches. Both required; no default model (use a zero-data-retention provider)                                                                                       |
 
 **Never set:** `E2E_*` (the harness swaps real checkouts for fixtures and skips
 prod GitHub enforcement), `DATABASE_SSL_INSECURE`.

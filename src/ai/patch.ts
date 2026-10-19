@@ -7,6 +7,7 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 import {
   AI_PATCH_UNAVAILABLE_MESSAGE,
+  AI_TEXT_MAX_CHARS,
   aiCall,
   type AiCallOnError,
   resolveAiModel,
@@ -17,9 +18,11 @@ import {
   type ProposedFixEdits,
 } from "./patch-types";
 
+const MAX_EDITS_PER_PATCH = 50;
+
 const editsSchema = z.object({
-  description: z.string(),
-  edits: z.array(fileEditSchema).min(1),
+  description: z.string().max(AI_TEXT_MAX_CHARS),
+  edits: z.array(fileEditSchema).min(1).max(MAX_EDITS_PER_PATCH),
 });
 
 const MAX_FILE_CHARS = 80_000;

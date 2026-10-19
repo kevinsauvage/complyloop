@@ -72,11 +72,15 @@ export default function PrivacyPage() {
             </h2>
             <p className="mt-2">
               Optional AI features send finding context to the configured AI
-              gateway when{" "}
+              gateway only when both{" "}
               <code className="font-mono text-xs text-foreground">
                 AI_GATEWAY_API_KEY
               </code>{" "}
-              is set. Error reporting may send diagnostics to Sentry when a
+              and{" "}
+              <code className="font-mono text-xs text-foreground">
+                AI_MODEL
+              </code>{" "}
+              are set. Error reporting may send diagnostics to Sentry when a
               Sentry DSN is configured (
               <code className="font-mono text-xs text-foreground">
                 SENTRY_DSN
