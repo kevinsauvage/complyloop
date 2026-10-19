@@ -107,7 +107,7 @@ describe("no-blink-marquee", () => {
     const findings = findingsFor(
       `const A = () => (
         <div>
-          <Carousel aria-roledescription="carousel" />
+          <Carousel autoplay aria-roledescription="carousel" />
           <style>{"@media (prefers-reduced-motion: reduce) { * { animation: none } }"}</style>
         </div>
       );`,
@@ -311,10 +311,41 @@ describe("no-blink-marquee", () => {
 
   it("treats a div with aria-roledescription carousel as a carousel host", () => {
     const findings = findingsFor(
-      `const A = () => <div aria-roledescription="carousel">x</div>;`,
+      `const A = () => <div aria-roledescription="carousel" autoplay>x</div>;`,
     );
     expect(findings).toHaveLength(1);
     expect(findings[0]?.kind).toBe("warning");
+  });
+
+  it("does not warn on a manual carousel that never sets autoplay", () => {
+    expect(
+      findingsFor(
+        `const A = () => <section aria-roledescription="carousel" aria-label="Testimonials">x</section>;`,
+      ),
+    ).toHaveLength(0);
+    expect(findingsFor(`const A = () => <Carousel />;`)).toHaveLength(0);
+  });
+
+  it("ignores finite iteration counts, user-triggered variants and status spinners", () => {
+    expect(
+      findingsFor(
+        `const A = () => <span className="animate-ping [animation-iteration-count:5]" />;`,
+      ),
+    ).toHaveLength(0);
+    expect(
+      findingsFor(
+        `const A = () => <svg className="group-hover:animate-spin focus-visible:animate-pulse" />;`,
+      ),
+    ).toHaveLength(0);
+    expect(
+      findingsFor(
+        `const A = () => <output aria-live="polite"><svg className="animate-spin" /></output>;`,
+      ),
+    ).toHaveLength(0);
+    // Still flagged: the same class on load, outside a status region.
+    expect(
+      findingsFor(`const A = () => <svg className="animate-spin" />;`),
+    ).toHaveLength(1);
   });
 
   it("warns on explicit or dynamic autoplay", () => {

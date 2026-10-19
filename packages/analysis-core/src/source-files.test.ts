@@ -40,6 +40,23 @@ describe("listSourceFiles", () => {
     expect(files).toEqual([path.join(root, "src/App.tsx")]);
   });
 
+  it("skips test, spec and story files and __tests__ directories", () => {
+    const root = makeTempTree({
+      "src/App.tsx": "export const A = () => null;",
+      "src/App.test.tsx": "export {};",
+      "src/App.spec.ts": "export {};",
+      "src/App.stories.tsx": "export {};",
+      "src/__tests__/Helper.tsx": "export {};",
+      "src/contest.tsx": "export {};",
+    });
+    expect(listSourceFiles(root, "jsx")).toEqual([
+      path.join(root, "src/App.tsx"),
+      path.join(root, "src/contest.tsx"),
+    ]);
+    expect(shouldSnapshotFile("src/App.test.tsx")).toBe(false);
+    expect(shouldSnapshotFile("src/App.tsx")).toBe(true);
+  });
+
   it("lists script extensions when requested", () => {
     const root = makeTempTree({
       "a.tsx": "export {};",

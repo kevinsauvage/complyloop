@@ -1,7 +1,21 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const IGNORED_DIRECTORIES = ["node_modules", ".next", ".git", "dist", "out"];
+const IGNORED_DIRECTORIES = [
+  "node_modules",
+  ".next",
+  ".git",
+  "dist",
+  "out",
+  "__tests__",
+  "__mocks__",
+];
+
+/**
+ * Test, spec and story files are not shipped UI: scanning them reports
+ * fixtures (`<FormError id="x-error" />` in a unit test) as product defects.
+ */
+const NON_SHIPPED_FILE = /\.(?:test|spec|stories|story)\.[cm]?[jt]sx?$/;
 
 export type SourceExtensionSet = "jsx" | "script";
 
@@ -40,6 +54,7 @@ function matchesSourceSet(
   ) {
     return false;
   }
+  if (NON_SHIPPED_FILE.test(basename)) return false;
   const dot = basename.lastIndexOf(".");
   if (dot < 0) return false;
   // Case-sensitive like the old glob: `App.TSX` does not snapshot.

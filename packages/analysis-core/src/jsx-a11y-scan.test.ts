@@ -190,3 +190,52 @@ describe("jsx-a11y fix fallbacks", () => {
     expect(lintJsxA11y(parseSource("bad.tsx", "const x = {{{;"))).toEqual([]);
   });
 });
+
+describe("jsx-a11y recommended patterns", () => {
+  it("does not flag a native <dialog> with a backdrop-dismiss onClick", () => {
+    const findings = lintJsxA11y(
+      parseSource(
+        "dialog.tsx",
+        `export const D = () => <dialog aria-label="Menu" onClick={(e) => e.target === e.currentTarget && close()}>x</dialog>;`,
+      ),
+    );
+    expect(findings).toHaveLength(0);
+  });
+
+  it("still flags a static div with only an onClick", () => {
+    const findings = lintJsxA11y(
+      parseSource(
+        "div.tsx",
+        `export const D = () => <div onClick={go}>x</div>;`,
+      ),
+    );
+    expect(findings.length).toBeGreaterThan(0);
+  });
+
+  it("allows tabIndex on a named scrollable region", () => {
+    const findings = lintJsxA11y(
+      parseSource(
+        "region.tsx",
+        `export const R = () => <div role="region" aria-label="Cookies" tabIndex={0} className="overflow-x-auto"><table /></div>;`,
+      ),
+    );
+    expect(findings).toHaveLength(0);
+  });
+
+  it("still flags tabIndex on a non-scrollable or unnamed region", () => {
+    const unscrollable = lintJsxA11y(
+      parseSource(
+        "a.tsx",
+        `export const R = () => <div role="region" aria-label="Cookies" tabIndex={0}>x</div>;`,
+      ),
+    );
+    const unnamed = lintJsxA11y(
+      parseSource(
+        "b.tsx",
+        `export const R = () => <div role="region" tabIndex={0} className="overflow-auto">x</div>;`,
+      ),
+    );
+    expect(unscrollable.length).toBeGreaterThan(0);
+    expect(unnamed.length).toBeGreaterThan(0);
+  });
+});

@@ -49,13 +49,43 @@ const UNLABELED_EXEMPT_TYPES = new Set([
 
 const LABELED_TAGS = new Set(["input", "select", "textarea"]);
 
+/**
+ * Comparable key for an `id`/`htmlFor` value: the string itself, or for a
+ * template literal (`cookie-${name}`) its static parts with each substitution
+ * collapsed to `${}`, so `htmlFor={`cookie-${name}`}` pairs with
+ * `id={`cookie-${name}`}` even though the value is only known at runtime.
+ */
+function idKeyOf(attr: ts.JsxAttribute | undefined): string | undefined {
+  if (!attr) return undefined;
+  const literal = stringValueOf(attr);
+  if (literal) return literal;
+  const initializer = attr.initializer;
+  if (
+    !initializer ||
+    !ts.isJsxExpression(initializer) ||
+    !initializer.expression
+  ) {
+    return undefined;
+  }
+  const expression = initializer.expression;
+  if (ts.isNoSubstitutionTemplateLiteral(expression)) return expression.text;
+  if (ts.isTemplateExpression(expression)) {
+    return (
+      expression.head.text +
+      expression.templateSpans
+        .map((span) => `\${}${span.literal.text}`)
+        .join("")
+    );
+  }
+  return undefined;
+}
+
 function collectLabelTargets(sourceFile: ts.SourceFile): Set<string> {
   const targets = new Set<string>();
   visitJsxTags(sourceFile, (node) => {
     if (tagNameOf(node) !== "label") return;
-    const htmlFor = getAttribute(node, "htmlFor");
-    const value = htmlFor ? stringValueOf(htmlFor) : undefined;
-    if (value) targets.add(value);
+    const key = idKeyOf(getAttribute(node, "htmlFor"));
+    if (key) targets.add(key);
   });
   return targets;
 }
@@ -92,8 +122,7 @@ export const inputLabelCheck: AccessibilityCheck = {
         return;
       }
 
-      const id = getAttribute(node, "id");
-      const idValue = id ? stringValueOf(id) : undefined;
+      const idValue = idKeyOf(getAttribute(node, "id"));
       if (idValue && labelTargets.has(idValue)) return;
 
       findings.push({
@@ -163,6 +192,24 @@ function describedByIdsFromAttribute(attr: ts.JsxAttribute): Set<string> {
 }
 
 /**
+ * An error-looking id (`email-error`) only needs an association when it
+ * belongs to a control in this file (`email`). When the file declares controls
+ * and none matches, the message is about something that is not a control here
+ * — an invisible reCAPTCHA, a form-level summary — and has nothing to point
+ * at. Files without declared controls, template ids and ids with no
+ * recognizable base are kept, so they still reach a human.
+ */
+function errorTargetsAControl(
+  errorId: string,
+  controlKeys: ReadonlySet<string>,
+): boolean {
+  if (controlKeys.size === 0) return true;
+  const base = /^(.+?)[-_]?errors?$/i.exec(errorId)?.[1];
+  if (!base || base.includes("${}")) return true;
+  return controlKeys.has(base);
+}
+
+/**
  * Pragmatic heuristics:
  * - aria-invalid without aria-describedby (error not associated)
  * - id containing "error" that nothing references via aria-describedby
@@ -174,7 +221,15 @@ export const formErrorAssociationCheck: AccessibilityCheck = {
     const findings: RawFinding[] = [];
     const describedByTargets = new Set<string>();
 
+    const controlIds = new Set<string>();
     visitJsxTags(source.sourceFile, (node) => {
+      if (FORM_CONTROLS.has(tagNameOf(node).toLowerCase())) {
+        const controlId = idKeyOf(getAttribute(node, "id"));
+        if (controlId) controlIds.add(controlId);
+        const nameAttr = getAttribute(node, "name");
+        const controlName = nameAttr ? stringValueOf(nameAttr) : undefined;
+        if (controlName) controlIds.add(controlName);
+      }
       const describedBy = getAttribute(node, "aria-describedby");
       if (!describedBy) return;
       for (const id of describedByIdsFromAttribute(describedBy)) {
@@ -200,12 +255,12 @@ export const formErrorAssociationCheck: AccessibilityCheck = {
         }
       }
 
-      const idAttr = getAttribute(node, "id");
-      const idValue = idAttr ? stringValueOf(idAttr) : undefined;
+      const idValue = idKeyOf(getAttribute(node, "id"));
       if (
         idValue &&
         /error/i.test(idValue) &&
-        !describedByTargets.has(idValue)
+        !describedByTargets.has(idValue) &&
+        errorTargetsAControl(idValue, controlIds)
       ) {
         findings.push({
           checkId: "form-error-association",
@@ -909,9 +964,21 @@ export const accessibleAuthEnhancedCheck: AccessibilityCheck = {
 
 const CAPTCHA_HOSTS = new Set<string>(CAPTCHA_COMPONENT_HOSTS);
 
+/**
+ * reCAPTCHA v3 / invisible flows show users no challenge, so RGAA 1.5 has
+ * nothing to offer an alternative to. Recognized by the calls that run them.
+ */
+const INVISIBLE_CAPTCHA =
+  /\b(?:grecaptcha\.execute|executeRecaptcha|getRecaptchaToken|GoogleReCaptcha(?:Provider)?|useGoogleReCaptcha|recaptcha[-_ ]?v3)\b/i;
+
 function isCaptchaHost(node: JsxTagNode): boolean {
   const tag = tagNameOf(node);
   if (CAPTCHA_HOSTS.has(tag)) return true;
+  // An error/message element merely naming the captcha (`id="captcha-error"`)
+  // is not the challenge itself.
+  const id = getAttribute(node, "id");
+  if (id && /error|message|hint/i.test(idKeyOf(id) ?? "")) return false;
+  if (INVISIBLE_CAPTCHA.test(node.getSourceFile().text)) return false;
   return matchesMultilingual(CAPTCHA_TOKEN, attributeContextOf(node));
 }
 

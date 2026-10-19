@@ -136,6 +136,9 @@ export const statusLiveCheck: AccessibilityCheck = {
 const NEW_WINDOW_WARNING =
   /new (window|tab)|nouvelle fen[êe]tre|nouvel onglet/i;
 
+/** Identifier or component names that carry a shared new-tab warning. */
+const NEW_WINDOW_HINT_REFERENCE = /new[-_ ]?(?:tab|window)/i;
+
 function isEmptyDepsArray(node: ts.Expression | undefined): boolean {
   return (
     node !== undefined &&
@@ -242,6 +245,10 @@ export const newWindowOnloadCheck: AccessibilityCheck = {
       const element = jsxElementOf(node);
       const text = element ? textContentOf(element) : "";
       if (NEW_WINDOW_WARNING.test(text)) return;
+      // The warning is often supplied by a shared hint (`<NewTabHint />`,
+      // `{NEW_TAB_LABEL}` in an sr-only span or aria-label) whose text this
+      // file cannot see; a link that names one is not unwarned.
+      if (NEW_WINDOW_HINT_REFERENCE.test((element ?? node).getText())) return;
 
       findings.push({
         checkId: "new-window-onload",

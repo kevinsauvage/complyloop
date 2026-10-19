@@ -3,6 +3,7 @@ import { Linter } from "eslint";
 import jsxA11yPlugin from "eslint-plugin-jsx-a11y";
 
 import type { CheckId } from "./check-registry.ts";
+import { classNameTextOf } from "./checks/heuristic-utils.ts";
 import type { ProposedFix } from "./contract/finding-types.ts";
 import type { Severity } from "./contract/statuses.ts";
 import { checkIdForJsxA11yRule, jsxA11yEslintRules } from "./jsx-a11y-map.ts";
@@ -14,6 +15,7 @@ import {
   offsetAt,
   snippetForSpan,
   spanOf,
+  stringValueOf,
   tagNameOf,
   visitJsxTags,
 } from "./parse.ts";
@@ -135,6 +137,37 @@ function proposedFixForJsxA11y(
   }
 }
 
+const POINTER_ON_STATIC_RULES = new Set([
+  "no-noninteractive-element-interactions",
+  "click-events-have-key-events",
+  "no-static-element-interactions",
+]);
+
+/**
+ * Patterns jsx-a11y flags by element type that are the recommended
+ * implementation, not a defect:
+ * - a native `<dialog>` with an `onClick` backdrop-dismiss: Escape and focus
+ *   handling are built in, the click is only a pointer convenience;
+ * - `tabIndex={0}` on a named scrollable region (`overflow-x-auto` +
+ *   `role="region"` + a label): keyboard users need it to scroll the content
+ *   (axe `scrollable-region-focusable`).
+ */
+function isRecommendedPattern(ruleId: string, node: JsxTagNode): boolean {
+  const bare = ruleId.replace(/^jsx-a11y\//, "");
+  if (POINTER_ON_STATIC_RULES.has(bare)) return tagNameOf(node) === "dialog";
+  if (bare !== "no-noninteractive-tabindex") return false;
+  const role = getAttribute(node, "role");
+  const roleValue = role ? stringValueOf(role) : undefined;
+  if (roleValue !== "region" && roleValue !== "group") return false;
+  const named =
+    getAttribute(node, "aria-label") !== undefined ||
+    getAttribute(node, "aria-labelledby") !== undefined;
+  return (
+    named &&
+    /\boverflow(?:-[xy])?-(?:auto|scroll)\b/.test(classNameTextOf(node))
+  );
+}
+
 /**
  * Runs eslint-plugin-jsx-a11y on one JSX/TSX file and emits catalog findings.
  * Parse failures are skipped so the TypeScript AST pass can still report.
@@ -156,6 +189,9 @@ export function lintJsxA11y(parsed: ParsedSource): RawFinding[] {
       ? offsetAt(text, message.endLine, message.endColumn ?? 1)
       : start + 1;
     const snippet = snippetForSpan(text, start, end);
+
+    const tag = innermostTagAt(parsed, start);
+    if (tag && isRecommendedPattern(message.ruleId, tag)) continue;
 
     findings.push({
       checkId,
