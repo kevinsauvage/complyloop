@@ -229,6 +229,12 @@ only a total outage (zero pages) fails the sub-scan.
 (`markup-nesting`, `css-for-presentation`). Those stay `unable_to_verify`
 until `htmlValidateRan`. Duplicate ids stay on axe + AST.
 
+**Tracked branch:** `Project.github.trackedBranch` (optional, JSONB, no migration)
+overrides the default branch as the project's truth: `webhook.ts` accepts only
+pushes/deployments of `effectiveBranch()`, manual runs check it out
+(`refForProjectCheckout`), and fix PRs target it. Set via `updateTrackedBranchAction`
+(verified against GitHub first).
+
 **Commit tying:** a runtime audit is _tied_ only when it hit a deployment whose
 SHA equals the scanned checkout's `HEAD`. `deployment_status` (success; the deployment ref is the default branch or the
 commit SHA itself, as Vercel sends it; and the SHA must be the newest pushed

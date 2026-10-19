@@ -29,6 +29,7 @@ import {
   evidenceDisplay,
 } from "@/core/display";
 import { findingsListHref } from "@/core/filter-params";
+import { effectiveBranch } from "@/server/github/tracked-branch";
 import { displayControl } from "@/server/reporting/report";
 import { loadFindingDetailView } from "@/server/workspace/finding-detail-view";
 import { isProjectVisible } from "@/server/workspace/project-visibility";
@@ -147,7 +148,7 @@ export default async function FindingPage({
           canRemediate={caps.canRemediate}
           aiAvailable={aiAvailable}
           githubFullName={project.github?.fullName}
-          defaultBranch={project.github?.defaultBranch ?? "main"}
+          defaultBranch={effectiveBranch(project.github) ?? "main"}
         />
 
         <FindingNextStepPanel

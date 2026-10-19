@@ -268,6 +268,18 @@ export async function withRepoCheckout<T>(
  * against an ephemeral checkout of `github.fullName`. Under the e2e harness,
  * uses the local fixture.
  */
+/**
+ * Ref a project checkout uses: an explicit one (a webhook job's SHA) wins;
+ * otherwise the project's tracked branch; otherwise `undefined` (the
+ * repository's default branch).
+ */
+export function refForProjectCheckout(
+  project: Project,
+  ref?: string,
+): string | undefined {
+  return ref ?? project.github?.trackedBranch;
+}
+
 export async function withProjectCheckout<T>(
   project: Project,
   fn: (rootPath: string) => Promise<T>,
@@ -293,5 +305,10 @@ export async function withProjectCheckout<T>(
       "connect",
     );
   }
-  return withRepoCheckout({ fullName, accessToken, ref }, fn);
+  // No explicit ref (a manual run): the project's tracked branch when one is
+  // set, otherwise the repository default.
+  return withRepoCheckout(
+    { fullName, accessToken, ref: refForProjectCheckout(project, ref) },
+    fn,
+  );
 }

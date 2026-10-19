@@ -77,6 +77,7 @@ export async function findProjectsByGithubFullName(
     id: string;
     orgId: string;
     defaultBranch?: string;
+    trackedBranch?: string;
     installationId?: number;
   }>
 > {
@@ -88,6 +89,9 @@ export async function findProjectsByGithubFullName(
       githubDefaultBranch: sql<
         string | null
       >`${projects.payload}->'github'->>'defaultBranch'`,
+      githubTrackedBranch: sql<
+        string | null
+      >`${projects.payload}->'github'->>'trackedBranch'`,
       githubInstallationId: sql<
         string | null
       >`${projects.payload}->'github'->>'installationId'`,
@@ -105,6 +109,10 @@ export async function findProjectsByGithubFullName(
         orgId: row.orgId,
         ...(typeof row.githubDefaultBranch === "string"
           ? { defaultBranch: row.githubDefaultBranch }
+          : {}),
+        ...(typeof row.githubTrackedBranch === "string" &&
+        row.githubTrackedBranch.length > 0
+          ? { trackedBranch: row.githubTrackedBranch }
           : {}),
         ...(typeof row.githubInstallationId === "string" &&
         row.githubInstallationId.length > 0

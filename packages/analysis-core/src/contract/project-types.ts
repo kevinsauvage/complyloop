@@ -63,6 +63,13 @@ export interface OrgMembership {
 export interface ProjectGitHubMeta {
   fullName: string;
   defaultBranch: string;
+  /**
+   * Branch ComplyLoop treats as the project's truth: its pushes and deployments
+   * are authoritative and manual runs check it out. Absent → `defaultBranch`.
+   * Set it when the audited site is built from another branch (a `develop`
+   * preview) so the audited deployment can match the scanned commit.
+   */
+  trackedBranch?: string;
   private: boolean;
   /**
    * GitHub App installation that granted access to this repo.

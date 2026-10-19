@@ -216,6 +216,101 @@ describe("handleGitHubWebhookEvent", () => {
     });
   });
 
+  describe("tracked branch", () => {
+    const sha = "d".repeat(40);
+
+    it("accepts a push to the tracked branch when it differs from the default", async () => {
+      findProjectsByGithubFullName.mockResolvedValue([
+        {
+          id: "p1",
+          orgId: "org-1",
+          defaultBranch: "main",
+          trackedBranch: "develop",
+        },
+      ]);
+      enqueueAssessmentJob.mockResolvedValue({ id: "job-tracked" });
+
+      const result = await handleGitHubWebhookEvent(
+        "push",
+        {
+          repository: { full_name: "acme/app" },
+          ref: "refs/heads/develop",
+          after: sha,
+        },
+        "delivery-tracked",
+      );
+
+      expect(result.handled).toBe(true);
+      expect(enqueueAssessmentJob).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.objectContaining({ ref: sha, eventName: "push" }),
+        }),
+      );
+    });
+
+    it("ignores a push to the default branch once another branch is tracked", async () => {
+      findProjectsByGithubFullName.mockResolvedValue([
+        {
+          id: "p1",
+          orgId: "org-1",
+          defaultBranch: "main",
+          trackedBranch: "develop",
+        },
+      ]);
+
+      const result = await handleGitHubWebhookEvent(
+        "push",
+        {
+          repository: { full_name: "acme/app" },
+          ref: "refs/heads/main",
+          after: sha,
+        },
+        "delivery-main-ignored",
+      );
+
+      expect(result.handled).toBe(false);
+      expect(result.message).toMatch(/tracked branch \(develop\)/);
+      expect(enqueueAssessmentJob).not.toHaveBeenCalled();
+    });
+
+    it("ties a deployment of the tracked branch, not of the default branch", async () => {
+      findProjectsByGithubFullName.mockResolvedValue([
+        {
+          id: "p1",
+          orgId: "org-1",
+          defaultBranch: "main",
+          trackedBranch: "develop",
+        },
+      ]);
+      latestWebhookJobRef.mockResolvedValue(sha);
+      enqueueAssessmentJob.mockResolvedValue({ id: "job-deploy" });
+      const payload = (ref: string) => ({
+        repository: { full_name: "acme/app" },
+        deployment: { sha, ref },
+        deployment_status: {
+          state: "success",
+          environment_url: "https://develop-abc.vercel.app",
+        },
+      });
+
+      const tracked = await handleGitHubWebhookEvent(
+        "deployment_status",
+        payload("develop"),
+        "delivery-dep-develop",
+      );
+      expect(tracked.handled).toBe(true);
+
+      enqueueAssessmentJob.mockClear();
+      const other = await handleGitHubWebhookEvent(
+        "deployment_status",
+        payload("main"),
+        "delivery-dep-main",
+      );
+      expect(other.handled).toBe(false);
+      expect(enqueueAssessmentJob).not.toHaveBeenCalled();
+    });
+  });
+
   it("ignores push events to a non-default branch", async () => {
     findProjectsByGithubFullName.mockResolvedValue([
       {

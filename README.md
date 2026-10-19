@@ -54,7 +54,8 @@ Repos are **shallow-cloned per job** into a temp directory and deleted when done
 **Continuous monitoring**
 
 - `push` webhooks to the default branch trigger re-assessments (PR feedback arrives via the merge-push scan).
-- `deployment_status` (success, default branch) re-runs the assessment with the runtime audit pointed at that deployment. Only an audit of a deployment serving the scanned commit can pass runtime-only requirements or replace source findings; the static Preview URL is a manual fallback that is reported as "not tied to a commit".
+- **Tracked branch** (Settings): by default the repository's default branch is the project's truth. Set another branch (for example `develop`, when the Preview URL is a `develop` preview) and its pushes and deployments become authoritative, manual runs check it out, and the audited deployment can match the scanned commit.
+- `deployment_status` (success, tracked branch) re-runs the assessment with the runtime audit pointed at that deployment. Only an audit of a deployment serving the scanned commit can pass runtime-only requirements or replace source findings; the static Preview URL is a manual fallback that is reported as "not tied to a commit".
 - Repo access uses short-lived App installation tokens — assessments keep working with no user signed in.
 
 ---

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { RuntimeAuditForm } from "@/components/forms/runtime-audit-form";
+import { TrackedBranchForm } from "@/components/forms/tracked-branch-form";
 import { CopyButton } from "@/components/primitives/copy-button";
 import {
   MetaTile,
@@ -219,6 +220,30 @@ export default async function SettingsPage() {
             </CardContent>
           </Card>
         </PageSection>
+
+        {project.github ? (
+          <PageSection
+            id="tracked-branch"
+            title="Tracked branch"
+            description="The branch scanned and audited for this project. Defaults to the repository's default branch."
+          >
+            <Card className="shadow-none">
+              <CardContent className="space-y-3 pt-6 text-sm">
+                {caps.canConnect ? (
+                  <TrackedBranchForm
+                    trackedBranch={project.github.trackedBranch}
+                    defaultBranch={project.github.defaultBranch}
+                  />
+                ) : (
+                  <PermissionNotice>
+                    Changing the tracked branch requires an admin or owner role
+                    in the active organization.
+                  </PermissionNotice>
+                )}
+              </CardContent>
+            </Card>
+          </PageSection>
+        ) : null}
       </PageContent>
     </>
   );

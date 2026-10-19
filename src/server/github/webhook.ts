@@ -121,7 +121,7 @@ async function persistDefaultBranchIfChanged(
 const SHA_PATTERN = /^[0-9a-f]{40}$/i;
 
 /**
- * Records the newest default-branch deployment on the project so manual runs
+ * Records the newest tracked-branch deployment on the project so manual runs
  * can audit it. Compare-and-set on the SHA: the delivery that already passed
  * the "newest pushed commit" guard wins, and a redelivery is a no-op.
  */
@@ -145,24 +145,24 @@ function checkoutRef(event: HandledWebhookEvent): string | undefined {
 }
 
 /**
- * A successful deployment of the default branch, with the origin it is served
+ * A successful deployment of the tracked branch, with the origin it is served
  * from. Hosts differ on the deployment `ref`: some send the branch name (or a
  * full ref), Vercel sends the commit SHA itself. A SHA ref proves nothing
  * about the branch, so the caller must still match the SHA against the newest
- * default-branch push (`latestWebhookJobRef`) — preview deployments of other
+ * tracked-branch push (`latestWebhookJobRef`) — preview deployments of other
  * commits are not authoritative and are ignored there. The URL is
  * `environment_url` or, failing that, `target_url`.
  */
-function defaultBranchDeploymentOrigin(
+function trackedBranchDeploymentOrigin(
   payload: DeploymentStatusPayload,
-  defaultBranch: string | undefined,
+  trackedBranch: string | undefined,
 ): string | undefined {
   if (payload.deployment_status?.state !== "success") return undefined;
   const ref = payload.deployment?.ref;
   const sha = payload.deployment?.sha;
   const onDefaultBranch =
-    defaultBranch !== undefined &&
-    (ref === defaultBranch || ref === `refs/heads/${defaultBranch}`);
+    trackedBranch !== undefined &&
+    (ref === trackedBranch || ref === `refs/heads/${trackedBranch}`);
   const refIsCommit =
     typeof ref === "string" &&
     typeof sha === "string" &&
@@ -183,18 +183,19 @@ function defaultBranchDeploymentOrigin(
 }
 
 /**
- * Only pushes to the project's default branch are authoritative for the
- * project's compliance state. Scans of feature branches must not resolve
- * findings or auto-verify remediations, so we do not enqueue them here.
+ * Only pushes to the project's tracked branch (its default branch unless one
+ * is set) are authoritative for the project's compliance state. Scans of other
+ * branches must not resolve findings or auto-verify remediations, so we do not
+ * enqueue them here.
  */
-function isDefaultBranchPush(
+function isTrackedBranchPush(
   payload: PushPayload,
-  defaultBranch: string | undefined,
+  trackedBranch: string | undefined,
 ): boolean {
   return (
     typeof payload.ref === "string" &&
-    typeof defaultBranch === "string" &&
-    payload.ref === `refs/heads/${defaultBranch}`
+    typeof trackedBranch === "string" &&
+    payload.ref === `refs/heads/${trackedBranch}`
   );
 }
 
@@ -275,15 +276,19 @@ export async function handleGitHubWebhookEvent(
     if (freshBranch) liveDefaultBranch = freshBranch;
   }
 
+  // The project's truth is its tracked branch when one is set (a `develop`
+  // preview), otherwise the live default branch.
+  const trackedBranch = project.trackedBranch ?? liveDefaultBranch;
+
   if (
     parsed.event.kind === "push" &&
-    !isDefaultBranchPush(parsed.event.payload, liveDefaultBranch)
+    !isTrackedBranchPush(parsed.event.payload, trackedBranch)
   ) {
-    // Feature-branch pushes are not authoritative; scanning them could resolve
+    // Other branches are not authoritative; scanning them could resolve
     // findings / auto-verify remediations off the project's real state.
     return {
       handled: false,
-      message: `Ignored push to a non-default branch for ${fullName}.`,
+      message: `Ignored push to a branch other than the tracked branch (${trackedBranch ?? "unknown"}) for ${fullName}.`,
     };
   }
 
@@ -298,14 +303,14 @@ export async function handleGitHubWebhookEvent(
 
   let runtimeTarget: { url: string; sha: string } | undefined;
   if (parsed.event.kind === "deployment_status") {
-    const origin = defaultBranchDeploymentOrigin(
+    const origin = trackedBranchDeploymentOrigin(
       parsed.event.payload,
-      liveDefaultBranch,
+      trackedBranch,
     );
     if (!origin) {
       return {
         handled: false,
-        message: `Ignored deployment status for ${fullName}: not a successful default-branch https deployment.`,
+        message: `Ignored deployment status for ${fullName}: not a successful tracked-branch https deployment.`,
       };
     }
     // The push webhook always precedes its deployment, so the newest webhook

@@ -30,6 +30,7 @@ import {
   parseOwnerRepo,
 } from "./github";
 import { resolveProjectGitHubToken } from "./github-access";
+import { effectiveBranch } from "./tracked-branch";
 
 /**
  * Commit author for fix branches. Pure-JS git has no ambient
@@ -244,7 +245,7 @@ export async function preparePullRequest(
           force: true,
           headers,
         });
-        const base = project.github?.defaultBranch || "main";
+        const base = effectiveBranch(project.github) || "main";
         prUrl =
           (await openPullRequestUrl({
             fullName,

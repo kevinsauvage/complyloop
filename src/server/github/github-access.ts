@@ -59,3 +59,38 @@ export async function fetchGitHubRepo(
     );
   }
 }
+
+/**
+ * Fails with a user-facing message unless `branch` exists in the repository.
+ * Used when a project is pointed at a tracked branch: a typo would otherwise
+ * make every webhook for the project silently ignored.
+ */
+export async function assertBranchExists(
+  accessToken: string,
+  fullName: string,
+  branch: string,
+): Promise<void> {
+  const { owner, repo } = parseOwnerRepo(fullName);
+  try {
+    await createOctokit(accessToken).rest.repos.getBranch({
+      owner,
+      repo,
+      branch,
+    });
+  } catch (error) {
+    const status =
+      typeof error === "object" && error !== null && "status" in error
+        ? (error as { status?: number }).status
+        : undefined;
+    if (status === 404) {
+      throw new PublicError(
+        `Branch "${branch}" does not exist in ${fullName}.`,
+        "ref_not_found",
+      );
+    }
+    throw new PublicError(
+      octokitErrorMessage(error, "Could not verify the branch on GitHub."),
+      "connect",
+    );
+  }
+}
