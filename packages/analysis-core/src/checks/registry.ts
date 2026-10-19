@@ -131,8 +131,12 @@ export const allChecks: AccessibilityCheck[] = [
  * changed) so `checkRegistrySignature()` invalidates reused scans and the next
  * run re-derives. 2026.09.24.1: retired `both-colors`, captcha-alternative
  * downgraded to a warning, status-live toaster heuristic removed.
+ * 2026.10.19.1: false-positive fixes (test files skipped, heading `as`,
+ * custom-component list parents, template-literal label ids, invisible
+ * reCAPTCHA, shared new-tab hints, carousel/animation heuristics, jsx-a11y
+ * dialog/scrollable-region patterns).
  */
-export const ANALYSIS_ENGINE_VERSION = "2026.09.24.1";
+export const ANALYSIS_ENGINE_VERSION = "2026.10.19.1";
 
 /**
  * Stable signature of the shipped AST engine: behavior version + check id set.

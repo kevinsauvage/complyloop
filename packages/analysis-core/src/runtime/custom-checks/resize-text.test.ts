@@ -75,6 +75,49 @@ describe("resizeTextViolation", () => {
   );
 
   it.skipIf(!chromiumExecutableAvailable())(
+    "does not count a disclosed excerpt against the card around it",
+    async () => {
+      await withProbePage(
+        `
+        <!doctype html><html lang="en"><body>
+          <article style="overflow:hidden;width:320px;border:1px solid #333">
+            <div>
+              <blockquote style="display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;margin:0">
+                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua, ut enim ad minim veniam quis nostrud.
+              </blockquote>
+              <button type="button" aria-expanded="false">Read more</button>
+            </div>
+          </article>
+        </body></html>
+      `,
+        async (page) => {
+          expect(await resizeTextViolation(page)).toBeNull();
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "flags a card heading that overflows its card at 200%",
+    async () => {
+      await withProbePage(
+        `
+        <!doctype html><html lang="en"><body>
+          <article style="overflow:hidden;width:200px;border:1px solid #333">
+            <h3 style="margin:0;font-size:1rem">Collaborativegrowthwithoutbreaks</h3>
+          </article>
+        </body></html>
+      `,
+        async (page) => {
+          expect((await resizeTextViolation(page))?.id).toBe("resize-text");
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
     "flags a line-clamped excerpt with no way to read the rest",
     async () => {
       await withProbePage(

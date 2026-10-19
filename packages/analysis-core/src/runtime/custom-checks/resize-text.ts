@@ -30,6 +30,18 @@ export async function resizeTextViolation(
           const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
           for (let node = walker.nextNode(); node; node = walker.nextNode()) {
             if (!(node.textContent ?? "").trim()) continue;
+            // Text inside a disclosed excerpt is clipped on purpose: it must
+            // not count against the card that contains it either.
+            let ancestor = node.parentElement;
+            let inExcerpt = false;
+            while (ancestor && ancestor !== el) {
+              if (isDisclosedExcerpt(ancestor)) {
+                inExcerpt = true;
+                break;
+              }
+              ancestor = ancestor.parentElement;
+            }
+            if (inExcerpt) continue;
             const range = document.createRange();
             range.selectNodeContents(node);
             const rect = range.getBoundingClientRect();
