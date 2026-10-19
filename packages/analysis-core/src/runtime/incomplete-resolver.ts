@@ -90,7 +90,28 @@ async function prepareElement(
         const range = document.createRange();
         range.selectNodeContents(node);
         const box = range.getBoundingClientRect();
-        if (box.width <= 0 || box.height <= 0) continue;
+        // Visually-hidden (sr-only) text is clipped by a ~1px box placed elsewhere,
+        // but a range reports the unclipped glyphs: judge the clipping ancestor,
+        // since that text is not where the visible glyphs are.
+        let hidden = false;
+        for (
+          let ancestor = node.parentElement;
+          ancestor && ancestor !== el.parentElement;
+          ancestor = ancestor.parentElement
+        ) {
+          const box2 = ancestor.getBoundingClientRect();
+          const style2 = getComputedStyle(ancestor);
+          if (
+            (box2.width <= 2 || box2.height <= 2) &&
+            (style2.overflow !== "visible" ||
+              style2.clip !== "auto" ||
+              style2.clipPath !== "none")
+          ) {
+            hidden = true;
+            break;
+          }
+        }
+        if (hidden) continue;
         textBox = textBox
           ? {
               l: Math.min(textBox.l, box.left),
@@ -118,6 +139,19 @@ async function prepareElement(
         };
       }
 
+      // Hiding an ancestor's text (the previous node) starts a color transition on
+      // its descendants (`transition-colors`); settle them so the color read
+      // below is the resting one, not a frame of the fade back from transparent.
+      for (const animation of document.getAnimations()) {
+        if (animation instanceof CSSTransition) {
+          try {
+            animation.finish();
+          } catch {
+            // Idle or zero-length: nothing to settle.
+          }
+        }
+      }
+
       // Read the text's own color before hiding it: computed style is live.
       const color = parseColor(style.color);
       const fontSize = Number.parseFloat(style.fontSize);
@@ -128,7 +162,7 @@ async function prepareElement(
         const sheet = document.createElement("style");
         sheet.id = "cl-probe-style";
         sheet.textContent =
-          "[data-cl-probe], [data-cl-probe] * { color: transparent !important; -webkit-text-fill-color: transparent !important; text-shadow: none !important; }";
+          "[data-cl-probe], [data-cl-probe] * { color: transparent !important; -webkit-text-fill-color: transparent !important; text-decoration-color: transparent !important; text-shadow: none !important; }";
         document.head.appendChild(sheet);
       }
       el.setAttribute("data-cl-probe", "1");
@@ -259,7 +293,14 @@ async function verdictForContrastNode(
     return "unsure";
   }
   // Fully transparent text (gradient clip text) has no color to measure.
-  if (prepared.color.alpha === 0) return "unsure";
+  if (prepared.color.alpha === 0) {
+    if (debug) {
+      console.info(
+        `[resolver] ${selector.slice(0, 60)}: not measurable (transparent text color)`,
+      );
+    }
+    return "unsure";
+  }
   try {
     const png = await page.screenshot({
       clip: prepared.rect,
@@ -302,6 +343,11 @@ async function resolveContrast(
     for (const node of rule.nodes) {
       const selector = selectorOf(node.target);
       if (!selector || checked >= MAX_CONTRAST_NODES || Date.now() > deadline) {
+        if (process.env.COMPLYLOOP_DEBUG_RESOLVER) {
+          console.info(
+            `[resolver] kept unmeasured: ${JSON.stringify(node.target).slice(0, 120)} (${selector ? "budget" : "non-document target"})`,
+          );
+        }
         keep.push(node);
         continue;
       }

@@ -67,6 +67,27 @@ describe("resolveIncompleteResults: color-contrast", () => {
   );
 
   it.skipIf(!chromiumExecutableAvailable())(
+    "does not stretch the sample over visually-hidden text inside the element",
+    async () => {
+      await withProbePage(
+        `<!doctype html><body style="margin:0;background:#0b1020;color:#cfd2dc;font:16px sans-serif">
+          <p style="margin:40px">Neighbour text in the same colour as the link, then
+            <a id="l" href="#x" style="color:#cfd2dc;text-decoration:underline">Policy<span style="position:absolute;left:0;top:0;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">(opens in a new tab)</span></a>.
+          </p></body>`,
+        async (page) => {
+          const result = await resolveIncompleteResults(page, [
+            incompleteFor("color-contrast", "#l"),
+          ]);
+          // Only the link's own glyph area is sampled: dark page, light text.
+          expect(result.incomplete).toEqual([]);
+          expect(result.confirmed).toEqual([]);
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
     "ignores the backdrop that shows in a pill's rounded corners",
     async () => {
       await withProbePage(
