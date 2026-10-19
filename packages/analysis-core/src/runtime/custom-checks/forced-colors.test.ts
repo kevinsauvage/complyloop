@@ -41,6 +41,47 @@ describe("forcedColorsViolation", () => {
   );
 
   it.skipIf(!chromiumExecutableAvailable())(
+    "passes a hit target whose inner dot keeps a forced-colors border",
+    async () => {
+      await withProbePage(
+        `
+        <!doctype html><html lang="en"><head><style>
+          button { width: 44px; height: 44px; border: 0; background: transparent; }
+          .dot { display: block; margin: auto; width: 8px; height: 8px; border-radius: 9999px; background: #52525b; }
+          @media (forced-colors: active) { .dot { border: 1px solid ButtonText; } }
+        </style></head><body>
+          <button aria-label="Go to slide 1"><span class="dot" aria-hidden="true"></span></button>
+        </body></html>
+      `,
+        async (page) => {
+          expect(await forcedColorsViolation(page)).toBeNull();
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "still flags a hit target whose inner dot is background-only",
+    async () => {
+      await withProbePage(
+        `
+        <!doctype html><html lang="en"><head><style>
+          button { width: 44px; height: 44px; border: 0; background: transparent; }
+          .dot { display: block; margin: auto; width: 8px; height: 8px; border-radius: 9999px; background: #52525b; }
+        </style></head><body>
+          <button aria-label="Go to slide 1"><span class="dot" aria-hidden="true"></span></button>
+        </body></html>
+      `,
+        async (page) => {
+          expect((await forcedColorsViolation(page))?.id).toBe("forced-colors");
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
     "passes controls with a real border",
     async () => {
       await withProbePage(

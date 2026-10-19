@@ -79,6 +79,29 @@ export async function forcedColorsViolation(
             });
           }
 
+          /**
+           * A control whose visible shape is a child (a pagination dot inside
+           * a 44px hit target) is visible when that child keeps a border or
+           * outline under forced colors, even though the control has none.
+           */
+          function hasVisibleDescendantBoundary(target: Element): boolean {
+            return Array.from(target.querySelectorAll("*")).some((child) => {
+              if (!(child instanceof HTMLElement)) return false;
+              const rect = child.getBoundingClientRect();
+              if (rect.width < 4 || rect.height < 4) return false;
+              const childStyle = getComputedStyle(child);
+              if (
+                childStyle.display === "none" ||
+                childStyle.visibility === "hidden"
+              ) {
+                return false;
+              }
+              return (
+                hasVisibleBorder(childStyle) || hasVisibleOutline(childStyle)
+              );
+            });
+          }
+
           const found: CustomViolationNode[] = [];
           const seen = new Set<string>();
 
@@ -95,6 +118,7 @@ export async function forcedColorsViolation(
             const hasVisibleText = Boolean((el.textContent ?? "").trim());
             if (hasVisibleText) continue;
             if (hasVisibleGraphics(el)) continue;
+            if (hasVisibleDescendantBoundary(el)) continue;
 
             const bg = parseColor(style.backgroundColor);
             if (!bg || bg.alpha !== 0) continue;
