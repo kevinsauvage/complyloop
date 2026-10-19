@@ -379,6 +379,19 @@ async function collectFocusWalkViolations(page: Page): Promise<{
         }
         if (!el.matches(":focus-visible")) return none;
 
+        // A focus ring that fades in (`transition-all duration-200`) has not
+        // started when the key press returns: settle the element's own
+        // transitions so the focused style is what a user sees, not frame zero.
+        for (const animation of el.getAnimations()) {
+          if (animation instanceof CSSTransition) {
+            try {
+              animation.finish();
+            } catch {
+              // Not finishable (zero-length or already idle): nothing to settle.
+            }
+          }
+        }
+
         let visibleHit: FocusStopHit | null = null;
         const focusables = Array.from(document.querySelectorAll(selector));
         const rest = unfocused[focusables.indexOf(el)];

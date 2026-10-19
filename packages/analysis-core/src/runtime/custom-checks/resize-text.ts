@@ -83,12 +83,12 @@ export async function resizeTextViolation(
             if (el.closest("table, [role='grid'], [role='treegrid']")) {
               return false;
             }
-            // Decorative (aria-hidden) content is not read text, and a
-            // carousel clips its off-screen slides by design: each is one
-            // control activation away.
+            // Decorative (aria-hidden) and closed (inert/hidden) disclosure
+            // panels are not read text, and a carousel clips its off-screen
+            // slides by design: each is one control activation away.
             if (
               el.closest(
-                "[aria-hidden='true'], [aria-roledescription], [class*='carousel' i], [class*='swiper' i], [class*='embla' i]",
+                "[aria-hidden='true'], [inert], [hidden], [aria-roledescription], [class*='carousel' i], [class*='swiper' i], [class*='embla' i]",
               )
             ) {
               return false;

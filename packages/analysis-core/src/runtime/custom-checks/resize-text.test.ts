@@ -77,6 +77,25 @@ describe("resizeTextViolation", () => {
   );
 
   it.skipIf(!chromiumExecutableAvailable())(
+    "ignores the text of a collapsed (inert) disclosure panel",
+    async () => {
+      await withProbePage(
+        `
+        <!doctype html><html lang="en"><body>
+          <div role="group" inert style="display:grid;grid-template-rows:0fr;width:300px">
+            <div style="overflow:hidden"><p style="margin:0;padding:24px">Answer text that only shows once the question is opened.</p></div>
+          </div>
+        </body></html>
+      `,
+        async (page) => {
+          expect(await resizeTextViolation(page)).toBeNull();
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
     "passes a line-clamped excerpt that has a disclosure control",
     async () => {
       await withProbePage(

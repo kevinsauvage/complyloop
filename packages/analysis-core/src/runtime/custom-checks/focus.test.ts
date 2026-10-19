@@ -46,6 +46,29 @@ describe("focusCustomViolations", () => {
   );
 
   it.skipIf(!chromiumExecutableAvailable())(
+    "focus-visible accepts a ring that fades in over a transition",
+    async () => {
+      await withProbePage(
+        `
+        <!doctype html><html lang="en"><head><style>
+          button { outline: none; transition: all 800ms ease-out; box-shadow: 0 0 0 0 transparent; }
+          button:focus-visible { box-shadow: 0 0 0 3px #1d4ed8; }
+        </style></head><body>
+          <button id="go">Go</button>
+        </body></html>
+      `,
+        async (page) => {
+          const violations = await focusCustomViolations(page);
+          expect(
+            violations.find((v) => v.id === "focus-visible"),
+          ).toBeUndefined();
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
     "focus-visible accepts a border change as the indicator",
     async () => {
       await withProbePage(

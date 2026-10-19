@@ -44,10 +44,11 @@ function selectorOf(target: ReadonlyArray<unknown>): string | null {
     : null;
 }
 
+/** `why` names the reason an element could not be measured (debug + tests). */
 async function prepareElement(
   page: Page,
   selector: string,
-): Promise<PreparedElement | null> {
+): Promise<PreparedElement | { why: string }> {
   return page.evaluate(
     ({ sel, parseColorSrc }) => {
       const parseColor = new Function(
@@ -61,9 +62,9 @@ async function prepareElement(
       try {
         el = document.querySelector(sel);
       } catch {
-        return null;
+        return { why: "bad-selector" };
       }
-      if (!(el instanceof HTMLElement)) return null;
+      if (!(el instanceof HTMLElement)) return { why: "not-found" };
       // `instant`, not the default `auto`: a page with CSS `scroll-behavior: smooth`
       // would still be animating when the rect is read below.
       el.scrollIntoView({
@@ -104,7 +105,11 @@ async function prepareElement(
       const top = Math.max(0, rect.top);
       const right = Math.min(window.innerWidth, rect.right);
       const bottom = Math.min(window.innerHeight, rect.bottom);
-      if (right - left < 2 || bottom - top < 2) return null;
+      if (right - left < 2 || bottom - top < 2) {
+        return {
+          why: `off-screen rect=${Math.round(rect.left)},${Math.round(rect.top)} ${Math.round(rect.width)}x${Math.round(rect.height)} vp=${window.innerWidth}x${window.innerHeight}`,
+        };
+      }
 
       // Read the text's own color before hiding it: computed style is live.
       const color = parseColor(style.color);
@@ -222,12 +227,28 @@ async function verdictForContrastNode(
   selector: string,
 ): Promise<Verdict> {
   const debug = Boolean(process.env.COMPLYLOOP_DEBUG_RESOLVER);
-  const prepared = await prepareElement(page, selector);
-  if (!prepared?.color) {
-    if (debug)
+  let result = await prepareElement(page, selector);
+  // Lazily mounted sections (dynamic imports, reveal-on-scroll) may not be in
+  // the DOM yet at the instant they are asked for: one short retry.
+  if ("why" in result && result.why === "not-found") {
+    await page.waitForTimeout(400);
+    result = await prepareElement(page, selector);
+  }
+  if ("why" in result) {
+    if (debug) {
       console.info(
-        `[resolver] ${selector.slice(0, 60)}: not measurable (no rect/color)`,
+        `[resolver] ${selector.slice(0, 60)}: not measurable (${result.why})`,
       );
+    }
+    return "unsure";
+  }
+  const prepared = result;
+  if (!prepared.color) {
+    if (debug) {
+      console.info(
+        `[resolver] ${selector.slice(0, 60)}: not measurable (unparsed color)`,
+      );
+    }
     return "unsure";
   }
   // Fully transparent text (gradient clip text) has no color to measure.
