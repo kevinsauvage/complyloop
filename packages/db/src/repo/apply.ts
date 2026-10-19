@@ -49,8 +49,13 @@ export interface AssessmentApplyPayload extends ProjectWritePayload {
 }
 
 export interface ApplyAssessmentPayloadOptions {
-  /** Project slice captured when the assessment job loaded the project. */
-  loadedSlice: ProjectSlice;
+  /**
+   * Project rows loaded inside the apply transaction, under the project write
+   * lock, and reconciled against. Used only to skip unchanged writes: the
+   * slice is current by construction, so there is no stale-write guard (that
+   * belongs to interactive writes, which load their slice outside the lock).
+   */
+  baseline: ProjectSlice;
 }
 
 export interface PersistProjectRowsOptions {
@@ -94,8 +99,10 @@ export function projectScopedSlice(
 }
 
 /**
- * Captures project-scoped rows (and their `updatedAt` values) when an
- * assessment job loads the project, for stale-write guards on apply.
+ * Captures project-scoped rows (and their `updatedAt` values) for the
+ * interactive-write stale guard: `persistProjectRows` compares the payload
+ * against this slice and skips rows whose DB copy is newer. Assessment apply
+ * does not use it — it reconciles against rows loaded under the project lock.
  */
 export function snapshotProjectSlice(
   requirements: ReadonlyArray<Requirement>,
@@ -207,13 +214,44 @@ export async function persistProjectRows(
   }
 }
 
+/**
+ * Assessment apply: the rows were reconciled against `baseline` inside the
+ * apply transaction (under the project write lock), so they are current by
+ * construction. Only the no-op diff runs — no stale-write guard, whose
+ * "skip a newer row" behavior would silently drop a write while its evidence
+ * still landed.
+ */
+async function persistReconciledProjectRows(
+  tx: DrizzleDb,
+  payload: ProjectWritePayload,
+  baseline: ProjectSlice,
+): Promise<void> {
+  await upsertFindings(
+    tx,
+    changedSinceLoaded(baseline.findings, payload.findings),
+  );
+  await upsertRemediations(
+    tx,
+    changedSinceLoaded(baseline.remediations, payload.remediations),
+  );
+  await upsertRequirements(
+    tx,
+    changedSinceLoaded(baseline.requirements, payload.requirements),
+  );
+  await upsertAlerts(tx, payload.alerts ?? []);
+  await insertEvidenceRecords(tx, payload.evidence ?? []);
+  if (payload.project) {
+    await updateProject(tx, payload.project);
+  }
+}
+
 export async function applyAssessmentPayload(
   tx: DrizzleDb,
   payload: AssessmentApplyPayload,
   options: ApplyAssessmentPayloadOptions,
 ): Promise<void> {
   await insertAssessment(tx, payload.assessment, payload.snapshot);
-  await persistProjectRows(
+  await persistReconciledProjectRows(
     tx,
     {
       requirements: payload.requirements,
@@ -222,7 +260,7 @@ export async function applyAssessmentPayload(
       alerts: payload.alerts,
       evidence: payload.evidence,
     },
-    { loadedSlice: options.loadedSlice },
+    options.baseline,
   );
 }
 

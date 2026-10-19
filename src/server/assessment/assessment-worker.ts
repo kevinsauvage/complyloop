@@ -4,7 +4,7 @@ import type { AssessmentJobStage } from "@/core/assessment/assessment-jobs";
 
 import { reportError, reportEvent, reportWarning } from "../observability";
 import { loadProjectDb } from "../workspace/db";
-import { runAssessment } from "./assessment";
+import { scanAssessment } from "./assessment";
 import {
   ASSESSMENT_JOB_HEARTBEAT_MS,
   type AssessmentJob,
@@ -18,7 +18,6 @@ import {
 import {
   applyAuthoritativeAssessment,
   recordAssessmentFailureEvidence,
-  snapshotPipelineSlice,
   toPipelineInput,
 } from "./assessment-pipeline";
 import { withProjectCheckout } from "./repo-checkout";
@@ -47,7 +46,6 @@ async function runClaimedAssessmentJob(
   const db = await loadProjectDb(job.projectId);
   const pipelineInput = toPipelineInput(db, job.projectId);
   const { project } = pipelineInput;
-  const loadedSlice = snapshotPipelineSlice(pipelineInput);
 
   // Only the default branch (or an explicit manual assessment) is
   // authoritative for the project's compliance state. Anything else runs the
@@ -120,7 +118,10 @@ async function runClaimedAssessmentJob(
       async (rootPath) => {
         checkoutMs = Date.now() - checkoutStart;
         const scanStart = Date.now();
-        const run = await runAssessment(pipelineInput, {
+        // Scan only: the reconcile runs inside the apply transaction, on rows
+        // loaded there under the project lock. This is what keeps the audit
+        // trail consistent when a user edits a finding during the scan.
+        const scan = await scanAssessment(pipelineInput, {
           rootPath,
           authoritative,
           onStage: reportStage,
@@ -137,8 +138,8 @@ async function runClaimedAssessmentJob(
             await applyAuthoritativeAssessment({
               project,
               job,
-              run,
-              loadedSlice,
+              scan,
+              rootPath,
               collectAlerts: job.trigger === "webhook",
               trigger,
             });

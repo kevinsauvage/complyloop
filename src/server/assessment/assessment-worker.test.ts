@@ -15,7 +15,9 @@ const failAssessmentJob = vi.hoisted(() => vi.fn());
 const refreshAssessmentJobLease = vi.hoisted(() => vi.fn());
 const updateAssessmentJobStage = vi.hoisted(() => vi.fn());
 const loadProjectDb = vi.hoisted(() => vi.fn());
-const runAssessment = vi.hoisted(() => vi.fn());
+const scanAssessment = vi.hoisted(() => vi.fn());
+const reconcileAssessment = vi.hoisted(() => vi.fn());
+const loadProjectRuntime = vi.hoisted(() => vi.fn());
 const withProjectCheckout = vi.hoisted(() => vi.fn());
 const reportError = vi.hoisted(() => vi.fn());
 const reportWarning = vi.hoisted(() => vi.fn());
@@ -90,8 +92,19 @@ vi.mock("../workspace/db", async () => {
 });
 
 vi.mock("./assessment", () => ({
-  runAssessment: (...args: unknown[]) => runAssessment(...args),
+  scanAssessment: (...args: unknown[]) => scanAssessment(...args),
+  reconcileAssessment: (...args: unknown[]) => reconcileAssessment(...args),
 }));
+
+vi.mock("@complyloop/db/workspace-load", async () => {
+  const actual = await vi.importActual<
+    typeof import("@complyloop/db/workspace-load")
+  >("@complyloop/db/workspace-load");
+  return {
+    ...actual,
+    loadProjectRuntime: (...args: unknown[]) => loadProjectRuntime(...args),
+  };
+});
 
 vi.mock("./repo-checkout", () => ({
   withProjectCheckout: (
@@ -180,6 +193,19 @@ beforeEach(() => {
   );
   acquireNamedPostgresAdvisoryLock.mockResolvedValue(undefined);
   listAlertsForProject.mockResolvedValue([]);
+  // Defaults for the apply path: a scan ran, fresh rows loaded, and reconcile
+  // produced a run. Tests override these when they assert on the payload.
+  scanAssessment.mockResolvedValue(undefined);
+  reconcileAssessment.mockResolvedValue(
+    assessmentRun({ id: "a1", projectId: "p1", snapshot: { fileHashes: {} } }),
+  );
+  loadProjectRuntime.mockResolvedValue({
+    requirements: [],
+    assessments: [],
+    findings: [],
+    remediations: [],
+    alerts: [],
+  });
 });
 
 /** Minimal tx stub: the apply re-checks the job status inside the transaction. */
@@ -212,7 +238,7 @@ describe("settleRunningAssessmentJob", () => {
     });
     expect(runRemediationVerifyJob).toHaveBeenCalledWith("f1");
     // The verify path must not run the assessment pipeline.
-    expect(runAssessment).not.toHaveBeenCalled();
+    expect(scanAssessment).not.toHaveBeenCalled();
   });
 
   it("fails a verify_remediation job that carries no findingId", async () => {
@@ -242,7 +268,7 @@ describe("settleRunningAssessmentJob", () => {
       async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
         fn("/tmp/checkout"),
     );
-    runAssessment.mockResolvedValue(
+    scanAssessment.mockResolvedValue(
       assessmentRun({
         id: "a1",
         projectId: "p1",
@@ -268,7 +294,7 @@ describe("settleRunningAssessmentJob", () => {
       async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
         fn("/tmp/checkout"),
     );
-    runAssessment.mockResolvedValue(
+    scanAssessment.mockResolvedValue(
       assessmentRun({
         id: "a1",
         projectId: "p1",
@@ -282,7 +308,7 @@ describe("settleRunningAssessmentJob", () => {
       kind: "succeeded",
       jobId: "job-1",
     });
-    // In-scan stages (changedetection/ast/…) ride runAssessment's onStage hook
+    // In-scan stages (changedetection/ast/…) ride scanAssessment's onStage hook
     // (covered in assessment.test.ts); the worker owns checkout + apply.
     expect(updateAssessmentJobStage).toHaveBeenCalledWith("job-1", "checkout");
     expect(updateAssessmentJobStage).toHaveBeenCalledWith("job-1", "apply");
@@ -360,7 +386,7 @@ describe("settleRunningAssessmentJob", () => {
           fn("/tmp/checkout"),
       );
       let resolveRun!: (value: unknown) => void;
-      runAssessment.mockReturnValue(
+      scanAssessment.mockReturnValue(
         new Promise((resolve) => {
           resolveRun = resolve;
         }),
@@ -402,7 +428,7 @@ describe("settleRunningAssessmentJob", () => {
           fn("/tmp/checkout"),
       );
       let resolveRun!: (value: unknown) => void;
-      runAssessment.mockReturnValue(
+      scanAssessment.mockReturnValue(
         new Promise((resolve) => {
           resolveRun = resolve;
         }),
@@ -488,7 +514,7 @@ describe("settleRunningAssessmentJob", () => {
       async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
         fn("/tmp/checkout"),
     );
-    runAssessment.mockResolvedValue(
+    scanAssessment.mockResolvedValue(
       assessmentRun({
         id: "a1",
         projectId: "p1",
@@ -527,7 +553,7 @@ describe("settleRunningAssessmentJob", () => {
       async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
         fn("/tmp/checkout"),
     );
-    runAssessment.mockResolvedValue(
+    scanAssessment.mockResolvedValue(
       assessmentRun({
         id: "a1",
         projectId: "p1",
@@ -570,7 +596,7 @@ describe("processNextAssessmentJob", () => {
       async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
         fn("/tmp/checkout"),
     );
-    runAssessment.mockResolvedValue(
+    scanAssessment.mockResolvedValue(
       assessmentRun({
         id: "a1",
         projectId: "p1",
@@ -583,7 +609,7 @@ describe("processNextAssessmentJob", () => {
       kind: "succeeded",
       jobId: "job-1",
     });
-    expect(runAssessment).toHaveBeenCalledWith(
+    expect(scanAssessment).toHaveBeenCalledWith(
       expect.objectContaining({
         project: expect.objectContaining({ id: "p1" }),
       }),
@@ -621,7 +647,7 @@ describe("processNextAssessmentJob", () => {
           fn("/tmp/checkout"),
       );
       let resolveRun!: (value: unknown) => void;
-      runAssessment.mockReturnValue(
+      scanAssessment.mockReturnValue(
         new Promise((resolve) => {
           resolveRun = resolve;
         }),
@@ -671,30 +697,39 @@ describe("processNextAssessmentJob", () => {
       async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
         fn("/tmp/checkout"),
     );
-    runAssessment.mockImplementation(
+    loadProjectRuntime.mockResolvedValue({
+      requirements: [],
+      assessments: [],
+      findings: [testFinding()],
+      remediations: [
+        testRemediation({
+          status: "approved",
+          approvalAction: "create_draft_pull_request",
+        }),
+      ],
+      alerts: [],
+    });
+    // Reconcile on the fresh rows: the mock mirrors the real contract by
+    // returning the same rows with the remediation advanced (the baseline
+    // passed to apply stays the pre-reconcile `approved` copy).
+    reconcileAssessment.mockImplementation(
       async (input: {
         findings: WorkspaceSlice["findings"];
         remediations: WorkspaceSlice["remediations"];
         requirements: WorkspaceSlice["requirements"];
-      }) => {
-        input.remediations[0] = {
-          ...input.remediations[0]!,
-          status: "verified",
-        };
-        return assessmentRun(
-          {
-            id: "a1",
-            projectId: "p1",
-            snapshot: { fileHashes: {} },
-          },
+      }) =>
+        assessmentRun(
+          { id: "a1", projectId: "p1", snapshot: { fileHashes: {} } },
           {
             findings: input.findings,
-            remediations: input.remediations,
+            remediations: input.remediations.map((remediation) => ({
+              ...remediation,
+              status: "verified" as const,
+            })),
             requirements: input.requirements,
             evidence: [],
           },
-        );
-      },
+        ),
     );
     completeAssessmentJob.mockResolvedValue(undefined);
 
@@ -702,7 +737,7 @@ describe("processNextAssessmentJob", () => {
       kind: "succeeded",
       jobId: "job-1",
     });
-    expect(runAssessment).toHaveBeenCalledWith(
+    expect(scanAssessment).toHaveBeenCalledWith(
       expect.objectContaining({
         project: expect.objectContaining({ id: "p1" }),
       }),
@@ -719,7 +754,7 @@ describe("processNextAssessmentJob", () => {
         evidence: [],
       }),
       expect.objectContaining({
-        loadedSlice: expect.objectContaining({
+        baseline: expect.objectContaining({
           requirements: [],
           findings: [expect.objectContaining({ id: "f1" })],
           remediations: expect.arrayContaining([
@@ -793,7 +828,7 @@ describe("processNextAssessmentJob", () => {
       async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
         fn("/tmp/checkout"),
     );
-    runAssessment.mockResolvedValue(
+    reconcileAssessment.mockResolvedValue(
       assessmentRun(
         {
           id: "a1",
@@ -863,7 +898,7 @@ describe("processNextAssessmentJob", () => {
       async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
         fn("/tmp/checkout"),
     );
-    runAssessment.mockResolvedValue(
+    reconcileAssessment.mockResolvedValue(
       assessmentRun(
         {
           id: "a1",
@@ -939,7 +974,7 @@ describe("processNextAssessmentJob", () => {
       async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
         fn("/tmp/checkout"),
     );
-    runAssessment.mockResolvedValue(
+    scanAssessment.mockResolvedValue(
       assessmentRun({
         id: "a1",
         projectId: "p1",
@@ -954,7 +989,7 @@ describe("processNextAssessmentJob", () => {
     });
     // A legacy non-push webhook row runs the same analysis but must not
     // persist any project compliance state.
-    expect(runAssessment).toHaveBeenCalledWith(
+    expect(scanAssessment).toHaveBeenCalledWith(
       expect.objectContaining({
         project: expect.objectContaining({ id: "p1" }),
       }),
@@ -981,7 +1016,7 @@ describe("processNextAssessmentJob", () => {
       async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
         fn("/tmp/checkout"),
     );
-    runAssessment.mockResolvedValue(
+    scanAssessment.mockResolvedValue(
       assessmentRun({
         id: "a1",
         projectId: "p1",
@@ -994,7 +1029,7 @@ describe("processNextAssessmentJob", () => {
       kind: "succeeded",
       jobId: "job-1",
     });
-    expect(runAssessment).toHaveBeenCalledWith(
+    expect(scanAssessment).toHaveBeenCalledWith(
       expect.objectContaining({
         project: expect.objectContaining({ id: "p1" }),
       }),
@@ -1027,7 +1062,7 @@ describe("processNextAssessmentJob", () => {
       async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
         fn("/tmp/checkout"),
     );
-    runAssessment.mockResolvedValue({
+    reconcileAssessment.mockResolvedValue({
       assessment: { id: "a1", projectId: "p1" },
       evidence: [],
       findings: [],

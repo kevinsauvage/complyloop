@@ -29,6 +29,7 @@ vi.mock("./projects.ts", () => ({ updateProject }));
 import type { DrizzleDb } from "../postgres.ts";
 import {
   applyAssessmentPayload,
+  type ApplyAssessmentPayloadOptions,
   buildAssessmentApplyPayload,
   persistProjectRows,
   snapshotProjectSlice,
@@ -198,7 +199,7 @@ describe("buildAssessmentApplyPayload", () => {
 
 describe("applyAssessmentPayload", () => {
   const tx = { kind: "tx" } as unknown as DrizzleDb;
-  const loadedSlice = {
+  const baseline = {
     requirements: [requirement],
     findings: [finding],
     remediations: [remediation],
@@ -215,7 +216,7 @@ describe("applyAssessmentPayload", () => {
     insertEvidenceRecords.mockResolvedValue(undefined);
   });
 
-  it("writes assessment rows and upserts the project slice with stale guards", async () => {
+  it("writes assessment rows and upserts the changed project rows without a stale guard", async () => {
     const assessment: Assessment = {
       id: "a1",
       projectId,
@@ -255,7 +256,7 @@ describe("applyAssessmentPayload", () => {
         requirements: [updatedRequirement],
         alerts: [],
       },
-      { loadedSlice },
+      { baseline },
     );
 
     expect(insertAssessment).toHaveBeenCalledWith(
@@ -263,20 +264,16 @@ describe("applyAssessmentPayload", () => {
       assessment,
       assessment.snapshot,
     );
-    expect(upsertFindings).toHaveBeenCalledWith(tx, [updatedFinding], {
-      loadedUpdatedAtById: new Map(),
-    });
-    expect(upsertRemediations).toHaveBeenCalledWith(tx, [updatedRemediation], {
-      loadedUpdatedAtById: new Map(),
-    });
-    expect(upsertRequirements).toHaveBeenCalledWith(tx, [updatedRequirement], {
-      loadedUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
-    });
+    // Reconciled rows are current by construction — no `loadedUpdatedAtById`
+    // guard, only the unchanged-row diff.
+    expect(upsertFindings).toHaveBeenCalledWith(tx, [updatedFinding]);
+    expect(upsertRemediations).toHaveBeenCalledWith(tx, [updatedRemediation]);
+    expect(upsertRequirements).toHaveBeenCalledWith(tx, [updatedRequirement]);
     expect(upsertAlerts).toHaveBeenCalledWith(tx, []);
     expect(insertEvidenceRecords).toHaveBeenCalledWith(tx, evidence);
   });
 
-  it("skips unchanged rows when re-persisting the loaded slice", async () => {
+  it("skips unchanged rows when re-persisting the reconciled baseline", async () => {
     const assessment: Assessment = {
       id: "a2",
       projectId,
@@ -299,24 +296,76 @@ describe("applyAssessmentPayload", () => {
         assessment,
         snapshot: assessment.snapshot!,
         evidence: [],
-        findings: loadedSlice.findings,
-        remediations: loadedSlice.remediations,
-        requirements: loadedSlice.requirements,
+        findings: baseline.findings,
+        remediations: baseline.remediations,
+        requirements: baseline.requirements,
         alerts: [],
       },
-      { loadedSlice },
+      { baseline },
     );
 
-    expect(upsertRequirements).toHaveBeenCalledWith(tx, [], {
-      loadedUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
-    });
-    expect(upsertFindings).toHaveBeenCalledWith(tx, [], {
-      loadedUpdatedAtById: new Map(),
-    });
-    expect(upsertRemediations).toHaveBeenCalledWith(tx, [], {
-      loadedUpdatedAtById: new Map(),
-    });
+    expect(upsertRequirements).toHaveBeenCalledWith(tx, []);
+    expect(upsertFindings).toHaveBeenCalledWith(tx, []);
+    expect(upsertRemediations).toHaveBeenCalledWith(tx, []);
     expect(upsertAlerts).toHaveBeenCalledWith(tx, []);
+  });
+
+  // P0 regression: a user edits a finding while a scan runs, so the baseline
+  // row is newer than the row the reconcile computed. The old stale-write guard
+  // dropped the write and left the evidence claiming a state the DB did not
+  // hold. Reconciliation now runs on that same baseline under the lock, so the
+  // reconciled row must be written even though its `updatedAt` is older.
+  it("writes a reconciled row even when the baseline row is newer", async () => {
+    const assessment: Assessment = {
+      id: "a3",
+      projectId,
+      startedAt: "2026-01-01T00:00:00.000Z",
+      completedAt: "2026-01-01T00:00:00.000Z",
+      filesScanned: 1,
+      summary: {
+        passed: 0,
+        failed: 1,
+        needs_review: 0,
+        not_applicable: 0,
+        unable_to_verify: 0,
+      },
+      snapshot: { fileHashes: {} },
+    };
+    // Baseline: the user just resolved the finding (newer `updatedAt`).
+    const baseline: ApplyAssessmentPayloadOptions["baseline"] = {
+      requirements: [],
+      findings: [
+        {
+          ...finding,
+          status: "resolved",
+          updatedAt: "2026-06-01T00:00:00.000Z",
+        },
+      ],
+      remediations: [],
+      alerts: [],
+    };
+    // Reconcile (on fresh rows) re-detects it as open.
+    const reconciled = {
+      ...finding,
+      status: "open" as const,
+      updatedAt: "2026-01-02T00:00:00.000Z",
+    };
+
+    await applyAssessmentPayload(
+      tx,
+      {
+        assessment,
+        snapshot: assessment.snapshot!,
+        evidence: [],
+        findings: [reconciled],
+        remediations: [],
+        requirements: [],
+        alerts: [],
+      },
+      { baseline },
+    );
+
+    expect(upsertFindings).toHaveBeenCalledWith(tx, [reconciled]);
   });
 });
 

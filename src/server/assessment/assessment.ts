@@ -9,6 +9,7 @@ import {
 import { checkRegistrySignature } from "@complyloop/analysis-core/checks/registry";
 import {
   type Assessment,
+  type AssessmentSnapshot,
   type EvidenceRecord,
   type FileChange,
   type Finding,
@@ -294,32 +295,52 @@ export function verifyRemediationOnResolve(
 }
 
 /**
- * Runs assessment against a checkout. Takes the narrow pipeline input
- * (project + project-scoped rows — never the full tenancy `WorkspaceSlice`).
- * Reads the input but never mutates it — all writes live on an
- * assessment-owned scratch (see `assessment-pipeline.ts`) and are returned
- * for `applyAssessmentPayload` (or test materialization).
+ * Raw artifact of the scan phase: the checkout is read and analyzed, but no
+ * project row is touched and nothing is persisted. The worker scans once (in
+ * the ephemeral checkout), then hands this to `reconcileAssessment` — which
+ * runs on freshly loaded rows inside the apply transaction, so a scan that
+ * takes minutes cannot reconcile against a stale snapshot.
  */
-export async function runAssessment(
-  input: AssessmentPipelineInput,
-  options: RunAssessmentOptions,
-): Promise<AssessmentRunResult> {
-  const { project } = input;
-  const projectId = project.id;
-  const { rootPath } = options;
+export interface AssessmentScanResult {
+  assessmentId: string;
+  startedAt: string;
+  snapshot: AssessmentSnapshot;
+  changes: FileChange[];
+  changeContext: string | undefined;
+  /** Git head of the previous snapshot (for the change evidence detail). */
+  previousGitHead: string | undefined;
+  /** True when sources were reused without any scan (same commit + scope). */
+  sourcesUnchanged: boolean;
+  /** Files this run re-scanned (`null` = full-tree scan). */
+  scopedFileSet: Set<string> | null;
+  rawFindings: RawFinding[];
+  filesScanned: number;
+  scanMode: NonNullable<Assessment["scanMode"]>;
+  engines: AssessmentEngines;
+  runtime: {
+    configured: boolean;
+    ran: boolean;
+    pagesScanned: number;
+    siteLevelChecksRan?: boolean;
+    htmlValidateRan?: boolean;
+    applicabilityFacts?: ReadonlyMap<string, string>;
+    error?: string;
+  };
+  /** Wall-clock ms per scan stage; reconcile appends its own entry. */
+  stageMs: Record<string, number>;
+}
 
-  // — Stage 1: scratch rows (clone + clear expired exceptions). —
-  const rows = createAssessmentScratch(input);
-
-  const startedAt = new Date().toISOString();
-
-  // Wall-clock ms per stage, persisted on the completion evidence (detail
-  // `stageMs`) so production slowness is attributable without guessing.
-  const stageMs: Record<string, number> = {};
-  async function timed<T>(
-    label: AssessmentJobStage,
-    fn: () => Promise<T> | T,
-  ): Promise<T> {
+/**
+ * Wall-clock stage timer: emits a start marker (so a killed function names the
+ * stall in logs) and records the stage duration. The job-payload stage hook is
+ * best-effort — a progress failure must never fail the assessment.
+ */
+function createStageTimer(
+  stageMs: Record<string, number>,
+  onStage: RunAssessmentOptions["onStage"],
+  projectId: string,
+): <T>(label: AssessmentJobStage, fn: () => Promise<T> | T) => Promise<T> {
+  return async (label, fn) => {
     const start = Date.now();
     // Start-of-stage marker: completion timings are reported at the end, so a
     // killed function (Vercel timeout) leaves nothing in evidence — the last
@@ -327,7 +348,7 @@ export async function runAssessment(
     // effort, never failing) is what survives a crash for the UI.
     console.info(`[progress] assessment stage ${label} started`);
     try {
-      options.onStage?.(label);
+      onStage?.(label);
     } catch (error) {
       reportWarning("Assessment stage hook failed", {
         code: "assessment_stage_hook_failed",
@@ -341,7 +362,29 @@ export async function runAssessment(
     } finally {
       stageMs[label] = Date.now() - start;
     }
-  }
+  };
+}
+
+/**
+ * Scan phase: read the checkout and produce raw findings + the assessment
+ * snapshot, reusing prior findings when the commit, scope, and engine set are
+ * unchanged. Pure with respect to project rows — it reads `input` (project +
+ * prior assessment snapshot) but never mutates it, and never writes evidence.
+ */
+export async function scanAssessment(
+  input: AssessmentPipelineInput,
+  options: RunAssessmentOptions,
+): Promise<AssessmentScanResult> {
+  const { project } = input;
+  const projectId = project.id;
+  const { rootPath } = options;
+
+  const startedAt = new Date().toISOString();
+
+  // Wall-clock ms per stage, persisted on the completion evidence (detail
+  // `stageMs`) so production slowness is attributable without guessing.
+  const stageMs: Record<string, number> = {};
+  const timed = createStageTimer(stageMs, options.onStage, projectId);
 
   // — Stage 2: change detection (snapshot + changed files). —
   const previous = latestAssessmentFor(input.assessments, projectId);
@@ -374,19 +417,6 @@ export async function runAssessment(
   snapshot.controlScopeKey = snapshotKey;
   const changeContext =
     changes.length > 0 ? summarizeChanges(changes) : undefined;
-
-  if (changes.length > 0) {
-    appendEvidence(rows, {
-      kind: "monitoring_changes_detected",
-      summary: changeContext ?? summarizeChanges(changes),
-      projectId,
-      detail: {
-        files: changes.map((change) => change.filePath),
-        previousGitHead: previous?.snapshot?.gitHead,
-        gitHead: snapshot.gitHead,
-      },
-    });
-  }
 
   const changedJsx = changes
     .map((change) => change.filePath)
@@ -501,17 +531,94 @@ export async function runAssessment(
     : null;
 
   // — Stage 5: merge AST + runtime findings (dedupe, authority). —
-  // — Stage 6: reconcile per-control findings (match / create / resolve). —
-  // — Stage 7: refresh requirement statuses + summarize. —
-  // Timed together: all three are in-memory row work with no I/O boundary.
   const assessmentId = crypto.randomUUID();
-  const summary = await timed("reconcile", () => {
-    const rawFindings = mergeRawFindings(
+
+  return {
+    assessmentId,
+    startedAt,
+    snapshot,
+    changes,
+    changeContext,
+    previousGitHead: previous?.snapshot?.gitHead,
+    sourcesUnchanged,
+    scopedFileSet,
+    rawFindings: mergeRawFindings(
       astFindings,
       runtimeResult.findings,
       runtimeRan,
       runtimeCoverage,
-    );
+    ),
+    filesScanned,
+    scanMode,
+    engines,
+    runtime: {
+      configured: runtimeConfigured,
+      ran: runtimeRan,
+      pagesScanned: runtimeResult.pagesScanned,
+      siteLevelChecksRan: runtimeResult.siteLevelChecksRan,
+      htmlValidateRan: runtimeResult.htmlValidateRan,
+      applicabilityFacts: runtimeResult.applicabilityFacts,
+      error: runtimeResult.error,
+    },
+    stageMs,
+  };
+}
+
+/**
+ * Reconcile phase: fold a scan into project rows — match / create / resolve
+ * findings, refresh requirement statuses, and build the assessment record plus
+ * its evidence. Mutates an assessment-owned scratch cloned from `input`, which
+ * the caller must have loaded under the project write lock; the returned rows
+ * are what `applyAssessmentPayload` persists, so state and evidence always
+ * agree.
+ */
+export async function reconcileAssessment(
+  input: AssessmentPipelineInput,
+  scan: AssessmentScanResult,
+  options: RunAssessmentOptions,
+): Promise<AssessmentRunResult> {
+  const { project } = input;
+  const projectId = project.id;
+  const { rootPath } = options;
+  const {
+    assessmentId,
+    startedAt,
+    snapshot,
+    changes,
+    changeContext,
+    previousGitHead,
+    sourcesUnchanged,
+    scopedFileSet,
+    rawFindings,
+    filesScanned,
+    scanMode,
+    engines,
+    runtime,
+    stageMs,
+  } = scan;
+
+  // — Reconcile stage 1: scratch rows (clone + clear expired exceptions). —
+  const rows = createAssessmentScratch(input);
+  const timed = createStageTimer(stageMs, options.onStage, projectId);
+  const scoped = assertAssessableCatalog(project, options.controls);
+
+  if (changes.length > 0) {
+    appendEvidence(rows, {
+      kind: "monitoring_changes_detected",
+      summary: changeContext ?? summarizeChanges(changes),
+      projectId,
+      detail: {
+        files: changes.map((change) => change.filePath),
+        previousGitHead,
+        gitHead: snapshot.gitHead,
+      },
+    });
+  }
+
+  // — Stage 6: reconcile per-control findings (match / create / resolve). —
+  // — Stage 7: refresh requirement statuses + summarize. —
+  // Timed together: all three are in-memory row work with no I/O boundary.
+  const summary = await timed("reconcile", () => {
     // Shared for the whole run: many new findings share a source file, so the
     // suggestion builder should read each file once (see buildSuggestion).
     const fileTextCache = new Map<string, string>();
@@ -552,7 +659,7 @@ export async function runAssessment(
         openFindings: openByControl.get(control.id) ?? [],
         dismissedFindings: dismissedByControl.get(control.id) ?? [],
         scopedFileSet,
-        runtimeRan,
+        runtimeRan: runtime.ran,
         fileTextCache,
         // A preview scan (PR head / feature branch) must not derive the
         // persistent compliance decision: never auto-verify an approved
@@ -606,10 +713,10 @@ export async function runAssessment(
     applyRequirementStatusRefresh(rows, project, {
       assessmentId,
       changeContext,
-      runtimeRan,
-      siteLevelChecksRan: runtimeResult.siteLevelChecksRan,
-      htmlValidateRan: runtimeResult.htmlValidateRan,
-      applicabilityFacts: runtimeResult.applicabilityFacts,
+      runtimeRan: runtime.ran,
+      siteLevelChecksRan: runtime.siteLevelChecksRan,
+      htmlValidateRan: runtime.htmlValidateRan,
+      applicabilityFacts: runtime.applicabilityFacts,
       filesScanned,
       controls: options.controls,
     });
@@ -631,10 +738,10 @@ export async function runAssessment(
     changesSincePrevious: changes,
   };
 
-  const engineSummary = runtimeConfigured
-    ? runtimeRan
-      ? `; runtime ${runtimeResult.pagesScanned} page(s)`
-      : `; runtime skipped (${runtimeResult.error ?? "no pages"})`
+  const engineSummary = runtime.configured
+    ? runtime.ran
+      ? `; runtime ${runtime.pagesScanned} page(s)`
+      : `; runtime skipped (${runtime.error ?? "no pages"})`
     : "";
 
   appendEvidence(rows, {
@@ -668,4 +775,18 @@ export async function runAssessment(
     requirements: rows.requirements,
     stageMs,
   };
+}
+
+/**
+ * Full run = scan then reconcile. Kept as the single entry point for callers
+ * that already hold the rows (tests, offline verification). The worker scans
+ * once and lets `applyAuthoritativeAssessment` reconcile on rows it loads
+ * fresh under the write lock, so a slow scan can never reconcile a stale slice.
+ */
+export async function runAssessment(
+  input: AssessmentPipelineInput,
+  options: RunAssessmentOptions,
+): Promise<AssessmentRunResult> {
+  const scan = await scanAssessment(input, options);
+  return reconcileAssessment(input, scan, options);
 }
