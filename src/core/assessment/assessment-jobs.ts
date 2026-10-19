@@ -30,7 +30,11 @@ export const assessmentJobPayloadSchema = z.object({
   // `pull_request` is legacy: PR preview scans were removed (merge-push scans
   // are the only webhook topology). Kept in the enum so old queued rows still
   // parse — the worker treats any non-push webhook job as non-authoritative.
-  eventName: z.enum(["push", "pull_request"]).optional(),
+  eventName: z.enum(["push", "deployment_status", "pull_request"]).optional(),
+  // `deployment_status` jobs only: the deployment the runtime audit must hit,
+  // with the commit it serves. The audit is tied to the scanned commit only
+  // when `sha` equals the checkout's HEAD (see `scanAssessment`).
+  runtimeTarget: z.object({ url: z.string(), sha: z.string() }).optional(),
   supersededRefs: z.array(z.string()).optional(),
   // `verify_remediation` jobs only: the finding whose implemented remediation
   // should be re-audited. Carried on the payload (not a new column) so the

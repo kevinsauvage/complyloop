@@ -206,6 +206,14 @@ export async function enqueueAssessmentJob(
         ...(input.payload ?? {}),
       };
       if (seen.size > 0) mergedPayload.supersededRefs = [...seen];
+      // A deployment target belongs to the commit it serves: a newer ref must
+      // not keep auditing the older deploy (it would only be untied anyway).
+      if (
+        mergedPayload.runtimeTarget &&
+        mergedPayload.runtimeTarget.sha !== mergedPayload.ref
+      ) {
+        delete mergedPayload.runtimeTarget;
+      }
       const [updated] = await drizzle
         .update(assessmentJobs)
         .set({
@@ -515,6 +523,29 @@ export async function recentAssessmentJobsForProject(
     .orderBy(desc(assessmentJobs.createdAt))
     .limit(limit);
   return rows.map(jobFromRow);
+}
+
+/**
+ * Ref (commit SHA) of the project's newest webhook job in any state, or null.
+ * `deployment_status` uses it to drop deployments of commits that a newer push
+ * already replaced — auditing them would re-derive state from stale code.
+ */
+export async function latestWebhookJobRef(
+  projectId: string,
+): Promise<string | null> {
+  const drizzle = await getDrizzle();
+  const [row] = await drizzle
+    .select()
+    .from(assessmentJobs)
+    .where(
+      and(
+        eq(assessmentJobs.projectId, projectId),
+        eq(assessmentJobs.trigger, "webhook"),
+      ),
+    )
+    .orderBy(desc(assessmentJobs.createdAt))
+    .limit(1);
+  return row ? (parseJobPayload(row.payload).ref ?? null) : null;
 }
 
 /**

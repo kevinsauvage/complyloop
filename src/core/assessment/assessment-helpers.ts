@@ -69,9 +69,16 @@ export function runtimeCoverageSummary(
       ? ` (${pagesScanned} page${pagesScanned === 1 ? "" : "s"})`
       : "";
 
+  // `runtimeTied` is absent on assessments from before commit tying; only an
+  // explicit `false` is labelled, so history is not relabelled retroactively.
+  const untiedPart =
+    engines?.runtime && engines.runtimeTied === false
+      ? " — not tied to a commit"
+      : "";
+
   return {
     mode: "source_and_preview",
-    label: `Source + preview${pagePart}`,
+    label: `Source + preview${pagePart}${untiedPart}`,
     pagesScanned,
     runtimeError,
   };

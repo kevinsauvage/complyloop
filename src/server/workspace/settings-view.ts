@@ -42,7 +42,11 @@ export async function loadSettingsView(): Promise<SettingsView> {
   const latestAssessment = latestAssessmentFor(runtime.assessments, project.id);
   const runtimeError = latestAssessment?.engines?.runtimeError ?? null;
   const runtimeStatus = latestAssessment?.engines?.runtime
-    ? `Last assessment audited ${latestAssessment.engines.runtimePagesScanned ?? 0} page(s).`
+    ? `Last assessment audited ${latestAssessment.engines.runtimePagesScanned ?? 0} page(s)${
+        latestAssessment.engines.runtimeTied === false
+          ? ", but not a deployment of the scanned commit: violations are reported, yet runtime results cannot pass requirements or replace source findings."
+          : "."
+      }`
     : runtimeError
       ? "Last runtime attempt failed — details below."
       : "No runtime audit has run yet for this project.";

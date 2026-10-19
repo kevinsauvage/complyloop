@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { handleGitHubWebhookEvent, verifyGitHubSignature } from "./webhook";
 
@@ -9,6 +9,7 @@ const getProjectById = vi.hoisted(() => vi.fn());
 const drizzleExecute = vi.hoisted(() => vi.fn());
 const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
 const assertRateLimit = vi.hoisted(() => vi.fn());
+const latestWebhookJobRef = vi.hoisted(() => vi.fn());
 
 vi.mock("@complyloop/db/postgres", () => ({
   getDrizzle: async () => ({
@@ -20,7 +21,10 @@ vi.mock("@complyloop/db/repo/projects", () => ({
     findProjectsByGithubFullName(...args),
   getProjectById: (...args: unknown[]) => getProjectById(...args),
 }));
-vi.mock("../assessment/assessment-jobs", () => ({ enqueueAssessmentJob }));
+vi.mock("../assessment/assessment-jobs", () => ({
+  enqueueAssessmentJob,
+  latestWebhookJobRef,
+}));
 vi.mock("../rate-limit", () => ({ assertRateLimit }));
 
 afterEach(() => {
@@ -90,6 +94,90 @@ describe("handleGitHubWebhookEvent", () => {
       handled: true,
       message: "Queued re-assessment of acme/app.",
       jobId: "job-1",
+    });
+  });
+
+  describe("deployment_status", () => {
+    const sha = "b".repeat(40);
+    const deployment = (overrides: Record<string, unknown> = {}) => ({
+      repository: { full_name: "acme/app" },
+      deployment: { sha, ref: "main" },
+      deployment_status: {
+        state: "success",
+        environment_url: "https://app-abc123.vercel.app/some/path",
+      },
+      ...overrides,
+    });
+
+    beforeEach(() => {
+      findProjectsByGithubFullName.mockResolvedValue([
+        { id: "p1", orgId: "org-1", defaultBranch: "main" },
+      ]);
+      latestWebhookJobRef.mockResolvedValue(sha);
+      enqueueAssessmentJob.mockResolvedValue({ id: "job-deploy" });
+    });
+
+    it("queues a runtime audit of the deployed origin tied to its SHA", async () => {
+      const result = await handleGitHubWebhookEvent(
+        "deployment_status",
+        deployment(),
+        "delivery-deploy",
+      );
+      expect(result.handled).toBe(true);
+      expect(enqueueAssessmentJob).toHaveBeenCalledWith({
+        projectId: "p1",
+        trigger: "webhook",
+        idempotencyKey: "delivery-deploy",
+        payload: {
+          ref: sha,
+          eventName: "deployment_status",
+          runtimeTarget: { url: "https://app-abc123.vercel.app", sha },
+        },
+      });
+    });
+
+    it.each([
+      [
+        "a non-success state",
+        {
+          deployment_status: {
+            state: "pending",
+            environment_url: "https://x.vercel.app",
+          },
+        },
+      ],
+      ["a preview branch", { deployment: { sha, ref: "feature/x" } }],
+      [
+        "a non-https URL",
+        {
+          deployment_status: {
+            state: "success",
+            environment_url: "http://x.vercel.app",
+          },
+        },
+      ],
+      ["a missing URL", { deployment_status: { state: "success" } }],
+      ["an invalid SHA", { deployment: { sha: "nope", ref: "main" } }],
+    ])("ignores %s", async (_label, overrides) => {
+      const result = await handleGitHubWebhookEvent(
+        "deployment_status",
+        deployment(overrides),
+        "delivery-ignored",
+      );
+      expect(result.handled).toBe(false);
+      expect(enqueueAssessmentJob).not.toHaveBeenCalled();
+    });
+
+    it("ignores a deployment of a commit a newer push replaced", async () => {
+      latestWebhookJobRef.mockResolvedValue("c".repeat(40));
+      const result = await handleGitHubWebhookEvent(
+        "deployment_status",
+        deployment(),
+        "delivery-stale",
+      );
+      expect(result.handled).toBe(false);
+      expect(result.message).toMatch(/not the latest pushed commit/);
+      expect(enqueueAssessmentJob).not.toHaveBeenCalled();
     });
   });
 

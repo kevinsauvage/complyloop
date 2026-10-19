@@ -33,7 +33,6 @@ import { resolveInside } from "@complyloop/analysis-core/workspace-path";
 
 import {
   countByStatus,
-  hasPreviewUrl,
   latestAssessmentFor,
 } from "@/core/assessment/assessment-helpers";
 import type { AssessmentJobStage } from "@/core/assessment/assessment-jobs";
@@ -71,6 +70,8 @@ function buildAssessmentEngines(
   runtimeConfigured: boolean,
   runtimeRan: boolean,
   runtimeResult: RuntimeScanEngineInput,
+  runtimeTied: boolean,
+  auditedSha: string | undefined,
 ): AssessmentEngines {
   const scanFeatures: Array<
     NonNullable<AssessmentEngines["scanFeatures"]>[number]
@@ -86,6 +87,8 @@ function buildAssessmentEngines(
     ast: true,
     runtime: runtimeRan,
     runtimePagesScanned: runtimeResult.pagesScanned,
+    ...(runtimeRan && auditedSha ? { runtimeAuditedSha: auditedSha } : {}),
+    runtimeTied,
     scanFeatures: scanFeatures.length > 0 ? scanFeatures : undefined,
     themeConditions: runtimeConfigured
       ? [...DEFAULT_THEME_CONDITIONS]
@@ -101,6 +104,12 @@ export interface RunAssessmentOptions {
   runtimeScanner?: RuntimePageScanner;
   /** Injected DNS lookup for runtime SSRF checks in tests. */
   runtimeLookup?: DnsLookup;
+  /**
+   * Deployment to audit, with the commit it serves (`deployment_status` jobs).
+   * Absent → the project's static `runtimeBaseUrl`, which is not tied to any
+   * commit.
+   */
+  runtimeTarget?: { url: string; sha: string };
   /**
    * When false this is a preview scan (e.g. a pull-request head) and must not
    * derive persistent compliance decisions: finding resolution stays
@@ -320,6 +329,12 @@ export interface AssessmentScanResult {
   runtime: {
     configured: boolean;
     ran: boolean;
+    /**
+     * The audit ran against a deployment serving the scanned commit. Only a
+     * tied run may supersede AST findings, resolve runtime findings or pass
+     * runtime-only requirements; an untied run just reports what it saw.
+     */
+    tied: boolean;
     pagesScanned: number;
     siteLevelChecksRan?: boolean;
     htmlValidateRan?: boolean;
@@ -481,11 +496,12 @@ export async function scanAssessment(
       : null;
 
   // — Stage 4: runtime scan (only when a preview URL is configured). —
-  const runtimeConfigured = hasPreviewUrl(project);
+  const runtimeBaseUrl = options.runtimeTarget?.url ?? project.runtimeBaseUrl;
+  const runtimeConfigured = Boolean(runtimeBaseUrl?.trim());
   const runtimeResult = await timed("runtime", () =>
     runtimeConfigured
       ? scanRuntime({
-          runtimeBaseUrl: project.runtimeBaseUrl,
+          runtimeBaseUrl,
           runtimeRoutes: project.runtimeRoutes,
           browserConditions: DEFAULT_THEME_CONDITIONS,
           scanner: options.runtimeScanner,
@@ -516,17 +532,28 @@ export async function scanAssessment(
     });
   }
 
+  // Tied = the audited deployment serves exactly the commit this scan read.
+  // A static URL (no target) or a mismatched SHA is untied: a regression that
+  // is not deployed yet must not disappear behind the previous deploy's DOM.
+  const runtimeTied =
+    runtimeRan &&
+    options.runtimeTarget !== undefined &&
+    head !== undefined &&
+    options.runtimeTarget.sha.toLowerCase() === head.toLowerCase();
+
   const engines = buildAssessmentEngines(
     runtimeConfigured,
     runtimeRan,
     runtimeResult,
+    runtimeTied,
+    options.runtimeTarget?.sha,
   );
 
   // Runtime authority is scoped to the routes the audit actually rendered.
   // Without a route↔file map (`null`) the merge keeps AST findings rather than
   // assuming the whole repo was covered — a false `passed` is worse than a
   // duplicate finding.
-  const runtimeCoverage = runtimeRan
+  const runtimeCoverage = runtimeTied
     ? buildRuntimeCoverage(rootPath, runtimeResult.scannedRoutes ?? [])
     : null;
 
@@ -545,7 +572,7 @@ export async function scanAssessment(
     rawFindings: mergeRawFindings(
       astFindings,
       runtimeResult.findings,
-      runtimeRan,
+      runtimeTied,
       runtimeCoverage,
     ),
     filesScanned,
@@ -554,6 +581,7 @@ export async function scanAssessment(
     runtime: {
       configured: runtimeConfigured,
       ran: runtimeRan,
+      tied: runtimeTied,
       pagesScanned: runtimeResult.pagesScanned,
       siteLevelChecksRan: runtimeResult.siteLevelChecksRan,
       htmlValidateRan: runtimeResult.htmlValidateRan,
@@ -659,7 +687,7 @@ export async function reconcileAssessment(
         openFindings: openByControl.get(control.id) ?? [],
         dismissedFindings: dismissedByControl.get(control.id) ?? [],
         scopedFileSet,
-        runtimeRan: runtime.ran,
+        runtimeRan: runtime.tied,
         fileTextCache,
         // A preview scan (PR head / feature branch) must not derive the
         // persistent compliance decision: never auto-verify an approved
@@ -713,10 +741,12 @@ export async function reconcileAssessment(
     applyRequirementStatusRefresh(rows, project, {
       assessmentId,
       changeContext,
-      runtimeRan: runtime.ran,
-      siteLevelChecksRan: runtime.siteLevelChecksRan,
-      htmlValidateRan: runtime.htmlValidateRan,
-      applicabilityFacts: runtime.applicabilityFacts,
+      // Untied runtime results are advisory: they must not pass runtime-only
+      // requirements or confirm applicability for a commit they never saw.
+      runtimeRan: runtime.tied,
+      siteLevelChecksRan: runtime.tied ? runtime.siteLevelChecksRan : undefined,
+      htmlValidateRan: runtime.tied ? runtime.htmlValidateRan : undefined,
+      applicabilityFacts: runtime.tied ? runtime.applicabilityFacts : undefined,
       filesScanned,
       controls: options.controls,
     });
@@ -740,7 +770,7 @@ export async function reconcileAssessment(
 
   const engineSummary = runtime.configured
     ? runtime.ran
-      ? `; runtime ${runtime.pagesScanned} page(s)`
+      ? `; runtime ${runtime.pagesScanned} page(s)${runtime.tied ? "" : " (not tied to the scanned commit — advisory)"}`
       : `; runtime skipped (${runtime.error ?? "no pages"})`
     : "";
 

@@ -1003,6 +1003,45 @@ describe("processNextAssessmentJob", () => {
     expect(insertEvidence).not.toHaveBeenCalled();
   });
 
+  it("runs a deployment_status job authoritatively against its runtime target", async () => {
+    const db = projectDb();
+    const runtimeTarget = {
+      url: "https://app-abc123.vercel.app",
+      sha: "a".repeat(40),
+    };
+    claimNextAssessmentJob.mockResolvedValue(
+      job({
+        trigger: "webhook",
+        payload: {
+          ref: "a".repeat(40),
+          eventName: "deployment_status",
+          runtimeTarget,
+        },
+      }),
+    );
+    loadProjectDb.mockResolvedValue(db);
+    withProjectCheckout.mockImplementation(
+      async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
+        fn("/tmp/checkout"),
+    );
+    scanAssessment.mockResolvedValue(
+      assessmentRun({
+        id: "a1",
+        projectId: "p1",
+        snapshot: { fileHashes: {} },
+      }),
+    );
+    completeAssessmentJob.mockResolvedValue(undefined);
+
+    await processNextAssessmentJob();
+
+    expect(scanAssessment).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ authoritative: true, runtimeTarget }),
+    );
+    expect(applyAssessmentPayload).toHaveBeenCalled();
+  });
+
   it("treats a default-branch webhook push as authoritative and persists", async () => {
     const db = projectDb();
     claimNextAssessmentJob.mockResolvedValue(

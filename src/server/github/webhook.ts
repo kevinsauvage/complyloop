@@ -10,11 +10,16 @@ import {
   getProjectById,
 } from "@complyloop/db/repo/projects";
 
-import { enqueueAssessmentJob } from "../assessment/assessment-jobs";
+import {
+  enqueueAssessmentJob,
+  latestWebhookJobRef,
+} from "../assessment/assessment-jobs";
 import { githubWebhookSecret } from "../env";
 import { assertRateLimit } from "../rate-limit";
 
 type PushPayload = EmitterWebhookEvent<"push">["payload"];
+type DeploymentStatusPayload =
+  EmitterWebhookEvent<"deployment_status">["payload"];
 
 type WithInstallation = {
   installation?: {
@@ -22,7 +27,9 @@ type WithInstallation = {
   };
 };
 
-function installationIdFromPayload(payload: PushPayload): number | undefined {
+function installationIdFromPayload(
+  payload: PushPayload | DeploymentStatusPayload,
+): number | undefined {
   const withInstallation = payload as WithInstallation;
   return typeof withInstallation.installation?.id === "number"
     ? withInstallation.installation.id
@@ -46,7 +53,9 @@ export async function verifyGitHubSignature(
   }
 }
 
-type HandledWebhookEvent = { kind: "push"; payload: PushPayload };
+type HandledWebhookEvent =
+  | { kind: "push"; payload: PushPayload }
+  | { kind: "deployment_status"; payload: DeploymentStatusPayload };
 
 function parseHandledWebhookEvent(
   eventName: string,
@@ -59,6 +68,15 @@ function parseHandledWebhookEvent(
     return {
       ok: true,
       event: { kind: "push", payload: payload as PushPayload },
+    };
+  }
+  if (eventName === "deployment_status") {
+    return {
+      ok: true,
+      event: {
+        kind: "deployment_status",
+        payload: payload as DeploymentStatusPayload,
+      },
     };
   }
   return { ok: false, message: `Ignored event ${eventName}` };
@@ -100,11 +118,44 @@ async function persistDefaultBranchIfChanged(
   return fresh?.github?.defaultBranch ?? liveBranch;
 }
 
+const SHA_PATTERN = /^[0-9a-f]{40}$/i;
+
 function checkoutRef(event: HandledWebhookEvent): string | undefined {
-  const after = event.payload.after;
-  return typeof after === "string" && /^[0-9a-f]{40}$/i.test(after)
-    ? after
-    : undefined;
+  const sha =
+    event.kind === "push" ? event.payload.after : event.payload.deployment?.sha;
+  return typeof sha === "string" && SHA_PATTERN.test(sha) ? sha : undefined;
+}
+
+/**
+ * A successful deployment of the default branch, with the origin it is served
+ * from. Hosts differ on the deployment `ref` (branch name vs. full ref), and
+ * on whether the URL is `environment_url` or `target_url`. Preview deployments
+ * of other branches are not authoritative and are ignored.
+ */
+function defaultBranchDeploymentOrigin(
+  payload: DeploymentStatusPayload,
+  defaultBranch: string | undefined,
+): string | undefined {
+  if (payload.deployment_status?.state !== "success") return undefined;
+  const ref = payload.deployment?.ref;
+  if (
+    !defaultBranch ||
+    (ref !== defaultBranch && ref !== `refs/heads/${defaultBranch}`)
+  ) {
+    return undefined;
+  }
+  const raw =
+    payload.deployment_status.environment_url ||
+    payload.deployment_status.target_url;
+  if (!raw) return undefined;
+  try {
+    const url = new URL(raw);
+    // SSRF screening (private ranges, DNS) happens at scan time in
+    // `scanRuntime`; here we only refuse anything that is not plain https.
+    return url.protocol === "https:" ? url.origin : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -220,13 +271,40 @@ export async function handleGitHubWebhookEvent(
       message: `Ignored ${parsed.event.kind} without a valid checkout SHA for ${fullName}.`,
     };
   }
+
+  let runtimeTarget: { url: string; sha: string } | undefined;
+  if (parsed.event.kind === "deployment_status") {
+    const origin = defaultBranchDeploymentOrigin(
+      parsed.event.payload,
+      liveDefaultBranch,
+    );
+    if (!origin) {
+      return {
+        handled: false,
+        message: `Ignored deployment status for ${fullName}: not a successful default-branch https deployment.`,
+      };
+    }
+    // The push webhook always precedes its deployment, so the newest webhook
+    // job names the newest commit. A deployment of any other commit was
+    // replaced while it built; auditing it would re-derive state from stale
+    // code.
+    if ((await latestWebhookJobRef(project.id)) !== ref) {
+      return {
+        handled: false,
+        message: `Ignored deployment of ${ref.slice(0, 7)} for ${fullName}: it is not the latest pushed commit.`,
+      };
+    }
+    runtimeTarget = { url: origin, sha: ref };
+  }
+
   const job = await enqueueAssessmentJob({
     projectId: project.id,
     trigger: "webhook",
     idempotencyKey: deliveryId,
     payload: {
       ref,
-      eventName: "push",
+      eventName: parsed.event.kind,
+      ...(runtimeTarget ? { runtimeTarget } : {}),
     },
   });
   return {

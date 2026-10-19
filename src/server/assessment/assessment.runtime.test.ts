@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+import git from "isomorphic-git";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { rgaaControls } from "@complyloop/analysis-core/catalog/rgaa/controls";
@@ -111,11 +112,96 @@ describe("runAssessment with runtime engine", () => {
     expect(engineFor(labelFindings[0]!)).toBe("runtime");
     expect(isDomLocation(labelFindings[0]!.location)).toBe(true);
     expect(labelFindings[0]?.fix).toBeNull();
+    // A static URL is not tied to a commit: violations are reported, but the
+    // runtime-only requirement cannot pass off a deploy that may be stale.
+    expect(assessment.engines?.runtimeTied).toBe(false);
+    expect(assessment.engines?.runtimeAuditedSha).toBeUndefined();
     expect(
       db.requirements.find(
         (requirement) => requirement.controlId === "ctl-color-contrast",
       )?.status,
-    ).toBe("passed");
+    ).toBe("unable_to_verify");
+  });
+
+  describe("commit tying", () => {
+    const cleanPage = async (urls: readonly string[]) => ({
+      pages: [
+        {
+          url: urls[0]!,
+          violations: [],
+          incomplete: [],
+          htmlValidateRan: false,
+        },
+      ],
+      pageFailures: [],
+    });
+
+    async function commitCheckout(): Promise<string> {
+      await git.init({ fs, dir: rootPath });
+      await git.add({ fs, dir: rootPath, filepath: "Page.tsx" });
+      return git.commit({
+        fs,
+        dir: rootPath,
+        message: "init",
+        author: { name: "t", email: "t@example.com" },
+      });
+    }
+
+    const contrastStatus = () =>
+      db.requirements.find(
+        (requirement) => requirement.controlId === "ctl-color-contrast",
+      )?.status;
+
+    it("passes runtime-only requirements when the deployment serves the scanned commit", async () => {
+      const sha = await commitCheckout();
+      const { assessment } = await assess({
+        runtimeLookup: publicLookup,
+        runtimeScanner: cleanPage,
+        runtimeTarget: { url: "https://deploy.example", sha },
+      });
+      expect(assessment.engines?.runtimeTied).toBe(true);
+      expect(assessment.engines?.runtimeAuditedSha).toBe(sha);
+      expect(contrastStatus()).toBe("passed");
+    });
+
+    it("stays advisory when the deployment serves a different commit", async () => {
+      await commitCheckout();
+      const { assessment } = await assess({
+        runtimeLookup: publicLookup,
+        runtimeScanner: cleanPage,
+        runtimeTarget: { url: "https://deploy.example", sha: "a".repeat(40) },
+      });
+      expect(assessment.engines?.runtime).toBe(true);
+      expect(assessment.engines?.runtimeTied).toBe(false);
+      expect(assessment.engines?.runtimeAuditedSha).toBe("a".repeat(40));
+      expect(contrastStatus()).toBe("unable_to_verify");
+    });
+
+    it("still reports AST findings when the runtime audit is untied", async () => {
+      await commitCheckout();
+      fs.writeFileSync(
+        path.join(rootPath, "Page.tsx"),
+        `export const Page = () => <img src="/x.png" />;\n`,
+      );
+      await git.add({ fs, dir: rootPath, filepath: "Page.tsx" });
+      await git.commit({
+        fs,
+        dir: rootPath,
+        message: "regress",
+        author: { name: "t", email: "t@example.com" },
+      });
+      const { assessment } = await assess({
+        runtimeLookup: publicLookup,
+        runtimeScanner: cleanPage,
+      });
+      expect(assessment.engines?.runtimeTied).toBe(false);
+      expect(
+        db.findings.some(
+          (finding) =>
+            finding.checkId === "img-alt" && finding.status === "open",
+        ),
+      ).toBe(true);
+    });
   });
 
   it("records default theme conditions on the assessment engines", async () => {

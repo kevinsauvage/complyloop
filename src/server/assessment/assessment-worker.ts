@@ -23,16 +23,20 @@ import {
 import { withProjectCheckout } from "./repo-checkout";
 
 /**
- * Explicit scan authority: only a manual assessment or a webhook push of the
- * default branch may derive the persistent compliance state. Anything else —
- * unknown events or malformed payloads that slipped past the claim gate — is
- * non-authoritative and must not resolve findings, flip statuses, or
- * auto-verify remediations. Fail closed.
+ * Explicit scan authority: only a manual assessment, a webhook push of the
+ * default branch or a successful default-branch deployment may derive the
+ * persistent compliance state. Anything else — unknown events or malformed
+ * payloads that slipped past the claim gate — is non-authoritative and must
+ * not resolve findings, flip statuses, or auto-verify remediations. Fail
+ * closed.
  */
 export function resolveJobAuthoritative(job: AssessmentJob): boolean {
   if (job.trigger === "manual") return true;
   if (job.trigger !== "webhook") return false;
-  return job.payload.eventName === "push";
+  return (
+    job.payload.eventName === "push" ||
+    job.payload.eventName === "deployment_status"
+  );
 }
 
 async function runClaimedAssessmentJob(
@@ -124,6 +128,7 @@ async function runClaimedAssessmentJob(
         const scan = await scanAssessment(pipelineInput, {
           rootPath,
           authoritative,
+          runtimeTarget: job.payload.runtimeTarget,
           onStage: reportStage,
         });
         scanMs = Date.now() - scanStart;
