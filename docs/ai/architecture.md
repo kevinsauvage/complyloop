@@ -230,8 +230,9 @@ only a total outage (zero pages) fails the sub-scan.
 until `htmlValidateRan`. Duplicate ids stay on axe + AST.
 
 **Commit tying:** a runtime audit is _tied_ only when it hit a deployment whose
-SHA equals the scanned checkout's `HEAD`. `deployment_status` (success, default
-branch, newest pushed commit only) enqueues a job whose `runtimeTarget` carries
+SHA equals the scanned checkout's `HEAD`. `deployment_status` (success; the deployment ref is the default branch or the
+commit SHA itself, as Vercel sends it; and the SHA must be the newest pushed
+commit) enqueues a job whose `runtimeTarget` carries
 the deployment URL + SHA; the audited SHA and `runtimeTied` are recorded on
 `Assessment.engines`. An untied run (static `runtimeBaseUrl`, or a SHA
 mismatch) still reports its violations but does not supersede AST findings,

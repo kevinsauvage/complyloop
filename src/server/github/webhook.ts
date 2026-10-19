@@ -128,9 +128,12 @@ function checkoutRef(event: HandledWebhookEvent): string | undefined {
 
 /**
  * A successful deployment of the default branch, with the origin it is served
- * from. Hosts differ on the deployment `ref` (branch name vs. full ref), and
- * on whether the URL is `environment_url` or `target_url`. Preview deployments
- * of other branches are not authoritative and are ignored.
+ * from. Hosts differ on the deployment `ref`: some send the branch name (or a
+ * full ref), Vercel sends the commit SHA itself. A SHA ref proves nothing
+ * about the branch, so the caller must still match the SHA against the newest
+ * default-branch push (`latestWebhookJobRef`) — preview deployments of other
+ * commits are not authoritative and are ignored there. The URL is
+ * `environment_url` or, failing that, `target_url`.
  */
 function defaultBranchDeploymentOrigin(
   payload: DeploymentStatusPayload,
@@ -138,12 +141,15 @@ function defaultBranchDeploymentOrigin(
 ): string | undefined {
   if (payload.deployment_status?.state !== "success") return undefined;
   const ref = payload.deployment?.ref;
-  if (
-    !defaultBranch ||
-    (ref !== defaultBranch && ref !== `refs/heads/${defaultBranch}`)
-  ) {
-    return undefined;
-  }
+  const sha = payload.deployment?.sha;
+  const onDefaultBranch =
+    defaultBranch !== undefined &&
+    (ref === defaultBranch || ref === `refs/heads/${defaultBranch}`);
+  const refIsCommit =
+    typeof ref === "string" &&
+    typeof sha === "string" &&
+    ref.toLowerCase() === sha.toLowerCase();
+  if (!onDefaultBranch && !refIsCommit) return undefined;
   const raw =
     payload.deployment_status.environment_url ||
     payload.deployment_status.target_url;
