@@ -67,12 +67,33 @@ describe("resolveIncompleteResults: color-contrast", () => {
   );
 
   it.skipIf(!chromiumExecutableAvailable())(
+    "ignores the backdrop that shows in a pill's rounded corners",
+    async () => {
+      await withProbePage(
+        `<!doctype html><body style="margin:0;background:#ffffff">
+          <span id="pill" style="display:inline-block;margin:30px;padding:10px 40px;border-radius:9999px;background:#1b1b1b;color:#ffffff;font:14px sans-serif">New</span>
+          </body>`,
+        async (page) => {
+          // The white page behind the corners is invisible to the text: only the
+          // dark pill behind the glyphs counts.
+          const result = await resolveIncompleteResults(page, [
+            incompleteFor("color-contrast", "#pill"),
+          ]);
+          expect(result.incomplete).toEqual([]);
+          expect(result.confirmed).toEqual([]);
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
     "keeps text that passes on most of the background but fails on part of it",
     async () => {
       await withProbePage(
         `<!doctype html><body style="margin:0">
           <div style="background:linear-gradient(90deg,#000000 0 70%,#808080 70% 100%);padding:30px;width:700px;box-sizing:border-box">
-            <p id="mixed" style="margin:0;color:#ffffff;font:20px sans-serif">White over mostly black, a gray corner</p>
+            <p id="mixed" style="margin:0;color:#ffffff;font:20px sans-serif;text-align:justify;text-align-last:justify">White over mostly black, a gray corner</p>
           </div></body>`,
         async (page) => {
           const result = await resolveIncompleteResults(page, [

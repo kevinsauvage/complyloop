@@ -199,6 +199,43 @@ describe("runAssessment with runtime engine", () => {
       expect(assessment.engines?.runtimeTied).toBe(false);
     });
 
+    it("lets an untied audit close the findings it reported earlier for the same URL", async () => {
+      const violating = async (urls: readonly string[]) => ({
+        pages: [
+          {
+            url: urls[0]!,
+            violations: [
+              {
+                id: "label",
+                impact: "serious",
+                description: "Form elements must have labels",
+                help: "Form elements must have labels",
+                nodes: [{ html: '<input id="email">', target: ["#email"] }],
+              },
+            ],
+          },
+        ],
+        pageFailures: [],
+      });
+      await assess({ runtimeLookup: publicLookup, runtimeScanner: violating });
+      const open = () =>
+        db.findings.filter(
+          (finding) =>
+            finding.checkId === "input-label" && finding.status === "open",
+        );
+      expect(open()).toHaveLength(1);
+
+      // Fixed on the site; the audit is still untied (static URL, no commit).
+      const { assessment } = await assess({
+        runtimeLookup: publicLookup,
+        runtimeScanner: cleanPage,
+      });
+      expect(assessment.engines?.runtimeTied).toBe(false);
+      expect(open()).toHaveLength(0);
+      // Statuses stay advisory: a runtime-only requirement is not passed.
+      expect(contrastStatus()).toBe("unable_to_verify");
+    });
+
     it("stays advisory when the deployment serves a different commit", async () => {
       await commitCheckout();
       const { assessment } = await assess({

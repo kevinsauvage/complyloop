@@ -66,7 +66,34 @@ async function prepareElement(
       if (!(el instanceof HTMLElement)) return null;
       el.scrollIntoView({ block: "center", inline: "center" });
       const style = getComputedStyle(el);
-      const rect = el.getBoundingClientRect();
+      // Sample only where the text is: the element's own box also holds rounded
+      // corners and padding that show whatever lies behind the element.
+      let rect = el.getBoundingClientRect();
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      let textBox: { l: number; t: number; r: number; b: number } | null = null;
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        if (!(node.textContent ?? "").trim()) continue;
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        const box = range.getBoundingClientRect();
+        if (box.width <= 0 || box.height <= 0) continue;
+        textBox = textBox
+          ? {
+              l: Math.min(textBox.l, box.left),
+              t: Math.min(textBox.t, box.top),
+              r: Math.max(textBox.r, box.right),
+              b: Math.max(textBox.b, box.bottom),
+            }
+          : { l: box.left, t: box.top, r: box.right, b: box.bottom };
+      }
+      if (textBox) {
+        rect = new DOMRect(
+          textBox.l,
+          textBox.t,
+          textBox.r - textBox.l,
+          textBox.b - textBox.t,
+        );
+      }
       const left = Math.max(0, rect.left);
       const top = Math.max(0, rect.top);
       const right = Math.min(window.innerWidth, rect.right);

@@ -467,6 +467,25 @@ describe("shouldResolveOpenFinding", () => {
     ).toBe(true);
   });
 
+  it("lets an untied audit close findings it reported for the same origin only", () => {
+    expect(
+      shouldResolveOpenFinding({
+        finding: domFinding,
+        scopedFileSet: null,
+        runtimeRan: false,
+        untiedRuntimeOrigin: "https://preview.example",
+      }),
+    ).toBe(true);
+    expect(
+      shouldResolveOpenFinding({
+        finding: domFinding,
+        scopedFileSet: null,
+        runtimeRan: false,
+        untiedRuntimeOrigin: "https://other.example",
+      }),
+    ).toBe(false);
+  });
+
   it("keeps a source finding outside the scoped file set", () => {
     expect(
       shouldResolveOpenFinding({

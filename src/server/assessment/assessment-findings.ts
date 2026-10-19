@@ -210,9 +210,31 @@ export interface ReconcileControlFindingsInput {
   dismissedFindings: Finding[];
   scopedFileSet: Set<string> | null;
   runtimeRan: boolean;
+  /**
+   * Origin audited by a runtime scan that is not tied to the scanned commit
+   * (static URL / mismatched SHA). Such a run still closes the runtime
+   * findings it previously reported for that same origin — otherwise a project
+   * that can never be tied only ever accumulates findings — while requirement
+   * statuses stay advisory.
+   */
+  untiedRuntimeOrigin?: string;
   /** Shared per-run file-text memo so suggestion building reads each file once. */
   fileTextCache?: FileTextCache;
   onFindingResolved: (finding: Finding) => void;
+}
+
+function originOfLocation(finding: Finding): string | undefined {
+  const url = isDomLocation(finding.location)
+    ? finding.location.url
+    : isSiteLocation(finding.location)
+      ? finding.location.pages[0]
+      : undefined;
+  if (!url) return undefined;
+  try {
+    return new URL(url).origin;
+  } catch {
+    return undefined;
+  }
 }
 
 function isRuntimeOwnedFinding(finding: Finding): boolean {
@@ -227,9 +249,14 @@ export function shouldResolveOpenFinding(input: {
   finding: Finding;
   scopedFileSet: Set<string> | null;
   runtimeRan: boolean;
+  untiedRuntimeOrigin?: string;
 }): boolean {
   if (isRuntimeOwnedFinding(input.finding)) {
-    return input.runtimeRan;
+    if (input.runtimeRan) return true;
+    return (
+      input.untiedRuntimeOrigin !== undefined &&
+      originOfLocation(input.finding) === input.untiedRuntimeOrigin
+    );
   }
   if (
     !findingLocationMatchesScope(input.finding.location, input.scopedFileSet)
@@ -258,6 +285,7 @@ export function reconcileControlFindings(
     dismissedFindings,
     scopedFileSet,
     runtimeRan,
+    untiedRuntimeOrigin,
     fileTextCache,
     onFindingResolved,
   } = input;
@@ -347,6 +375,7 @@ export function reconcileControlFindings(
         finding,
         scopedFileSet,
         runtimeRan,
+        untiedRuntimeOrigin,
       })
     ) {
       continue;

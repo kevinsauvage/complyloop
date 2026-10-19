@@ -97,6 +97,14 @@ function buildAssessmentEngines(
   };
 }
 
+function originOf(url: string | undefined): string | undefined {
+  try {
+    return url ? new URL(url).origin : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export interface RunAssessmentOptions {
   /** Absolute path of the current ephemeral (or test) checkout to scan. */
   rootPath: string;
@@ -335,6 +343,8 @@ export interface AssessmentScanResult {
      * runtime-only requirements; an untied run just reports what it saw.
      */
     tied: boolean;
+    /** Origin that was audited (set whenever runtime ran), for untied resolution. */
+    auditedOrigin?: string;
     pagesScanned: number;
     siteLevelChecksRan?: boolean;
     htmlValidateRan?: boolean;
@@ -594,6 +604,7 @@ export async function scanAssessment(
       configured: runtimeConfigured,
       ran: runtimeRan,
       tied: runtimeTied,
+      auditedOrigin: runtimeRan ? originOf(runtimeBaseUrl) : undefined,
       pagesScanned: runtimeResult.pagesScanned,
       siteLevelChecksRan: runtimeResult.siteLevelChecksRan,
       htmlValidateRan: runtimeResult.htmlValidateRan,
@@ -700,6 +711,7 @@ export async function reconcileAssessment(
         dismissedFindings: dismissedByControl.get(control.id) ?? [],
         scopedFileSet,
         runtimeRan: runtime.tied,
+        untiedRuntimeOrigin: runtime.tied ? undefined : runtime.auditedOrigin,
         fileTextCache,
         // A preview scan (PR head / feature branch) must not derive the
         // persistent compliance decision: never auto-verify an approved
