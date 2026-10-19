@@ -229,7 +229,15 @@ only a total outage (zero pages) fails the sub-scan.
 (`markup-nesting`, `css-for-presentation`). Those stay `unable_to_verify`
 until `htmlValidateRan`. Duplicate ids stay on axe + AST.
 
-**Merge:** when runtime ran, drop composition-sensitive / runtime-only /
+**Commit tying:** a runtime audit is _tied_ only when it hit a deployment whose
+SHA equals the scanned checkout's `HEAD`. `deployment_status` (success, default
+branch, newest pushed commit only) enqueues a job whose `runtimeTarget` carries
+the deployment URL + SHA; the audited SHA and `runtimeTied` are recorded on
+`Assessment.engines`. An untied run (static `runtimeBaseUrl`, or a SHA
+mismatch) still reports its violations but does not supersede AST findings,
+resolve runtime findings, or pass runtime-only/site-level requirements.
+
+**Merge:** when a tied runtime audit ran, drop composition-sensitive / runtime-only /
 package-twin AST findings (`merge-findings.ts`) **scoped to the pages the audit
 actually rendered** (`runtime-coverage.ts` maps `scannedRoutes` → page files).
 When the audit covered every discovered page the drop is repo-wide; when it

@@ -8,20 +8,7 @@
 
 ## P0 — Critical
 
-### [ ] Tie runtime audit results to the commit that was scanned
-
-**Why:** The source-code (AST) scan runs on the pushed commit. The runtime audit runs on a fixed `project.runtimeBaseUrl` that is usually still serving the previous deploy when the push webhook fires. `mergeRawFindings` then drops composition-sensitive AST findings for pages the runtime audit "covered". A regression that isn't deployed yet disappears, and the requirement can read `passed` until the next push. Runtime-only checks can pass on code that was never scanned.
-
-**Where:** `src/server/github/webhook.ts` (push only), `src/server/assessment/assessment.ts:452-470`, `packages/analysis-core/src/merge-findings.ts` (`filterAstFindingsForAuthority`), `src/server/actions/runtime-audit.ts`.
-
-**Change:**
-
-- Handle GitHub `deployment_status` (state `success`), which Vercel and most hosts emit, and run the runtime audit against that deployment's `environment_url` and SHA.
-- Record the audited SHA on the assessment.
-- Let runtime findings replace AST findings only when the audited SHA equals the scanned SHA. Otherwise keep the AST findings and treat runtime-only checks as `unable_to_verify`.
-- Keep the static URL only as a manual fallback, labeled "not tied to a commit".
-
-**Impact:** High
+None open.
 
 ## P1 — High
 

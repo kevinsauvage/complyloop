@@ -137,8 +137,11 @@ prod GitHub enforcement), `DATABASE_SSL_INSECURE`.
 
 GitHub App settings: callback
 `https://<vercel-app>/api/auth/callback/github`, webhook
-`https://<vercel-app>/api/github/webhook` (event `push` only; PR feedback
-arrives via the merge-push scan).
+`https://<vercel-app>/api/github/webhook` (events `push` and
+`deployment_status`, with the App's Deployments: Read permission; PR feedback
+arrives via the merge-push scan). Deployment URLs behind Vercel Deployment
+Protection are not reachable by the runtime audit, so those runs report as
+unreachable instead of tied.
 
 ## 4. Monitoring
 

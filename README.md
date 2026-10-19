@@ -43,8 +43,8 @@ No worker process, no Vercel Cron (see [`docs/vercel.md`](./docs/vercel.md)).
 1. Create a [GitHub App](https://github.com/settings/apps):
    - Homepage: `http://localhost:3000`
    - Callback: `http://localhost:3000/api/auth/callback/github`
-   - Webhook URL: `http://localhost:3000/api/github/webhook` (event: `push`; PR feedback arrives via the merge-push scan)
-   - Permissions: Contents R/W, Pull requests R/W, Metadata R
+   - Webhook URL: `http://localhost:3000/api/github/webhook` (events: `push`, `deployment_status`; PR feedback arrives via the merge-push scan)
+   - Permissions: Contents R/W, Pull requests R/W, Deployments R, Metadata R
    - Request user authorization (OAuth) during installation
 2. In `.env.local`: `AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`, `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY` (+ `GITHUB_APP_SLUG`, `GITHUB_WEBHOOK_SECRET`)
 3. Restart dev server → **Sign in** → **Install the App** → **Connect** a repository
@@ -54,6 +54,7 @@ Repos are **shallow-cloned per job** into a temp directory and deleted when done
 **Continuous monitoring**
 
 - `push` webhooks to the default branch trigger re-assessments (PR feedback arrives via the merge-push scan).
+- `deployment_status` (success, default branch) re-runs the assessment with the runtime audit pointed at that deployment. Only an audit of a deployment serving the scanned commit can pass runtime-only requirements or replace source findings; the static Preview URL is a manual fallback that is reported as "not tied to a commit".
 - Repo access uses short-lived App installation tokens — assessments keep working with no user signed in.
 
 ---
