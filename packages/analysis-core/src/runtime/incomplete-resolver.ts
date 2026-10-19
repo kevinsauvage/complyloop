@@ -64,7 +64,13 @@ async function prepareElement(
         return null;
       }
       if (!(el instanceof HTMLElement)) return null;
-      el.scrollIntoView({ block: "center", inline: "center" });
+      // `instant`, not the default `auto`: a page with CSS `scroll-behavior: smooth`
+      // would still be animating when the rect is read below.
+      el.scrollIntoView({
+        block: "center",
+        inline: "center",
+        behavior: "instant",
+      });
       const style = getComputedStyle(el);
       // Sample only where the text is: the element's own box also holds rounded
       // corners and padding that show whatever lies behind the element.
@@ -150,7 +156,7 @@ async function judgePixels(
   png: Buffer,
   fg: { rgb: [number, number, number]; alpha: number },
   required: number,
-): Promise<Verdict> {
+): Promise<{ verdict: Verdict; worst: number; median: number }> {
   return aux.evaluate(
     async ({ b64, color, need }) => {
       const blob = await (await fetch(`data:image/png;base64,${b64}`)).blob();
@@ -159,7 +165,7 @@ async function judgePixels(
       canvas.width = bitmap.width;
       canvas.height = bitmap.height;
       const ctx = canvas.getContext("2d");
-      if (!ctx) return "unsure" as const;
+      if (!ctx) return { verdict: "unsure" as const, worst: 0, median: 0 };
       ctx.drawImage(bitmap, 0, 0);
       const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
@@ -185,15 +191,21 @@ async function judgePixels(
         const l2 = luminance(r, g, b);
         ratios.push((Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05));
       }
-      if (ratios.length === 0) return "unsure" as const;
+      if (ratios.length === 0) {
+        return { verdict: "unsure" as const, worst: 0, median: 0 };
+      }
       ratios.sort((a, b) => a - b);
       // 2nd percentile, not the minimum: anti-aliased edges and a stray
       // pixel should not decide a verdict.
       const worst = ratios[Math.floor(ratios.length * 0.02)] ?? 0;
       const median = ratios[Math.floor(ratios.length / 2)] ?? 0;
-      if (worst >= need) return "pass" as const;
-      if (median < need) return "fail" as const;
-      return "unsure" as const;
+      const verdict =
+        worst >= need
+          ? ("pass" as const)
+          : median < need
+            ? ("fail" as const)
+            : ("unsure" as const);
+      return { verdict, worst, median };
     },
     { b64: png.toString("base64"), color: fg, need: required },
   );
@@ -209,8 +221,15 @@ async function verdictForContrastNode(
   aux: Page,
   selector: string,
 ): Promise<Verdict> {
+  const debug = Boolean(process.env.COMPLYLOOP_DEBUG_RESOLVER);
   const prepared = await prepareElement(page, selector);
-  if (!prepared?.color) return "unsure";
+  if (!prepared?.color) {
+    if (debug)
+      console.info(
+        `[resolver] ${selector.slice(0, 60)}: not measurable (no rect/color)`,
+      );
+    return "unsure";
+  }
   // Fully transparent text (gradient clip text) has no color to measure.
   if (prepared.color.alpha === 0) return "unsure";
   try {
@@ -219,12 +238,19 @@ async function verdictForContrastNode(
       animations: "disabled",
       type: "png",
     });
-    return await judgePixels(
+    const required = requiredRatio(prepared.fontSize, prepared.fontWeight);
+    const { verdict, worst, median } = await judgePixels(
       aux,
       png,
       prepared.color,
-      requiredRatio(prepared.fontSize, prepared.fontWeight),
+      required,
     );
+    if (debug) {
+      console.info(
+        `[resolver] ${selector.slice(0, 60)}: ${verdict} worst=${worst.toFixed(2)} median=${median.toFixed(2)} need=${required} fg=${prepared.color.rgb.join(",")}/${prepared.color.alpha} rect=${Math.round(prepared.rect.width)}x${Math.round(prepared.rect.height)}`,
+      );
+    }
+    return verdict;
   } finally {
     await releaseElement(page, selector);
   }
@@ -356,8 +382,13 @@ export async function resolveIncompleteResults(
           nodes: fail.map((node) => ({ ...node, failureSummary: measured })),
         });
       }
-    } catch {
+    } catch (error) {
       // Resolution is best-effort: axe's own verdict stands.
+      if (process.env.COMPLYLOOP_DEBUG_RESOLVER) {
+        console.info(
+          `[resolver] ${rule.id} failed: ${String(error).slice(0, 300)}`,
+        );
+      }
       remaining.push(rule);
     }
   }

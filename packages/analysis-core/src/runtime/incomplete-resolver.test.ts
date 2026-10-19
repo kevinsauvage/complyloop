@@ -128,6 +128,26 @@ describe("resolveIncompleteResults: color-contrast", () => {
   );
 
   it.skipIf(!chromiumExecutableAvailable())(
+    "measures an element far below the fold on a smooth-scrolling page",
+    async () => {
+      await withProbePage(
+        `<!doctype html><html style="scroll-behavior:smooth"><body style="margin:0;background:#0b1020">
+          <div style="height:3000px"></div>
+          <p id="far" style="margin:0;color:#ffffff;font:20px sans-serif">Far below the fold</p>
+          <div style="height:800px"></div></body></html>`,
+        async (page) => {
+          const result = await resolveIncompleteResults(page, [
+            incompleteFor("color-contrast", "#far"),
+          ]);
+          expect(result.incomplete).toEqual([]);
+          expect(result.confirmed).toEqual([]);
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
     "keeps a node it cannot locate",
     async () => {
       await withProbePage(
