@@ -26,6 +26,13 @@ export interface ResolvedIncomplete {
   incomplete: AxeViolationLike[];
   /** Confirmed failures, shaped like axe violations. */
   confirmed: AxeViolationLike[];
+  /**
+   * True when measuring scrolled the page (and any carousel or scroll
+   * container holding an element) and ran screenshots. The caller reloads the
+   * page before further probes: a focus walk over a page left in that state
+   * reports focus rings that are really there as missing.
+   */
+  touchedPage: boolean;
 }
 
 type Verdict = "pass" | "fail" | "unsure";
@@ -284,13 +291,14 @@ async function resolveContrast(
 ): Promise<{
   keep: AxeViolationLike["nodes"];
   fail: AxeViolationLike["nodes"];
+  touched: boolean;
 }> {
   const keep: AxeViolationLike["nodes"] = [];
   const fail: AxeViolationLike["nodes"] = [];
+  let checked = 0;
   const aux = await page.context().newPage();
   try {
     await aux.setContent('<!doctype html><meta charset="utf-8">');
-    let checked = 0;
     for (const node of rule.nodes) {
       const selector = selectorOf(node.target);
       if (!selector || checked >= MAX_CONTRAST_NODES || Date.now() > deadline) {
@@ -313,7 +321,7 @@ async function resolveContrast(
       // Context teardown closes it anyway.
     });
   }
-  return { keep, fail };
+  return { keep, fail, touched: checked > 0 };
 }
 
 async function resolveHeadingOrder(
@@ -322,6 +330,7 @@ async function resolveHeadingOrder(
 ): Promise<{
   keep: AxeViolationLike["nodes"];
   fail: AxeViolationLike["nodes"];
+  touched: boolean;
 }> {
   const selectors = rule.nodes.map((node) => selectorOf(node.target));
   const offenders = await page.evaluate((selectors) => {
@@ -367,7 +376,7 @@ async function resolveHeadingOrder(
     else if (skipped === null || skipped === undefined) keep.push(node);
     // false: the heading follows its predecessor correctly — drop the node.
   });
-  return { keep, fail };
+  return { keep, fail, touched: false };
 }
 
 export async function resolveIncompleteResults(
@@ -377,6 +386,7 @@ export async function resolveIncompleteResults(
   const remaining: AxeViolationLike[] = [];
   const confirmed: AxeViolationLike[] = [];
   const deadline = Date.now() + BUDGET_MS;
+  let touchedPage = false;
 
   for (const rule of incomplete) {
     if (rule.id !== "color-contrast" && rule.id !== "heading-order") {
@@ -384,10 +394,11 @@ export async function resolveIncompleteResults(
       continue;
     }
     try {
-      const { keep, fail } =
+      const { keep, fail, touched } =
         rule.id === "color-contrast"
           ? await resolveContrast(page, rule, deadline)
           : await resolveHeadingOrder(page, rule);
+      touchedPage ||= touched;
       console.info(
         `[diag] incomplete ${rule.id}: total=${rule.nodes.length} kept=${keep.length} confirmed=${fail.length} resolved=${rule.nodes.length - keep.length - fail.length}`,
       );
@@ -405,6 +416,7 @@ export async function resolveIncompleteResults(
       }
     } catch (error) {
       // Resolution is best-effort: axe's own verdict stands.
+      if (rule.id === "color-contrast") touchedPage = true;
       if (process.env.COMPLYLOOP_DEBUG_RESOLVER) {
         console.info(
           `[resolver] ${rule.id} failed: ${String(error).slice(0, 300)}`,
@@ -413,5 +425,5 @@ export async function resolveIncompleteResults(
       remaining.push(rule);
     }
   }
-  return { incomplete: remaining, confirmed };
+  return { incomplete: remaining, confirmed, touchedPage };
 }

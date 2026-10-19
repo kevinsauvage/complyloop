@@ -380,6 +380,12 @@ function createPlaywrightAxeScanner(options?: {
             violations: [...axeResults.violations, ...resolved.confirmed],
             incomplete: resolved.incomplete,
           };
+          // Measuring scrolled the page and its scroll containers: reload so the
+          // custom probes (focus walk first among them) see the page as a visitor
+          // does, not the state the resolver left behind.
+          if (resolved.touchedPage) {
+            await timed("restore", () => gotoForRuntimeAudit(currentPage, url));
+          }
           const customChecks = await timed("custom", () =>
             runCustomRuntimeChecks(currentPage, url),
           );

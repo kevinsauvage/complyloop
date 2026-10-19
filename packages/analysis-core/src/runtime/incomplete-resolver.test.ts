@@ -148,6 +148,26 @@ describe("resolveIncompleteResults: color-contrast", () => {
   );
 
   it.skipIf(!chromiumExecutableAvailable())(
+    "reports that measuring touched the page, but not for a heading-only pass",
+    async () => {
+      await withProbePage(
+        `<!doctype html><body style="background:#0b1020"><h1 id="a">T</h1><p id="p" style="color:#fff">Hello there</p></body>`,
+        async (page) => {
+          const contrast = await resolveIncompleteResults(page, [
+            incompleteFor("color-contrast", "#p"),
+          ]);
+          expect(contrast.touchedPage).toBe(true);
+          const heading = await resolveIncompleteResults(page, [
+            incompleteFor("heading-order", "#a"),
+          ]);
+          expect(heading.touchedPage).toBe(false);
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
     "keeps a node it cannot locate",
     async () => {
       await withProbePage(
@@ -209,6 +229,10 @@ describe("resolveIncompleteResults: heading-order", () => {
   it("passes other rules through untouched", async () => {
     const rule = incompleteFor("aria-valid-attr-value", "#x");
     const result = await resolveIncompleteResults({} as never, [rule]);
-    expect(result).toEqual({ incomplete: [rule], confirmed: [] });
+    expect(result).toEqual({
+      incomplete: [rule],
+      confirmed: [],
+      touchedPage: false,
+    });
   });
 });
