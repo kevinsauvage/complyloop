@@ -85,7 +85,7 @@ describe("kitchen-sink custom probes", () => {
   probeCase(
     "non-text-contrast",
     `<!doctype html><html lang="en"><body>
-      <button id="ok" style="border:1px solid #eeeeee;background:#ffffff;color:#000000">OK</button>
+      <button id="ok" aria-label="OK" style="width:40px;height:40px;border:1px solid #eeeeee;background:#ffffff;color:#000000"></button>
     </body></html>`,
     nonTextContrastViolation,
   );

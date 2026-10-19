@@ -183,7 +183,7 @@ describe("dark color-scheme condition (Playwright)", () => {
             .btn { border-color: #222; background: #000; color: #fff; }
           }
         </style></head><body>
-          <button class="btn">OK</button>
+          <button class="btn" aria-label="OK" style="width:40px;height:40px"></button>
         </body></html>
       `);
 

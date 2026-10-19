@@ -124,4 +124,27 @@ describe("capturePageSnapshot", () => {
       { name: "nick", label: "Nickname", autoComplete: undefined },
     ]);
   });
+
+  it.each([
+    ['<a href="/site-map">Plan</a>', "/site-map"],
+    ['<a href="/site_map">Map</a>', "/site_map"],
+    ['<a href="/plan-du-site">Plan</a>', "/plan-du-site"],
+    ['<a href="/pages">Site map</a>', "/pages"],
+  ])("recognizes a site map link: %s", async (markup, href) => {
+    document.body.innerHTML = `<footer>${markup}</footer>`;
+    const snapshot = await capturePageSnapshot(
+      pageThatEvaluatesInJsdom(),
+      "https://example.test/",
+    );
+    expect(snapshot.sitemapHref).toBe(href);
+  });
+
+  it("does not mistake unrelated links for a site map", async () => {
+    document.body.innerHTML = `<footer><a href="/map-of-offices">Offices</a></footer>`;
+    const snapshot = await capturePageSnapshot(
+      pageThatEvaluatesInJsdom(),
+      "https://example.test/",
+    );
+    expect(snapshot.sitemapLinks).toEqual([]);
+  });
 });

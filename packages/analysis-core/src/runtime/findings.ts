@@ -105,6 +105,17 @@ function severityFromImpact(impact: string | null | undefined): Severity {
   }
 }
 
+/**
+ * axe `incomplete` means "could not decide" (background gradient, overlapping
+ * element), not "failed": nothing is confirmed broken, so it never outranks a
+ * confirmed defect. Impact on an incomplete node is axe's potential impact.
+ */
+function reviewSeverity(severity: Severity): Severity {
+  return severity === "critical" || severity === "serious"
+    ? "moderate"
+    : severity;
+}
+
 function findingsFromAxeHits(
   page: RuntimeScanPageResult,
   hits: ReadonlyArray<AxeViolationLike>,
@@ -129,7 +140,9 @@ function findingsFromAxeHits(
           kind: asReview ? "warning" : "violation",
           severity: heuristic
             ? HEURISTIC_RUNTIME_DOWNGRADE.severity
-            : severityFromImpact(violation.impact),
+            : kind === "warning"
+              ? reviewSeverity(severityFromImpact(violation.impact))
+              : severityFromImpact(violation.impact),
           confidence: asReview ? "medium" : confidence,
           reason: `${violation.help} ${violation.description}`.trim(),
           url: page.url,

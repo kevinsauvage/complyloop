@@ -99,7 +99,14 @@ export async function capturePageSnapshot(
     let sitemapPosition: string | undefined;
     for (const anchor of document.querySelectorAll("a[href]")) {
       const href = anchor.getAttribute("href");
-      if (!href || !/sitemap/i.test(href)) continue;
+      // `/sitemap`, `/site-map`, `/site_map`, `/plan-du-site`, or a link
+      // that is literally named "Site map" / "Plan du site".
+      const isSitemap =
+        /site[-_ ]?map|plan[-_ ]du[-_ ]site/i.test(href ?? "") ||
+        /^\s*(?:site[-_ ]?map|plan du site)\s*$/i.test(
+          anchor.textContent ?? "",
+        );
+      if (!href || !isSitemap) continue;
       sitemapLinks.push(href);
       if (!sitemapHref) {
         sitemapHref = href;

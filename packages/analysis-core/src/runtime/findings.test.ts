@@ -193,6 +193,30 @@ describe("findingsFromAxePages", () => {
     expect(findings[0]?.analyzerId).toBe("axe");
   });
 
+  it("does not rank an undecidable axe result as serious, but keeps confirmed violations serious", () => {
+    const node = { html: "<p>Hi</p>", target: ["p"] };
+    const rule = {
+      id: "color-contrast",
+      impact: "serious" as const,
+      description: "d",
+      help: "h",
+      nodes: [node],
+    };
+    const findings = findingsFromAxePages([
+      {
+        url: "https://app.example/",
+        violations: [{ ...rule, nodes: [{ ...node, target: ["h1"] }] }],
+        incomplete: [rule, { ...rule, impact: null }],
+      },
+    ]);
+    const bySelector = (kind: string) =>
+      findings.filter((finding) => finding.kind === kind);
+    expect(bySelector("violation").map((f) => f.severity)).toEqual(["serious"]);
+    expect(
+      bySelector("warning").every((finding) => finding.severity === "moderate"),
+    ).toBe(true);
+  });
+
   it("emits heuristic runtime checks as warnings for needs_review", () => {
     const findings = findingsFromAxePages([
       {

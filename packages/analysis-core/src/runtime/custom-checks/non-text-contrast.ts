@@ -35,6 +35,49 @@ export function contrastRatio(
   return (lighter + 0.05) / (darker + 0.05);
 }
 
+/**
+ * WCAG 1.4.11 only asks for a 3:1 boundary when the boundary is what
+ * identifies the control. A button whose visible text or icon already
+ * contrasts 3:1 against its background is identified without its border, so
+ * a quiet outline is a design choice, not a failure. Runs in the page
+ * (stringified), so it must stay self-contained.
+ */
+export function contentIdentifiesControl(
+  el: Element,
+  background: [number, number, number],
+  parseColor: (value: string) => { rgb: [number, number, number] } | null,
+  contrast: (
+    a: [number, number, number],
+    b: [number, number, number],
+  ) => number,
+): boolean {
+  let hasContent = false;
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (!(node.textContent ?? "").trim()) continue;
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const rect = range.getBoundingClientRect();
+    // Visually-hidden (sr-only) text is 1px: it does not identify anything.
+    if (rect.width > 2 && rect.height > 2) {
+      hasContent = true;
+      break;
+    }
+  }
+  if (!hasContent) {
+    for (const graphic of Array.from(el.querySelectorAll("svg,img"))) {
+      const rect = graphic.getBoundingClientRect();
+      if (rect.width >= 8 && rect.height >= 8) {
+        hasContent = true;
+        break;
+      }
+    }
+  }
+  if (!hasContent) return false;
+  const color = parseColor(getComputedStyle(el).color);
+  return color !== null && contrast(color.rgb, background) >= 3;
+}
+
 const MAX_HOVER = 12;
 const MAX_NODES = 5;
 
@@ -47,6 +90,7 @@ const MATH_PAYLOAD = {
   parseColorSrc: parseCssColor.toString(),
   luminanceSrc: relativeLuminance.toString(),
   contrastSrc: contrastRatio.toString(),
+  identitySrc: contentIdentifiesControl.toString(),
 };
 
 export async function nonTextContrastViolation(
@@ -124,7 +168,13 @@ async function collectCurrentHits(page: Page): Promise<{
     page,
     (
       captureHit,
-      { parseColorSrc, luminanceSrc, contrastSrc, controlSelector },
+      {
+        parseColorSrc,
+        luminanceSrc,
+        contrastSrc,
+        identitySrc,
+        controlSelector,
+      },
     ) => {
       const parseColor = new Function(
         "value",
@@ -135,6 +185,21 @@ async function collectCurrentHits(page: Page): Promise<{
         "b",
         `const relativeLuminance = (${luminanceSrc}); const contrastRatio = (${contrastSrc}); return contrastRatio(a, b);`,
       ) as (a: [number, number, number], b: [number, number, number]) => number;
+      const identifiedByContent = new Function(
+        "el",
+        "bg",
+        "parseColor",
+        "contrast",
+        `return (${identitySrc})(el, bg, parseColor, contrast);`,
+      ) as (
+        el: Element,
+        bg: [number, number, number],
+        parseColor: typeof parseCssColor,
+        contrast: (
+          a: [number, number, number],
+          b: [number, number, number],
+        ) => number,
+      ) => boolean;
 
       function backgroundRgb(el: Element): [number, number, number] | null {
         let current: Element | null = el;
@@ -191,6 +256,7 @@ async function collectCurrentHits(page: Page): Promise<{
         const border = parsedBorder.rgb;
         const bg = backgroundRgb(el);
         if (!bg) continue;
+        if (identifiedByContent(el, bg, parseColor, contrast)) continue;
         const ratio = contrast(border, bg);
         if (ratio >= 3) continue;
 
@@ -211,7 +277,11 @@ async function collectCurrentHits(page: Page): Promise<{
 async function collectHoverHit(locator: Locator): Promise<ContrastHit | null> {
   return locatorEvaluateWithHitCapture(
     locator,
-    (captureHit, el, { parseColorSrc, luminanceSrc, contrastSrc }) => {
+    (
+      captureHit,
+      el,
+      { parseColorSrc, luminanceSrc, contrastSrc, identitySrc },
+    ) => {
       const parseColor = new Function(
         "value",
         `const parseCssColor = (${parseColorSrc}); return parseCssColor(value);`,
@@ -221,6 +291,21 @@ async function collectHoverHit(locator: Locator): Promise<ContrastHit | null> {
         "b",
         `const relativeLuminance = (${luminanceSrc}); const contrastRatio = (${contrastSrc}); return contrastRatio(a, b);`,
       ) as (a: [number, number, number], b: [number, number, number]) => number;
+      const identifiedByContent = new Function(
+        "el",
+        "bg",
+        "parseColor",
+        "contrast",
+        `return (${identitySrc})(el, bg, parseColor, contrast);`,
+      ) as (
+        el: Element,
+        bg: [number, number, number],
+        parseColor: typeof parseCssColor,
+        contrast: (
+          a: [number, number, number],
+          b: [number, number, number],
+        ) => number,
+      ) => boolean;
 
       function backgroundRgb(node: Element): [number, number, number] | null {
         let current: Element | null = node;
@@ -243,6 +328,7 @@ async function collectHoverHit(locator: Locator): Promise<ContrastHit | null> {
       const border = parsedBorder.rgb;
       const bg = backgroundRgb(el);
       if (!bg) return null;
+      if (identifiedByContent(el, bg, parseColor, contrast)) return null;
       const ratio = contrast(border, bg);
       if (ratio >= 3) return null;
       const captured = captureHit(el);

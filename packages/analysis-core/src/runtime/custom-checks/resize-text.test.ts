@@ -33,6 +33,67 @@ describe("resizeTextViolation", () => {
   );
 
   it.skipIf(!chromiumExecutableAvailable())(
+    "ignores overflow-hidden containers whose overflow is decorative",
+    async () => {
+      await withProbePage(
+        `
+        <!doctype html><html lang="en"><body>
+          <article style="position:relative;overflow:hidden;border:1px solid #333;padding:8px">
+            <div aria-hidden="true" style="position:absolute;top:-80px;right:-80px;width:200px;height:200px;background:#0e7490;filter:blur(40px)"></div>
+            <p>Readable text that always fits its card.</p>
+          </article>
+        </body></html>
+      `,
+        async (page) => {
+          expect(await resizeTextViolation(page)).toBeNull();
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "passes a line-clamped excerpt that has a disclosure control",
+    async () => {
+      await withProbePage(
+        `
+        <!doctype html><html lang="en"><body>
+          <div style="width:300px">
+            <blockquote style="display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden">
+              Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua, ut enim ad minim veniam quis nostrud.
+            </blockquote>
+            <button type="button" aria-expanded="false">Read more</button>
+          </div>
+        </body></html>
+      `,
+        async (page) => {
+          expect(await resizeTextViolation(page)).toBeNull();
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "flags a line-clamped excerpt with no way to read the rest",
+    async () => {
+      await withProbePage(
+        `
+        <!doctype html><html lang="en"><body>
+          <blockquote style="width:300px;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden">
+            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua, ut enim ad minim veniam quis nostrud.
+          </blockquote>
+        </body></html>
+      `,
+        async (page) => {
+          expect((await resizeTextViolation(page))?.id).toBe("resize-text");
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
     "passes when text remains readable after resize",
     async () => {
       await withProbePage(

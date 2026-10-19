@@ -22,6 +22,43 @@ export async function resizeTextViolation(
         )() as typeof isVisuallyHiddenByDesign;
         document.documentElement.style.fontSize = fontScale;
 
+        // `overflow: hidden` + overflowing content is not yet lost text: cards
+        // clip decorative glows and blurred backgrounds on purpose. Only text
+        // that actually sits outside the clipping box counts.
+        function hasClippedText(el: HTMLElement): boolean {
+          const box = el.getBoundingClientRect();
+          const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+          for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+            if (!(node.textContent ?? "").trim()) continue;
+            const range = document.createRange();
+            range.selectNodeContents(node);
+            const rect = range.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) continue;
+            if (
+              rect.bottom > box.bottom + 1 ||
+              rect.right > box.right + 1 ||
+              rect.top < box.top - 1 ||
+              rect.left < box.left - 1
+            ) {
+              return true;
+            }
+          }
+          return false;
+        }
+
+        // A line-clamped excerpt next to a disclosure control ("Read more",
+        // aria-expanded) is a progressive-disclosure pattern: the full text
+        // is one activation away, so the clamp is not content loss.
+        function isDisclosedExcerpt(el: HTMLElement): boolean {
+          const style = getComputedStyle(el);
+          const lineClamp =
+            style.getPropertyValue("-webkit-line-clamp") ||
+            style.getPropertyValue("line-clamp");
+          if (!lineClamp || lineClamp === "none") return false;
+          const container = el.parentElement;
+          return Boolean(container?.querySelector("[aria-expanded]"));
+        }
+
         const clipped = Array.from(document.querySelectorAll("body *")).find(
           (el) => {
             if (!(el instanceof HTMLElement)) return false;
@@ -42,7 +79,9 @@ export async function resizeTextViolation(
               style.overflowX === "hidden" ||
               style.overflowY === "hidden" ||
               style.textOverflow === "ellipsis";
-            return overflows && hidden;
+            if (!overflows || !hidden) return false;
+            if (isDisclosedExcerpt(el)) return false;
+            return hasClippedText(el);
           },
         );
 
