@@ -104,4 +104,11 @@ export interface Project {
    * Defaults to `["/"]` when the base URL is set and this is omitted.
    */
   runtimeRoutes?: string[];
+  /**
+   * Newest successful default-branch deployment reported by the host
+   * (`deployment_status`): the commit it serves and where. Manual runs audit
+   * it instead of the static `runtimeBaseUrl` whenever the checkout is still
+   * that commit, so the audit stays tied to what it scanned.
+   */
+  lastDeployment?: { url: string; sha: string };
 }

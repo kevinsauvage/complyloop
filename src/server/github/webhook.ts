@@ -120,6 +120,24 @@ async function persistDefaultBranchIfChanged(
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/i;
 
+/**
+ * Records the newest default-branch deployment on the project so manual runs
+ * can audit it. Compare-and-set on the SHA: the delivery that already passed
+ * the "newest pushed commit" guard wins, and a redelivery is a no-op.
+ */
+async function rememberDeployment(
+  drizzle: DrizzleDb,
+  projectId: string,
+  target: { url: string; sha: string },
+): Promise<void> {
+  await drizzle.execute(sql`
+    UPDATE projects
+    SET payload = jsonb_set(payload, '{lastDeployment}', ${JSON.stringify(target)}::jsonb, true)
+    WHERE id = ${projectId}
+      AND (payload->'lastDeployment'->>'sha') IS DISTINCT FROM ${target.sha}
+  `);
+}
+
 function checkoutRef(event: HandledWebhookEvent): string | undefined {
   const sha =
     event.kind === "push" ? event.payload.after : event.payload.deployment?.sha;
@@ -301,6 +319,7 @@ export async function handleGitHubWebhookEvent(
       };
     }
     runtimeTarget = { url: origin, sha: ref };
+    await rememberDeployment(drizzle, project.id, runtimeTarget);
   }
 
   const job = await enqueueAssessmentJob({

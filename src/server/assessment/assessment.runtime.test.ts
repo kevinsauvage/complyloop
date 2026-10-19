@@ -164,6 +164,41 @@ describe("runAssessment with runtime engine", () => {
       expect(contrastStatus()).toBe("passed");
     });
 
+    it("ties a manual run to the known deployment of the checked-out commit", async () => {
+      const sha = await commitCheckout();
+      project.lastDeployment = { url: "https://deploy.example", sha };
+      let audited: string | undefined;
+      const { assessment } = await assess({
+        runtimeLookup: publicLookup,
+        runtimeScanner: async (urls) => {
+          audited = urls[0];
+          return cleanPage(urls);
+        },
+      });
+      expect(audited).toContain("https://deploy.example");
+      expect(assessment.engines?.runtimeTied).toBe(true);
+      expect(assessment.engines?.runtimeAuditedSha).toBe(sha);
+      expect(contrastStatus()).toBe("passed");
+    });
+
+    it("falls back to the static URL when the known deployment is for another commit", async () => {
+      await commitCheckout();
+      project.lastDeployment = {
+        url: "https://deploy.example",
+        sha: "b".repeat(40),
+      };
+      let audited: string | undefined;
+      const { assessment } = await assess({
+        runtimeLookup: publicLookup,
+        runtimeScanner: async (urls) => {
+          audited = urls[0];
+          return cleanPage(urls);
+        },
+      });
+      expect(audited).toContain("https://preview.example");
+      expect(assessment.engines?.runtimeTied).toBe(false);
+    });
+
     it("stays advisory when the deployment serves a different commit", async () => {
       await commitCheckout();
       const { assessment } = await assess({

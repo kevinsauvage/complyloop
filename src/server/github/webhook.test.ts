@@ -136,6 +136,41 @@ describe("handleGitHubWebhookEvent", () => {
       });
     });
 
+    it("accepts a host that sends the commit SHA as the deployment ref", async () => {
+      const result = await handleGitHubWebhookEvent(
+        "deployment_status",
+        deployment({ deployment: { sha, ref: sha } }),
+        "delivery-sha-ref",
+      );
+      expect(result.handled).toBe(true);
+      expect(enqueueAssessmentJob).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            runtimeTarget: { url: "https://app-abc123.vercel.app", sha },
+          }),
+        }),
+      );
+    });
+
+    it("rejects a SHA ref that is not the deployment's own commit", async () => {
+      const result = await handleGitHubWebhookEvent(
+        "deployment_status",
+        deployment({ deployment: { sha, ref: "c".repeat(40) } }),
+        "delivery-other-sha",
+      );
+      expect(result.handled).toBe(false);
+      expect(enqueueAssessmentJob).not.toHaveBeenCalled();
+    });
+
+    it("remembers the deployment on the project for manual runs", async () => {
+      await handleGitHubWebhookEvent(
+        "deployment_status",
+        deployment(),
+        "delivery-remember",
+      );
+      expect(drizzleExecute).toHaveBeenCalled();
+    });
+
     it.each([
       [
         "a non-success state",

@@ -496,7 +496,19 @@ export async function scanAssessment(
       : null;
 
   // — Stage 4: runtime scan (only when a preview URL is configured). —
-  const runtimeBaseUrl = options.runtimeTarget?.url ?? project.runtimeBaseUrl;
+  // An explicit target (a deployment_status job) always wins. Otherwise reuse
+  // the project's newest known deployment when it serves exactly the commit
+  // checked out — a manual re-run of an unchanged commit stays tied instead
+  // of falling back to a URL that may serve an older build.
+  const known = project.lastDeployment;
+  const runtimeTarget =
+    options.runtimeTarget ??
+    (known &&
+    head !== undefined &&
+    known.sha.toLowerCase() === head.toLowerCase()
+      ? known
+      : undefined);
+  const runtimeBaseUrl = runtimeTarget?.url ?? project.runtimeBaseUrl;
   const runtimeConfigured = Boolean(runtimeBaseUrl?.trim());
   const runtimeResult = await timed("runtime", () =>
     runtimeConfigured
@@ -519,7 +531,7 @@ export async function scanAssessment(
     // Sentry. Origin only, never the full URL (preview tokens).
     let previewOrigin: string | undefined;
     try {
-      previewOrigin = new URL(project.runtimeBaseUrl as string).origin;
+      previewOrigin = new URL(runtimeBaseUrl as string).origin;
     } catch {
       previewOrigin = undefined;
     }
@@ -537,16 +549,16 @@ export async function scanAssessment(
   // is not deployed yet must not disappear behind the previous deploy's DOM.
   const runtimeTied =
     runtimeRan &&
-    options.runtimeTarget !== undefined &&
+    runtimeTarget !== undefined &&
     head !== undefined &&
-    options.runtimeTarget.sha.toLowerCase() === head.toLowerCase();
+    runtimeTarget.sha.toLowerCase() === head.toLowerCase();
 
   const engines = buildAssessmentEngines(
     runtimeConfigured,
     runtimeRan,
     runtimeResult,
     runtimeTied,
-    options.runtimeTarget?.sha,
+    runtimeTarget?.sha,
   );
 
   // Runtime authority is scoped to the routes the audit actually rendered.

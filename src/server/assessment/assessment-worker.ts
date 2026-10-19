@@ -39,6 +39,25 @@ export function resolveJobAuthoritative(job: AssessmentJob): boolean {
   );
 }
 
+/**
+ * Regression alerts come from webhook runs. When the project reports its
+ * deployments, a push run is untied by construction (the build is still
+ * running), so alerting from it would announce regressions the commit-tied
+ * run of the same push corrects a minute later. That run alerts instead.
+ */
+export function shouldCollectAlerts(
+  job: AssessmentJob,
+  project: { lastDeployment?: unknown },
+  scan: { runtime: { tied: boolean } },
+): boolean {
+  if (job.trigger !== "webhook") return false;
+  const deferToDeployment =
+    job.payload.eventName === "push" &&
+    project.lastDeployment !== undefined &&
+    !scan.runtime.tied;
+  return !deferToDeployment;
+}
+
 async function runClaimedAssessmentJob(
   job: AssessmentJob,
   onLeaseRenewed?: (leaseExpiresAt: string) => void,
@@ -145,7 +164,7 @@ async function runClaimedAssessmentJob(
               job,
               scan,
               rootPath,
-              collectAlerts: job.trigger === "webhook",
+              collectAlerts: shouldCollectAlerts(job, project, scan),
               trigger,
             });
           } catch (error) {

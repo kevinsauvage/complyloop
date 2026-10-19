@@ -128,6 +128,7 @@ import { ASSESSMENT_JOB_HEARTBEAT_MS } from "./assessment-jobs";
 import {
   processNextAssessmentJob,
   settleRunningAssessmentJob,
+  shouldCollectAlerts,
 } from "./assessment-worker";
 
 const project = testProject({
@@ -1135,5 +1136,47 @@ describe("processNextAssessmentJob", () => {
         code: "assessment_job_failure_evidence_failed",
       }),
     );
+  });
+});
+
+describe("shouldCollectAlerts", () => {
+  const deployed = { lastDeployment: { url: "https://d.example", sha: "a" } };
+  const push = job({ trigger: "webhook", payload: { eventName: "push" } });
+  const deploy = job({
+    trigger: "webhook",
+    payload: { eventName: "deployment_status" },
+  });
+
+  it("alerts from a push run when the project does not report deployments", () => {
+    expect(shouldCollectAlerts(push, {}, { runtime: { tied: false } })).toBe(
+      true,
+    );
+  });
+
+  it("defers a push run's alerts to the commit-tied deployment run", () => {
+    expect(
+      shouldCollectAlerts(push, deployed, { runtime: { tied: false } }),
+    ).toBe(false);
+  });
+
+  it("alerts from a deployment run and from a tied push run", () => {
+    expect(
+      shouldCollectAlerts(deploy, deployed, { runtime: { tied: true } }),
+    ).toBe(true);
+    expect(
+      shouldCollectAlerts(push, deployed, { runtime: { tied: true } }),
+    ).toBe(true);
+  });
+
+  it("never alerts outside webhook runs", () => {
+    expect(
+      shouldCollectAlerts(
+        job({ trigger: "manual" }),
+        {},
+        {
+          runtime: { tied: true },
+        },
+      ),
+    ).toBe(false);
   });
 });
