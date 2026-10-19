@@ -30,6 +30,29 @@ export async function resizeTextViolation(
           const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
           for (let node = walker.nextNode(); node; node = walker.nextNode()) {
             if (!(node.textContent ?? "").trim()) continue;
+            // Visually-hidden (sr-only) text is clipped to ~1px by design; a range
+            // reports its unclipped glyphs, which sit outside any frame.
+            let hiddenByDesign = false;
+            for (
+              let host = node.parentElement;
+              host && host !== el;
+              host = host.parentElement
+            ) {
+              if (isHidden(host)) {
+                hiddenByDesign = true;
+                break;
+              }
+            }
+            if (hiddenByDesign) continue;
+            // Collapsed disclosure panels and decorative subtrees inside this
+            // container are not read text either.
+            if (
+              node.parentElement?.closest(
+                "[inert], [hidden], [aria-hidden='true']",
+              )
+            ) {
+              continue;
+            }
             // Text inside a disclosed excerpt is clipped on purpose: it must
             // not count against the card that contains it either.
             let ancestor = node.parentElement;
@@ -93,15 +116,15 @@ export async function resizeTextViolation(
             ) {
               return false;
             }
-            const overflows =
-              el.scrollWidth > el.clientWidth + 1 ||
-              el.scrollHeight > el.clientHeight + 1;
             const hidden =
               style.overflow === "hidden" ||
               style.overflowX === "hidden" ||
               style.overflowY === "hidden" ||
               style.textOverflow === "ellipsis";
-            if (!overflows || !hidden) return false;
+            // No scroll-size precheck: `scrollHeight`/`scrollWidth` ignore overflow
+            // past the top or left edge (a bottom-anchored caption that grew
+            // taller than its frame), so the glyph rects decide.
+            if (!hidden) return false;
             if (isDisclosedExcerpt(el)) return false;
             return hasClippedText(el);
           },

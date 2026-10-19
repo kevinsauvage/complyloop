@@ -96,6 +96,74 @@ describe("resizeTextViolation", () => {
   );
 
   it.skipIf(!chromiumExecutableAvailable())(
+    "flags a caption absolutely placed in a fixed-ratio frame, passes the same card built as a growing grid",
+    async () => {
+      const caption = `<span style="display:block;font-size:0.75rem">Collection</span><h3 style="margin:6px 0 0;font-size:1.5rem">Jewelry Sets</h3><p style="margin:8px 0 0;font-size:0.875rem">Every piece in the collection, gathered in one place for easy browsing and gifting.</p>`;
+      await withProbePage(
+        `<!doctype html><html lang="en"><body style="margin:0">
+          <div style="position:relative;width:246px;aspect-ratio:4/5;overflow:hidden;background:#ddd">
+            <div style="position:absolute;left:0;right:0;bottom:0;padding:96px 20px 20px">${caption}</div>
+          </div></body></html>`,
+        async (page) => {
+          expect((await resizeTextViolation(page))?.id).toBe("resize-text");
+        },
+      );
+      await withProbePage(
+        `<!doctype html><html lang="en"><body style="margin:0">
+          <div style="position:relative;display:grid;grid-template-columns:minmax(0,1fr);width:246px;overflow:hidden;background:#ddd">
+            <div style="grid-area:1/1;aspect-ratio:4/5;width:100%"></div>
+            <div style="grid-area:1/1;align-self:end;position:relative;padding:96px 20px 20px">${caption}</div>
+          </div></body></html>`,
+        async (page) => {
+          expect(await resizeTextViolation(page)).toBeNull();
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "ignores collapsed inert panels inside an overflow-hidden list",
+    async () => {
+      await withProbePage(
+        `
+        <!doctype html><html lang="en"><body>
+          <div style="overflow:hidden;width:300px;border:1px solid #333">
+            <button type="button" aria-expanded="false">Question</button>
+            <div inert style="display:grid;grid-template-rows:0fr;opacity:0">
+              <div style="overflow:hidden"><p style="margin:0;padding:24px 100px 24px 24px;white-space:nowrap">A long answer that only shows when the question is opened by the visitor.</p></div>
+            </div>
+          </div>
+        </body></html>
+      `,
+        async (page) => {
+          expect(await resizeTextViolation(page)).toBeNull();
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "ignores sr-only text inside an overflow-hidden button",
+    async () => {
+      await withProbePage(
+        `
+        <!doctype html><html lang="en"><head><style>
+          .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+        </style></head><body>
+          <a href="#" style="position:relative;overflow:hidden;display:inline-block;padding:8px 16px">Docs <span class="sr-only">(opens in a new tab, long hidden label)</span></a>
+        </body></html>
+      `,
+        async (page) => {
+          expect(await resizeTextViolation(page)).toBeNull();
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
     "passes a line-clamped excerpt that has a disclosure control",
     async () => {
       await withProbePage(
