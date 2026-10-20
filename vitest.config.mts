@@ -97,6 +97,8 @@ export default defineConfig({
         "src/server/github/access-token.ts", // test:e2e (cookie + token vault I/O)
         "src/server/github/github-access.ts", // test:e2e (thin auth glue)
         "src/server/assessment/repo-checkout.ts", // test:e2e
+        // Postgres job queue (claim / lease / hand-back) — assessment-jobs.concurrency.test.ts.
+        "src/server/assessment/assessment-jobs.ts", // test:db
         "src/server/github/github-tokens.ts", // test:e2e
         "src/server/github/github-app.ts", // test:e2e
         "src/server/octokit.ts", // test:e2e
