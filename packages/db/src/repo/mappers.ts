@@ -93,6 +93,7 @@ export function findingToRow(finding: Finding) {
     controlId: finding.controlId,
     assessmentId: finding.assessmentId,
     status: finding.status,
+    kind: finding.kind,
     // Unknown severities sort last (same as `minor`); core `severityRank`
     // throws on them, but the write path must never fail on a projection.
     severityRank: SEVERITY_RANK[finding.severity] ?? 3,

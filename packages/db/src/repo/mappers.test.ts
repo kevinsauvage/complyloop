@@ -48,6 +48,7 @@ describe("repo mappers emit stable row shapes", () => {
       "controlId",
       "assessmentId",
       "status",
+      "kind",
       "severityRank",
       "engine",
       "detectedAt",

@@ -1,5 +1,6 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
@@ -56,6 +57,28 @@ const connectGitHubRepoInput = z.object({
 const disconnectGitHubRepoInput = z.object({
   projectId: requiredField("Select a connected project to disconnect."),
 });
+
+/**
+ * Portfolio row → that project's dashboard. Same active-project switch as the
+ * switcher, then navigate: a portfolio row is a link into the project, not an
+ * in-place selection.
+ */
+export async function openProjectAction(formData: FormData): Promise<void> {
+  const { projectId } = parseForm(switchProjectInput, formData);
+  const workspace = await getWorkspace();
+  setActiveProject(
+    {
+      projects: workspace.projects,
+      organizations: workspace.organizations,
+      memberships: workspace.access.memberships,
+    },
+    projectId,
+    workspace.userId,
+  );
+  await writeActiveProjectCookie(projectId);
+  refresh();
+  redirect("/dashboard");
+}
 
 export async function switchProjectAction(formData: FormData): Promise<void> {
   const { projectId } = parseForm(switchProjectInput, formData);

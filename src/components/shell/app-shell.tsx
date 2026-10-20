@@ -1,8 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import type { NavAttentionCounts } from "@complyloop/db/repo/nav-attention";
-
 import { Separator } from "@/components/ui/separator";
 
 import { MobileNavSheet } from "./mobile-nav-sheet";
@@ -12,7 +10,7 @@ import { ThemeToggle } from "./theme-toggle";
 
 function BrandMark({ className }: { className?: string }) {
   return (
-    <Link href="/dashboard" className={className}>
+    <Link href="/projects" className={className}>
       <span className="flex items-center gap-2.5">
         <span className="relative flex size-7 shrink-0 items-center justify-center rounded-lg bg-signal shadow-[0_0_0_1px] shadow-signal/30">
           <span
@@ -36,21 +34,19 @@ function BrandMark({ className }: { className?: string }) {
 
 function SidebarBody({
   authControls,
-  navAttention,
-  navLinks,
-  showBrand = true,
+  workspaceSwitcher,
 }: {
   authControls: ReactNode;
-  navAttention: NavAttentionCounts;
-  /** Streaming nav slot — takes precedence over `navAttention` when set. */
-  navLinks?: ReactNode;
-  showBrand?: boolean;
+  workspaceSwitcher?: ReactNode;
 }) {
   return (
     <div className="flex h-full flex-col gap-6">
-      {showBrand ? <BrandMark className="px-3" /> : null}
+      <BrandMark className="px-3" />
+      {workspaceSwitcher ? (
+        <div className="-mt-2 min-w-0">{workspaceSwitcher}</div>
+      ) : null}
       <nav aria-label="Main" className="flex-1">
-        {navLinks ?? <NavLinks navAttention={navAttention} />}
+        <NavLinks />
       </nav>
       <div className="mt-auto space-y-3">
         <Separator />
@@ -81,25 +77,22 @@ function SidebarBody({
 
 export function AppShell({
   workspaceContext,
+  workspaceSwitcher,
   authControls,
-  navAttention = { openFindings: 0, unreadAlerts: 0 },
-  navLinks,
   children,
 }: {
+  /** Project header + tabs — rendered above the page, project routes only. */
   workspaceContext: ReactNode;
+  /** Active-organization label / switcher at the top of the sidebar. */
+  workspaceSwitcher?: ReactNode;
   /** Server-rendered auth UI — passed as a slot, never imported. */
   authControls: ReactNode;
-  /** Sync counts for the non-streaming fallback path (tests, previews). */
-  navAttention?: NavAttentionCounts;
-  /** Streaming nav, e.g. `<Suspense><NavAttentionBadges /></Suspense>`. */
-  navLinks?: ReactNode;
   children: ReactNode;
 }) {
   const sidebar = (
     <SidebarBody
       authControls={authControls}
-      navAttention={navAttention}
-      navLinks={navLinks}
+      workspaceSwitcher={workspaceSwitcher}
     />
   );
 
@@ -112,7 +105,7 @@ export function AppShell({
       <div className="flex min-h-screen flex-col md:flex-row">
         <header className="panel-frost sticky top-0 z-40 flex items-center justify-between border-b border-border bg-sidebar/70 px-4 py-3 md:hidden">
           <Link
-            href="/dashboard"
+            href="/projects"
             className="flex items-center gap-2 text-base font-semibold tracking-tight"
           >
             <span className="flex size-6 items-center justify-center rounded-md bg-signal">

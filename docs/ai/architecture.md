@@ -144,7 +144,10 @@ Chain per domain. `exists` = shipped, `evolves` = shipped but domain-blind today
   `assessment_snapshots` and load for the assessment scan
   (`scanAssessment`). Evidence and
   findings pages load via `src/server/reporting/evidence-queries.ts` and
-  `src/server/workspace/project-view.ts` (`loadFindingsView`).
+  `src/server/workspace/findings-view.ts` (`loadFindingsView`). The org
+  portfolio (`/projects`) is the one cross-project read: `loadPortfolioView`
+  plus `repo/portfolio.ts`, one grouped query per metric over the org's visible
+  project ids — never a runtime load per project.
 - **Writes (the write model)** — all mutations go through helpers in
   `src/server/workspace/workspace-write.ts` (`withProjectTx` /
   `withOrgWrite` / `withConnectWrite`) with locking in

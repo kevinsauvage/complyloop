@@ -11,7 +11,7 @@ export function safeCallbackUrl(value: unknown): string {
     value.startsWith("//") ||
     value.startsWith("/\\")
   ) {
-    return "/dashboard";
+    return "/projects";
   }
   return value;
 }

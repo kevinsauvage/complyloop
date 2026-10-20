@@ -34,7 +34,6 @@ import {
   FirstAssessmentChecklist,
   UnableToVerifyRuntimeHint,
 } from "./_components/first-assessment-checklist";
-import { projectSourceBit } from "./_components/project-description";
 import { RuntimeCoverageChip } from "./_components/runtime-coverage-chip";
 
 export const metadata: Metadata = {
@@ -104,19 +103,18 @@ export default async function DashboardPage() {
     Boolean(nextAction) && unreadAlerts.length === 0 && openCount === 0;
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <DashboardOverview
-        title={project.name}
-        repoLabel={project.github?.fullName ?? project.sourceRef ?? undefined}
+        // The project header above names the project and its repository.
+        title="Dashboard"
         description={
           latestAssessment ? (
             <>
-              {projectSourceBit(project)} · assessed{" "}
-              <FormattedDateTime iso={latestAssessment.completedAt} /> ·{" "}
-              {latestAssessment.filesScanned} files
+              Assessed <FormattedDateTime iso={latestAssessment.completedAt} />{" "}
+              · {latestAssessment.filesScanned} files
             </>
           ) : (
-            `${projectSourceBit(project)} · not assessed yet`
+            "Not assessed yet"
           )
         }
         stats={quickStats}

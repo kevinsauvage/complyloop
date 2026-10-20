@@ -81,7 +81,7 @@ function ConnectFailureRepair({
 
 export async function ConnectProjectPanel({
   defaultOpen = true,
-  triggerLabel = "Connect repository (creates project)",
+  triggerLabel = "Create project",
 }: {
   /** When false, connect UI opens in a dialog. */
   defaultOpen?: boolean;
@@ -158,11 +158,6 @@ export async function ConnectProjectPanel({
 
   const body = (
     <div className="space-y-4">
-      <div className="rounded-lg border border-signal/20 bg-signal/5 px-3 py-2.5 text-sm text-muted-foreground">
-        Connect a GitHub repository to run assessments, track findings, and
-        build an evidence trail for this organization. Connecting creates a
-        project — a project is a connected repository.
-      </div>
       {!configured ? (
         <Alert className="border-border/60 bg-muted/40">
           <AlertDescription>

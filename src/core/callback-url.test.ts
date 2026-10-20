@@ -9,13 +9,13 @@ describe("safeCallbackUrl", () => {
   });
 
   it("rejects protocol-relative and backslash open redirects", () => {
-    expect(safeCallbackUrl("//evil.com")).toBe("/dashboard");
-    expect(safeCallbackUrl("/\\evil.com")).toBe("/dashboard");
+    expect(safeCallbackUrl("//evil.com")).toBe("/projects");
+    expect(safeCallbackUrl("/\\evil.com")).toBe("/projects");
   });
 
   it("rejects non-absolute and non-string values", () => {
-    expect(safeCallbackUrl("https://evil.com")).toBe("/dashboard");
-    expect(safeCallbackUrl("dashboard")).toBe("/dashboard");
-    expect(safeCallbackUrl(undefined)).toBe("/dashboard");
+    expect(safeCallbackUrl("https://evil.com")).toBe("/projects");
+    expect(safeCallbackUrl("dashboard")).toBe("/projects");
+    expect(safeCallbackUrl(undefined)).toBe("/projects");
   });
 });

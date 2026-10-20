@@ -21,6 +21,8 @@ export function AssessmentTrend({
   const last = trend[trend.length - 1]!;
   const delta = last.passRate - first.passRate;
 
+  const flat = trend.every((point) => point.passRate === last.passRate);
+
   // Dynamic domain keeps small moves visible; flat lines get padding so the
   // area still renders instead of collapsing to zero height.
   const rates = trend.map((point) => point.passRate);
@@ -69,57 +71,69 @@ export function AssessmentTrend({
           <span className="sr-only"> {deltaDescription}</span>
         </span>
       </div>
-      <div className="relative mt-1 min-h-24 flex-1 pr-1.5">
-        <svg
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          className="absolute inset-0 size-full"
-          role="img"
-          aria-label={`Pass rate trend: ${first.passRate}% to ${last.passRate}% over ${trend.length} assessments (${deltaDescription.toLowerCase()})`}
-        >
-          <defs>
-            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="currentColor" stopOpacity="0.25" />
-              <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          {[25, 50, 75].map((gy) => (
-            <line
-              key={gy}
-              x1="0"
-              y1={gy}
-              x2="100"
-              y2={gy}
-              stroke="currentColor"
-              strokeWidth="1"
-              vectorEffect="non-scaling-stroke"
-              className="text-border"
-              opacity="0.5"
+      {flat ? (
+        // A flat line is an empty chart; say it in words instead.
+        <div className="flex flex-1 flex-col justify-center gap-1">
+          <p className="font-mono text-3xl font-semibold tabular-nums">
+            {last.passRate}%
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Unchanged across the last {trend.length} assessments.
+          </p>
+        </div>
+      ) : (
+        <div className="relative mt-1 min-h-24 flex-1 pr-1.5">
+          <svg
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            className="absolute inset-0 size-full"
+            role="img"
+            aria-label={`Pass rate trend: ${first.passRate}% to ${last.passRate}% over ${trend.length} assessments (${deltaDescription.toLowerCase()})`}
+          >
+            <defs>
+              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="currentColor" stopOpacity="0.25" />
+                <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            {[25, 50, 75].map((gy) => (
+              <line
+                key={gy}
+                x1="0"
+                y1={gy}
+                x2="100"
+                y2={gy}
+                stroke="currentColor"
+                strokeWidth="1"
+                vectorEffect="non-scaling-stroke"
+                className="text-border"
+                opacity="0.5"
+              />
+            ))}
+            <polygon
+              points={area}
+              fill={`url(#${gradientId})`}
+              className="text-chart-2"
             />
-          ))}
-          <polygon
-            points={area}
-            fill={`url(#${gradientId})`}
-            className="text-chart-2"
+            <polyline
+              points={line}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+              className="text-chart-2"
+            />
+          </svg>
+          {/* Marker lives outside the SVG so non-uniform scaling keeps it round. */}
+          <span
+            aria-hidden
+            className="absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-chart-2 ring-4 ring-card"
+            style={{ left: "100%", top: `${y(last.passRate)}%` }}
           />
-          <polyline
-            points={line}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinejoin="round"
-            strokeLinecap="round"
-            vectorEffect="non-scaling-stroke"
-            className="text-chart-2"
-          />
-        </svg>
-        {/* Marker lives outside the SVG so non-uniform scaling keeps it round. */}
-        <span
-          aria-hidden
-          className="absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-chart-2 ring-4 ring-card"
-          style={{ left: "100%", top: `${y(last.passRate)}%` }}
-        />
-      </div>
+        </div>
+      )}
       <div className="mt-auto flex items-baseline justify-between gap-3 text-xs text-muted-foreground">
         <FormattedDateTime iso={first.at} />
         <FormattedDateTime iso={last.at} />

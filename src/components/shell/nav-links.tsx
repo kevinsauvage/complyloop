@@ -1,91 +1,63 @@
 "use client";
 
-import {
-  Building2,
-  FileSearch,
-  LayoutDashboard,
-  ListChecks,
-  ScrollText,
-  Settings,
-} from "lucide-react";
+import { Building2, LayoutGrid } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import type { NavAttentionCounts } from "@complyloop/db/repo/nav-attention";
-
 import { cn } from "@/lib/utils";
 
-const LINKS = [
-  {
-    href: "/dashboard" as Route,
-    label: "Dashboard",
-    icon: LayoutDashboard,
-    badgeKey: "unreadAlerts" as const,
-  },
-  { href: "/requirements", label: "Requirements", icon: ListChecks },
-  {
-    href: "/findings",
-    label: "Findings",
-    icon: FileSearch,
-    badgeKey: "openFindings" as const,
-  },
-  { href: "/evidence", label: "Evidence", icon: ScrollText },
-  { href: "/settings", label: "Settings", icon: Settings },
-  { href: "/org", label: "Organization", icon: Building2 },
+interface NavLink {
+  href: Route;
+  label: string;
+  icon: typeof LayoutGrid;
+}
+
+/**
+ * Primary (workspace-level) navigation. Everything that acts on one project —
+ * dashboard, requirements, findings, evidence, project settings — lives in
+ * `ProjectNav`, not here: the sidebar answers "where in my organization am I",
+ * the project tabs answer "what am I doing in this project".
+ */
+const PRIMARY_LINKS: readonly NavLink[] = [
+  { href: "/projects" as Route, label: "Overview", icon: LayoutGrid },
+  { href: "/org" as Route, label: "Organization", icon: Building2 },
 ];
 
-type NavBadgeKey = keyof NavAttentionCounts;
+/** Project-scoped pages belong to the Overview section of the sidebar. */
+const PROJECT_SCOPED_PREFIXES = [
+  "/dashboard",
+  "/requirements",
+  "/findings",
+  "/evidence",
+  "/settings",
+] as const;
 
-function badgeCount(
-  attention: NavAttentionCounts,
-  badgeKey: NavBadgeKey | undefined,
-): number {
-  if (!badgeKey) return 0;
-  return attention[badgeKey];
+export function isProjectScopedPath(pathname: string): boolean {
+  return PROJECT_SCOPED_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
 }
 
-export function badgeAccessibleLabel(
-  label: string,
-  count: number,
-  badgeKey: NavBadgeKey,
-): string {
-  const noun =
-    badgeKey === "openFindings"
-      ? `open finding${count === 1 ? "" : "s"}`
-      : `unread alert${count === 1 ? "" : "s"}`;
-  // Keep the visible text (`${label} ${count}`) as a contiguous substring of
-  // the accessible name so the link satisfies WCAG 2.5.3 (label in name).
-  return `${label} ${count} ${noun}`;
+function isActive(pathname: string, href: string): boolean {
+  if (href === "/projects") {
+    return pathname.startsWith("/projects") || isProjectScopedPath(pathname);
+  }
+  return pathname.startsWith(href);
 }
 
-export function NavLinks({
-  navAttention = { openFindings: 0, unreadAlerts: 0 },
-}: {
-  navAttention?: NavAttentionCounts;
-}) {
+export function NavLinks() {
   const pathname = usePathname();
   return (
     <ul className="flex flex-col gap-1">
-      {LINKS.map((link) => {
-        const active =
-          link.href === "/dashboard"
-            ? pathname === "/dashboard"
-            : pathname.startsWith(link.href);
+      {PRIMARY_LINKS.map((link) => {
+        const active = isActive(pathname, link.href);
         const Icon = link.icon;
-        const badgeKey = "badgeKey" in link ? link.badgeKey : undefined;
-        const count = badgeCount(navAttention, badgeKey);
-        const showBadge = count > 0;
-        const badgeLabel =
-          showBadge && badgeKey
-            ? badgeAccessibleLabel(link.label, count, badgeKey)
-            : undefined;
         return (
           <li key={link.href}>
             <Link
-              href={link.href as Route}
+              href={link.href}
               aria-current={active ? "page" : undefined}
-              aria-label={badgeLabel}
               className={cn(
                 "relative flex min-h-11 items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color] duration-150",
                 active
@@ -107,19 +79,6 @@ export function NavLinks({
                 aria-hidden
               />
               <span className="min-w-0 flex-1">{link.label}</span>
-              {showBadge ? (
-                <span
-                  className={cn(
-                    "ml-auto min-w-5 rounded-full px-1.5 py-0.5 text-center text-xs font-semibold tabular-nums",
-                    active
-                      ? "bg-signal text-signal-foreground"
-                      : "bg-signal/15 text-signal",
-                  )}
-                  aria-hidden
-                >
-                  {count > 99 ? "99+" : count}
-                </span>
-              ) : null}
             </Link>
           </li>
         );

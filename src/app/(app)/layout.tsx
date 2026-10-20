@@ -5,11 +5,12 @@ import { Suspense } from "react";
 import { isGitHubAuthConfigured } from "@/auth";
 import { AppShell } from "@/components/shell/app-shell";
 import { AuthControls } from "@/components/shell/auth-controls";
+import { NavAttentionBadges } from "@/components/shell/nav-attention-badges";
+import { ProjectNavSkeleton } from "@/components/shell/project-nav";
 import {
-  NavAttentionBadges,
-  NavBadgeSkeletons,
-} from "@/components/shell/nav-attention-badges";
-import { WorkspaceContext } from "@/components/shell/workspace-context";
+  WorkspaceSwitcher,
+  WorkspaceSwitcherSkeleton,
+} from "@/components/shell/workspace-context";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getSession } from "@/server/auth-session";
@@ -37,14 +38,18 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <TooltipProvider>
       <AppShell
-        workspaceContext={<WorkspaceContext />}
-        authControls={
-          <AuthControls configured={configured} user={signedInUser} />
-        }
-        navLinks={
-          <Suspense fallback={<NavBadgeSkeletons />}>
+        workspaceContext={
+          <Suspense fallback={<ProjectNavSkeleton />}>
             <NavAttentionBadges />
           </Suspense>
+        }
+        workspaceSwitcher={
+          <Suspense fallback={<WorkspaceSwitcherSkeleton />}>
+            <WorkspaceSwitcher />
+          </Suspense>
+        }
+        authControls={
+          <AuthControls configured={configured} user={signedInUser} />
         }
       >
         {children}

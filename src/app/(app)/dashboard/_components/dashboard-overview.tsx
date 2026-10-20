@@ -45,7 +45,7 @@ function QuickStatItem({ stat }: { stat: DashboardQuickStat }) {
     <>
       <span
         className={cn(
-          "flex items-baseline gap-1 font-mono text-xl font-semibold tabular-nums tracking-tight",
+          "flex items-baseline gap-1 font-mono text-2xl font-semibold tabular-nums tracking-tight",
           statToneClass(stat.tone),
           linked && "group-hover:text-signal",
         )}

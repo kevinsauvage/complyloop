@@ -1,6 +1,5 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import Link from "next/link";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // Static import: the module transform must not run inside a test body, where
@@ -12,7 +11,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("./nav-links", () => ({
-  NavLinks: () => <span>Findings</span>,
+  NavLinks: () => <a href="/projects">Projects</a>,
 }));
 
 afterEach(() => {
@@ -26,7 +25,6 @@ describe("AppShell", () => {
       <AppShell
         workspaceContext={<div>Context</div>}
         authControls={<div>Auth</div>}
-        navAttention={{ openFindings: 0, unreadAlerts: 0 }}
       >
         <h1>Dashboard</h1>
       </AppShell>,
@@ -50,15 +48,6 @@ describe("AppShell", () => {
       <AppShell
         workspaceContext={<div>Context</div>}
         authControls={<div>Auth</div>}
-        navAttention={{ openFindings: 0, unreadAlerts: 0 }}
-        navLinks={
-          // next/link renders a plain anchor like the server slot would.
-          <ul>
-            <li>
-              <Link href="/findings">Findings</Link>
-            </li>
-          </ul>
-        }
       >
         <h1>Dashboard</h1>
       </AppShell>,
@@ -69,7 +58,7 @@ describe("AppShell", () => {
       screen.getByRole("dialog", { name: "Main navigation" }),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole("link", { name: "Findings" }));
+    await user.click(screen.getByRole("link", { name: "Projects" }));
     expect(
       screen.queryByRole("dialog", { name: "Main navigation" }),
     ).not.toBeInTheDocument();

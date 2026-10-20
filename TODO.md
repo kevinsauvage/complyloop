@@ -13,15 +13,25 @@ None open.
 
 ## P1 — High
 
-### [ ] Add a cross-project portfolio overview
+### [x] Add a cross-project portfolio overview
 
-**Why:** The spec's target user is an agency with many client projects ("continuously, across every client project"), but every page is scoped to one active project picked from a switcher. The org page shows only a project _count_. An agency lead cannot see which clients are failing, regressing or stale without clicking through each project.
+**Done 2026-10-20.** New `/projects` route (nav entry after Dashboard) backed by
+`loadPortfolioView` + `listPortfolioForProjects`: one grouped query per metric
+(requirement verdicts, open violations, unread regressions, newest completed
+assessment, newest job) over the org's visible projects — no per-project
+runtime load. Columns you can scan: verdict counts per status, open violations,
+unread regressions, last assessment ("Never assessed"), pipeline state. Each
+row opens that project's dashboard (the row switches the active project, then
+redirects).
 
-**Where:** `src/app/(app)/org/`, `src/app/(app)/dashboard/`, `src/server/workspace/` (new loader), `packages/db/src/repo/`.
-
-**Change:** Add one org-level table (on `/org` or a new `/projects`) with one row per project: requirement status counts, open violations, unread regression alerts, last assessment time, and job state. Build it from a single grouped SQL query per metric (no per-project runtime loads). Each row links into that project's dashboard.
-
-**Impact:** High
+- `findings.kind` is now a typed column (`drizzle/0007_findings_kind.sql` +
+  `findings_project_status_kind_idx`) so "open violations" is an indexed
+  aggregate instead of a `payload->>'kind'` filter.
+- Sorted by what needs attention (failed + needs_review), then open violations,
+  unread regressions, staleness, name.
+- Timestamps are normalised to ISO-8601 UTC in the repo layer: `timestamptz` in
+  string mode comes back as the server's own text form, which would have broken
+  string sorting and date rendering.
 
 ### [ ] Move repository clones out of server actions
 

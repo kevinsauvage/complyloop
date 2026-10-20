@@ -4,6 +4,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { GitHubRepoPicker } from "./github-repo-picker";
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
 vi.mock("@/server/actions/connect", () => ({
   connectGitHubRepoAction: vi.fn(),
   disconnectGitHubRepoAction: vi.fn(),

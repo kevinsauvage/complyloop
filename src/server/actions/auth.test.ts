@@ -15,7 +15,7 @@ afterEach(() => {
 });
 
 describe("auth actions", () => {
-  it("signs in with GitHub and redirects to dashboard by default", async () => {
+  it("signs in with GitHub and lands on the projects dashboard by default", async () => {
     signIn.mockResolvedValue(undefined);
     const formData = new FormData();
     formData.set("callbackUrl", "/dashboard");
@@ -36,7 +36,7 @@ describe("auth actions", () => {
     const formData = new FormData();
     formData.set("callbackUrl", "//evil.example");
     await signInWithGitHubAction(formData);
-    expect(signIn).toHaveBeenCalledWith("github", { redirectTo: "/dashboard" });
+    expect(signIn).toHaveBeenCalledWith("github", { redirectTo: "/projects" });
   });
 
   it("signs out and redirects home", async () => {

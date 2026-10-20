@@ -1,120 +1,44 @@
-import { FolderGit2, Layers } from "lucide-react";
-import type { ReactNode } from "react";
+import { Building2 } from "lucide-react";
 
-import { ConnectProjectPanel } from "@/components/github/connect-project-panel";
-import { cn } from "@/lib/utils";
-import { projectCapabilities } from "@/server/workspace/project-capabilities";
 import { getWorkspace } from "@/server/workspace/workspace";
 
 import { OrgSwitcher } from "./org-switcher";
-import { ProjectSwitcher } from "./project-switcher";
 
-function ContextStrip({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
+/**
+ * Active organization, shown at the top of the sidebar. Multi-org viewers get
+ * the switcher (their only entry point); single-org viewers get a read-only
+ * label so the sidebar always says which organization the pages are about.
+ * Project navigation lives on `/projects` and in the project tabs, not here.
+ */
+export async function WorkspaceSwitcher() {
+  const { organizations, activeOrgId } = await getWorkspace();
+  const active = organizations.find((org) => org.id === activeOrgId);
+
+  if (activeOrgId && organizations.length > 1) {
+    return (
+      <OrgSwitcher organizations={organizations} activeOrgId={activeOrgId} />
+    );
+  }
+  if (!active) return null;
+
   return (
-    <div
-      className={cn(
-        "surface-panel mb-6 flex flex-col gap-2 rounded-xl px-3 py-2.5 text-sm text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center sm:gap-3",
-        className,
-      )}
+    <p
+      title={active.name}
+      className="flex min-w-0 items-center gap-2 px-3 text-sm text-muted-foreground"
     >
-      {children}
-    </div>
+      <Building2 className="size-4 shrink-0" aria-hidden />
+      <span className="truncate font-medium text-foreground">
+        {active.name}
+      </span>
+    </p>
   );
 }
 
-/**
- * Active org/project context + switchers for every workflow page.
- * Coverage status lives on the dashboard hero — the strip stays a switcher.
- */
-export async function WorkspaceContext() {
-  const { project, visibleProjects, organizations, activeOrgId, access } =
-    await getWorkspace();
-  const caps = projectCapabilities(project, access, activeOrgId);
-  const orgName = project?.orgId
-    ? organizations.find((org) => org.id === project.orgId)?.name
-    : activeOrgId
-      ? organizations.find((org) => org.id === activeOrgId)?.name
-      : undefined;
-
-  const showOrgSwitcher = Boolean(activeOrgId) && organizations.length > 1;
-  const showProjectSwitcher = visibleProjects.length > 1;
-  const showAddProject = caps.canConnect && visibleProjects.length > 0;
-
-  // Single Connect entry point per page: the dashboard empty card owns
-  // connecting when no project exists; other pages link back to it.
-  const addProject = showAddProject ? (
-    <ConnectProjectPanel defaultOpen={false} />
-  ) : null;
-
-  if (!project) {
-    return (
-      <ContextStrip>
-        <span className="flex items-center gap-2">
-          <Layers className="size-4 text-signal" aria-hidden />
-          <span className="font-medium text-foreground">
-            No project connected
-          </span>
-        </span>
-        {orgName ? (
-          <span className="flex items-center gap-2">
-            <span aria-hidden className="text-border">
-              /
-            </span>
-            <span>{orgName}</span>
-          </span>
-        ) : null}
-      </ContextStrip>
-    );
-  }
-
-  if (!showOrgSwitcher && !showProjectSwitcher) {
-    return (
-      <ContextStrip>
-        {orgName ? (
-          <span className="flex items-center gap-2">
-            <span>{orgName}</span>
-            <span aria-hidden className="text-border">
-              /
-            </span>
-          </span>
-        ) : null}
-        <span className="flex items-center gap-2 font-medium text-foreground">
-          <FolderGit2 className="size-4 shrink-0 text-signal" aria-hidden />
-          {project.name}
-        </span>
-        {addProject ? (
-          <div className="w-full sm:ml-auto sm:w-auto">{addProject}</div>
-        ) : null}
-      </ContextStrip>
-    );
-  }
-
+export function WorkspaceSwitcherSkeleton() {
   return (
-    <ContextStrip>
-      {showOrgSwitcher && activeOrgId ? (
-        <OrgSwitcher organizations={organizations} activeOrgId={activeOrgId} />
-      ) : orgName ? (
-        <span className="text-sm text-muted-foreground">{orgName}</span>
-      ) : null}
-      {showProjectSwitcher ? (
-        <ProjectSwitcher
-          projects={visibleProjects}
-          activeProjectId={project.id}
-        />
-      ) : (
-        <span className="text-sm font-medium text-foreground">
-          {project.name}
-        </span>
-      )}
-      {addProject ? (
-        <div className="w-full sm:ml-auto sm:w-auto">{addProject}</div>
-      ) : null}
-    </ContextStrip>
+    <div
+      aria-hidden
+      className="mx-3 h-5 animate-pulse rounded bg-sidebar-accent"
+    />
   );
 }

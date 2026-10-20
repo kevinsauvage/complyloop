@@ -342,7 +342,7 @@ export function DashboardActivityFeed({
       return !isJobLifecycleNoise(record);
     });
     combined.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
-    return combined.slice(0, 6);
+    return combined.slice(0, 4);
   })();
 
   return (

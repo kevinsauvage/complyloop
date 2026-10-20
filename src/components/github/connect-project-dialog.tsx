@@ -15,7 +15,7 @@ import {
 /** Compact trigger for connecting another project when one is already active. */
 export function ConnectProjectDialog({
   children,
-  triggerLabel = "Connect repository (creates project)",
+  triggerLabel = "Create project",
 }: {
   children: ReactNode;
   triggerLabel?: string;
@@ -37,8 +37,8 @@ export function ConnectProjectDialog({
             <DialogTitle>{triggerLabel}</DialogTitle>
           </div>
           <DialogDescription>
-            Connect another GitHub repository to this organization — connecting
-            creates a project. Connected repos appear in the project switcher.
+            Pick a GitHub repository. Connecting it creates the project and
+            opens its dashboard, ready for a first assessment.
           </DialogDescription>
         </DialogHeader>
         {children}

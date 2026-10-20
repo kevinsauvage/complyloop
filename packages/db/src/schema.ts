@@ -202,6 +202,12 @@ export const findings = pgTable(
       .references(() => assessments.id, { onDelete: "cascade" }),
     status: text("status").notNull(),
     /**
+     * Denormalized `payload.kind` (`violation` = hard fail that blocks a
+     * requirement, `warning` = review signal). The org portfolio groups open
+     * violations per project, so it must not be a JSON path.
+     */
+    kind: text("kind").notNull(),
+    /**
      * Denormalized engine bucket (`ast`/`runtime`, derived from `analyzerId`
      * via `engineFor` at write time) so list filters run in SQL. Synced from
      * the payload by the repo mappers — the only writers.
@@ -245,9 +251,19 @@ export const findings = pgTable(
     index("findings_open_detected_idx")
       .on(table.projectId, table.controlId, table.detectedAt)
       .where(sql`${table.status} = 'open'`),
+    // Open-violation counts per project (portfolio table).
+    index("findings_project_status_kind_idx").on(
+      table.projectId,
+      table.status,
+      table.kind,
+    ),
     check(
       "findings_status_check",
       sqlIn(sql`${table.status}`, FINDING_STATUSES),
+    ),
+    check(
+      "findings_kind_check",
+      sqlIn(sql`${table.kind}`, ["violation", "warning"]),
     ),
     check(
       "findings_engine_check",

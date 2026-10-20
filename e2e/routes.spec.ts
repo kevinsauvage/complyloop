@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const routes: Array<{ path: string; heading: string | RegExp }> = [
-  { path: "/dashboard", heading: /sample-app|Welcome to ComplyLoop/i },
+  { path: "/dashboard", heading: /Dashboard|Welcome to ComplyLoop/i },
   { path: "/requirements", heading: "Requirements" },
   { path: "/findings", heading: "Findings" },
   { path: "/evidence", heading: "Evidence" },

@@ -8,6 +8,9 @@
  * provide this constant.
  */
 export const COMPLIANCE_LOOP_ROUTES = [
+  // The cross-project dashboard aggregates the same rows (open violations,
+  // unread regressions, last assessment), so a triage write stales it too.
+  "/projects",
   "/dashboard",
   "/findings",
   "/requirements",
