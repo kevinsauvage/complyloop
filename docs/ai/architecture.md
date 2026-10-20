@@ -225,6 +225,26 @@ failures are non-fatal. A per-page failure (axe crash, navigation, …)
 is contained to that page (`pageFailures`) and sibling pages continue;
 only a total outage (zero pages) fails the sub-scan.
 
+**Custom-probe rules** (`runtime/custom-checks/`): keep a probe only if it
+measures one deterministic fact on an unmodified page. Probes that inject CSS,
+emulate zoom or forced colors, submit forms, or compare text lengths were
+retired (`resize-text`, `forced-colors`, `label-adjacent`, `css-hover-keyboard`,
+`css-disabled-content`, and the AAA focus checks); their controls are manual
+review (`checkId: null`). Inference probes are `advisory` (warnings, never
+failures). Probes that submit forms run behind `withBlockedWrites`
+(`block-writes.ts`): in-page, non-read `fetch`/XHR/beacon fail and native form
+navigation is cancelled — never a Playwright route, which raced the scan's own
+context route and killed the worker. The focus walk covers the whole tab order
+(identity = tab-order position, not tag + class) and `focus-not-obscured` fails
+only when the control is entirely covered.
+
+**Web bundle:** nothing a Vercel page imports may reference `axe-core` (or the
+other worker-only engines) by a literal specifier: Turbopack turns it into an
+external module evaluated at load, and `next.config.ts` keeps those packages
+out of web functions, so the page 500s (`Failed to load external module
+axe-core-…`). `resolveAxeMinJsPath` resolves through a bound reference for this
+reason.
+
 **html-validate** — structural HTML for RGAA 8.2 / 10.1 only
 (`markup-nesting`, `css-for-presentation`). Those stay `unable_to_verify`
 until `htmlValidateRan`. Duplicate ids stay on axe + AST.

@@ -59,9 +59,8 @@ export function RequirementRemediationActions({
           <AlertDescription className="text-muted-foreground">
             {requirement.humanPass.note}
             <span className="mt-1 block text-xs text-muted-foreground">
-              Set{" "}
-              <FormattedDateTime iso={requirement.humanPass.at} />{" "}
-              — sticky until cleared (assessments will not overwrite).
+              Set <FormattedDateTime iso={requirement.humanPass.at} /> — sticky
+              until cleared (assessments will not overwrite).
             </span>
             {canRemediate ? (
               <span className="mt-2 block">
@@ -90,8 +89,7 @@ export function RequirementRemediationActions({
           <AlertDescription className="text-muted-foreground">
             {requirement.exception.note}
             <span className="mt-1 block text-xs text-muted-foreground">
-              Set{" "}
-              <FormattedDateTime iso={requirement.exception.at} />
+              Set <FormattedDateTime iso={requirement.exception.at} />
               {requirement.exception.expiresAt ? (
                 <>
                   {" "}

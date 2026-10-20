@@ -146,4 +146,53 @@ describe("focusCustomViolations", () => {
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "does not report a keyboard trap for many links sharing one class",
+    async () => {
+      const links = Array.from(
+        { length: 20 },
+        (_, i) => `<a href="#l${i}" class="link-underline">Link ${i}</a>`,
+      ).join("\n");
+      await withProbePage(
+        `
+        <!doctype html><html lang="fr"><head><style>
+          a:focus-visible { outline: 3px solid #005fcc; }
+        </style></head><body>${links}</body></html>
+      `,
+        async (page) => {
+          const violations = await focusCustomViolations(page);
+          expect(violations.find((v) => v.id === "keyboard-trap")).toBe(
+            undefined,
+          );
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "focus-not-obscured ignores a control only partly covered by an overlay",
+    async () => {
+      await withProbePage(
+        `
+        <!doctype html><html lang="fr"><head><style>
+          button:focus-visible { outline: 3px solid #005fcc; }
+          #bar { position: fixed; left: 0; right: 0; top: 0; height: 40px; background: #fff; }
+          #go { position: absolute; top: 30px; left: 20px; width: 120px; height: 40px; }
+        </style></head><body>
+          <div id="bar">Sticky bar</div>
+          <button id="go">Go</button>
+        </body></html>
+      `,
+        async (page) => {
+          const violations = await focusCustomViolations(page);
+          expect(violations.find((v) => v.id === "focus-not-obscured")).toBe(
+            undefined,
+          );
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
 });

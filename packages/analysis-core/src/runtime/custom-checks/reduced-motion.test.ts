@@ -55,4 +55,27 @@ describe("reducedMotionViolation", () => {
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "ignores a CSS transition that is mid-flight when sampled",
+    async () => {
+      await withProbePage(
+        `
+        <!doctype html><html lang="fr"><head><style>
+          .btn { opacity: 0; transition: opacity 5s linear; }
+          .btn.on { opacity: 1; }
+        </style></head><body>
+          <button class="btn" id="b">Ajouter</button>
+        </body></html>
+      `,
+        async (page) => {
+          await page.evaluate(() => {
+            document.getElementById("b")?.classList.add("on");
+          });
+          expect(await reducedMotionViolation(page)).toBeNull();
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
 });

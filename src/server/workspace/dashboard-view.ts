@@ -22,6 +22,7 @@ import {
   latestAssessmentFor,
 } from "@/core/assessment/assessment-helpers";
 import { compareFindingsBySeverity } from "@/core/findings/finding-priority";
+import { activeRegressions } from "@/core/requirements/active-regressions";
 import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
 import type { ProjectCapabilities } from "@/server/workspace/project-capabilities";
 import { getProjectRuntime } from "@/server/workspace/project-runtime";
@@ -99,15 +100,11 @@ export async function loadDashboardView(): Promise<DashboardView> {
     .filter((alert) => alert.projectId === project.id && !alert.read)
     .slice()
     .reverse();
-  const regressions = runtime.evidence
-    .filter(
-      (record) =>
-        record.projectId === project.id &&
-        record.kind === "requirement_status_changed" &&
-        record.detail?.regression === true,
-    )
-    .slice(-3)
-    .reverse();
+  const regressions = activeRegressions(
+    runtime.evidence,
+    requirements,
+    project.id,
+  );
   const recentVerified = runtime.evidence
     .filter(
       (record) =>

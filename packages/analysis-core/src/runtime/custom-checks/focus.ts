@@ -169,7 +169,7 @@ export async function focusCustomViolations(
       id: "focus-not-obscured",
       impact: "serious",
       description:
-        "Focused control is covered by another element (sticky header, banner, or overlay).",
+        "Focused control is entirely covered by another element (sticky header, banner, or overlay).",
       help: "Focused controls must not be fully hidden by other content (WCAG 2.4.11).",
       nodes: collected.obscured,
     });
@@ -276,9 +276,16 @@ async function collectFocusWalkViolations(page: Page): Promise<{
           ) {
             return "modal";
           }
+          // Identity is the element's position in the tab order. Keying on
+          // tag + class collapsed sibling links that share a class (a footer
+          // of `a.link-underline`) into one "element", which made a plain
+          // walk through them look like focus cycling between two targets.
+          const position = Array.from(
+            document.querySelectorAll(selector),
+          ).indexOf(active);
+          if (position >= 0) return `#${position}`;
           const html = active as HTMLElement;
-          if (html.id) return `#${html.id}`;
-          return `${html.tagName.toLowerCase()}:${html.className}`;
+          return `${html.tagName.toLowerCase()}:${html.id}:${html.className}`;
         }
 
         function pointObscured(target: Element, x: number, y: number): boolean {
@@ -289,21 +296,28 @@ async function collectFocusWalkViolations(page: Page): Promise<{
           );
         }
 
-        function firstObscuredCorner(
+        // WCAG 2.4.11 fails only when the focused control is *entirely*
+        // hidden, so every sample point (corners + centre) must be covered.
+        // A sticky bar overlapping one edge of a button is not a failure.
+        function fullyObscuredAt(
           target: Element,
         ): { x: number; y: number; corner: string } | undefined {
           const rect = target.getBoundingClientRect();
           if (rect.width === 0 || rect.height === 0) return undefined;
-          const corners = [
+          const points = [
+            { corner: "top-left", x: rect.left + 1, y: rect.top + 1 },
+            { corner: "top-right", x: rect.right - 1, y: rect.top + 1 },
+            { corner: "bottom-left", x: rect.left + 1, y: rect.bottom - 1 },
+            { corner: "bottom-right", x: rect.right - 1, y: rect.bottom - 1 },
             {
               corner: "center",
               x: rect.left + rect.width / 2,
               y: rect.top + rect.height / 2,
             },
           ];
-          return corners.find((corner) =>
-            pointObscured(target, corner.x, corner.y),
-          );
+          if (!points.every((point) => pointObscured(target, point.x, point.y)))
+            return undefined;
+          return points[points.length - 1];
         }
 
         const key = sequenceKey();
@@ -349,7 +363,7 @@ async function collectFocusWalkViolations(page: Page): Promise<{
         }
 
         let obscuredHit: FocusStopHit | null = null;
-        const obscuredAt = firstObscuredCorner(el);
+        const obscuredAt = fullyObscuredAt(el);
         if (obscuredAt) {
           const capture = captureHit(el, { obscuredAt });
           obscuredHit = { key: capture.selector, capture };

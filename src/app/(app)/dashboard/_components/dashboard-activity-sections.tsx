@@ -90,7 +90,7 @@ export function DashboardRegressionsBanner({
             Recent compliance regressions
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Requirement statuses that worsened since the last assessment.
+            Requirements that got worse and have not recovered since.
           </p>
         </div>
       </div>

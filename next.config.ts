@@ -86,10 +86,15 @@ const nextConfig: NextConfig = {
   // Runtime-audit engines are worker-only (GitHub Actions executor). Nothing
   // Vercel-reachable imports them at runtime, but they are still traced into
   // the functions that reach the worker graph, so they are excluded here too.
+  // `axe-core` is deliberately NOT excluded: `eslint-plugin-jsx-a11y` (the AST
+  // scan) requires it at load, and that plugin is bundled into the shared
+  // server chunk via the scheduler's dynamic worker import. Excluding it made
+  // every page on that chunk (findings, settings, evidence) 500 with "Failed to
+  // load external module axe-core-<hash>". Keep it traced (3 MB, not the old
+  // 17 MB `axe.min.js` include) or cut the plugin out of the web graph first.
   outputFileTracingExcludes: {
     "/*": [
       "./node_modules/playwright-core*",
-      "./node_modules/axe-core*",
       "./node_modules/html-validate*",
       "./node_modules/linkinator*",
     ],
