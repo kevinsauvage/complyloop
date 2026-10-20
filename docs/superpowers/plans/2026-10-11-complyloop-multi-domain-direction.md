@@ -31,23 +31,23 @@ Copied from `PROMPT.md` §8 and `AGENTS.md`:
 
 ## A1. What the code actually is today
 
-| Area | Reality (file evidence) |
-| --- | --- |
-| Tenancy | orgs/memberships/RBAC in `src/core/rbac.ts`; `projects.org_id`. Domain-neutral. |
-| Project | `Project` = **one GitHub repo** (`source: "github"`, `github` meta) + optional `runtimeBaseUrl` / `runtimeRoutes: string[]` + single `defaultPresetId` (`contract/project-types.ts`). No "digital product", no Page entity; a "page" is just a route string. |
-| Reference data | `Framework`, `Control`, presets are **compile-time** (`catalog/`), not in Postgres. `shippedCatalog()` returns `frameworks=[rgaa,wcag]` but `controls=[...rgaaControls]` **only**. WCAG has no controls of its own: it is a `secondaryCode` on RGAA-catalog controls (`catalog/wcag/controls.ts` is 7 lines; WCAG presets filter the RGAA list). |
-| Requirement | One row per (project, control) (`requirements_project_control_uidx`). `RequirementStatus = passed\|failed\|needs_review\|not_applicable\|unable_to_verify`; `determination = automated\|human_review`; sticky human `exception`/`humanPass` with re-arm on newer violations. Domain-neutral. |
-| Status derivation | `deriveRequirementStatus` (`contract/requirement-status.ts`) is pure and exhaustive over `CheckAuthority = manual\|standard\|runtime_only\|heuristic\|site_level`. Inputs are a11y-engine-shaped (`runtimeRan`, `htmlValidateRan`, `filesScanned`); `standard` ⇒ "passed only if `filesScanned > 0`" (AST-specific). |
-| Assessment | `runAssessment` (`server/assessment/assessment.ts`, ~670 lines) is one monolith: scratch rows → change detection (git snapshot) → AST scan → optional Playwright/axe → merge → per-control reconcile → status refresh → evidence. One `Assessment` per project run; `latestAssessmentFor(assessments, projectId)` is **domain-blind** and feeds change detection (`previous.snapshot`), dashboard and settings. |
-| Finding | `Finding` has `controlId`, `checkId` (string; `RawFinding.checkId` is the strict a11y `CheckId` union), `analyzerId` (a11y analyzer union), `location: source\|dom\|site`, `fix` (JSX attribute edits), `severity`, `confidence`, `kind: violation\|warning`. DB column `findings.engine` CHECK `IN ('ast','runtime')`. |
-| Remediation / verification | `RemediationStatus = detected→suggested→approved→implemented→verified`. Source: patch → draft PR → merge → re-assess. Runtime: guidance → approve → implement → **re-audit** (`remediation-verify-worker.ts`). `verified` only via deterministic re-check or explicit manual attestation with note (`remediation_manually_verified`). |
-| Evidence | Append-only (`insertEvidence`, DB trigger `0004`). `EvidenceKind` is a **frozen** union — new events reuse `finding` / `assessment_job` / `requirement_status_changed` with a `detail.event` discriminant. Has `controlId`, `findingId`, `assessmentId`; no domain column (derivable via control → framework). |
-| Monitoring | Webhook (push to live default branch only) → enqueue job → GH Actions worker. `Alert` has one kind (`compliance_regression`). History = `listAssessmentHistoryForProject` (last 10, requirement-status counts) + `requirement_status_changed` evidence with `detail.regression`. **No time series of values.** |
-| Jobs | `assessment_jobs` (lease, 3 attempts, serial-per-project unique index, idempotency key). `trigger ∈ manual\|webhook\|verify_remediation`. Stages `checkout→changedetection→ast→runtime→reconcile→apply`. Every job clones the repo. |
-| Runtime engine | `runtime/scan.ts`: SSRF-guarded Playwright navigation per route, axe + custom probes + html-validate + linkinator. Already produces a rendered page and a `RuntimePageSnapshot`; **collects no resource/network/size metrics.** Reusable browser plumbing (`url-safety.ts`, `runtime-navigation.ts`, route/quota limits). |
-| AI | `src/ai/` explain/remediate only; imports contract only; never sets status (ESLint-enforced). Keep. |
-| UI | `(app)/{dashboard,requirements,findings,evidence,settings,org}`; requirements grouped by RGAA themes / WCAG principles (`control-theme.ts`); preset navigator; nav/copy/reports are RGAA/WCAG-worded (`report-model.ts`, `report-markdown.ts`, `secondaryReferenceLabel`). |
-| CI/PR | **None, by recorded decision.** `architecture.md` "Decision (permanent, Sep 2026): no per-PR Check Runs… Do not re-propose… without a new product decision that explicitly reverses this one." Webhook handles `push` only. |
+| Area                       | Reality (file evidence)                                                                                                                                                                                                                                                                                                                                                                                         |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tenancy                    | orgs/memberships/RBAC in `src/core/rbac.ts`; `projects.org_id`. Domain-neutral.                                                                                                                                                                                                                                                                                                                                 |
+| Project                    | `Project` = **one GitHub repo** (`source: "github"`, `github` meta) + optional `runtimeBaseUrl` / `runtimeRoutes: string[]` + single `defaultPresetId` (`contract/project-types.ts`). No "digital product", no Page entity; a "page" is just a route string.                                                                                                                                                    |
+| Reference data             | `Framework`, `Control`, presets are **compile-time** (`catalog/`), not in Postgres. `shippedCatalog()` returns `frameworks=[rgaa,wcag]` but `controls=[...rgaaControls]` **only**. WCAG has no controls of its own: it is a `secondaryCode` on RGAA-catalog controls (`catalog/wcag/controls.ts` is 7 lines; WCAG presets filter the RGAA list).                                                                |
+| Requirement                | One row per (project, control) (`requirements_project_control_uidx`). `RequirementStatus = passed\|failed\|needs_review\|not_applicable\|unable_to_verify`; `determination = automated\|human_review`; sticky human `exception`/`humanPass` with re-arm on newer violations. Domain-neutral.                                                                                                                    |
+| Status derivation          | `deriveRequirementStatus` (`contract/requirement-status.ts`) is pure and exhaustive over `CheckAuthority = manual\|standard\|runtime_only\|heuristic\|site_level`. Inputs are a11y-engine-shaped (`runtimeRan`, `htmlValidateRan`, `filesScanned`); `standard` ⇒ "passed only if `filesScanned > 0`" (AST-specific).                                                                                            |
+| Assessment                 | `runAssessment` (`server/assessment/assessment.ts`, ~670 lines) is one monolith: scratch rows → change detection (git snapshot) → AST scan → optional Playwright/axe → merge → per-control reconcile → status refresh → evidence. One `Assessment` per project run; `latestAssessmentFor(assessments, projectId)` is **domain-blind** and feeds change detection (`previous.snapshot`), dashboard and settings. |
+| Finding                    | `Finding` has `controlId`, `checkId` (string; `RawFinding.checkId` is the strict a11y `CheckId` union), `analyzerId` (a11y analyzer union), `location: source\|dom\|site`, `fix` (JSX attribute edits), `severity`, `confidence`, `kind: violation\|warning`. DB column `findings.engine` CHECK `IN ('ast','runtime')`.                                                                                         |
+| Remediation / verification | `RemediationStatus = detected→suggested→approved→implemented→verified`. Source: patch → draft PR → merge → re-assess. Runtime: guidance → approve → implement → **re-audit** (`remediation-verify-worker.ts`). `verified` only via deterministic re-check or explicit manual attestation with note (`remediation_manually_verified`).                                                                           |
+| Evidence                   | Append-only (`insertEvidence`, DB trigger `0004`). `EvidenceKind` is a **frozen** union — new events reuse `finding` / `assessment_job` / `requirement_status_changed` with a `detail.event` discriminant. Has `controlId`, `findingId`, `assessmentId`; no domain column (derivable via control → framework).                                                                                                  |
+| Monitoring                 | Webhook (push to live default branch only) → enqueue job → GH Actions worker. `Alert` has one kind (`compliance_regression`). History = `listAssessmentHistoryForProject` (last 10, requirement-status counts) + `requirement_status_changed` evidence with `detail.regression`. **No time series of values.**                                                                                                  |
+| Jobs                       | `assessment_jobs` (lease, 3 attempts, serial-per-project unique index, idempotency key). `trigger ∈ manual\|webhook\|verify_remediation`. Stages `checkout→changedetection→ast→runtime→reconcile→apply`. Every job clones the repo.                                                                                                                                                                             |
+| Runtime engine             | `runtime/scan.ts`: SSRF-guarded Playwright navigation per route, axe + custom probes + html-validate + linkinator. Already produces a rendered page and a `RuntimePageSnapshot`; **collects no resource/network/size metrics.** Reusable browser plumbing (`url-safety.ts`, `runtime-navigation.ts`, route/quota limits).                                                                                       |
+| AI                         | `src/ai/` explain/remediate only; imports contract only; never sets status (ESLint-enforced). Keep.                                                                                                                                                                                                                                                                                                             |
+| UI                         | `(app)/{dashboard,requirements,findings,evidence,settings,org}`; requirements grouped by RGAA themes / WCAG principles (`control-theme.ts`); preset navigator; nav/copy/reports are RGAA/WCAG-worded (`report-model.ts`, `report-markdown.ts`, `secondaryReferenceLabel`).                                                                                                                                      |
+| CI/PR                      | **None, by recorded decision.** `architecture.md` "Decision (permanent, Sep 2026): no per-PR Check Runs… Do not re-propose… without a new product decision that explicitly reverses this one." Webhook handles `push` only.                                                                                                                                                                                     |
 
 ## A2. Stale or wrong documentation found (fix in Task 6)
 
@@ -58,18 +58,18 @@ Copied from `PROMPT.md` §8 and `AGENTS.md`:
 
 ## A3. Architecture blockers for adding RGESN (verified)
 
-| # | Blocker | Evidence | Why it blocks |
-| --- | --- | --- | --- |
-| B1 | **"No preset ⇒ whole catalog."** | `project-scope.ts: scopedControlIds` returns `undefined` when `defaultPresetId` is unset; `controlsInScope` then returns the entire catalog. | The moment RGESN controls enter `shippedCatalog()`, every project without a stored preset silently starts assessing RGESN (manual controls ⇒ flood of `unable_to_verify`, false regressions). |
-| B2 | **One preset per project.** | `Project.defaultPresetId` (single); `requirementsInScope`/`findingsInScope`/dashboard/settings all assume it. | A project must run Accessibility **and** Eco-design simultaneously. |
-| B3 | **Catalog assumes RGAA/WCAG.** | `shippedCatalog` controls = RGAA only; `catalogControlIds` validates against `rgaaControls` only; `control-theme.ts` hardcodes `RGAA_THEMES`/`WCAG_PRINCIPLES` and `wcagFramework.id` swap logic; `guidanceFor` delegates to RGAA guidance; `Control.secondaryCode` is required; `Framework` has no `domain`. | RGESN needs its own controls, themes, guidance, no cross-reference code. |
-| B4 | **`latestAssessmentFor` is domain-blind and drives a11y change detection.** | `assessment.ts:347`, `dashboard-view.ts:93`, `settings-view.ts:42`. | An eco/measurement assessment (no snapshot, no files) would become the "previous" assessment for the a11y scan, defeating `sourcesUnchanged` reuse and scoped scans, and corrupting dashboard counts. |
-| B5 | **`Assessment` shape is AST-centric.** | `filesScanned`, `scanMode`, `snapshot`, `engines.ast: true` (literal type), `summary` over all requirements. | Measurement runs have no files/AST; summary must be per domain. |
-| B6 | **Every job clones the repo; stages are a11y-named; one serial slot per project.** | `ASSESSMENT_JOB_STAGES`, `assessment-worker.ts` checkout. | Measurement of a URL needs no checkout (cost + latency + failure modes). |
-| B7 | **Finding vocabulary is a11y-closed.** | `findings_engine_check IN ('ast','runtime')`; `AnalyzerId` union; `RawFinding.checkId: CheckId`; `FindingLocation` has no page/metric location. | Eco findings need a new engine bucket and a page-metric location. (Not needed until Phase 3.) |
-| B8 | **Authority classes can't express "measured".** | `CheckAuthority` set; `standard` ⇒ `filesScanned>0`. | Threshold-on-measurement controls need an authority gated on "measurement ran for this route". (Phase 3.) |
-| B9 | **No measurement, page identity or history store.** | No such table/type. | Required for trends/regressions (Phases 2, 4, 5). |
-| B10 | **PR-check direction contradicts a recorded permanent decision.** | `architecture.md` decision paragraph. | Phase 6 cannot start without an explicit superseding product decision (see Part D, D-CI). |
+| #   | Blocker                                                                            | Evidence                                                                                                                                                                                                                                                                                                      | Why it blocks                                                                                                                                                                                         |
+| --- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| B1  | **"No preset ⇒ whole catalog."**                                                   | `project-scope.ts: scopedControlIds` returns `undefined` when `defaultPresetId` is unset; `controlsInScope` then returns the entire catalog.                                                                                                                                                                  | The moment RGESN controls enter `shippedCatalog()`, every project without a stored preset silently starts assessing RGESN (manual controls ⇒ flood of `unable_to_verify`, false regressions).         |
+| B2  | **One preset per project.**                                                        | `Project.defaultPresetId` (single); `requirementsInScope`/`findingsInScope`/dashboard/settings all assume it.                                                                                                                                                                                                 | A project must run Accessibility **and** Eco-design simultaneously.                                                                                                                                   |
+| B3  | **Catalog assumes RGAA/WCAG.**                                                     | `shippedCatalog` controls = RGAA only; `catalogControlIds` validates against `rgaaControls` only; `control-theme.ts` hardcodes `RGAA_THEMES`/`WCAG_PRINCIPLES` and `wcagFramework.id` swap logic; `guidanceFor` delegates to RGAA guidance; `Control.secondaryCode` is required; `Framework` has no `domain`. | RGESN needs its own controls, themes, guidance, no cross-reference code.                                                                                                                              |
+| B4  | **`latestAssessmentFor` is domain-blind and drives a11y change detection.**        | `assessment.ts:347`, `dashboard-view.ts:93`, `settings-view.ts:42`.                                                                                                                                                                                                                                           | An eco/measurement assessment (no snapshot, no files) would become the "previous" assessment for the a11y scan, defeating `sourcesUnchanged` reuse and scoped scans, and corrupting dashboard counts. |
+| B5  | **`Assessment` shape is AST-centric.**                                             | `filesScanned`, `scanMode`, `snapshot`, `engines.ast: true` (literal type), `summary` over all requirements.                                                                                                                                                                                                  | Measurement runs have no files/AST; summary must be per domain.                                                                                                                                       |
+| B6  | **Every job clones the repo; stages are a11y-named; one serial slot per project.** | `ASSESSMENT_JOB_STAGES`, `assessment-worker.ts` checkout.                                                                                                                                                                                                                                                     | Measurement of a URL needs no checkout (cost + latency + failure modes).                                                                                                                              |
+| B7  | **Finding vocabulary is a11y-closed.**                                             | `findings_engine_check IN ('ast','runtime')`; `AnalyzerId` union; `RawFinding.checkId: CheckId`; `FindingLocation` has no page/metric location.                                                                                                                                                               | Eco findings need a new engine bucket and a page-metric location. (Not needed until Phase 3.)                                                                                                         |
+| B8  | **Authority classes can't express "measured".**                                    | `CheckAuthority` set; `standard` ⇒ `filesScanned>0`.                                                                                                                                                                                                                                                          | Threshold-on-measurement controls need an authority gated on "measurement ran for this route". (Phase 3.)                                                                                             |
+| B9  | **No measurement, page identity or history store.**                                | No such table/type.                                                                                                                                                                                                                                                                                           | Required for trends/regressions (Phases 2, 4, 5).                                                                                                                                                     |
+| B10 | **PR-check direction contradicts a recorded permanent decision.**                  | `architecture.md` decision paragraph.                                                                                                                                                                                                                                                                         | Phase 6 cannot start without an explicit superseding product decision (see Part D, D-CI).                                                                                                             |
 
 Not blockers (verified): evidence kinds (reuse general kinds), requirement/finding status enums, remediation lifecycle names, RBAC, write model/locks, queue/lease model, AI isolation.
 
@@ -79,16 +79,16 @@ Not blockers (verified): evidence kinds (reuse general kinds), requirement/findi
 
 ## B1. Vocabulary (add to `domain-model.mdc`; do not rename existing terms)
 
-| Concept | Meaning | Source of truth | Deterministic? |
-| --- | --- | --- | --- |
-| **Standard** | A reference document. Classified: _legal/regulatory requirement_ · _technical standard_ · _measurement framework_ · _optional metric_. | Catalog (`Framework`) | n/a |
-| **Domain** | `accessibility \| eco_design \| performance \| security`. A property of a `Framework`; a control's domain = its framework's domain. | `Framework.domain` | n/a |
-| **Control** | A machine-understandable obligation from a standard (existing). | Catalog | n/a |
-| **Requirement** | A control applied to a project, carrying a status (existing). | DB | status derived |
-| **Measurement** _(new)_ | An observed value at a point in time: `(project, route, engine+version, metricId, value, unit, conditions, measuredAt, source ref)`. Append-only. Carries its own uncertainty/conditions. Says nothing about compliance. | DB `measurements` | Yes **per conditions**; variance documented |
-| **Finding** | A specific failure instance against a control, derived from an assessment of a measurement/scan or raised manually (existing). | DB | derived |
-| **Compliance status** | `RequirementStatus` from `deriveRequirementStatus` (existing). The only thing that means "compliant". | DB | Yes (or sticky human) |
-| **Score** _(new, derived)_ | A versioned, named aggregate (e.g. `complyloop-eco/v1`) computed from measurements and/or requirement statuses for display & trends. **Never** an input to status. Never stored in `requirements`. | Computed / cached with `scoreVersion` | Yes, but a model, not a verdict |
+| Concept                    | Meaning                                                                                                                                                                                                                  | Source of truth                       | Deterministic?                              |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------- | ------------------------------------------- |
+| **Standard**               | A reference document. Classified: _legal/regulatory requirement_ · _technical standard_ · _measurement framework_ · _optional metric_.                                                                                   | Catalog (`Framework`)                 | n/a                                         |
+| **Domain**                 | `accessibility \| eco_design \| performance \| security`. A property of a `Framework`; a control's domain = its framework's domain.                                                                                      | `Framework.domain`                    | n/a                                         |
+| **Control**                | A machine-understandable obligation from a standard (existing).                                                                                                                                                          | Catalog                               | n/a                                         |
+| **Requirement**            | A control applied to a project, carrying a status (existing).                                                                                                                                                            | DB                                    | status derived                              |
+| **Measurement** _(new)_    | An observed value at a point in time: `(project, route, engine+version, metricId, value, unit, conditions, measuredAt, source ref)`. Append-only. Carries its own uncertainty/conditions. Says nothing about compliance. | DB `measurements`                     | Yes **per conditions**; variance documented |
+| **Finding**                | A specific failure instance against a control, derived from an assessment of a measurement/scan or raised manually (existing).                                                                                           | DB                                    | derived                                     |
+| **Compliance status**      | `RequirementStatus` from `deriveRequirementStatus` (existing). The only thing that means "compliant".                                                                                                                    | DB                                    | Yes (or sticky human)                       |
+| **Score** _(new, derived)_ | A versioned, named aggregate (e.g. `complyloop-eco/v1`) computed from measurements and/or requirement statuses for display & trends. **Never** an input to status. Never stored in `requirements`.                       | Computed / cached with `scoreVersion` | Yes, but a model, not a verdict             |
 
 Rule: `Measurement → (assessed by control rule) → Finding → Requirement status`; `Score` branches off measurements/statuses for display only.
 
@@ -102,14 +102,14 @@ Rule: `Measurement → (assessed by control rule) → Finding → Requirement st
 
 ## B3. Standards model (docs only; no invented law)
 
-| Standard | Class | Notes |
-| --- | --- | --- |
-| RGAA 4 | Legal/regulatory reference in France for public bodies (and some private entities) — **state exactly the applicability the official source states; verify before writing** | Existing catalog |
-| WCAG 2.2 | Technical standard | Existing cross-reference + WCAG presets |
-| RGESN (2024 edition) | Official French reference framework published by Arcep & Arcom with ADEME/DINUM; derives from art. 25 of the REEN law (loi n° 2021-1485). **Treat as a reference framework; do not assert which organisations are legally bound — verify on the official site.** Edition: 2024 (v1.0.1 Jan 2023 is superseded). Licence: **Licence Ouverte 2.0 (Etalab)**, per the owner (data.gouv.fr dataset page, Oct 2026) — commercial reuse allowed with attribution (source + date of last update). Task 3 records the data.gouv.fr URL; keep an attribution line in the catalog and in reports. | New catalog (Phase 1) |
-| EcoIndex | Measurement/scoring methodology by a community collective. **Not** a regulatory requirement. Site states CC-BY-NC-ND for the algorithm/results; LCA values reported as not freely licensed; code-package licences conflict between ports. → treat as _optional external metric_, never the scoring core. | Optional, off by default |
-| Core Web Vitals / performance budgets | Measurement framework (vendor-defined thresholds) / optional metrics | Phase 7 |
-| Security headers, dependency checks | Technical good practice (OWASP-style); not regulatory in this product | Phase 8 |
+| Standard                              | Class                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Notes                                   |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| RGAA 4                                | Legal/regulatory reference in France for public bodies (and some private entities) — **state exactly the applicability the official source states; verify before writing**                                                                                                                                                                                                                                                                                                                                                                                                              | Existing catalog                        |
+| WCAG 2.2                              | Technical standard                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Existing cross-reference + WCAG presets |
+| RGESN (2024 edition)                  | Official French reference framework published by Arcep & Arcom with ADEME/DINUM; derives from art. 25 of the REEN law (loi n° 2021-1485). **Treat as a reference framework; do not assert which organisations are legally bound — verify on the official site.** Edition: 2024 (v1.0.1 Jan 2023 is superseded). Licence: **Licence Ouverte 2.0 (Etalab)**, per the owner (data.gouv.fr dataset page, Oct 2026) — commercial reuse allowed with attribution (source + date of last update). Task 3 records the data.gouv.fr URL; keep an attribution line in the catalog and in reports. | New catalog (Phase 1)                   |
+| EcoIndex                              | Measurement/scoring methodology by a community collective. **Not** a regulatory requirement. Site states CC-BY-NC-ND for the algorithm/results; LCA values reported as not freely licensed; code-package licences conflict between ports. → treat as _optional external metric_, never the scoring core.                                                                                                                                                                                                                                                                                | Optional, off by default                |
+| Core Web Vitals / performance budgets | Measurement framework (vendor-defined thresholds) / optional metrics                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Phase 7                                 |
+| Security headers, dependency checks   | Technical good practice (OWASP-style); not regulatory in this product                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Phase 8                                 |
 
 > Search-based facts above (Arcep/Arcom authorship, REEN art. 25, 78 criteria in the 2024 edition, EcoIndex licence statements) come from secondary web results. **Task 3 must confirm each against the primary official page before it lands in `docs/`**, and cite the URL.
 
@@ -161,6 +161,7 @@ Contract status model & `deriveRequirementStatus` precedence; sticky-decision re
 Notation per phase: **Obj / Why / Areas / Arch / DB / API / UI / Deps / Risks / Not yet**. "Ask first" = touches a protected path in `AGENTS.md`.
 
 ### Phase 0 — Architecture preparation (no new domain yet)
+
 - **Obj:** Make scoping, catalog and "latest assessment" domain-aware with **zero behavior change** for accessibility.
 - **Why:** Fixes B1–B5 so adding RGESN cannot silently change existing projects.
 - **Areas:** `contract/project-types.ts` (ask first), `catalog/*`, `server/workspace/project-scope.ts`, `core/assessment/assessment-helpers.ts`, settings/requirements views.
@@ -177,6 +178,7 @@ Notation per phase: **Obj / Why / Areas / Arch / DB / API / UI / Deps / Risks / 
 - **Not yet:** any RGESN data, `measurements` table, new engine bucket, plugin interface.
 
 ### Phase 1 — RGESN foundation (catalog + manual assessment)
+
 - **Obj:** Users can enable RGESN, see its requirements, and assess criteria manually (human pass / exception / N/A) with evidence.
 - **Why:** Delivers eco value without any new engine; validates the shared model on a second standard.
 - **Areas:** `catalog/rgesn/{framework,controls,presets,themes}.ts`, requirements page, settings, display copy, reports.
@@ -189,6 +191,7 @@ Notation per phase: **Obj / Why / Areas / Arch / DB / API / UI / Deps / Risks / 
 - **Not yet:** automated RGESN checks, measurements, scores, regressions.
 
 ### Phase 2 — Environmental measurement engine
+
 - **Obj:** Measure pages (bytes, requests, DOM, composition, third parties) on configured routes and store them historically.
 - **Why:** Prerequisite for automated RGESN checks, scores, trends, regressions; history only accrues from the first run, so ship storage **before** UI/trends.
 - **Areas:** `analysis-core/src/measurement/`, `server/assessment/` (new measurement run path), worker, `packages/db` (`measurements` repo), job schema.
@@ -201,6 +204,7 @@ Notation per phase: **Obj / Why / Areas / Arch / DB / API / UI / Deps / Risks / 
 - **Not yet:** thresholds, findings, scores, EcoIndex integration, LCP/TBT, energy/CO₂, HAR storage.
 
 ### Phase 3 — RGESN assessments (automated where reliable)
+
 - **Obj:** Turn measurements into requirement status/findings for the criteria that have an objective proxy.
 - **Why:** First real "measurement → finding → remediation → re-measure → verified" loop outside accessibility.
 - **Areas:** `catalog/rgesn` (`checkId`s), `analysis-core/src/measurement/rules`, `contract` (`CheckAuthority`, `AnalyzerId`, `FindingLocation`), `findings.engine` check, assessment reconcile reuse, remediation verify path.
@@ -211,6 +215,7 @@ Notation per phase: **Obj / Why / Areas / Arch / DB / API / UI / Deps / Risks / 
 - **Not yet:** score, baselines, PR checks.
 
 ### Phase 4 — Historical monitoring
+
 - **Obj:** Show trends per route/metric and per-domain history.
 - **Areas:** reporting loaders (`server/reporting/`), dashboard, eco page, rollups.
 - **Arch:** series queries over `measurements` bounded in SQL (`FINDINGS_LIST_LOAD_LIMIT` pattern); comparability rule (same conditions + engine major); optional daily rollup table only after measured query cost; `complyloop-eco/v1` **score** computed here (versioned, displayed with its inputs); unified product view (compliance % status-based + score + open findings + regressions) per domain.
@@ -218,21 +223,25 @@ Notation per phase: **Obj / Why / Areas / Arch / DB / API / UI / Deps / Risks / 
 - **Deps:** 2 (3 for findings). **Risks:** presenting non-comparable points; implying score = compliance. **Not yet:** forecasting, org-level benchmarking, `pages` table.
 
 ### Phase 5 — Regression detection
+
 - **Obj:** Detect and alert on metric regressions vs baseline with explicit thresholds.
 - **Arch:** baseline resolver + threshold config (project/org level, versioned, stored in project payload jsonb `ecoBudgets`), noise band from historical variance, finding + `Alert` (`AlertKind` += `measurement_regression`), evidence `detail.event = "measurement_regression"`.
 - **DB:** none or `0008` if thresholds need querying. **UI:** budgets form in Settings; regression list on dashboard. **Deps:** 2, 3, 4. **Risks:** false positives from third-party variance; threshold sprawl. **Not yet:** auto-tuned thresholds, ML anomaly detection.
 
 ### Phase 6 — Developer / CI integration (**gated by D-CI**)
+
 - **Obj:** Preview/PR analysis with baseline comparison and a CI status.
 - **Arch:** per B6. Resolve preview via `deployment_status`; `trigger=ci`; non-authoritative persistence; `CiResult` derivation; GitHub Checks write; same engines as manual runs.
 - **DB:** job trigger enum (`CHECK` migration) + `ci_results` (or evidence-only if enough). **API:** webhook events `pull_request`, `deployment_status`; GitHub App permission `checks: write`. **UI:** PR result history on project page. **Deps:** 5; `TODO.md` P0 (runtime↔commit tie). **Risks:** reversing a recorded decision; noisy PR checks; preview auth; abuse/cost (rate limits). **Not yet:** PR comments with fix suggestions, auto-merge blocks beyond user-set budgets.
 
 ### Phase 7 — Performance
+
 - **Obj:** Core Web Vitals / loading / runtime metrics as a third domain on the same infra.
 - **Arch:** new `Framework(domain: performance)` (measurement framework, not regulation), new metric ids in the same `measurements` table, lab-vs-field separation (field data only if connected; label as such), repeated runs + median to tame variance. **Rule:** if this phase needs a new table or a second assessment path, the shared seam from Phase 3 was wrong — fix the seam first.
 - **Not yet:** RUM collection agent, synthetic multi-location runs.
 
 ### Phase 8 — Security
+
 - **Obj:** Headers/config/dependency checks (passive only).
 - **Arch:** passive HTTP header/TLS/cookie flags checks reuse measurement run (response headers already observable); dependency checks as a separate source-engine (lockfile/OSV) — reconsider whether it belongs in this product. **Must not** drive earlier decisions. **Not yet:** active scanning/exploitation (legal exposure), anything that requires target-owner authorization flow.
 
@@ -284,14 +293,14 @@ Scope: new Framework + metrics on existing tables; passive security checks only.
 
 ## D3. Decision log (add to `platform-direction.md`)
 
-| ID | Decision | Status |
-| --- | --- | --- |
-| D-Project | `Project` stays the unit ("digital product" in UI copy later); no new `DigitalProduct` entity until multi-repo/multi-URL products are a real need | Proposed |
-| D-Domain | Domain = field on `Framework`; no plugin framework | Proposed |
-| D-Preset | Replace single `defaultPresetId` with `presetIds[]` | Proposed — Phase 0 |
-| D-Measure | Measurements are a separate append-only store; never folded into evidence `detail` as the primary store | Proposed |
-| D-Score | ComplyLoop-owned, versioned score; EcoIndex optional/off by default; score ≠ status | Proposed |
-| D-CI | **Supersedes the Sep 2026 "no per-PR Check Runs" decision** — requires explicit owner approval before Phase 6; until then the decision stands | **Open — owner must decide** |
+| ID        | Decision                                                                                                                                                                     | Status                        |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| D-Project | `Project` stays the unit ("digital product" in UI copy later); no new `DigitalProduct` entity until multi-repo/multi-URL products are a real need                            | Proposed                      |
+| D-Domain  | Domain = field on `Framework`; no plugin framework                                                                                                                           | Proposed                      |
+| D-Preset  | Replace single `defaultPresetId` with `presetIds[]`                                                                                                                          | Proposed — Phase 0            |
+| D-Measure | Measurements are a separate append-only store; never folded into evidence `detail` as the primary store                                                                      | Proposed                      |
+| D-Score   | ComplyLoop-owned, versioned score; EcoIndex optional/off by default; score ≠ status                                                                                          | Proposed                      |
+| D-CI      | **Supersedes the Sep 2026 "no per-PR Check Runs" decision** — requires explicit owner approval before Phase 6; until then the decision stands                                | **Open — owner must decide**  |
 | D-Licence | RGESN 2024 text: Licence Ouverte 2.0 — reuse OK with attribution (**resolved**, owner-confirmed). EcoIndex constants/LCA data: still require licence review before inclusion | RGESN resolved; EcoIndex open |
 
 ## D4. Architecture / Product Risks (Task 4 writes this section, answering each question from PROMPT §7)
@@ -321,6 +330,7 @@ Scope: new Framework + metrics on existing tables; passive security checks only.
 ### Task 1: Product vision (spec + README + AGENTS framing)
 
 **Files:**
+
 - Modify: `docs/compliance-engineering-product-spec.md`
 - Modify: `README.md` (first paragraph only)
 - Modify: `AGENTS.md` ("What this is" section only)
@@ -338,6 +348,7 @@ Scope: new Framework + metrics on existing tables; passive security checks only.
 ### Task 2: Domain & standards model + assessment mapping in architecture
 
 **Files:**
+
 - Modify: `docs/ai/architecture.md` (add two sections after "Modules", add "Architecture gaps" before "Invariants")
 - Modify: `.cursor/rules/domain-model.mdc` (vocabulary)
 
@@ -354,6 +365,7 @@ Scope: new Framework + metrics on existing tables; passive security checks only.
 ### Task 3: Create `docs/ai/platform-direction.md` (eco strategy, measurement, monitoring, CI/CD, roadmap, TODO)
 
 **Files:**
+
 - Create: `docs/ai/platform-direction.md`
 - Modify: `docs/README.md` (index row)
 
@@ -376,6 +388,7 @@ Scope: new Framework + metrics on existing tables; passive security checks only.
 ### Task 5: Cursor rules / agent guidance alignment
 
 **Files:**
+
 - Modify: `.cursor/rules/analysis-engine.mdc` (scope line: "accessibility analysis engine; other domains' engines live in sibling folders and are not covered here")
 - Modify: `packages/analysis-core/README.md` (first paragraph: still accessibility today; add "Planned: `measurement/` stage — see platform-direction.md" **only as a link, no placeholder directories**)
 
@@ -385,6 +398,7 @@ Scope: new Framework + metrics on existing tables; passive security checks only.
 ### Task 6: Fix documentation drift found in the audit
 
 **Files:**
+
 - Modify: `AGENTS.md` (doc map row for `next-reco-todo.md` and the sentence "see next-reco-todo.md")
 - Modify: `.github/workflows/assessment-worker.yml` (header comment only: remove "Check Runs")
 - Modify: `TODO.md` (add pointer to `docs/ai/platform-direction.md` under its header; no item changes)
