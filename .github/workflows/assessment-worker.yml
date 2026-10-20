@@ -8,11 +8,10 @@
 # serverless builds did.
 #
 # Required repository secrets: `DATABASE_URL` (pooled Postgres),
-# `COMPLYLOOP_APP_ID` + `COMPLYLOOP_APP_PRIVATE_KEY` (repo checkout +
-# Check Runs — same values as the Vercel `GITHUB_APP_ID` /
-# `GITHUB_APP_PRIVATE_KEY` production env vars; the `GITHUB_` prefix is
-# reserved in Actions, so the workflow maps them onto the names the
-# drain script reads).
+# `COMPLYLOOP_APP_ID` + `COMPLYLOOP_APP_PRIVATE_KEY` (repo checkout — same
+# values as the Vercel `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` production
+# env vars; the `GITHUB_` prefix is reserved in Actions, so the workflow maps
+# them onto the names the drain script reads).
 # `workflow_dispatch` doubles as an operator drain button.
 name: assessment-worker
 

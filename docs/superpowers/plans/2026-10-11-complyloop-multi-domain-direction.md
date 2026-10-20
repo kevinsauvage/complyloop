@@ -1,5 +1,10 @@
 # ComplyLoop Multi-Domain Direction — Planning & Documentation Plan
 
+> **Executed 2026-10-20.** Tasks 1–7 (steps 1–3) landed: `docs/ai/platform-direction.md`
+> exists, architecture/spec/README/AGENTS/domain rules are aligned, dead links are
+> removed, `CRITICAL-TODOS.md` is deleted. Remaining: Task 7 steps 4–5 (owner
+> decisions **D-CI**, **D-Licence**, `PROMPT.md` fate).
+>
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Leave the repo documentation in a state where a strong coding agent knows what ComplyLoop is becoming (continuous compliance & quality engineering: accessibility → eco-design → performance → security), what architecture must change, what to build first, and what not to build yet. **No code is implemented by this plan.**
@@ -338,12 +343,12 @@ Scope: new Framework + metrics on existing tables; passive security checks only.
 
 **Interfaces:** Produces the canonical wording of the vision reused by Tasks 2–3.
 
-- [ ] **Step 1:** In the spec, replace "What this is" with: ComplyLoop is evolving from an accessibility compliance engineering tool into a **continuous compliance and quality engineering platform for digital products**. Keep the "Not a GRC dashboard…" paragraph. Add subsection **Direction (Oct 2026)** with the domain tree from `PROMPT.md` (Accessibility RGAA/WCAG · Eco-design RGESN · Performance · Security) and one sentence: _shared assessment and verification platform, not four scanners_. Add the unified-view example (per-domain % + open findings + regressions) labelled **target, not current**.
-- [ ] **Step 2:** In the spec "Scope", split into **Current (shipped)**: React/Next.js/TS, RGAA/WCAG, orgs; and **Planned (phased)**: link to `docs/ai/platform-direction.md` (do not restate phases). Update "Current state" date line only if facts changed.
-- [ ] **Step 3:** README intro: keep the accurate first paragraph (it describes shipped behavior); append one sentence + link: "Direction: continuous compliance & quality across accessibility, eco-design, performance and security — see `docs/ai/platform-direction.md`."
-- [ ] **Step 4:** `AGENTS.md` "What this is": same one-sentence direction + link; do not duplicate lists. `product-context.mdc`: change "Current product: accessibility compliance…" to "Current product: accessibility (RGAA/WCAG). Direction: multi-domain — see platform-direction.md. The core loop is domain-neutral."
-- [ ] **Step 5:** `npx prettier --check docs/compliance-engineering-product-spec.md README.md AGENTS.md` → expect no diffs; fix if any.
-- [ ] **Step 6:** Commit: `git add docs/compliance-engineering-product-spec.md README.md AGENTS.md .cursor/rules/product-context.mdc && git commit -m "docs: state multi-domain product direction"`.
+- [x] **Step 1:** In the spec, replace "What this is" with: ComplyLoop is evolving from an accessibility compliance engineering tool into a **continuous compliance and quality engineering platform for digital products**. Keep the "Not a GRC dashboard…" paragraph. Add subsection **Direction (Oct 2026)** with the domain tree from `PROMPT.md` (Accessibility RGAA/WCAG · Eco-design RGESN · Performance · Security) and one sentence: _shared assessment and verification platform, not four scanners_. Add the unified-view example (per-domain % + open findings + regressions) labelled **target, not current**.
+- [x] **Step 2:** In the spec "Scope", split into **Current (shipped)**: React/Next.js/TS, RGAA/WCAG, orgs; and **Planned (phased)**: link to `docs/ai/platform-direction.md` (do not restate phases). Update "Current state" date line only if facts changed.
+- [x] **Step 3:** README intro: keep the accurate first paragraph (it describes shipped behavior); append one sentence + link: "Direction: continuous compliance & quality across accessibility, eco-design, performance and security — see `docs/ai/platform-direction.md`."
+- [x] **Step 4:** `AGENTS.md` "What this is": same one-sentence direction + link; do not duplicate lists. `product-context.mdc`: change "Current product: accessibility compliance…" to "Current product: accessibility (RGAA/WCAG). Direction: multi-domain — see platform-direction.md. The core loop is domain-neutral."
+- [x] **Step 5:** `npx prettier --check docs/compliance-engineering-product-spec.md README.md AGENTS.md` → expect no diffs; fix if any.
+- [x] **Step 6:** Commit: `git add docs/compliance-engineering-product-spec.md README.md AGENTS.md .cursor/rules/product-context.mdc && git commit -m "docs: state multi-domain product direction"`.
 
 ### Task 2: Domain & standards model + assessment mapping in architecture
 
@@ -354,13 +359,13 @@ Scope: new Framework + metrics on existing tables; passive security checks only.
 
 **Interfaces:** Consumes Part B1–B3, Part A3. Produces anchors `#domains-and-standards`, `#assessment-mapping`, `#architecture-gaps` referenced from `platform-direction.md`.
 
-- [ ] **Step 1:** Add **"## Domains and standards"**: the four domains; table "shared platform vs domain-specific" from B2; the standards classification table from B3 (verbatim classes: legal/regulatory · technical standard · measurement framework · optional metric) including the verification-needed callouts and URLs found in Task 3 Step 1. State plainly: _this section describes direction; the code today implements only Accessibility._
-- [ ] **Step 2:** Add **"## Assessment mapping"**: for each of Accessibility / Eco / Performance, the chain from PROMPT (Requirement → … → Monitoring) as a table with columns _stage · accessibility today (file) · eco target · what must evolve_. Fill accessibility column from Part A1 (e.g. Assessment = `runAssessment`; Verification = `remediation-verify-worker.ts`, `verifyRemediationOnResolve`). Mark each cell **exists / evolves / new**.
-- [ ] **Step 3:** Add **"## Architecture gaps"**: the B1–B10 table (A3) trimmed to Blocker · Evidence · Phase that resolves it; link to `platform-direction.md#roadmap`.
-- [ ] **Step 4:** Amend the existing "Decision (permanent, Sep 2026): no per-PR Check Runs" paragraph by appending: _"Oct 2026: product direction (PROMPT.md) plans CI/PR integration as Phase 6. This decision remains in force until the owner records D-CI in `docs/ai/platform-direction.md`."_ Do **not** delete the original text.
-- [ ] **Step 5:** `domain-model.mdc`: add entities **Measurement**, **Score**, **Standard** classification, **Domain**; add rule bullets "Scores never set or colour status"; "Measurements carry conditions + engine version"; add to the status section a note distinguishing `not_applicable` / "not assessed" (no row) / `unable_to_verify`. Do not rename existing terms.
-- [ ] **Step 6:** `npx prettier --check docs/ai/architecture.md` ; `rg -n "Domains and standards|Assessment mapping|Architecture gaps" docs/ai/architecture.md` → 3 matches.
-- [ ] **Step 7:** Commit: `docs(architecture): domain model, assessment mapping, gaps`.
+- [x] **Step 1:** Add **"## Domains and standards"**: the four domains; table "shared platform vs domain-specific" from B2; the standards classification table from B3 (verbatim classes: legal/regulatory · technical standard · measurement framework · optional metric) including the verification-needed callouts and URLs found in Task 3 Step 1. State plainly: _this section describes direction; the code today implements only Accessibility._
+- [x] **Step 2:** Add **"## Assessment mapping"**: for each of Accessibility / Eco / Performance, the chain from PROMPT (Requirement → … → Monitoring) as a table with columns _stage · accessibility today (file) · eco target · what must evolve_. Fill accessibility column from Part A1 (e.g. Assessment = `runAssessment`; Verification = `remediation-verify-worker.ts`, `verifyRemediationOnResolve`). Mark each cell **exists / evolves / new**.
+- [x] **Step 3:** Add **"## Architecture gaps"**: the B1–B10 table (A3) trimmed to Blocker · Evidence · Phase that resolves it; link to `platform-direction.md#roadmap`.
+- [x] **Step 4:** Amend the existing "Decision (permanent, Sep 2026): no per-PR Check Runs" paragraph by appending: _"Oct 2026: product direction (PROMPT.md) plans CI/PR integration as Phase 6. This decision remains in force until the owner records D-CI in `docs/ai/platform-direction.md`."_ Do **not** delete the original text.
+- [x] **Step 5:** `domain-model.mdc`: add entities **Measurement**, **Score**, **Standard** classification, **Domain**; add rule bullets "Scores never set or colour status"; "Measurements carry conditions + engine version"; add to the status section a note distinguishing `not_applicable` / "not assessed" (no row) / `unable_to_verify`. Do not rename existing terms.
+- [x] **Step 6:** `npx prettier --check docs/ai/architecture.md` ; `rg -n "Domains and standards|Assessment mapping|Architecture gaps" docs/ai/architecture.md` → 3 matches.
+- [x] **Step 7:** Commit: `docs(architecture): domain model, assessment mapping, gaps`.
 
 ### Task 3: Create `docs/ai/platform-direction.md` (eco strategy, measurement, monitoring, CI/CD, roadmap, TODO)
 
@@ -371,19 +376,19 @@ Scope: new Framework + metrics on existing tables; passive security checks only.
 
 **Interfaces:** Produces the single place for forward-looking strategy; anchors `#roadmap`, `#decision-log`, `#risks`.
 
-- [ ] **Step 1 (verify facts first):** Open the primary sources and record URL + date checked in a "Sources" list at the bottom of the doc: official RGESN 2024 page (ecoresponsable.numerique.gouv.fr / Arcep), its reuse licence, the REEN-law reference, EcoIndex about/licence page and the repo `LICENSE`/LCA disclaimer. If any statement in B3/D4 cannot be confirmed, rewrite it as "unverified" in the doc. Use WebFetch/WebSearch; do not rely on this plan's secondary results.
-- [ ] **Step 2:** Write sections in this order, condensing Part B/C/D of this plan (target ≤ 450 lines, no theoretical essays): 1 Purpose & status · 2 Principles (five separated concepts: measurement, requirement, finding, compliance status, score) · 3 Eco-design strategy (B4, incl. limitations) · 4 Monitoring model (B5) · 5 CI/CD (B6, gated) · 6 Roadmap (Part C; per phase: objective, why, areas, arch, DB, API, UI, deps, risks, not-yet) · 7 Architecture TODO (D1) · 8 Global TODO (D2, exact P0/P1/P2 format) · 9 Preserve list (B7) · 10 Risks & open questions (D4 + D3 decision log) · 11 Sources.
-- [ ] **Step 3:** Add row to `docs/README.md` table: `[ai/platform-direction.md](./ai/platform-direction.md) | Engineers, agents & product | Direction, eco-design strategy, roadmap, risks`. Also remove the dead `ai/github-integration-audit.md` row.
-- [ ] **Step 4:** `npx prettier --write docs/ai/platform-direction.md docs/README.md`; `rg -n "TBD|TODO:|implement later" docs/ai/platform-direction.md` → no matches.
-- [ ] **Step 5:** Commit: `docs: add platform direction, eco-design strategy and roadmap`.
+- [x] **Step 1 (verify facts first):** Open the primary sources and record URL + date checked in a "Sources" list at the bottom of the doc: official RGESN 2024 page (ecoresponsable.numerique.gouv.fr / Arcep), its reuse licence, the REEN-law reference, EcoIndex about/licence page and the repo `LICENSE`/LCA disclaimer. If any statement in B3/D4 cannot be confirmed, rewrite it as "unverified" in the doc. Use WebFetch/WebSearch; do not rely on this plan's secondary results.
+- [x] **Step 2:** Write sections in this order, condensing Part B/C/D of this plan (target ≤ 450 lines, no theoretical essays): 1 Purpose & status · 2 Principles (five separated concepts: measurement, requirement, finding, compliance status, score) · 3 Eco-design strategy (B4, incl. limitations) · 4 Monitoring model (B5) · 5 CI/CD (B6, gated) · 6 Roadmap (Part C; per phase: objective, why, areas, arch, DB, API, UI, deps, risks, not-yet) · 7 Architecture TODO (D1) · 8 Global TODO (D2, exact P0/P1/P2 format) · 9 Preserve list (B7) · 10 Risks & open questions (D4 + D3 decision log) · 11 Sources.
+- [x] **Step 3:** Add row to `docs/README.md` table: `[ai/platform-direction.md](./ai/platform-direction.md) | Engineers, agents & product | Direction, eco-design strategy, roadmap, risks`. Also remove the dead `ai/github-integration-audit.md` row.
+- [x] **Step 4:** `npx prettier --write docs/ai/platform-direction.md docs/README.md`; `rg -n "TBD|TODO:|implement later" docs/ai/platform-direction.md` → no matches.
+- [x] **Step 5:** Commit: `docs: add platform direction, eco-design strategy and roadmap`.
 
 ### Task 4: Risks section review pass
 
 **Files:** Modify `docs/ai/platform-direction.md` (§10 only).
 
-- [ ] **Step 1:** Check that §10 answers every question in `PROMPT.md` §7 (16 bullets) — tick each against D4 items 1–15; add any missing (e.g. "Is the shared model appropriate for all four domains?" ↔ D4.1).
-- [ ] **Step 2:** Re-read each risk against the code for accuracy (e.g. confirm `findings_engine_check` text in `packages/db/src/schema.ts:231-234`, `scopedControlIds` in `project-scope.ts:19-27`, `latestAssessmentFor` call sites via `rg`). Fix any mismatch.
-- [ ] **Step 3:** Commit: `docs: verify risks against code`.
+- [x] **Step 1:** Check that §10 answers every question in `PROMPT.md` §7 (16 bullets) — tick each against D4 items 1–15; add any missing (e.g. "Is the shared model appropriate for all four domains?" ↔ D4.1).
+- [x] **Step 2:** Re-read each risk against the code for accuracy (e.g. confirm `findings_engine_check` text in `packages/db/src/schema.ts:231-234`, `scopedControlIds` in `project-scope.ts:19-27`, `latestAssessmentFor` call sites via `rg`). Fix any mismatch.
+- [x] **Step 3:** Commit: `docs: verify risks against code`.
 
 ### Task 5: Cursor rules / agent guidance alignment
 
@@ -392,8 +397,8 @@ Scope: new Framework + metrics on existing tables; passive security checks only.
 - Modify: `.cursor/rules/analysis-engine.mdc` (scope line: "accessibility analysis engine; other domains' engines live in sibling folders and are not covered here")
 - Modify: `packages/analysis-core/README.md` (first paragraph: still accessibility today; add "Planned: `measurement/` stage — see platform-direction.md" **only as a link, no placeholder directories**)
 
-- [ ] **Step 1:** Apply the two edits; keep them to 1–3 lines each.
-- [ ] **Step 2:** `npx prettier --check` both files; commit: `docs: scope analysis-engine rules to accessibility`.
+- [x] **Step 1:** Apply the two edits; keep them to 1–3 lines each.
+- [x] **Step 2:** `npx prettier --check` both files; commit: `docs: scope analysis-engine rules to accessibility`.
 
 ### Task 6: Fix documentation drift found in the audit
 
@@ -403,18 +408,18 @@ Scope: new Framework + metrics on existing tables; passive security checks only.
 - Modify: `.github/workflows/assessment-worker.yml` (header comment only: remove "Check Runs")
 - Modify: `TODO.md` (add pointer to `docs/ai/platform-direction.md` under its header; no item changes)
 
-- [ ] **Step 1:** Remove the dead `next-reco-todo.md` references (file does not exist) — or, if the owner wants it, recreate separately; default is removal.
-- [ ] **Step 2:** Edit the workflow header comment only; verify with `git diff -- .github/workflows/assessment-worker.yml` that only comment lines changed.
-- [ ] **Step 3:** `rg -n "next-reco-todo|github-integration-audit" . --glob '!node_modules' --glob '!PROMPT.md' --glob '!docs/superpowers/**'` → no matches.
-- [ ] **Step 4:** Commit: `docs: fix dead links and stale workflow comment`.
+- [x] **Step 1:** Remove the dead `next-reco-todo.md` references (file does not exist) — or, if the owner wants it, recreate separately; default is removal.
+- [x] **Step 2:** Edit the workflow header comment only; verify with `git diff -- .github/workflows/assessment-worker.yml` that only comment lines changed.
+- [x] **Step 3:** `rg -n "next-reco-todo|github-integration-audit" . --glob '!node_modules' --glob '!PROMPT.md' --glob '!docs/superpowers/**'` → no matches.
+- [x] **Step 4:** Commit: `docs: fix dead links and stale workflow comment`.
 
 ### Task 7: Final verification and handoff
 
-- [ ] **Step 1:** `npx prettier --check "docs/**/*.md" AGENTS.md README.md TODO.md` → clean.
-- [ ] **Step 2:** `npm run verify:gate` → passes unchanged (no code touched; confirms comment-only workflow edit and mdc edits didn't break anything).
-- [ ] **Step 3:** Self-check against PROMPT §"Deliverables" (11 items): vision (Task 1) · architecture direction (2) · domain/standard model (2) · RGESN strategy (3 §3) · measurement strategy (3 §3) · monitoring (3 §4) · CI/CD (3 §5) · gaps (2) · risks/open questions (3 §10) · roadmap (3 §6) · global TODO (3 §8). Any missing → fix.
-- [ ] **Step 4:** Decide the fate of `PROMPT.md` with the owner (keep as history, move to `docs/`, or delete). Default: leave in place, unreferenced.
-- [ ] **Step 5:** Report to the owner: open decisions D-CI and D-Licence; ask which of Phase 0 / Phase 1 to plan in detail next (a **separate** TDD-level plan per phase, written when the phase starts, because Phase 0's exact type ripple is only known after the first `tsc` run).
+- [x] **Step 1:** `npx prettier --check "docs/**/*.md" AGENTS.md README.md TODO.md` → clean.
+- [x] **Step 2:** `npm run verify:gate` → passes unchanged (no code touched; confirms comment-only workflow edit and mdc edits didn't break anything).
+- [x] **Step 3:** Self-check against PROMPT §"Deliverables" (11 items): vision (Task 1) · architecture direction (2) · domain/standard model (2) · RGESN strategy (3 §3) · measurement strategy (3 §3) · monitoring (3 §4) · CI/CD (3 §5) · gaps (2) · risks/open questions (3 §10) · roadmap (3 §6) · global TODO (3 §8). Any missing → fix.
+- [ ] **Step 4:** Decide the fate of `PROMPT.md` with the owner (keep as history, move to `docs/`, or delete). Default: leave in place, unreferenced. **Open.**
+- [ ] **Step 5:** Report to the owner: open decisions D-CI and D-Licence; ask which of Phase 0 / Phase 1 to plan in detail next (a **separate** TDD-level plan per phase, written when the phase starts, because Phase 0's exact type ripple is only known after the first `tsc` run). **Open.**
 
 ---
 

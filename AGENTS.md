@@ -14,13 +14,13 @@ Orientation for agents. **Do not duplicate** product principles, domain vocabula
 
 ## Doc map
 
-| Doc                                                                                       | Use when                                             |
-| ----------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| [`compliance-engineering-product-spec.md`](./docs/compliance-engineering-product-spec.md) | Product decisions, current scope                     |
-| [`docs/ai/architecture.md`](./docs/ai/architecture.md)                                    | System shape, persistence, analysis                  |
-| [`docs/ai/finding-flow.md`](./docs/ai/finding-flow.md)                                    | Finding page UX contract                             |
-| [`next-reco-todo.md`](./next-reco-todo.md)                                                | Next.js conformance findings (audit vs bundled docs) |
-| [`.cursor/rules/`](./.cursor/rules/)                                                      | Enforceable rules (domain, quality, AI, TS, …)       |
+| Doc                                                                                       | Use when                                          |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| [`compliance-engineering-product-spec.md`](./docs/compliance-engineering-product-spec.md) | Product decisions, current scope                  |
+| [`docs/ai/architecture.md`](./docs/ai/architecture.md)                                    | System shape, persistence, analysis               |
+| [`docs/ai/finding-flow.md`](./docs/ai/finding-flow.md)                                    | Finding page UX contract                          |
+| [`docs/ai/platform-direction.md`](./docs/ai/platform-direction.md)                        | Direction, roadmap, open decisions (planned work) |
+| [`.cursor/rules/`](./.cursor/rules/)                                                      | Enforceable rules (domain, quality, AI, TS, …)    |
 
 ## Next.js reference — source of truth
 
@@ -29,11 +29,11 @@ breaking changes. Before writing any Next.js code, read the relevant guide in
 [`node_modules/next/dist/docs/`](./node_modules/next/dist/docs/) (App Router lives
 under `01-app/`). They are version-matched to the installed `next` package — do
 not rely on training data or the online docs. When this repo and the bundled docs
-disagree, the docs win: change the repo (see [`next-reco-todo.md`](./next-reco-todo.md)).
+disagree, the docs win: change the repo.
 
 ## What this is
 
-Compliance engineering for **RGAA/WCAG** on React/Next.js/TypeScript — orgs, projects, continuous re-assessment. Product scope and success criteria: [`compliance-engineering-product-spec.md`](./docs/compliance-engineering-product-spec.md). Core loop and principles: [`.cursor/rules/product-context.mdc`](./.cursor/rules/product-context.mdc) (not repeated here).
+Compliance engineering for **RGAA/WCAG** on React/Next.js/TypeScript — orgs, projects, continuous re-assessment. Direction: a shared compliance and quality engineering platform (accessibility → eco-design → performance → security), see [`docs/ai/platform-direction.md`](./docs/ai/platform-direction.md); that document is planned work, not shipped behavior. Product scope and success criteria: [`compliance-engineering-product-spec.md`](./docs/compliance-engineering-product-spec.md). Core loop and principles: [`.cursor/rules/product-context.mdc`](./.cursor/rules/product-context.mdc) (not repeated here).
 
 ## Stack
 

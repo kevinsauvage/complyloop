@@ -18,6 +18,21 @@ generator, an AI chatbot, or a replacement for RGAA auditors.
 **Differentiator:** fix → verify → don't regress, per client, across the
 agency portfolio.
 
+### Direction (Oct 2026)
+
+ComplyLoop is evolving from an accessibility compliance engineering tool into
+a **continuous compliance and quality engineering platform for digital
+products** — a shared assessment and verification platform, not four scanners:
+
+```text
+Accessibility (RGAA, WCAG) · Eco-design (RGESN) · Performance · Security
+```
+
+The core loop is domain-neutral; domains plug into it. See
+[`ai/platform-direction.md`](./ai/platform-direction.md) for the target
+model, phasing and open decisions. Everything below describes **shipped**
+behavior unless it links to that document.
+
 ## Who it's for
 
 French digital agencies and ESNs (roughly 5–50 developers) delivering
@@ -37,10 +52,16 @@ live in `.cursor/rules/` — do not restate them here.
 
 ## Scope
 
+**Current (shipped):**
+
 - React, Next.js, TypeScript
 - RGAA / WCAG
 - Orgs: roles `owner | admin | member | viewer`, invite by GitHub login,
   personal org on first sign-in, org switcher, `/org`
+
+**Planned (phased):** eco-design (RGESN), then performance, then passive
+security — see [`ai/platform-direction.md`](./ai/platform-direction.md#6-roadmap).
+Do not describe those as shipped.
 
 RGAA/WCAG catalog and presets live in `packages/analysis-core/src/catalog/`.
 Requirement/control vocabulary is shared via `@complyloop/analysis-core/contract/`

@@ -9,7 +9,7 @@ Use this vocabulary consistently across code, schema, APIs, and UI. Do not inven
 
 ## Entities
 
-- **Framework** — a compliance framework (RGAA, WCAG, SOC 2, custom checklist).
+- **Framework** — a compliance framework (RGAA, WCAG, SOC 2, custom checklist). A framework carries a `domain` (see below).
 - **Control** — a machine-understandable obligation derived from a framework.
 - **Requirement** — a control applied to a target (repo/app), carrying a status.
 - **Assessment** — one evaluation run of requirements against connected software.
@@ -18,6 +18,24 @@ Use this vocabulary consistently across code, schema, APIs, and UI. Do not inven
 - **Verification** — automated or human confirmation a fix works.
 - **Evidence** — append-only record: what was checked, found, changed, when, how verified, which control it satisfies.
 - **Exception** — documented deviation (accepted risk, temporary exception, compensating control, false positive, N/A) with retained context and history.
+
+### Domain and standard class
+
+- **Domain** — the property of the product being assessed: `accessibility | eco_design | performance | security`. It is a field on the framework, not a plugin.
+- **Standard class** — how a framework's authority is framed: *legal/regulatory requirement*, *technical standard*, *measurement framework*, *optional metric*. Do not describe a measurement framework or an optional metric as a regulatory obligation.
+
+Only accessibility is shipped today; the vocabulary exists so the next domains reuse it. Direction: `docs/ai/platform-direction.md`.
+
+### Measurement and score
+
+- **Measurement** — an observed value at a point in time for a project route: metric id, value, unit, conditions, engine id + version, and the commit/deployment it came from. Append-only. A measurement says nothing about compliance and does not by itself change a requirement status.
+- **Score** — a named, versioned aggregate computed for display and trends (e.g. `complyloop-eco/v1`). A model, never a verdict.
+
+Rules:
+
+- `Measurement → (rule) → Finding → Status`. A score is never an input to a status, and a status is never derived from a score.
+- A failed, partial or non-comparable measurement yields `unable_to_verify` — never a zero and never a `passed`.
+- Keep `not_applicable` (documented exception or confirmed fact), "not assessed" (no requirement row or no assessment for that domain — absence, not a status) and `unable_to_verify` (assessed, inconclusive) distinct in data and UI.
 
 ## Canonical Status Enums
 

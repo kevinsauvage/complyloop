@@ -13,7 +13,7 @@ The core loop every feature must serve:
 Requirement → Assessment → Finding → Explanation → Remediation → Verification → Evidence → Continuous monitoring
 ```
 
-Current product: accessibility compliance (RGAA/WCAG) for React/Next.js/TypeScript apps. Scope and audience: `docs/compliance-engineering-product-spec.md`.
+Current product: accessibility compliance (RGAA/WCAG) for React/Next.js/TypeScript apps. Direction: multi-domain (eco-design → performance → security) on the same loop — `docs/ai/platform-direction.md`; the core loop is domain-neutral. Scope and audience: `docs/compliance-engineering-product-spec.md`.
 
 ## Non-Negotiable Principles
 

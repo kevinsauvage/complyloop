@@ -4,6 +4,10 @@ Deterministic accessibility analysis: AST checks over source plus optional
 runtime audits (Playwright/axe) of a preview URL. AI is separate (`src/ai/`)
 and never authoritative.
 
+Planned: an environmental `measurement/` stage (browser-observable metrics)
+sharing this package — direction only, not implemented. See
+[`docs/ai/platform-direction.md`](../../docs/ai/platform-direction.md).
+
 ## Pipeline stages
 
 Server code (`src/server/assessment/assessment.ts`) drives exactly four

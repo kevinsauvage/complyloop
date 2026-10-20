@@ -8,6 +8,11 @@ Live: [complyloop.vercel.app](https://complyloop.vercel.app)
 
 Full product spec: [`compliance-engineering-product-spec.md`](./docs/compliance-engineering-product-spec.md)
 
+Direction: continuous compliance and quality engineering across accessibility,
+eco-design, performance and security — see
+[`docs/ai/platform-direction.md`](./docs/ai/platform-direction.md). That
+document is planned work; this README describes what ships today.
+
 ---
 
 ## Quick start

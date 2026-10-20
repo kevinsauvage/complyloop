@@ -73,6 +73,64 @@ Webhook (enqueue + after() dispatch) → assessment-worker (GH); 15-min schedule
                            isomorphic-git checkout (ephemeral, no git CLI)
 ```
 
+## Domains and standards
+
+**Direction, not current behavior.** The code implements Accessibility only.
+Model, phasing and open decisions: [`platform-direction.md`](./platform-direction.md).
+
+| Concern                                            | Shared platform | Domain-specific                                                    |
+| -------------------------------------------------- | --------------- | ------------------------------------------------------------------ |
+| Tenancy, RBAC, project                             | ✅              | —                                                                  |
+| Requirement + status derivation                    | ✅              | —                                                                  |
+| Finding / Remediation lifecycle, Evidence, Alerts  | ✅              | —                                                                  |
+| Job queue, lease, worker, write model, locks       | ✅              | —                                                                  |
+| Catalog mechanism (`Framework`/`Control`/`Preset`) | ✅              | controls, guidance, themes, presets per standard                   |
+| Engines                                            | —               | AST/axe/jsx-a11y (a11y); measurement engine (eco, perf)            |
+| Verification strategy                              | —               | source merge (a11y AST), re-audit (a11y runtime), re-measure (eco) |
+
+Domain is a field on `Framework` (`accessibility | eco_design | performance | security`);
+there is no plugin interface and no per-domain schema.
+
+| Standard                             | Class                                                         | Domain        | Note                                               |
+| ------------------------------------ | ------------------------------------------------------------- | ------------- | -------------------------------------------------- |
+| RGAA 4                               | legal/regulatory reference (France)                           | accessibility | shipped catalog                                    |
+| WCAG 2.2                             | technical standard                                            | accessibility | shipped as cross-references + presets              |
+| RGESN 2024                           | official French reference framework (Arcep/Arcom, under REEN) | eco_design    | planned; Licence Ouverte 2.0, attribution required |
+| EcoIndex                             | optional metric / scoring methodology (CC BY-NC-ND)           | eco_design    | off by default; never the scoring core             |
+| Core Web Vitals, performance budgets | measurement framework / optional metrics                      | performance   | planned; lab metrics before field data             |
+| Headers, TLS, dependency checks      | technical good practice (not regulatory here)                 | security      | planned, passive only                              |
+
+## Assessment mapping
+
+Chain per domain. `exists` = shipped, `evolves` = shipped but domain-blind today,
+`new` = not built.
+
+| Stage             | Accessibility today                                                                                       | Eco-design target                                                       | Status               |
+| ----------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | -------------------- |
+| Scope             | `presetById` → `scopedControlIds`, undefined ⇒ whole catalog (`src/server/workspace/project-scope.ts:19`) | union of enabled presets, one per domain                                | evolves (Phase 0)    |
+| Assessment        | `runAssessment` (`src/server/assessment/assessment.ts`), checkout + AST + optional runtime                | `runMeasurement`, no checkout, routes + conditions                      | new (Phase 2)        |
+| Latest assessment | `latestAssessmentFor(assessments, projectId)` (`src/core/assessment/assessment-helpers.ts:12`)            | same with `domain`                                                      | evolves (Phase 0)    |
+| Finding           | `checkId` union, analyzers `ast \| runtime`, location `source \| dom \| site`                             | `measurement` engine, location `page` (url, metric, observed)           | new (Phase 3)        |
+| Authority         | `CheckAuthority` (`manual \| standard \| runtime_only \| heuristic \| site_level`)                        | `measured` — passes only if every configured route was measured cleanly | new (Phase 3)        |
+| Verification      | patch → PR → merge → re-assess; runtime re-audit                                                          | re-measure same route + conditions                                      | new (Phase 3)        |
+| Evidence          | append-only `evidence`, frozen kinds, `detail.event` discriminants                                        | same writers, `measurement_recorded` detail                             | evolves              |
+| Monitoring        | push → enqueue → scan, alerts on requirement regression                                                   | metric series + baseline + noise band                                   | new (Phases 2, 4, 5) |
+
+## Architecture gaps
+
+| #   | Gap                                                                    | Evidence                                             | Resolved by   |
+| --- | ---------------------------------------------------------------------- | ---------------------------------------------------- | ------------- |
+| B1  | No preset ⇒ whole catalog                                              | `project-scope.ts:19-27`                             | Phase 0       |
+| B2  | One preset per project                                                 | `Project.defaultPresetId`                            | Phase 0       |
+| B3  | Catalog assumes RGAA/WCAG (required `secondaryCode`, hardcoded themes) | `catalog/control-theme.ts`, `catalog.ts`             | Phase 0       |
+| B4  | `latestAssessmentFor` is domain-blind                                  | `assessment-helpers.ts:12`, dashboard/settings views | Phase 0       |
+| B5  | `Assessment` is AST-shaped (`filesScanned`, `snapshot`, `engines.ast`) | `contract/entities.ts`                               | Phase 0 / 2   |
+| B6  | Every job clones the repo; a11y-named stages                           | `assessment-worker.ts`, `ASSESSMENT_JOB_STAGES`      | Phase 2       |
+| B7  | Finding vocabulary is a11y-closed, engine check `ast \| runtime`       | `schema.ts:232`                                      | Phase 3       |
+| B8  | No "measured" authority                                                | `contract/requirement-status.ts`                     | Phase 3       |
+| B9  | No measurement/page-identity store                                     | —                                                    | Phase 2       |
+| B10 | CI/PR integration contradicts a recorded decision                      | "no per-PR Check Runs" below                         | D-CI approval |
+
 ## Persistence
 
 - **Tenancy** — orgs + RBAC (`src/core/rbac.ts`). Roles
@@ -336,6 +394,12 @@ without a new product decision that explicitly reverses this one. The
 `Checks R/W` App permission was unused; it is no longer listed as required
 (`README.md` / `.env.example`) — remove it from the App registration the next
 time App permissions are touched.
+
+**Oct 2026 — pending, not reversed.** The product direction plans CI/PR
+integration as Phase 6 ([`platform-direction.md`](./platform-direction.md#5-cicd-gated)).
+That does **not** override this decision: Phase 6 stays blocked until the
+owner records **D-CI** in that document. Until then, do not add
+`pull_request` handling, Check Runs, PR comments or PR-scoped scans.
 
 **Remediation:**
 

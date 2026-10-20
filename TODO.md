@@ -1,7 +1,8 @@
 # ComplyLoop — Global TODO
 
 > Audit of the codebase as of 2026-09-26 (graph built with Graft, flows traced through the code).
-> This file replaces `CRITICAL-TODOS.md`: nearly every item there is already fixed in code (see the last P2 item).
+> Direction, phasing and open decisions: [`docs/ai/platform-direction.md`](./docs/ai/platform-direction.md) — do not add multi-domain work here until its Phase 0.
+> `CRITICAL-TODOS.md` was deleted on 2026-10-20: its items were either fixed in code or duplicated here.
 > Work top to bottom. Each item stands on its own unless it says otherwise.
 
 ---
@@ -32,15 +33,13 @@ None open.
 
 **Impact:** Medium
 
-### [ ] Add a pull-request regression check (the "don't regress" loop)
+### [—] Add a pull-request regression check — **do not build (recorded decision)**
 
-**Why:** The product's stated differentiator is "fix → verify → don't regress", but only pushes to the default branch are scanned (`parseHandledWebhookEvent` accepts `push` only). Regressions are found only after merge. Meanwhile the whole non-authoritative scan path (`resolveJobAuthoritative`, `authoritative === false` branches) is unreachable dead code.
+**Status:** blocked, not open. `docs/ai/architecture.md` records a permanent Sep 2026 decision against per-PR Check Runs; [`docs/ai/platform-direction.md`](./docs/ai/platform-direction.md#5-cicd-gated) keeps the idea as Phase 6, gated on a new owner decision (**D-CI**). Do not implement `pull_request` handling, Check Runs, PR comments or PR-scoped scans until D-CI is recorded. The analysis is kept only as the context for that decision.
 
-**Where:** `src/server/github/webhook.ts`, `src/server/assessment/assessment-worker.ts:33-37,133`, `src/server/assessment/assessment.ts:561`, `src/server/github/github.ts`.
+**Why it was considered:** the product's stated differentiator is "fix → verify → don't regress", but only pushes to the default branch are scanned (`parseHandledWebhookEvent` accepts `push` only).
 
-**Change:** Handle `pull_request` (`opened` and `synchronize`) and enqueue a non-authoritative job on the head SHA. Compare its raw findings with the project's open findings, and publish a GitHub check run (`checks: write` on the App) listing only the new violations, with links. Persist nothing except a check-run evidence row. If this is deliberately out of scope, delete the non-authoritative code path instead.
-
-**Impact:** High
+**Open calls on this path** (whichever way it goes): the non-authoritative scan branches (`resolveJobAuthoritative`, `authoritative === false`) are currently unreachable dead code — delete them if D-CI stays closed.
 
 ### [ ] Add a cross-project portfolio overview
 
@@ -116,13 +115,13 @@ None open.
 
 ### [ ] Delete dead code and stale docs, and keep them out
 
-**Why:** The code was AI-generated and has drifted. knip finds 21 unused exports and 46 unused exported types, and barrels duplicate modules (`src/core/display.ts` vs `src/core/display/*`, `src/core/filter-params.ts` vs `filter-params/*`). `CRITICAL-TODOS.md` lists about 25 items as open that are already fixed in code, which misleads the next agent.
+**Why:** The code was AI-generated and has drifted. knip finds 21 unused exports and 46 unused exported types, and barrels duplicate modules (`src/core/display.ts` vs `src/core/display/*`, `src/core/filter-params.ts` vs `filter-params/*`).
 
-**Where:** `CRITICAL-TODOS.md`, `src/core/display.ts`, `src/core/filter-params.ts`, knip output, `docs/ai/architecture.md` (update after the P0/P1 changes above).
+**Where:** `src/core/display.ts`, `src/core/filter-params.ts`, knip output, `docs/ai/architecture.md` (update after the P0/P1 changes above).
 
 **Change:**
 
-- Delete `CRITICAL-TODOS.md`.
+- ~~Delete `CRITICAL-TODOS.md`.~~ Done 2026-10-20 (stale: most items were already fixed).
 - Remove the unused exports and the duplicate barrels.
 - Add `knip` (with a config that ignores `e2e/fixtures`) to the CI `quality` job.
 - Rewrite the write-model and assessment sections of `architecture.md` once the items above land.
@@ -136,14 +135,14 @@ None open.
 1. **Reconcile under the lock on fresh rows.** It removes a data-integrity hole and a whole consistency mechanism.
 2. **Tie runtime audits to the scanned commit.** Without it, `passed` statuses and hidden regressions can be wrong.
 3. **Replace the load-everything write model with targeted writes.** It simplifies every action and removes cost that grows with project age.
-4. **Add a PR regression check.** It delivers the product's core "don't regress" promise and gives the dead non-authoritative path a purpose.
-5. **Add a portfolio overview.** It makes the product usable for its real customer, an agency with many clients.
+4. **Add a portfolio overview.** It makes the product usable for its real customer, an agency with many clients.
+5. **Ship retention.** Jobs, assessments and snapshots grow forever today, and `findings.assessment_id` cascades — pruning needs a migration first.
 
 ## Target State
 
 - An assessment has two steps: a stateless scan, then a short locked reconcile on current rows. Evidence always matches persisted state.
 - Every runtime result is tied to a deployment SHA. Runtime findings never override AST findings from a different commit.
-- Pull requests get a ComplyLoop check that lists new violations before merge. The default branch keeps the authoritative project state.
+- Pull requests get a ComplyLoop check that lists new violations before merge. The default branch keeps the authoritative project state. (**Blocked:** a recorded Sep 2026 decision forbids per-PR Check Runs until **D-CI** is recorded — see `platform-direction.md`.)
 - Mutations are plain transactions with a per-project lock and explicit row writes, with no whole-project loads, snapshots or diffs.
 - Queried fields are typed, indexed columns. JSONB holds only detail payloads.
 - Request handlers never clone repositories. Heavy work runs on the worker, and GitHub writes go through the API.
