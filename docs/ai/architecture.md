@@ -212,6 +212,16 @@ deleteMembershipIds, deleteOrgIds }` — explicit rows, no in-memory slice diff.
     target row inside its own transaction.
 - **Latest assessment** — `latestAssessmentFor` compares `completedAt`.
   Do not use `.at(-1)` (loaders return newest-first).
+- **Typed query columns** — JSONB `payload` stays the source of truth for the
+  entity; fields SQL filters or orders on are projected onto typed columns by
+  `repo/mappers.ts` (the only writers, same rule as `severity_rank`/`engine`):
+  `findings.detected_at` (`findings_open_detected_idx`, partial on `open`),
+  `assessments.started_at`/`completed_at`
+  (`assessments_project_completed_at_idx`), plus a `pg_trgm` GIN index on
+  `evidence.summary` for the free-text filter. Never compare or order these as
+  `payload->>'…'` text: that only sorted correctly for UTC `Z` strings.
+  `drizzle/0006_typed_query_columns.sql` backfilled them; columns stay nullable
+  so an unparseable legacy value cannot abort a production migration.
 - **Read bounding** — findings list order is severity-first
   (`findings.severity_rank`, `ORDER BY severity_rank, id`; same order in SQL
   and the JS fallback).

@@ -36,15 +36,32 @@ target row inside its own transaction).
 - Tests assert on the repo writes the action makes (`recordedWrites()`), backed
   by an in-memory repo/transaction harness (`src/test-fixtures/register-repo-mock.ts`).
 
-### [ ] Promote queried JSONB fields to real columns
+### [x] Promote queried JSONB fields to real columns
 
-**Why:** Findings, assessments, requirements and remediations live as JSONB `payload` documents. Their queried fields are either duplicated into columns by hand-synced mappers (`engine`, `severity_rank`) or compared as text (`payload->>'detectedAt' > $1` in `findings.ts:278`, `payload->>'completedAt'` ordering on assessments). Text timestamps sort only by accident, rows with a missing value are silently excluded, and every new filter needs another mapper-synced column.
+**Done 2026-10-20.** `drizzle/0006_typed_query_columns.sql` (+ `schema.ts`,
+`repo/mappers.ts`, `repo/findings.ts`, `repo/assessments.ts`):
 
-**Where:** `packages/db/src/schema.ts`, `packages/db/src/repo/findings.ts`, `packages/db/src/repo/assessments.ts`, `packages/db/src/repo/mappers.ts`, `packages/db/src/repo/evidence.ts:119` (unindexed `ilike '%q%'`).
+- `findings.detected_at timestamptz` with `findings_open_detected_idx`
+  (`project_id, control_id, detected_at`, partial `WHERE status = 'open'`) —
+  the sticky-decision re-arm read no longer compares ISO text.
+- `assessments.started_at` / `completed_at timestamptz` with
+  `assessments_project_completed_at_idx`, replacing the payload-expression
+  index; the four ordering queries use the columns.
+- `pg_trgm` + `evidence_summary_trgm_idx` (GIN) for the evidence free-text
+  filter, which was an unindexed `ilike '%q%'` on a forever-growing table.
 
-**Change:** One migration (use the `db-migration` skill) that adds typed columns (`timestamptz` for `detected_at`, `updated_at`, `completed_at`; `kind`, `severity`) backfilled from payload, with indexes. Also add a `pg_trgm` GIN index on `evidence.summary`. Make the columns the source of truth for filtering and ordering, and query them with Drizzle operators instead of `sql` JSON paths.
+Columns are written by the mappers and stay nullable (an unparseable legacy
+value must not abort a production migration); readers treat NULL as "unknown".
+Verified by applying the full migration chain to a scratch Postgres and running
+`test:db`; `repo/typed-query-columns.test.ts` pins the fix with payloads whose
+numeric offset sorts differently as text and as an instant (both cases fail if
+the query reverts to `payload->>'…'`).
 
-**Impact:** Medium
+**Not done, deliberately:** `findings.kind`, `findings.severity` and
+`updated_at` columns. Nothing filters or orders on them in SQL —
+`severity_rank` already serves severity ordering/filtering, and the
+`updatedAt` guard was deleted with the write-model rewrite — so they would be
+hand-synced columns with no reader. Add them when a query needs them.
 
 ### [—] Add a pull-request regression check — **do not build (recorded decision)**
 

@@ -50,6 +50,7 @@ describe("repo mappers emit stable row shapes", () => {
       "status",
       "severityRank",
       "engine",
+      "detectedAt",
       "payload",
     ]);
     expect(Object.keys(remediationToRow(remediation))).toEqual([
@@ -90,6 +91,8 @@ describe("repo mappers emit stable row shapes", () => {
     expect(Object.keys(assessmentToRow({} as unknown as Assessment))).toEqual([
       "id",
       "projectId",
+      "startedAt",
+      "completedAt",
       "payload",
     ]);
   });

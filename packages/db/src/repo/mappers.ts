@@ -75,6 +75,8 @@ function assessmentPayloadFrom(assessment: Assessment): AssessmentPayload {
 export function assessmentToRow(assessment: Assessment) {
   return withPayload(assessmentPayloadFrom(assessment), {
     projectId: assessment.projectId,
+    startedAt: assessment.startedAt,
+    completedAt: assessment.completedAt,
   });
 }
 
@@ -95,6 +97,7 @@ export function findingToRow(finding: Finding) {
     // throws on them, but the write path must never fail on a projection.
     severityRank: SEVERITY_RANK[finding.severity] ?? 3,
     engine: engineForRow(finding),
+    detectedAt: finding.detectedAt,
   });
 }
 

@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
 import type {
   Assessment,
@@ -52,10 +52,7 @@ export async function listAssessmentsForProjects(
     .select()
     .from(assessments)
     .where(inArray(assessments.projectId, [...projectIds]))
-    .orderBy(
-      desc(sql`${assessments.payload}->>'completedAt'`),
-      desc(sql`${assessments.payload}->>'startedAt'`),
-    );
+    .orderBy(desc(assessments.completedAt), desc(assessments.startedAt));
   return rows.map((row) => assessmentFromRow(row));
 }
 
@@ -72,10 +69,7 @@ export async function listLatestAssessmentForProject(
     .select()
     .from(assessments)
     .where(eq(assessments.projectId, projectId))
-    .orderBy(
-      desc(sql`${assessments.payload}->>'completedAt'`),
-      desc(sql`${assessments.payload}->>'startedAt'`),
-    )
+    .orderBy(desc(assessments.completedAt), desc(assessments.startedAt))
     .limit(1);
   return rows.map((row) => assessmentFromRow(row));
 }
@@ -94,10 +88,7 @@ export async function listAssessmentHistoryForProject(
     .select()
     .from(assessments)
     .where(eq(assessments.projectId, projectId))
-    .orderBy(
-      desc(sql`${assessments.payload}->>'completedAt'`),
-      desc(sql`${assessments.payload}->>'startedAt'`),
-    )
+    .orderBy(desc(assessments.completedAt), desc(assessments.startedAt))
     .limit(limit);
   return rows.map((row) => assessmentFromRow(row));
 }
@@ -106,10 +97,7 @@ export async function getLatestAssessmentSnapshot(
   drizzle: DrizzleDb,
   projectId: string,
 ): Promise<AssessmentSnapshot | undefined> {
-  const order = [
-    desc(sql`${assessments.payload}->>'completedAt'`),
-    desc(sql`${assessments.payload}->>'startedAt'`),
-  ];
+  const order = [desc(assessments.completedAt), desc(assessments.startedAt)];
   const [latest] = await drizzle
     .select({
       snapshot: assessmentSnapshots.snapshot,

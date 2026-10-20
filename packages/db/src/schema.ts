@@ -157,15 +157,22 @@ export const assessments = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
+    /** Denormalized `payload.startedAt` — assessments always sort on it. */
+    startedAt: timestamp("started_at", { withTimezone: true, mode: "string" }),
+    /** Denormalized `payload.completedAt` — assessments always sort on it. */
+    completedAt: timestamp("completed_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
     payload: jsonb("payload").$type<AssessmentPayload>().notNull(),
   },
   (table) => [
     index("assessments_project_id_idx").on(table.projectId),
-    // Latest-per-project ordering; the app always sorts by completedAt/startedAt.
-    index("assessments_project_completed_idx").on(
+    // Latest-per-project ordering on real columns (see 0006).
+    index("assessments_project_completed_at_idx").on(
       table.projectId,
-      sql`(${table.payload}->>'completedAt') DESC`,
-      sql`(${table.payload}->>'startedAt') DESC`,
+      table.completedAt.desc(),
+      table.startedAt.desc(),
     ),
   ],
 );
@@ -207,6 +214,16 @@ export const findings = pgTable(
      * repo mappers — the only writers.
      */
     severityRank: integer("severity_rank").notNull(),
+    /**
+     * Denormalized `payload.detectedAt` as a real timestamp: a sticky human
+     * decision is re-armed by violations detected after it, which compared ISO
+     * strings as text before. Nullable — a legacy row with no parseable value
+     * reads as "unknown", never "long ago".
+     */
+    detectedAt: timestamp("detected_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
     payload: jsonb("payload").$type<Finding>().notNull(),
   },
   (table) => [
@@ -224,6 +241,10 @@ export const findings = pgTable(
     ),
     // Control-scoped list filter + open-count group-by.
     index("findings_project_control_idx").on(table.projectId, table.controlId),
+    // Sticky-decision re-arm: open findings per control detected after a date.
+    index("findings_open_detected_idx")
+      .on(table.projectId, table.controlId, table.detectedAt)
+      .where(sql`${table.status} = 'open'`),
     check(
       "findings_status_check",
       sqlIn(sql`${table.status}`, FINDING_STATUSES),

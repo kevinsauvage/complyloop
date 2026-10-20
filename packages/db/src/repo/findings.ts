@@ -1,4 +1,14 @@
-import { and, asc, count, eq, gt, inArray, type SQL, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  eq,
+  gt,
+  inArray,
+  isNotNull,
+  type SQL,
+  sql,
+} from "drizzle-orm";
 
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import type { AssessmentEngine } from "@complyloop/analysis-core/contract/finding-types";
@@ -298,7 +308,8 @@ export async function countsOfOpenFindingsDetectedAfterForControls(
         eq(findings.projectId, projectId),
         eq(findings.status, "open"),
         inArray(findings.controlId, [...controlIds]),
-        gt(sql`${findings.payload} ->> 'detectedAt'`, since.toISOString()),
+        isNotNull(findings.detectedAt),
+        gt(findings.detectedAt, since.toISOString()),
       ),
     )
     .groupBy(findings.controlId);
