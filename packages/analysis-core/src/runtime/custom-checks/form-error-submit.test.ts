@@ -119,4 +119,38 @@ describe("formErrorSubmitViolation", () => {
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "blocks fetch writes fired from the page's own submit handler",
+    async () => {
+      await withProbePage(
+        `
+        <!doctype html><html lang="fr"><body>
+          <form id="f">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" />
+            <button type="submit">Envoyer</button>
+          </form>
+          <script>
+            document.getElementById("f").addEventListener("submit", (e) => {
+              e.preventDefault();
+              fetch("/api/subscribe", { method: "POST", body: "x" }).catch(() => {});
+            });
+          </script>
+        </body></html>
+      `,
+        async (page) => {
+          let reachedNetwork = false;
+          await page.route("**/api/subscribe", async (route) => {
+            reachedNetwork = true;
+            await route.fulfill({ status: 200, body: "ok" });
+          });
+          await formErrorSubmitViolation(page);
+          expect(reachedNetwork).toBe(false);
+        },
+        { routable: true },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
 });
