@@ -128,20 +128,30 @@ None open.
 
 **Impact:** Low
 
+### [ ] Close the known gaps in the runtime checks
+
+**Why:** The flaky probes were retired and the remaining ones were hardened (full tab-order walk, in-page write guard, no CSS injection), but three limits remain and users can hit them.
+
+**Where:** `packages/analysis-core/src/runtime/custom-checks/focus.ts` (`MAX_TAB_STEPS`), `packages/analysis-core/src/runtime/incomplete-resolver.ts`.
+
+**Change:**
+
+- The focus walk stops at 80 stops, so very long tab orders are only partly checked. Raise the cap, or report "walk truncated" instead of a clean pass.
+- Gradient-clip text (`bg-clip-text text-transparent`) and translucent pills cannot be measured, so they stay `needs_review` contrast warnings. Teach the resolver to sample the rendered pixels for them, or document them as manual-review cases.
+- After the next deploy, check that `/findings/<id>` loads in production (the `axe-core*` trace-exclusion 500 fix) and re-run Oruva once its `globals.css` shadow fix reaches `develop`.
+
+**Impact:** Low
+
 ---
 
 ## Biggest Wins
 
-1. **Reconcile under the lock on fresh rows.** It removes a data-integrity hole and a whole consistency mechanism.
-2. **Tie runtime audits to the scanned commit.** Without it, `passed` statuses and hidden regressions can be wrong.
-3. **Replace the load-everything write model with targeted writes.** It simplifies every action and removes cost that grows with project age.
-4. **Add a portfolio overview.** It makes the product usable for its real customer, an agency with many clients.
-5. **Ship retention.** Jobs, assessments and snapshots grow forever today, and `findings.assessment_id` cascades — pruning needs a migration first.
+1. **Replace the load-everything write model with targeted writes.** It simplifies every action and removes cost that grows with project age.
+2. **Add a portfolio overview.** It makes the product usable for its real customer, an agency with many clients.
+3. **Ship retention.** Jobs, assessments and snapshots grow forever today, and `findings.assessment_id` cascades — pruning needs a migration first.
 
 ## Target State
 
-- An assessment has two steps: a stateless scan, then a short locked reconcile on current rows. Evidence always matches persisted state.
-- Every runtime result is tied to a deployment SHA. Runtime findings never override AST findings from a different commit.
 - Pull requests get a ComplyLoop check that lists new violations before merge. The default branch keeps the authoritative project state. (**Blocked:** a recorded Sep 2026 decision forbids per-PR Check Runs until **D-CI** is recorded — see `platform-direction.md`.)
 - Mutations are plain transactions with a per-project lock and explicit row writes, with no whole-project loads, snapshots or diffs.
 - Queried fields are typed, indexed columns. JSONB holds only detail payloads.
