@@ -7,20 +7,19 @@ import type {
   Remediation,
   Requirement,
 } from "@complyloop/analysis-core/contract/entities";
-import type { Project } from "@complyloop/analysis-core/contract/project-types";
 
 import type { DrizzleDb } from "../postgres.ts";
 import { upsertAlerts } from "./alerts.ts";
 import { insertAssessment } from "./assessments.ts";
 import { insertEvidenceRecords } from "./evidence.ts";
 import { upsertFindings } from "./findings.ts";
-import { updateProject } from "./projects.ts";
 import { upsertRemediations } from "./remediations.ts";
 import { upsertRequirements } from "./requirements.ts";
 
 /**
- * Project-scoped runtime rows. One shape for stale-write snapshots, assessment
- * apply bodies, and (with empty alerts) assessment scratch copies.
+ * Project-scoped runtime rows. Used by the assessment pipeline as the
+ * reconcile baseline and by its scratch-row copies — never as an
+ * interactive-write input (those load only the rows they touch).
  */
 export interface ProjectSlice {
   findings: Finding[];
@@ -29,44 +28,24 @@ export interface ProjectSlice {
   alerts: Alert[];
 }
 
-/**
- * Rows an interactive or assessment write may persist. Assessment apply adds
- * {@link AssessmentApplyPayload.assessment} + snapshot on top of this.
- */
-export interface ProjectWritePayload {
-  findings?: Finding[];
-  remediations?: Remediation[];
-  requirements?: Requirement[];
-  evidence?: EvidenceRecord[];
-  alerts?: Alert[];
-  project?: Project;
-}
-
-/** Assessment apply = insert assessment metadata, then persist a write payload. */
-export interface AssessmentApplyPayload extends ProjectWritePayload {
+/** Rows an assessment apply writes after reconciling a scan against them. */
+export interface AssessmentApplyPayload {
   assessment: Assessment;
   snapshot: AssessmentSnapshot;
+  findings: Finding[];
+  remediations: Remediation[];
+  requirements: Requirement[];
+  alerts: Alert[];
+  evidence: EvidenceRecord[];
 }
 
 export interface ApplyAssessmentPayloadOptions {
   /**
    * Project rows loaded inside the apply transaction, under the project write
    * lock, and reconciled against. Used only to skip unchanged writes: the
-   * slice is current by construction, so there is no stale-write guard (that
-   * belongs to interactive writes, which load their slice outside the lock).
+   * slice is current by construction, so there is no stale-write guard.
    */
   baseline: ProjectSlice;
-}
-
-export interface PersistProjectRowsOptions {
-  /**
-   * Slice loaded at the start of the write. `persistProjectRows` derives the
-   * per-entity `updatedAt` maps for stale-write guards from this.
-   */
-  loadedSlice?: Pick<
-    ProjectSlice,
-    "findings" | "remediations" | "requirements"
-  >;
 }
 
 /**
@@ -98,40 +77,6 @@ export function projectScopedSlice(
   };
 }
 
-/**
- * Captures project-scoped rows (and their `updatedAt` values) for the
- * interactive-write stale guard: `persistProjectRows` compares the payload
- * against this slice and skips rows whose DB copy is newer. Assessment apply
- * does not use it — it reconciles against rows loaded under the project lock.
- */
-export function snapshotProjectSlice(
-  requirements: ReadonlyArray<Requirement>,
-  findings: ReadonlyArray<Finding>,
-  remediations: ReadonlyArray<Remediation>,
-  alerts: ReadonlyArray<Alert>,
-  projectId: string,
-): ProjectSlice {
-  return structuredClone(
-    projectScopedSlice(
-      { findings, remediations, requirements, alerts },
-      projectId,
-    ),
-  );
-}
-
-/** `updatedAt` per id for entities that carry it (findings, remediations). */
-export function updatedAtById(
-  items: ReadonlyArray<{ id: string; updatedAt?: string }>,
-): Map<string, string> {
-  const entries: Array<[string, string]> = [];
-  for (const item of items) {
-    if (item.updatedAt !== undefined) {
-      entries.push([item.id, item.updatedAt]);
-    }
-  }
-  return new Map(entries);
-}
-
 /** True when two JSON values match, ignoring top-level `updatedAt`. */
 function equalIgnoringUpdatedAt(a: unknown, b: unknown): boolean {
   if (a === b) return true;
@@ -159,133 +104,48 @@ function equalIgnoringUpdatedAt(a: unknown, b: unknown): boolean {
 }
 
 /**
- * Drops items whose content matches the loaded slice (ignoring `updatedAt`),
- * so re-persisting an unchanged slice is a true no-op and does not churn
- * `updatedAt` stamps. New ids and real changes are kept.
+ * Drops rows whose content matches the reconcile baseline (ignoring
+ * `updatedAt`), so re-applying an unchanged reconcile is a true no-op and does
+ * not churn `updatedAt` stamps on every scan. Assessment-only: interactive
+ * writes already write exactly the rows they changed.
  */
-function changedSinceLoaded<T extends { id: string }>(
-  loaded: ReadonlyArray<T> | undefined,
-  next: ReadonlyArray<T> | undefined,
+function changedRowsSince<T extends { id: string }>(
+  baseline: ReadonlyArray<T>,
+  next: ReadonlyArray<T>,
 ): T[] {
-  if (!next || next.length === 0) return [];
-  if (!loaded || loaded.length === 0) return [...next];
-  const loadedById = new Map(loaded.map((item) => [item.id, item]));
+  if (next.length === 0) return [];
+  if (baseline.length === 0) return [...next];
+  const baselineById = new Map(baseline.map((item) => [item.id, item]));
   return next.filter((item) => {
-    const prior = loadedById.get(item.id);
+    const prior = baselineById.get(item.id);
     return !prior || !equalIgnoringUpdatedAt(prior, item);
   });
-}
-
-export async function persistProjectRows(
-  tx: DrizzleDb,
-  payload: ProjectWritePayload,
-  options: PersistProjectRowsOptions = {},
-): Promise<void> {
-  const slice = options.loadedSlice;
-  await upsertFindings(
-    tx,
-    changedSinceLoaded(slice?.findings, payload.findings),
-    {
-      loadedUpdatedAtById: slice ? updatedAtById(slice.findings) : undefined,
-    },
-  );
-  await upsertRemediations(
-    tx,
-    changedSinceLoaded(slice?.remediations, payload.remediations),
-    {
-      loadedUpdatedAtById: slice
-        ? updatedAtById(slice.remediations)
-        : undefined,
-    },
-  );
-  await upsertRequirements(
-    tx,
-    changedSinceLoaded(slice?.requirements, payload.requirements),
-    {
-      loadedUpdatedAtById: slice
-        ? updatedAtById(slice.requirements)
-        : undefined,
-    },
-  );
-  await upsertAlerts(tx, payload.alerts ?? []);
-  await insertEvidenceRecords(tx, payload.evidence ?? []);
-  if (payload.project) {
-    await updateProject(tx, payload.project);
-  }
 }
 
 /**
  * Assessment apply: the rows were reconciled against `baseline` inside the
  * apply transaction (under the project write lock), so they are current by
- * construction. Only the no-op diff runs — no stale-write guard, whose
- * "skip a newer row" behavior would silently drop a write while its evidence
- * still landed.
+ * construction. Unchanged rows are skipped, not rewritten.
  */
-async function persistReconciledProjectRows(
-  tx: DrizzleDb,
-  payload: ProjectWritePayload,
-  baseline: ProjectSlice,
-): Promise<void> {
-  await upsertFindings(
-    tx,
-    changedSinceLoaded(baseline.findings, payload.findings),
-  );
-  await upsertRemediations(
-    tx,
-    changedSinceLoaded(baseline.remediations, payload.remediations),
-  );
-  await upsertRequirements(
-    tx,
-    changedSinceLoaded(baseline.requirements, payload.requirements),
-  );
-  await upsertAlerts(tx, payload.alerts ?? []);
-  await insertEvidenceRecords(tx, payload.evidence ?? []);
-  if (payload.project) {
-    await updateProject(tx, payload.project);
-  }
-}
-
 export async function applyAssessmentPayload(
   tx: DrizzleDb,
   payload: AssessmentApplyPayload,
   options: ApplyAssessmentPayloadOptions,
 ): Promise<void> {
+  const { baseline } = options;
   await insertAssessment(tx, payload.assessment, payload.snapshot);
-  await persistReconciledProjectRows(
+  await upsertFindings(
     tx,
-    {
-      requirements: payload.requirements,
-      findings: payload.findings,
-      remediations: payload.remediations,
-      alerts: payload.alerts,
-      evidence: payload.evidence,
-    },
-    options.baseline,
+    changedRowsSince(baseline.findings, payload.findings),
   );
-}
-
-export function buildAssessmentApplyPayload(input: {
-  assessment: Assessment;
-  snapshot: AssessmentSnapshot;
-  evidence: EvidenceRecord[];
-  findings: Finding[];
-  remediations: Remediation[];
-  requirements: Requirement[];
-  alerts: Alert[];
-}): AssessmentApplyPayload {
-  const slice = projectScopedSlice(
-    {
-      findings: input.findings,
-      remediations: input.remediations,
-      requirements: input.requirements,
-      alerts: input.alerts,
-    },
-    input.assessment.projectId,
+  await upsertRemediations(
+    tx,
+    changedRowsSince(baseline.remediations, payload.remediations),
   );
-  return {
-    assessment: input.assessment,
-    snapshot: input.snapshot,
-    evidence: input.evidence,
-    ...slice,
-  };
+  await upsertRequirements(
+    tx,
+    changedRowsSince(baseline.requirements, payload.requirements),
+  );
+  await upsertAlerts(tx, payload.alerts);
+  await insertEvidenceRecords(tx, payload.evidence);
 }

@@ -1,5 +1,3 @@
-import { desc, eq } from "drizzle-orm";
-
 import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
 
 import type { DrizzleDb } from "./postgres.ts";
@@ -8,9 +6,7 @@ import {
   getLatestAssessmentSnapshot,
   listLatestAssessmentForProject,
 } from "./repo/assessments.ts";
-import { WORKSPACE_EVIDENCE_LIMIT } from "./repo/evidence.ts";
 import { listFindingsForProject } from "./repo/findings.ts";
-import { rowToEvidence } from "./repo/mappers.ts";
 import {
   listMembershipsForOrgs,
   listOrganizationsForUser,
@@ -20,7 +16,6 @@ import {
 import { getProjectById, listProjectsForOrgs } from "./repo/projects.ts";
 import { listRemediationsForProject } from "./repo/remediations.ts";
 import { listRequirementsForProject } from "./repo/requirements.ts";
-import { evidence } from "./schema.ts";
 import type { WorkspaceSlice } from "./types.ts";
 
 const EMPTY_RUNTIME: Pick<
@@ -33,21 +28,6 @@ const EMPTY_RUNTIME: Pick<
   remediations: [],
   alerts: [],
 };
-
-async function loadEvidenceWindow(
-  drizzle: DrizzleDb,
-  projectId: string,
-  limit: number,
-): Promise<WorkspaceSlice["evidence"]> {
-  if (limit === 0) return [];
-  const rows = await drizzle
-    .select()
-    .from(evidence)
-    .where(eq(evidence.projectId, projectId))
-    .orderBy(desc(evidence.at))
-    .limit(limit);
-  return rows.reverse().map(rowToEvidence);
-}
 
 /** Compliance rows for one project — single query path shared by writes and reads. */
 export interface LoadProjectRuntimeOptions {
@@ -109,7 +89,6 @@ interface WorkspaceLoadInput {
   userId: string | null;
   githubLogin: string | null;
   activeProjectId: string | null;
-  evidenceLimit?: number;
 }
 
 async function loadWorkspaceTenancy(
@@ -167,46 +146,6 @@ export async function loadTenancyDb(
     projects,
     ...EMPTY_RUNTIME,
     evidence: [],
-  };
-}
-
-/**
- * Loads tenancy + the full project runtime + a bounded evidence window for a
- * write. Handlers clone onto a payload; `persistProjectRows` derives the
- * per-entity stale-write guards from this full snapshot.
- */
-export async function loadProjectWriteDb(
-  drizzle: DrizzleDb,
-  input: WorkspaceLoadInput,
-): Promise<WorkspaceSlice> {
-  const { organizations, memberships, projects, activeProjectId } =
-    await loadWorkspaceTenancy(drizzle, input);
-
-  if (activeProjectId == null) {
-    return {
-      organizations,
-      memberships,
-      projects,
-      ...EMPTY_RUNTIME,
-      evidence: [],
-    };
-  }
-
-  const [runtime, evidenceWindow] = await Promise.all([
-    loadProjectRuntime(drizzle, activeProjectId),
-    loadEvidenceWindow(
-      drizzle,
-      activeProjectId,
-      input.evidenceLimit ?? WORKSPACE_EVIDENCE_LIMIT,
-    ),
-  ]);
-
-  return {
-    organizations,
-    memberships,
-    projects,
-    ...runtime,
-    evidence: evidenceWindow,
   };
 }
 

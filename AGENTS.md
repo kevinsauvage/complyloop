@@ -82,7 +82,7 @@ Module layout (packages, boundaries, data flow): [`docs/ai/architecture.md`](./d
 
 - Ask first: `drizzle/` SQL migrations, `src/core/` kernel, `packages/analysis-core/src/contract/`.
   Reason: evidence append-only, tenant isolation, and the analysis contract break silently when improvised around.
-- Never: edit generated output (`.next/`, `dist/`, `coverage/`); use raw `getDrizzle()` in actions (use `withProjectWrite` / `withOrgWrite`); add `@axe-core/playwright` or `ssrf-guard/node`; let AI set requirement/finding statuses.
+- Never: edit generated output (`.next/`, `dist/`, `coverage/`); use raw `getDrizzle()` in actions (use `withProjectTx` / `withOrgWrite`); add `@axe-core/playwright` or `ssrf-guard/node`; let AI set requirement/finding statuses.
   Reason: each has caused a real break (build rewrites, SSR crash, unverified compliance claims) — silent until production.
 - Multi-file change (>2 files) or architecture decision: output a plan (files / pattern / verification / `[ASSUMPTION]` items) and wait for approval before editing.
   Reason: wrong assumptions cost seconds in a plan, hours in a PR.

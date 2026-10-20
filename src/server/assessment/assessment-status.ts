@@ -25,7 +25,10 @@ import {
   isStickyHumanDecision,
 } from "@complyloop/analysis-core/contract/requirement-status";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
+import type { DrizzleDb } from "@complyloop/db/postgres";
+import { listOpenFindingsForControls } from "@complyloop/db/repo/findings";
 import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
+import { listRequirementsForControls } from "@complyloop/db/repo/requirements";
 
 import { stickyDecisionAt } from "@/core/requirements/masked-findings";
 import { clearRequirementHumanDetermination } from "@/core/requirements/requirement-human-determination";
@@ -456,8 +459,8 @@ export function refreshRequirementStatuses(input: {
 
 /**
  * Apply status refresh into working ProjectRows. Omit `controlIds` for a
- * full-scope refresh (assessment); pass a list to refresh only those controls
- * (entity writes after dismiss / clear exception / verify).
+ * full-scope refresh (assessment); pass a list to refresh only those controls.
+ * Assessment-only: interactive writes use {@link refreshRequirementsForControls}.
  */
 export function applyRequirementStatusRefresh(
   rows: ProjectRows,
@@ -480,4 +483,34 @@ export function applyRequirementStatusRefresh(
     result.requirements,
   );
   rows.evidence.push(...result.evidence);
+}
+
+/**
+ * Interactive requirement refresh: re-derives the given controls' statuses from
+ * the rows that actually exist (their requirement rows and their open
+ * findings) instead of a whole-project slice. Returns only the requirements
+ * whose status changed, plus the evidence to append — the caller writes them.
+ *
+ * Call it after the row change that motivates the refresh (a dismissal, a
+ * cleared exception): the read runs in the caller's transaction, so it sees
+ * those writes.
+ */
+export async function refreshRequirementsForControls(
+  tx: DrizzleDb,
+  project: Project,
+  controlIds: readonly string[],
+  options: RefreshRequirementStatusesOptions = {},
+): Promise<RefreshRequirementStatusesResult> {
+  if (controlIds.length === 0) return { requirements: [], evidence: [] };
+  const [requirements, findings] = await Promise.all([
+    listRequirementsForControls(tx, project.id, controlIds),
+    listOpenFindingsForControls(tx, project.id, controlIds),
+  ]);
+  return refreshRequirementStatuses({
+    project,
+    findings,
+    requirements,
+    controlIds,
+    options,
+  });
 }

@@ -4,7 +4,7 @@ import { after } from "next/server";
 import { z } from "zod";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
+import { insertEvidence } from "@complyloop/db/repo/evidence";
 
 import type { ActionState } from "@/core/actions/action-state";
 import { entityIdSchema, parseForm } from "@/core/actions/validate";
@@ -22,10 +22,12 @@ import {
   shouldDrainAssessmentJobsInline,
 } from "../assessment/assessment-scheduler";
 import { assertAssessRateLimit } from "../rate-limit";
-import { appendEvidence } from "../workspace/project-rows";
-import { withProjectWrite } from "../workspace/workspace-write";
+import {
+  resolveActiveProjectId,
+  withProjectTx,
+} from "../workspace/workspace-write";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
-import { refresh, requireOnActive } from "./shared";
+import { refresh } from "./shared";
 
 const cancelAssessmentJobInput = z.object({
   jobId: entityIdSchema,
@@ -91,34 +93,33 @@ export async function runAssessmentAction(
       job: null,
       alreadyActive: null,
     };
-    await withProjectWrite(async (workspace) => {
-      requireOnActive(workspace, "project.assess");
-      context.projectId = workspace.project.id;
-      if (workspace.userId) await assertAssessRateLimit(workspace.userId);
+    const activeProjectId = await resolveActiveProjectId();
+    await withProjectTx(activeProjectId, "project.assess", async (ctx) => {
+      context.projectId = ctx.project.id;
+      if (ctx.userId) await assertAssessRateLimit(ctx.userId);
       // Reclaim crashed-worker leases before reading the active job: an
       // expired-`running` row must not block re-dispatch until the 15-minute
       // schedule happens to claim (recovery requeues while attempts remain,
       // terminal-fails poison jobs — either way the row below is current).
       await recoverExpiredAssessmentLeases();
-      const active = await activeAssessmentJobForProject(workspace.project.id);
+      const active = await activeAssessmentJobForProject(ctx.project.id);
       if (active) {
         context.alreadyActive = active;
         return;
       }
       const job = await enqueueAssessmentJob({
-        projectId: workspace.project.id,
+        projectId: ctx.project.id,
         trigger: "manual",
-        requestedByUserId: workspace.userId,
+        requestedByUserId: ctx.userId,
       });
       context.job = job;
-      const payload: ProjectWritePayload = {};
-      appendEvidence(payload, {
+      await insertEvidence(ctx.tx, {
         kind: "assessment_job",
-        summary: `Assessment job ${job.id} queued for "${workspace.project.name}"`,
-        projectId: workspace.project.id,
+        summary: `Assessment job ${job.id} queued for "${ctx.project.name}"`,
+        projectId: ctx.project.id,
         detail: { phase: "queued", jobId: job.id, trigger: "manual" },
+        actor: ctx.actor,
       });
-      return payload;
     });
 
     const alreadyActive = context.alreadyActive;
@@ -172,27 +173,26 @@ export async function cancelAssessmentJobAction(
       formData,
       "Invalid assessment job.",
     );
-    await withProjectWrite(async (workspace) => {
-      requireOnActive(workspace, "project.assess");
+    const activeProjectId = await resolveActiveProjectId();
+    await withProjectTx(activeProjectId, "project.assess", async (ctx) => {
       const cancelled = await cancelAssessmentJob({
-        projectId: workspace.project.id,
+        projectId: ctx.project.id,
         jobId,
       });
       if (!cancelled) {
         throw new PublicError("That assessment job already finished.");
       }
-      const payload: ProjectWritePayload = {};
-      appendEvidence(payload, {
+      await insertEvidence(ctx.tx, {
         kind: "assessment_job",
-        summary: `Assessment job ${cancelled.id} cancelled for "${workspace.project.name}"`,
-        projectId: workspace.project.id,
+        summary: `Assessment job ${cancelled.id} cancelled for "${ctx.project.name}"`,
+        projectId: ctx.project.id,
         detail: {
           phase: "cancelled",
           jobId: cancelled.id,
           trigger: cancelled.trigger,
         },
+        actor: ctx.actor,
       });
-      return payload;
     });
     refresh(...COMPLIANCE_LOOP_ROUTES);
     return "Assessment cancelled.";

@@ -1,4 +1,5 @@
 import "@/test-fixtures/register-action-workspace-mock";
+import "@/test-fixtures/register-repo-mock";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -7,16 +8,16 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { initialActionState } from "@/core/actions/action-state";
 import {
   actionWorkspaceMocks,
-  clearProjectWritePayloads,
-  mockProjectWrite,
-  projectWritePayload,
+  clearRecordedWrites,
+  mockProjectTx,
+  recordedWrites,
 } from "@/test-fixtures/action-workspace-mocks";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
 
 import { updateRuntimeAuditAction } from "./runtime-audit";
 
-const { withProjectWrite } = actionWorkspaceMocks;
+const { withProjectTx } = actionWorkspaceMocks;
 const assertSafeRuntimeUrl = vi.hoisted(() => vi.fn());
 const assertRuntimeAuditRateLimit = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
@@ -54,13 +55,13 @@ function workspaceFor(role: "viewer" | "member" | "admin" | "owner") {
 }
 
 afterEach(() => {
-  clearProjectWritePayloads();
+  clearRecordedWrites();
   vi.clearAllMocks();
 });
 
 describe("updateRuntimeAuditAction", () => {
   it("denies members who cannot connect", async () => {
-    mockProjectWrite(workspaceFor("member"));
+    mockProjectTx(workspaceFor("member"));
     assertSafeRuntimeUrl.mockResolvedValue("https://app.example/");
     const form = new FormData();
     form.set("runtimeBaseUrl", "https://app.example");
@@ -71,22 +72,22 @@ describe("updateRuntimeAuditAction", () => {
 
   it("clears runtime settings when the base URL is empty", async () => {
     const workspace = workspaceFor("owner");
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
     const form = new FormData();
     form.set("runtimeBaseUrl", "  ");
 
     const result = await updateRuntimeAuditAction(initialActionState, form);
 
     expect(result.message).toMatch(/Runtime audit settings saved/);
-    expect(projectWritePayload()?.project?.runtimeBaseUrl).toBeUndefined();
-    expect(projectWritePayload()?.project?.runtimeRoutes).toBeUndefined();
+    expect(recordedWrites()?.project?.runtimeBaseUrl).toBeUndefined();
+    expect(recordedWrites()?.project?.runtimeRoutes).toBeUndefined();
     expect(assertSafeRuntimeUrl).not.toHaveBeenCalled();
     expect(assertRuntimeAuditRateLimit).toHaveBeenCalled();
   });
 
   it("normalizes the origin and routes for owners", async () => {
     const workspace = workspaceFor("owner");
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
     assertSafeRuntimeUrl.mockResolvedValue("https://app.example/path");
     const form = new FormData();
     form.set("runtimeBaseUrl", "https://app.example/path");
@@ -95,10 +96,10 @@ describe("updateRuntimeAuditAction", () => {
     const result = await updateRuntimeAuditAction(initialActionState, form);
 
     expect(result.message).toMatch(/Runtime audit settings saved/);
-    expect(projectWritePayload()?.project?.runtimeBaseUrl).toBe(
+    expect(recordedWrites()?.project?.runtimeBaseUrl).toBe(
       "https://app.example",
     );
-    expect(projectWritePayload()?.project?.runtimeRoutes).toEqual([
+    expect(recordedWrites()?.project?.runtimeRoutes).toEqual([
       "/home",
       "/about",
       "/contact",
@@ -116,7 +117,7 @@ describe("updateRuntimeAuditAction", () => {
     expect(result.ok ? null : result.message).toMatch(
       /not allowed for runtime audit/,
     );
-    expect(withProjectWrite).not.toHaveBeenCalled();
+    expect(withProjectTx).not.toHaveBeenCalled();
   });
 
   it("rejects absolute http(s) routes", async () => {
@@ -129,30 +130,30 @@ describe("updateRuntimeAuditAction", () => {
     expect(result.ok ? null : result.message).toMatch(
       /must be paths under the Preview/,
     );
-    expect(withProjectWrite).not.toHaveBeenCalled();
+    expect(withProjectTx).not.toHaveBeenCalled();
   });
 
   it("splits, trims, and prefixes bare routes", async () => {
     const workspace = workspaceFor("owner");
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
     assertSafeRuntimeUrl.mockResolvedValue("https://app.example/");
 
     const commaForm = new FormData();
     commaForm.set("runtimeBaseUrl", "https://app.example");
     commaForm.set("runtimeRoutes", "a,b");
     await updateRuntimeAuditAction(initialActionState, commaForm);
-    expect(projectWritePayload()?.project?.runtimeRoutes).toEqual(["/a", "/b"]);
+    expect(recordedWrites()?.project?.runtimeRoutes).toEqual(["/a", "/b"]);
 
     const paddedForm = new FormData();
     paddedForm.set("runtimeBaseUrl", "https://app.example");
     paddedForm.set("runtimeRoutes", " /x ");
     await updateRuntimeAuditAction(initialActionState, paddedForm);
-    expect(projectWritePayload()?.project?.runtimeRoutes).toEqual(["/x"]);
+    expect(recordedWrites()?.project?.runtimeRoutes).toEqual(["/x"]);
   });
 
   it("stores an empty routes list when the field is blank (scan defaults to /)", async () => {
     const workspace = workspaceFor("owner");
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
     assertSafeRuntimeUrl.mockResolvedValue("https://app.example/");
     const form = new FormData();
     form.set("runtimeBaseUrl", "https://app.example");
@@ -161,6 +162,6 @@ describe("updateRuntimeAuditAction", () => {
     const result = await updateRuntimeAuditAction(initialActionState, form);
 
     expect(result.message).toMatch(/Runtime audit settings saved/);
-    expect(projectWritePayload()?.project?.runtimeRoutes).toEqual([]);
+    expect(recordedWrites()?.project?.runtimeRoutes).toEqual([]);
   });
 });

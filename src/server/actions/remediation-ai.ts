@@ -2,7 +2,12 @@
 
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
+import { insertEvidence } from "@complyloop/db/repo/evidence";
+import { getFindingById, upsertFindings } from "@complyloop/db/repo/findings";
+import {
+  getRemediationByFindingId,
+  upsertRemediations,
+} from "@complyloop/db/repo/remediations";
 
 import { generateAiExplanation } from "@/ai/explainer";
 import { generateAiRemediation } from "@/ai/remediation";
@@ -14,17 +19,15 @@ import { runAction } from "../action-state";
 import { getSession } from "../auth-session";
 import { reportError } from "../observability";
 import { assertAiRateLimit } from "../rate-limit";
-import { appendEvidence } from "../workspace/project-rows";
 import {
   controlById,
-  remediationForFinding,
   requireFinding,
   requireProjectAccess,
   requireRemediationForFinding,
 } from "../workspace/workspace";
-import { withFindingWrite } from "../workspace/workspace-write";
+import { withProjectTx } from "../workspace/workspace-write";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
-import { refresh, replaceRemediation } from "./shared";
+import { refresh } from "./shared";
 
 export async function generateAiExplanationAction(
   findingIdRaw: string,
@@ -35,7 +38,7 @@ export async function generateAiExplanationAction(
   void _formData;
   return runAction(async () => {
     const findingId = parseEntityId(findingIdRaw);
-    // The AI call runs BEFORE the write below takes the project lock: holding
+    // The AI call runs BEFORE the transaction takes the project lock: holding
     // a lock + open transaction across LLM latency would block every other
     // writer for this project. Preview reads are single-row (finding) + the
     // light project guard — no tenancy load.
@@ -56,26 +59,26 @@ export async function generateAiExplanationAction(
         "AI explanation unavailable. Check AI credentials or try again.",
       );
     }
-    await withFindingWrite(
-      findingId,
+    await withProjectTx(
+      previewFinding.projectId,
       "project.remediate",
-      async ({ finding }) => {
+      async (ctx) => {
+        const finding = await getFindingById(ctx.tx, findingId);
+        if (!finding) throw new PublicError("Unknown finding.");
         // Persist onto the live row — the preview above may be stale.
         // Cap growth: deterministic baseline (index 0) + latest AI additions.
         // Every append rewrites the whole finding row, so unbounded clicks
         // would bloat it forever.
         const explanations = [...finding.explanations, explanation];
-        return {
-          findings: [
-            {
-              ...finding,
-              explanations:
-                explanations.length > 6
-                  ? [explanations[0]!, ...explanations.slice(-5)]
-                  : explanations,
-            },
-          ],
-        };
+        await upsertFindings(ctx.tx, [
+          {
+            ...finding,
+            explanations:
+              explanations.length > 6
+                ? [explanations[0]!, ...explanations.slice(-5)]
+                : explanations,
+          },
+        ]);
       },
     );
     refresh(...COMPLIANCE_LOOP_ROUTES);
@@ -92,7 +95,7 @@ export async function generateAiRemediationAction(
   void _formData;
   return runAction(async () => {
     const findingId = parseEntityId(findingIdRaw);
-    // The AI call runs BEFORE the write below takes the project lock: holding
+    // The AI call runs BEFORE the transaction takes the project lock: holding
     // a lock + open transaction across LLM latency would block every other
     // writer for this project. Preview reads are single-row (finding,
     // remediation) + the light project guard — no tenancy load.
@@ -126,10 +129,12 @@ export async function generateAiRemediationAction(
       );
     }
 
-    await withFindingWrite(
-      findingId,
+    await withProjectTx(
+      previewFinding.projectId,
       "project.remediate",
-      async ({ db, finding }) => {
+      async (ctx) => {
+        const finding = await getFindingById(ctx.tx, findingId);
+        if (!finding) throw new PublicError("Unknown finding.");
         // The suggestion verdict was computed from preview data outside the
         // lock. Re-validate the live row before trusting it: the finding must
         // still be open with a pre-approval remediation, otherwise the stale
@@ -139,36 +144,35 @@ export async function generateAiRemediationAction(
             "AI remediation is only available for open findings.",
           );
         }
-        const remediation = remediationForFinding(db, findingId);
+        const remediation = await getRemediationByFindingId(ctx.tx, findingId);
         if (
-          remediation.status !== "detected" &&
-          remediation.status !== "suggested"
+          !remediation ||
+          (remediation.status !== "detected" &&
+            remediation.status !== "suggested")
         ) {
           throw new PublicError(
             "AI remediation can only refine suggestions before approval.",
           );
         }
 
-        const payload: ProjectWritePayload = {};
         if (
           result.attributeValue &&
           finding.fix?.kind === "insert_attribute" &&
           finding.fix.editable
         ) {
-          payload.findings = [
+          await upsertFindings(ctx.tx, [
             {
               ...finding,
               fix: { ...finding.fix, value: result.attributeValue },
             },
-          ];
+          ]);
         }
 
-        replaceRemediation(
-          payload,
+        await upsertRemediations(ctx.tx, [
           refreshSuggestion(remediation, result.suggestion),
-        );
+        ]);
 
-        appendEvidence(payload, {
+        await insertEvidence(ctx.tx, {
           kind: "ai_remediation_suggested",
           summary: `AI remediation suggested for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
           projectId: finding.projectId,
@@ -185,8 +189,8 @@ export async function generateAiRemediationAction(
             // suggestion stale when the finding's location moved on.
             locationRef: formatLocationRef(finding.location),
           },
+          actor: ctx.actor,
         });
-        return payload;
       },
     );
     refresh(...COMPLIANCE_LOOP_ROUTES);

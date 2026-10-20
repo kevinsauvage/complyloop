@@ -14,7 +14,7 @@ import {
 import type { DrizzleDb } from "../postgres.ts";
 import { findings, remediations } from "../schema.ts";
 import { findingToRow } from "./mappers.ts";
-import { type StaleWriteOptions, upsertPayloadRows } from "./upsert-guard.ts";
+import { upsertPayloadRows } from "./upsert-guard.ts";
 
 export async function getFindingById(
   drizzle: DrizzleDb,
@@ -82,6 +82,8 @@ export interface FindingsPageFilters {
   statuses?: readonly FindingStatus[];
   severity?: Severity;
   controlId?: string;
+  /** Restrict to these controls (project preset scope). */
+  controlIds?: readonly string[];
   engine?: AssessmentEngine;
   remediation?: RemediationStatus;
 }
@@ -94,6 +96,9 @@ function findingsPageWhere(
   const conditions = [eq(findings.projectId, projectId)];
   if (filters.statuses && filters.statuses.length > 0) {
     conditions.push(inArray(findings.status, [...filters.statuses]));
+  }
+  if (filters.controlIds) {
+    conditions.push(inArray(findings.controlId, [...filters.controlIds]));
   }
   if (filters.severity) {
     conditions.push(eq(findings.severityRank, SEVERITY_RANK[filters.severity]));
@@ -112,6 +117,24 @@ function findingsPageWhere(
     );
   }
   return and(...conditions);
+}
+
+/**
+ * Ordered finding ids for one tab under the SQL-expressible filters — the
+ * finding page's prev/next queue. Ids only: the queue needs position and
+ * neighbours, never the row payloads the list used to load wholesale.
+ */
+export async function listFindingIdsForQueue(
+  drizzle: DrizzleDb,
+  projectId: string,
+  filters: FindingsPageFilters = {},
+): Promise<string[]> {
+  const rows = await drizzle
+    .select({ id: findings.id })
+    .from(findings)
+    .where(findingsPageWhere(projectId, filters))
+    .orderBy(asc(findings.severityRank), asc(findings.id));
+  return rows.map((row) => row.id);
 }
 
 export interface FindingsPageOptions extends FindingsPageFilters {
@@ -286,36 +309,47 @@ export async function countsOfOpenFindingsDetectedAfterForControls(
   return counts;
 }
 
+/**
+ * Open findings for a set of controls: the only finding rows an interactive
+ * requirement-status refresh needs (it derives per control from that
+ * control's open findings). Served by `findings_project_control_idx`.
+ */
+export async function listOpenFindingsForControls(
+  drizzle: DrizzleDb,
+  projectId: string,
+  controlIds: readonly string[],
+): Promise<Finding[]> {
+  if (controlIds.length === 0) return [];
+  const rows = await drizzle
+    .select({ payload: findings.payload })
+    .from(findings)
+    .where(
+      and(
+        eq(findings.projectId, projectId),
+        eq(findings.status, "open"),
+        inArray(findings.controlId, [...controlIds]),
+      ),
+    );
+  return rows.map((row) => row.payload);
+}
+
 export async function upsertFindings(
   tx: DrizzleDb,
   items: ReadonlyArray<Finding>,
-  options: StaleWriteOptions = {},
 ): Promise<void> {
-  await upsertPayloadRows(
-    items,
-    options.loadedUpdatedAtById,
-    async (ids) => {
-      const rows = await tx
-        .select({ id: findings.id, payload: findings.payload })
-        .from(findings)
-        .where(inArray(findings.id, [...ids]));
-      return new Map(rows.map((row) => [row.id, row.payload.updatedAt]));
-    },
-    findingToRow,
-    async (rows) => {
-      await tx
-        .insert(findings)
-        .values(rows)
-        .onConflictDoUpdate({
-          target: findings.id,
-          set: {
-            projectId: sql`excluded.project_id`,
-            controlId: sql`excluded.control_id`,
-            assessmentId: sql`excluded.assessment_id`,
-            status: sql`excluded.status`,
-            payload: sql`excluded.payload`,
-          },
-        });
-    },
-  );
+  await upsertPayloadRows(items, findingToRow, async (rows) => {
+    await tx
+      .insert(findings)
+      .values(rows)
+      .onConflictDoUpdate({
+        target: findings.id,
+        set: {
+          projectId: sql`excluded.project_id`,
+          controlId: sql`excluded.control_id`,
+          assessmentId: sql`excluded.assessment_id`,
+          status: sql`excluded.status`,
+          payload: sql`excluded.payload`,
+        },
+      });
+  });
 }

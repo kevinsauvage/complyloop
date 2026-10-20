@@ -1,7 +1,7 @@
 "use server";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
+import { getFindingById } from "@complyloop/db/repo/findings";
 
 import { aiAvailable } from "@/ai/ai-call";
 import { assertSourceLocatedFinding } from "@/ai/verified-fix";
@@ -20,7 +20,7 @@ import {
   requireFinding,
   requireProjectAccess,
 } from "../workspace/workspace";
-import { withFindingWrite } from "../workspace/workspace-write";
+import { withProjectTx } from "../workspace/workspace-write";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 import { refresh } from "./shared";
 
@@ -34,7 +34,7 @@ export async function generateAiFixAction(
   return runAction(async () => {
     const findingId = parseEntityId(findingIdRaw);
     // Light preview reads (single finding row + project guard) instead of the
-    // full tenancy load: checkout + AI run outside the write lock below.
+    // full tenancy load: checkout + AI run outside the write transaction below.
     const finding = await requireFinding(findingId);
     const project = await requireProjectAccess(
       finding.projectId,
@@ -57,7 +57,7 @@ export async function generateAiFixAction(
     if (sessionUserId) await assertAiRateLimit(sessionUserId);
     const control = controlById(finding.controlId);
     // Checkout + AI + re-verify run outside any write lock (see P2-8 /
-    // remediation-verify.ts); the write below only persists the candidate.
+    // remediation-verify.ts); the transaction below only persists the candidate.
     const candidate = await generatePatchCandidateOnCheckout(
       project,
       finding,
@@ -65,15 +65,11 @@ export async function generateAiFixAction(
       { aiAvailable: aiAvailable() },
     );
 
-    await withFindingWrite(
-      finding.id,
-      "project.remediate",
-      async ({ finding: liveFinding, db }) => {
-        const payload: ProjectWritePayload = {};
-        persistPatchCandidate(db, liveFinding, candidate, payload);
-        return payload;
-      },
-    );
+    await withProjectTx(finding.projectId, "project.remediate", async (ctx) => {
+      const live = await getFindingById(ctx.tx, finding.id);
+      if (!live) throw new PublicError("Unknown finding.");
+      await persistPatchCandidate(ctx.tx, live, candidate, ctx.actor);
+    });
     refresh(...COMPLIANCE_LOOP_ROUTES);
     return "Patch passed ComplyLoop and is ready for review.";
   });

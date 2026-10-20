@@ -1,4 +1,5 @@
 import "@/test-fixtures/register-action-workspace-mock";
+import "@/test-fixtures/register-repo-mock";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -7,16 +8,15 @@ import type { WorkspaceSlice } from "@complyloop/db/types";
 import { initialActionState } from "@/core/actions/action-state";
 import {
   actionWorkspaceMocks,
-  clearProjectWritePayloads,
-  mockProjectWrite,
-  projectWritePayload,
+  clearRecordedWrites,
+  mockProjectTx,
+  recordedWrites,
 } from "@/test-fixtures/action-workspace-mocks";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
-import { testWorkspace } from "@/test-fixtures/workspace";
+import { type TestWorkspace, testWorkspace } from "@/test-fixtures/workspace";
 
-import type { Workspace } from "../workspace/workspace";
 import {
   attestRemediationVerifiedAction,
   markRemediationImplementedAction,
@@ -82,7 +82,7 @@ const finding = testFinding();
 function baseWorkspace(
   overrides: Partial<WorkspaceSlice> = {},
   role: "member" | "viewer" = "member",
-): Workspace {
+): TestWorkspace {
   const { findings, remediations, ...rest } = overrides;
   return testWorkspace({
     role,
@@ -111,7 +111,7 @@ const domFinding = () =>
   });
 
 afterEach(() => {
-  clearProjectWritePayloads();
+  clearRecordedWrites();
   vi.clearAllMocks();
   scheduleAssessmentDrain.mockReset();
   enqueueAssessmentJob.mockReset();
@@ -122,6 +122,7 @@ describe("verifyRemediationAction", () => {
     const viewer = baseWorkspace({}, "viewer");
     viewer.access.memberships = [];
     getWorkspace.mockResolvedValue(viewer);
+    mockProjectTx(viewer);
 
     const result = await verifyRemediationAction(
       "f1",
@@ -131,12 +132,13 @@ describe("verifyRemediationAction", () => {
 
     expect(result.ok ? null : result.message).toMatch(/Not allowed/);
     expect(enqueueAssessmentJob).not.toHaveBeenCalled();
-    expect(projectWritePayload()).toBeUndefined();
+    expect(recordedWrites().findings).toHaveLength(0);
   });
 
   it("refuses to verify a source finding", async () => {
     const workspace = baseWorkspace();
     getWorkspace.mockResolvedValue(workspace);
+    mockProjectTx(workspace);
 
     const result = await verifyRemediationAction(
       "f1",
@@ -148,7 +150,7 @@ describe("verifyRemediationAction", () => {
       /draft pull request|re-assess/i,
     );
     expect(enqueueAssessmentJob).not.toHaveBeenCalled();
-    expect(projectWritePayload()).toBeUndefined();
+    expect(recordedWrites().findings).toHaveLength(0);
   });
 
   it("rejects automated verify until the remediation is implemented", async () => {
@@ -158,6 +160,7 @@ describe("verifyRemediationAction", () => {
       ],
     });
     getWorkspace.mockResolvedValue(workspace);
+    mockProjectTx(workspace);
 
     const result = await verifyRemediationAction(
       "f1",
@@ -167,13 +170,13 @@ describe("verifyRemediationAction", () => {
 
     expect(result.ok ? null : result.message).toMatch(/implemented/);
     expect(enqueueAssessmentJob).not.toHaveBeenCalled();
-    expect(projectWritePayload()).toBeUndefined();
+    expect(recordedWrites().findings).toHaveLength(0);
   });
 
   it("enqueues a verify_remediation job for a runtime finding", async () => {
     const workspace = baseWorkspace({ findings: [domFinding()] });
     getWorkspace.mockResolvedValue(workspace);
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
     enqueueAssessmentJob.mockResolvedValue({
       id: "job-1",
       projectId: "p1",
@@ -204,16 +207,17 @@ describe("verifyRemediationAction", () => {
       }),
     );
     expect(result.ok ? result.message : null).toMatch(/verified|queued/i);
-    expect(projectWritePayload()?.evidence?.[0]?.kind).toBe("assessment_job");
+    expect(recordedWrites()?.evidence?.[0]?.kind).toBe("assessment_job");
     expect(assertRemediationRateLimit).toHaveBeenCalled();
   });
 
   it("re-checks source location and remediation under the lock", async () => {
     const live = baseWorkspace({ findings: [domFinding()] });
     getWorkspace.mockResolvedValue(live);
+    mockProjectTx(live);
 
     const sourceLive = baseWorkspace({ findings: [testFinding()] });
-    mockProjectWrite(sourceLive);
+    mockProjectTx(sourceLive);
     const sourceResult = await verifyRemediationAction(
       "f1",
       initialActionState,
@@ -222,7 +226,7 @@ describe("verifyRemediationAction", () => {
     expect(sourceResult.ok ? null : sourceResult.message).toMatch(
       /draft pull request|re-assess/i,
     );
-    expect(projectWritePayload()).toBeUndefined();
+    expect(recordedWrites().findings).toHaveLength(0);
 
     const staleRemediation = baseWorkspace({
       findings: [domFinding()],
@@ -230,14 +234,14 @@ describe("verifyRemediationAction", () => {
         testRemediation({ status: "approved", suggestion: null, history: [] }),
       ],
     });
-    mockProjectWrite(staleRemediation);
+    mockProjectTx(staleRemediation);
     const staleResult = await verifyRemediationAction(
       "f1",
       initialActionState,
       new FormData(),
     );
     expect(staleResult.ok ? null : staleResult.message).toMatch(/implemented/);
-    expect(projectWritePayload()).toBeUndefined();
+    expect(recordedWrites().findings).toHaveLength(0);
   });
 
   it("rejects a dismissed finding", async () => {
@@ -255,7 +259,7 @@ describe("verifyRemediationAction", () => {
       ],
     });
     getWorkspace.mockResolvedValue(workspace);
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
 
     const result = await verifyRemediationAction(
       "f1",
@@ -264,7 +268,7 @@ describe("verifyRemediationAction", () => {
     );
 
     expect(enqueueAssessmentJob).not.toHaveBeenCalled();
-    expect(projectWritePayload()).toBeUndefined();
+    expect(recordedWrites().findings).toHaveLength(0);
     expect(result.ok ? result.message : "").not.toMatch(/verified/i);
   });
 });
@@ -291,7 +295,7 @@ describe("attestRemediationVerifiedAction", () => {
       findings: [resolvedFinding],
     });
     getWorkspace.mockResolvedValue(workspace);
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
 
     const result = await attestRemediationVerifiedAction(
       "f1",
@@ -303,8 +307,8 @@ describe("attestRemediationVerifiedAction", () => {
       ok: true,
       message: "Fix marked verified with manual confirmation.",
     });
-    expect(projectWritePayload()?.remediations?.[0]?.status).toBe("verified");
-    const evidence = projectWritePayload()?.evidence ?? [];
+    expect(recordedWrites()?.remediations?.[0]?.status).toBe("verified");
+    const evidence = recordedWrites()?.evidence ?? [];
     expect(
       evidence.some((item) => item.kind === "remediation_manually_verified"),
     ).toBe(true);
@@ -316,6 +320,7 @@ describe("attestRemediationVerifiedAction", () => {
       findings: [testFinding({ status: "resolved" })],
     });
     getWorkspace.mockResolvedValue(workspace);
+    mockProjectTx(workspace);
 
     const result = await attestRemediationVerifiedAction(
       "f1",
@@ -324,7 +329,7 @@ describe("attestRemediationVerifiedAction", () => {
     );
 
     expect(result.ok ? null : result.message).toMatch(/note/i);
-    expect(projectWritePayload()).toBeUndefined();
+    expect(recordedWrites().findings).toHaveLength(0);
   });
 
   it("refuses attestation for open findings and source locations", async () => {
@@ -341,6 +346,7 @@ describe("attestRemediationVerifiedAction", () => {
       ],
     });
     getWorkspace.mockResolvedValue(openDom);
+    mockProjectTx(openDom);
 
     const openResult = await attestRemediationVerifiedAction(
       "f1",
@@ -355,6 +361,7 @@ describe("attestRemediationVerifiedAction", () => {
       findings: [testFinding({ status: "resolved" })],
     });
     getWorkspace.mockResolvedValue(sourceResolved);
+    mockProjectTx(sourceResolved);
     const sourceResult = await attestRemediationVerifiedAction(
       "f1",
       initialActionState,
@@ -363,7 +370,7 @@ describe("attestRemediationVerifiedAction", () => {
     expect(sourceResult.ok ? null : sourceResult.message).toMatch(
       /draft pull request/i,
     );
-    expect(projectWritePayload()).toBeUndefined();
+    expect(recordedWrites().findings).toHaveLength(0);
   });
 
   it("refuses attestation when the preview remediation is not implemented", async () => {
@@ -379,6 +386,7 @@ describe("attestRemediationVerifiedAction", () => {
       ],
     });
     getWorkspace.mockResolvedValue(workspace);
+    mockProjectTx(workspace);
 
     const result = await attestRemediationVerifiedAction(
       "f1",
@@ -386,7 +394,7 @@ describe("attestRemediationVerifiedAction", () => {
       noteForm("Looks fixed."),
     );
     expect(result.ok ? null : result.message).toMatch(/implemented/);
-    expect(projectWritePayload()).toBeUndefined();
+    expect(recordedWrites().findings).toHaveLength(0);
   });
 
   it("re-checks resolution, identity, and remediation under the lock", async () => {
@@ -404,26 +412,27 @@ describe("attestRemediationVerifiedAction", () => {
 
     const live = baseWorkspace({ findings: [resolved("img")] });
     getWorkspace.mockResolvedValue(live);
+    mockProjectTx(live);
 
-    mockProjectWrite(baseWorkspace({ findings: [domFinding()] }));
+    mockProjectTx(baseWorkspace({ findings: [domFinding()] }));
     const reopened = await attestRemediationVerifiedAction(
       "f1",
       initialActionState,
       note,
     );
     expect(reopened.ok ? null : reopened.message).toMatch(/resolved findings/);
-    expect(projectWritePayload()).toBeUndefined();
+    expect(recordedWrites().findings).toHaveLength(0);
 
-    mockProjectWrite(baseWorkspace({ findings: [resolved("img.other")] }));
+    mockProjectTx(baseWorkspace({ findings: [resolved("img.other")] }));
     const moved = await attestRemediationVerifiedAction(
       "f1",
       initialActionState,
       note,
     );
     expect(moved.ok ? null : moved.message).toMatch(/changed since load/);
-    expect(projectWritePayload()).toBeUndefined();
+    expect(recordedWrites().findings).toHaveLength(0);
 
-    mockProjectWrite(
+    mockProjectTx(
       baseWorkspace({
         findings: [resolved("img")],
         remediations: [
@@ -441,7 +450,7 @@ describe("attestRemediationVerifiedAction", () => {
       note,
     );
     expect(stale.ok ? null : stale.message).toMatch(/implemented/);
-    expect(projectWritePayload()).toBeUndefined();
+    expect(recordedWrites().findings).toHaveLength(0);
   });
 });
 
@@ -458,7 +467,7 @@ describe("markRemediationImplementedAction", () => {
         },
       ],
     });
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
     const form = new FormData();
     form.set("note", "Fixed in PR #9");
 
@@ -469,9 +478,7 @@ describe("markRemediationImplementedAction", () => {
     );
 
     expect(result.message).toMatch(/implemented/i);
-    expect(projectWritePayload()?.remediations?.[0]?.status).toBe(
-      "implemented",
-    );
+    expect(recordedWrites()?.remediations?.[0]?.status).toBe("implemented");
   });
 
   it("rejects a remediation that is not approved", async () => {
@@ -480,7 +487,7 @@ describe("markRemediationImplementedAction", () => {
         testRemediation({ status: "verified", suggestion: null, history: [] }),
       ],
     });
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
 
     const result = await markRemediationImplementedAction(
       "f1",
@@ -489,6 +496,6 @@ describe("markRemediationImplementedAction", () => {
     );
 
     expect(result.ok ? null : result.message).toMatch(/approved/);
-    expect(projectWritePayload()).toBeUndefined();
+    expect(recordedWrites().findings).toHaveLength(0);
   });
 });

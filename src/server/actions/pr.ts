@@ -1,7 +1,11 @@
 "use server";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
+import { insertEvidence } from "@complyloop/db/repo/evidence";
+import {
+  getRemediationByFindingId,
+  upsertRemediations,
+} from "@complyloop/db/repo/remediations";
 
 import type { ActionState } from "@/core/actions/action-state";
 import { parseEntityId } from "@/core/actions/validate";
@@ -18,17 +22,15 @@ import { createProjectPullRequest } from "../github/github-connector";
 import { reportError } from "../observability";
 import { assertPrRateLimit } from "../rate-limit";
 import { listEvidenceForFindingScoped } from "../reporting/evidence-queries";
-import { appendEvidence } from "../workspace/project-rows";
 import {
   controlById,
-  remediationForFinding,
   requireFinding,
   requireProjectAccess,
   requireRemediationForFinding,
 } from "../workspace/workspace";
-import { withFindingWrite } from "../workspace/workspace-write";
+import { withProjectTx } from "../workspace/workspace-write";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
-import { refresh, replaceRemediation } from "./shared";
+import { refresh } from "./shared";
 
 export type CreatePrFormState = ActionState & {
   prUrl: string | null;
@@ -82,42 +84,50 @@ export async function createPullRequestAction(
     }
     prUrl = result.prUrl;
     try {
-      await withFindingWrite(
-        findingId,
+      await withProjectTx(
+        finding.projectId,
         "project.remediate",
-        async ({ db, finding: liveFinding }) => {
-          const liveRemediation = remediationForFinding(db, findingId);
-          const payload: ProjectWritePayload = {};
+        async (ctx) => {
+          const liveRemediation = await getRemediationByFindingId(
+            ctx.tx,
+            findingId,
+          );
+          if (!liveRemediation) {
+            throw new PublicError("No remediation for that finding.");
+          }
           if (liveRemediation.status === "suggested") {
-            replaceRemediation(payload, {
-              ...advanceRemediation(liveRemediation, "approved"),
-              approvalAction: "create_draft_pull_request",
-            });
-            appendEvidence(payload, {
+            await upsertRemediations(ctx.tx, [
+              {
+                ...advanceRemediation(liveRemediation, "approved"),
+                approvalAction: "create_draft_pull_request",
+              },
+            ]);
+            await insertEvidence(ctx.tx, {
               kind: "remediation_approved",
-              summary: remediationEvidenceSummary("approved", liveFinding),
+              summary: remediationEvidenceSummary("approved", finding),
               projectId: project.id,
-              controlId: liveFinding.controlId,
-              findingId: liveFinding.id,
+              controlId: finding.controlId,
+              findingId: finding.id,
               detail: remediationEvidenceDetail({
                 approvalAction: "create_draft_pull_request",
                 note: "Approved by creating a draft pull request",
               }),
+              actor: ctx.actor,
             });
           }
-          appendEvidence(payload, {
+          await insertEvidence(ctx.tx, {
             kind: "pull_request_prepared",
-            summary: `Pull request prepared for ${liveFinding.checkId}: ${result.prUrl}`,
+            summary: `Pull request prepared for ${finding.checkId}: ${result.prUrl}`,
             projectId: project.id,
-            controlId: liveFinding.controlId,
-            findingId: liveFinding.id,
+            controlId: finding.controlId,
+            findingId: finding.id,
             detail: {
               branch: result.branch,
               prUrl: result.prUrl,
               title: result.title,
             },
+            actor: ctx.actor,
           });
-          return payload;
         },
       );
     } catch (error) {

@@ -15,8 +15,15 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { applyFix, describeFix } from "@complyloop/analysis-core/fixes";
 import { scanChangedFiles } from "@complyloop/analysis-core/scan";
 import { resolveInside } from "@complyloop/analysis-core/workspace-path";
-import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import type { WorkspaceSlice } from "@complyloop/db/types";
+import type { DrizzleDb } from "@complyloop/db/postgres";
+import {
+  insertEvidence,
+  listEvidenceForFinding,
+} from "@complyloop/db/repo/evidence";
+import {
+  getRemediationByFindingId,
+  upsertRemediations,
+} from "@complyloop/db/repo/remediations";
 
 import { AI_PATCH_UNAVAILABLE_MESSAGE, type AiCallOnError } from "@/ai/ai-call";
 import { proposeFixEdits } from "@/ai/patch";
@@ -35,7 +42,6 @@ import {
 } from "@/core/requirements/remediation-lifecycle";
 
 import { reportError, reportWarning } from "../observability";
-import { appendEvidence } from "../workspace/project-rows";
 import { locateViolationInProject, mergeFix } from "./assessment-findings";
 import { withProjectCheckout } from "./repo-checkout";
 
@@ -174,12 +180,12 @@ function snippetFromCandidate(candidate: PatchCandidate): string {
   return (candidate.edits[0]?.newText ?? candidate.description).slice(0, 500);
 }
 
-export function persistPatchCandidate(
-  db: WorkspaceSlice,
+export async function persistPatchCandidate(
+  tx: DrizzleDb,
   finding: Finding,
   candidate: PatchCandidate,
-  payload: ProjectWritePayload,
-): void {
+  actor: string | undefined,
+): Promise<void> {
   const location = formatLocationRef(finding.location);
   const detail = {
     ...patchCandidateToDetail(candidate),
@@ -189,25 +195,25 @@ export function persistPatchCandidate(
   // Evidence is append-only: repeated clicks with an identical candidate
   // would stack byte-identical full-file rows forever. Skip the append when
   // the finding already carries this exact patch evidence.
-  const duplicate = db.evidence.some(
+  const existingEvidence = await listEvidenceForFinding(tx, finding.id);
+  const duplicate = existingEvidence.some(
     (row) =>
       row.kind === "ai_patch_ready" &&
       row.findingId === finding.id &&
       JSON.stringify(row.detail) === JSON.stringify(detail),
   );
   if (!duplicate) {
-    appendEvidence(payload, {
+    await insertEvidence(tx, {
       kind: "ai_patch_ready",
       summary: `Patch ready for ${finding.checkId} at ${location} (deterministic check passed).`,
       projectId: finding.projectId,
       controlId: finding.controlId,
       findingId: finding.id,
       detail,
+      actor,
     });
   }
-  const remediation = db.remediations.find(
-    (row) => row.findingId === finding.id,
-  );
+  const remediation = await getRemediationByFindingId(tx, finding.id);
   if (!remediation) {
     throw new PublicError("No remediation for that finding.");
   }
@@ -237,8 +243,5 @@ export function persistPatchCandidate(
     );
     return;
   }
-  payload.remediations = [
-    ...(payload.remediations ?? []),
-    refreshSuggestion(remediation, suggestion),
-  ];
+  await upsertRemediations(tx, [refreshSuggestion(remediation, suggestion)]);
 }

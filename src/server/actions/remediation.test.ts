@@ -1,12 +1,13 @@
 import "@/test-fixtures/register-action-workspace-mock";
+import "@/test-fixtures/register-repo-mock";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { initialActionState } from "@/core/actions/action-state";
 import {
-  clearProjectWritePayloads,
-  mockProjectWrite,
-  projectWritePayload,
+  clearRecordedWrites,
+  mockProjectTx,
+  recordedWrites,
 } from "@/test-fixtures/action-workspace-mocks";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
@@ -30,7 +31,12 @@ const scheduleAssessmentDrain = vi.hoisted(() => vi.fn());
 const shouldDrainAssessmentJobsInline = vi.hoisted(() => vi.fn());
 const assertAssessRateLimit = vi.hoisted(() => vi.fn());
 const assertRemediationRateLimit = vi.hoisted(() => vi.fn());
-const applyRequirementStatusRefresh = vi.hoisted(() => vi.fn());
+const refreshRequirementsForControls = vi.hoisted(() =>
+  vi.fn(async (...args: unknown[]) => {
+    void args;
+    return { requirements: [], evidence: [] };
+  }),
+);
 const afterFn = vi.hoisted(() => vi.fn());
 
 vi.mock("next/server", () => ({
@@ -90,8 +96,9 @@ vi.mock("../assessment/assessment-status", async () => {
   >("../assessment/assessment-status");
   return {
     ...actual,
-    applyRequirementStatusRefresh: (...args: unknown[]) =>
-      applyRequirementStatusRefresh(...args),
+    refreshRequirementsForControls: (
+      ...args: Parameters<typeof actual.refreshRequirementsForControls>
+    ) => refreshRequirementsForControls(...args),
   };
 });
 
@@ -109,14 +116,14 @@ function workspaceFor(role: "viewer" | "member" | "admin" | "owner") {
 }
 
 afterEach(() => {
-  clearProjectWritePayloads();
+  clearRecordedWrites();
   vi.clearAllMocks();
   vi.unstubAllEnvs();
 });
 
 describe("remediation action authz", () => {
   it("denies approve for viewers", async () => {
-    mockProjectWrite(workspaceFor("viewer"));
+    mockProjectTx(workspaceFor("viewer"));
     const result = await approveRemediationAction(
       "f1",
       initialActionState,
@@ -128,7 +135,7 @@ describe("remediation action authz", () => {
 
   it("approves for members", async () => {
     const workspace = workspaceFor("member");
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
     const result = await approveRemediationAction(
       "f1",
       initialActionState,
@@ -138,12 +145,12 @@ describe("remediation action authz", () => {
       ok: true,
       message: "Remediation approved.",
     });
-    expect(projectWritePayload()?.remediations?.[0]?.status).toBe("approved");
+    expect(recordedWrites()?.remediations?.[0]?.status).toBe("approved");
     expect(assertRemediationRateLimit).toHaveBeenCalled();
   });
 
   it("denies dismiss for viewers", async () => {
-    mockProjectWrite(workspaceFor("viewer"));
+    mockProjectTx(workspaceFor("viewer"));
     const formData = new FormData();
     formData.set("reason", "false_positive");
     formData.set("note", "not a real issue");
@@ -156,7 +163,7 @@ describe("remediation action authz", () => {
   });
 
   it("denies run assessment for viewers", async () => {
-    mockProjectWrite(workspaceFor("viewer"));
+    mockProjectTx(workspaceFor("viewer"));
     const result = await runAssessmentAction(
       initialActionState,
       new FormData(),
@@ -167,7 +174,7 @@ describe("remediation action authz", () => {
 
 describe("bulkApproveRemediationsAction", () => {
   it("requires at least one finding id", async () => {
-    mockProjectWrite(workspaceFor("member"));
+    mockProjectTx(workspaceFor("member"));
     const result = await bulkApproveRemediationsAction(
       initialActionState,
       new FormData(),
@@ -209,7 +216,7 @@ describe("bulkApproveRemediationsAction", () => {
         history: [],
       },
     );
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
 
     const form = new FormData();
     form.append("findingIds", "f1");
@@ -224,7 +231,7 @@ describe("bulkApproveRemediationsAction", () => {
       ok: true,
       message: "Approved 1 remediation.",
     });
-    const payload = projectWritePayload();
+    const payload = recordedWrites();
     expect(payload?.remediations).toHaveLength(1);
     expect(payload?.remediations?.[0]?.status).toBe("approved");
   });
@@ -234,7 +241,7 @@ describe("bulkApproveRemediationsAction", () => {
     const remediationRow = workspace.db.remediations[0];
     if (!remediationRow) throw new Error("expected remediation");
     remediationRow.status = "approved";
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
 
     const form = new FormData();
     form.append("findingIds", "f1");
@@ -252,7 +259,7 @@ describe("bulkApproveRemediationsAction", () => {
 describe("runAssessmentAction", () => {
   it("enqueues and kicks the worker via after(), resolving with queued copy", async () => {
     const workspace = workspaceFor("member");
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
     activeAssessmentJobForProject.mockResolvedValue(null);
     enqueueAssessmentJob.mockResolvedValue({ id: "job-1" });
     shouldDrainAssessmentJobsInline.mockReturnValue(false);
@@ -278,15 +285,13 @@ describe("runAssessmentAction", () => {
     expect(scheduleAssessmentDrain).not.toHaveBeenCalled();
     expect(afterFn).toHaveBeenCalledTimes(1);
     expect(
-      projectWritePayload()?.evidence?.some(
-        (row) => row.kind === "assessment_job",
-      ),
+      recordedWrites()?.evidence?.some((row) => row.kind === "assessment_job"),
     ).toBe(true);
   });
 
   it("drains inline on the dev path and reports the drain copy", async () => {
     const workspace = workspaceFor("member");
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
     activeAssessmentJobForProject.mockResolvedValue(null);
     enqueueAssessmentJob.mockResolvedValue({ id: "job-2" });
     shouldDrainAssessmentJobsInline.mockReturnValue(true);
@@ -305,7 +310,7 @@ describe("runAssessmentAction", () => {
 
   it("refuses a second run while a job is already active", async () => {
     const workspace = workspaceFor("member");
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
     activeAssessmentJobForProject.mockResolvedValue({
       id: "job-running",
       status: "running",
@@ -328,7 +333,7 @@ describe("runAssessmentAction", () => {
 
   it("does not kick the worker while a live lease is held", async () => {
     const workspace = workspaceFor("member");
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
     activeAssessmentJobForProject.mockResolvedValue({
       id: "job-running",
       status: "running",
@@ -353,7 +358,7 @@ describe("runAssessmentAction", () => {
 
   it("re-kicks the worker for a due queued job instead of stacking a second scan", async () => {
     const workspace = workspaceFor("member");
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
     activeAssessmentJobForProject.mockResolvedValue({
       id: "job-queued",
       status: "queued",
@@ -379,7 +384,7 @@ describe("runAssessmentAction", () => {
 
   it("leaves a backoff-queued job alone without kicking", async () => {
     const workspace = workspaceFor("member");
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
     activeAssessmentJobForProject.mockResolvedValue({
       id: "job-backoff",
       status: "queued",
@@ -403,7 +408,7 @@ describe("runAssessmentAction", () => {
 
   it("surfaces rate limit errors", async () => {
     const workspace = workspaceFor("member");
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
     assertAssessRateLimit.mockRejectedValue(new RateLimitError());
 
     const result = await runAssessmentAction(
@@ -419,7 +424,7 @@ describe("runAssessmentAction", () => {
 describe("cancelAssessmentJobAction", () => {
   it("cancels an active job and records evidence", async () => {
     const workspace = workspaceFor("member");
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
     cancelAssessmentJob.mockResolvedValue({ id: "job-1", trigger: "manual" });
     const form = new FormData();
     form.set("jobId", "job-1");
@@ -432,7 +437,7 @@ describe("cancelAssessmentJobAction", () => {
       jobId: "job-1",
     });
     expect(
-      projectWritePayload()?.evidence?.some(
+      recordedWrites()?.evidence?.some(
         (row) =>
           row.kind === "assessment_job" &&
           (row.detail as { phase?: string })?.phase === "cancelled",
@@ -442,7 +447,7 @@ describe("cancelAssessmentJobAction", () => {
 
   it("errors when the job already finished", async () => {
     const workspace = workspaceFor("member");
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
     cancelAssessmentJob.mockResolvedValue(null);
     const form = new FormData();
     form.set("jobId", "job-done");
@@ -453,14 +458,14 @@ describe("cancelAssessmentJobAction", () => {
   });
 
   it("rejects invalid input and viewers", async () => {
-    mockProjectWrite(workspaceFor("member"));
+    mockProjectTx(workspaceFor("member"));
     const invalid = await cancelAssessmentJobAction(
       initialActionState,
       new FormData(),
     );
     expect(invalid.ok).toBe(false);
 
-    mockProjectWrite(workspaceFor("viewer"));
+    mockProjectTx(workspaceFor("viewer"));
     const deniedForm = new FormData();
     deniedForm.set("jobId", "job-1");
     const denied = await cancelAssessmentJobAction(
@@ -475,7 +480,7 @@ describe("cancelAssessmentJobAction", () => {
 describe("dismissFindingAction", () => {
   it("dismisses with a documented reason", async () => {
     const workspace = workspaceFor("member");
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
     const form = new FormData();
     form.set("reason", "false_positive");
     form.set("note", "decorative");
@@ -483,13 +488,13 @@ describe("dismissFindingAction", () => {
     const result = await dismissFindingAction("f1", initialActionState, form);
 
     expect(result.message).toMatch(/dismissed/i);
-    expect(projectWritePayload()?.findings?.[0]?.status).toBe("dismissed");
-    expect(applyRequirementStatusRefresh).toHaveBeenCalled();
+    expect(recordedWrites()?.findings?.[0]?.status).toBe("dismissed");
+    expect(refreshRequirementsForControls).toHaveBeenCalled();
   });
 
   it("requires a valid dismissal reason", async () => {
     const workspace = workspaceFor("member");
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
     const result = await dismissFindingAction(
       "f1",
       initialActionState,
@@ -501,7 +506,7 @@ describe("dismissFindingAction", () => {
 
 describe("bulkDismissFindingsAction", () => {
   it("requires at least one finding id", async () => {
-    mockProjectWrite(workspaceFor("member"));
+    mockProjectTx(workspaceFor("member"));
     const form = new FormData();
     form.set("reason", "accepted_risk");
     const result = await bulkDismissFindingsAction(initialActionState, form);
@@ -511,7 +516,7 @@ describe("bulkDismissFindingsAction", () => {
   });
 
   it("requires a valid dismissal reason", async () => {
-    mockProjectWrite(workspaceFor("member"));
+    mockProjectTx(workspaceFor("member"));
     const form = new FormData();
     form.append("findingIds", "f1");
     const result = await bulkDismissFindingsAction(initialActionState, form);
@@ -525,7 +530,7 @@ describe("bulkDismissFindingsAction", () => {
       { ...finding, id: "f2", status: "resolved" },
     ];
     workspace.db.remediations = [];
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
     const form = new FormData();
     form.append("findingIds", "f1");
     form.append("findingIds", "f2");
@@ -538,21 +543,22 @@ describe("bulkDismissFindingsAction", () => {
       ok: true,
       message: "Dismissed 1 finding.",
     });
-    const payload = projectWritePayload();
+    const payload = recordedWrites();
     expect(payload?.findings?.[0]?.status).toBe("dismissed");
     expect(payload?.findings?.[0]?.dismissal?.reason).toBe("not_applicable");
     expect(payload?.findings?.[1]).toBeUndefined();
-    expect(applyRequirementStatusRefresh).toHaveBeenCalledWith(
-      expect.any(Object),
+    expect(refreshRequirementsForControls).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({ id: "p1" }),
-      expect.objectContaining({ controlIds: ["ctl-img-alt"] }),
+      ["ctl-img-alt"],
+      expect.objectContaining({ runtimeRan: false, filesScanned: 0 }),
     );
   });
 
   it("errors when no open findings were dismissed", async () => {
     const workspace = workspaceFor("member");
     workspace.db.findings = [{ ...finding, status: "dismissed" }];
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
     const form = new FormData();
     form.append("findingIds", "f1");
     form.set("reason", "false_positive");

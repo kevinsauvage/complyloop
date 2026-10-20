@@ -1,4 +1,5 @@
 import "@/test-fixtures/register-action-workspace-mock";
+import "@/test-fixtures/register-repo-mock";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -7,16 +8,16 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { initialActionState } from "@/core/actions/action-state";
 import {
   actionWorkspaceMocks,
-  clearProjectWritePayloads,
-  mockProjectWrite,
-  projectWritePayload,
+  clearRecordedWrites,
+  mockProjectTx,
+  recordedWrites,
 } from "@/test-fixtures/action-workspace-mocks";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
 
 import { updateTrackedBranchAction } from "./tracked-branch";
 
-const { getWorkspace, withProjectWrite } = actionWorkspaceMocks;
+const { getWorkspace, withProjectTx } = actionWorkspaceMocks;
 const assertBranchExists = vi.hoisted(() => vi.fn());
 const resolveProjectGitHubToken = vi.hoisted(() => vi.fn());
 const assertRuntimeAuditRateLimit = vi.hoisted(() => vi.fn());
@@ -58,7 +59,7 @@ function formWith(branch: string): FormData {
 }
 
 afterEach(() => {
-  clearProjectWritePayloads();
+  clearRecordedWrites();
   vi.clearAllMocks();
 });
 
@@ -66,7 +67,7 @@ describe("updateTrackedBranchAction", () => {
   it("denies members who cannot connect", async () => {
     const workspace = workspaceFor("member");
     getWorkspace.mockResolvedValue(workspace);
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
 
     const result = await updateTrackedBranchAction(
       initialActionState,
@@ -80,7 +81,7 @@ describe("updateTrackedBranchAction", () => {
   it("saves an existing branch after verifying it on GitHub", async () => {
     const workspace = workspaceFor("owner");
     getWorkspace.mockResolvedValue(workspace);
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
     resolveProjectGitHubToken.mockResolvedValue("token");
     assertBranchExists.mockResolvedValue(undefined);
 
@@ -95,9 +96,7 @@ describe("updateTrackedBranchAction", () => {
       "acme/shop",
       "develop",
     );
-    expect(projectWritePayload()?.project?.github?.trackedBranch).toBe(
-      "develop",
-    );
+    expect(recordedWrites()?.project?.github?.trackedBranch).toBe("develop");
   });
 
   it("rejects a branch GitHub does not have, without writing", async () => {
@@ -114,7 +113,7 @@ describe("updateTrackedBranchAction", () => {
     );
 
     expect(result.ok ? null : result.message).toMatch(/does not exist/);
-    expect(withProjectWrite).not.toHaveBeenCalled();
+    expect(withProjectTx).not.toHaveBeenCalled();
   });
 
   it("rejects a malformed ref before touching GitHub", async () => {
@@ -128,13 +127,13 @@ describe("updateTrackedBranchAction", () => {
 
     expect(result.ok ? null : result.message).toMatch(/Invalid checkout ref/);
     expect(assertBranchExists).not.toHaveBeenCalled();
-    expect(withProjectWrite).not.toHaveBeenCalled();
+    expect(withProjectTx).not.toHaveBeenCalled();
   });
 
   it("clears the tracked branch when the field is empty", async () => {
     const workspace = workspaceFor("owner");
     workspace.project!.github!.trackedBranch = "develop";
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
 
     const result = await updateTrackedBranchAction(
       initialActionState,
@@ -142,9 +141,7 @@ describe("updateTrackedBranchAction", () => {
     );
 
     expect(result.message).toMatch(/default branch/);
-    expect(
-      projectWritePayload()?.project?.github?.trackedBranch,
-    ).toBeUndefined();
+    expect(recordedWrites()?.project?.github?.trackedBranch).toBeUndefined();
     expect(assertBranchExists).not.toHaveBeenCalled();
   });
 });

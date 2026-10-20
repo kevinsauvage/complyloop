@@ -9,7 +9,7 @@ import type { Requirement } from "@complyloop/analysis-core/contract/entities";
 
 import type { DrizzleDb } from "../postgres.ts";
 import { upsertAlerts } from "../repo/alerts.ts";
-import { type ProjectSlice, snapshotProjectSlice } from "../repo/apply.ts";
+import { projectScopedSlice, type ProjectSlice } from "../repo/apply.ts";
 import { insertAssessment } from "../repo/assessments.ts";
 import { upsertFindings } from "../repo/findings.ts";
 import { upsertRemediations } from "../repo/remediations.ts";
@@ -235,12 +235,16 @@ export async function loadProjectSlice(
           .from(remediations)
           .where(inArray(remediations.findingId, findingIds));
 
-  return snapshotProjectSlice(
-    requirementRows.map((row) => row.payload),
-    findingRows.map((row) => row.payload),
-    remediationRows.map((row) => row.payload),
-    alertRows.map((row) => row.payload),
-    projectId,
+  return structuredClone(
+    projectScopedSlice(
+      {
+        requirements: requirementRows.map((row) => row.payload),
+        findings: findingRows.map((row) => row.payload),
+        remediations: remediationRows.map((row) => row.payload),
+        alerts: alertRows.map((row) => row.payload),
+      },
+      projectId,
+    ),
   );
 }
 

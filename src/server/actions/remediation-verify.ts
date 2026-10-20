@@ -3,7 +3,12 @@
 import { z } from "zod";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
+import { insertEvidence } from "@complyloop/db/repo/evidence";
+import { getFindingById } from "@complyloop/db/repo/findings";
+import {
+  getRemediationByFindingId,
+  upsertRemediations,
+} from "@complyloop/db/repo/remediations";
 
 import type { ActionState } from "@/core/actions/action-state";
 import {
@@ -29,17 +34,11 @@ import {
   remediationEvidenceSummary,
 } from "../assessment/remediation-evidence";
 import { assertRemediationRateLimit } from "../rate-limit";
-import { appendEvidence } from "../workspace/project-rows";
-import {
-  remediationForFinding,
-  requireFinding,
-  requireProjectAccess,
-  requireRemediationForFinding,
-} from "../workspace/workspace";
-import { withFindingWrite } from "../workspace/workspace-write";
+import { requireFinding } from "../workspace/workspace";
+import { withProjectTx } from "../workspace/workspace-write";
 import { runFindingAction } from "./define-action";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
-import { refresh, replaceRemediation } from "./shared";
+import { refresh } from "./shared";
 
 const markImplementedInput = z.object({
   note: optionalNoteSchema,
@@ -76,65 +75,54 @@ export async function verifyRemediationAction(
   void formData;
   return runAction(async () => {
     const findingId = parseEntityId(findingIdRaw);
-    // Guard before enqueueing: source findings verify via PR merge, and the
-    // remediation must be implemented. The runtime re-audit itself runs on
-    // the worker (a `verify_remediation` job) — never in this request, which
-    // keeps Playwright/chromium out of the Vercel function bundle.
-    const finding = await requireFinding(findingId);
-    await requireProjectAccess(finding.projectId, "project.remediate");
-    const remediation = await requireRemediationForFinding(findingId);
-    if (remediation.status !== "implemented") {
-      throw new PublicError(VERIFY_REQUIRES_IMPLEMENTED_MESSAGE);
-    }
-    if (finding.location.kind === "source") {
-      throw new PublicError(SOURCE_VERIFY_MESSAGE);
-    }
-    assertVerifiableFinding(finding);
+    // Lock-free read only to resolve the finding's project. Every guard below
+    // re-runs inside the transaction, under the project lock.
+    const preview = await requireFinding(findingId);
 
-    // Enqueue under the finding's project lock (permission + rate limit +
-    // job + evidence), then dispatch outside it — same shape as a manual
-    // assessment run. `recoverExpiredAssessmentLeases` first so a crashed
-    // verify job does not sit as a phantom `running` row.
-    await withFindingWrite(
-      findingId,
-      "project.remediate",
-      async ({ finding: live, workspace }) => {
-        if (workspace.userId) {
-          await assertRemediationRateLimit(workspace.userId);
-        }
-        if (live.location.kind === "source") {
-          throw new PublicError(SOURCE_VERIFY_MESSAGE);
-        }
-        // Re-validate under the lock: a concurrent write may have dismissed
-        // the finding since the pre-lock read.
-        assertVerifiableFinding(live);
-        const current = remediationForFinding(workspace.db, findingId);
-        if (current.status !== "implemented") {
-          throw new PublicError(VERIFY_REQUIRES_IMPLEMENTED_MESSAGE);
-        }
-        await recoverExpiredAssessmentLeases();
-        const job = await enqueueAssessmentJob({
-          projectId: live.projectId,
+    // The runtime re-audit itself runs on the worker (a `verify_remediation`
+    // job) — never in this request, which keeps Playwright/chromium out of the
+    // Vercel function bundle.
+    await withProjectTx(preview.projectId, "project.remediate", async (ctx) => {
+      const live = await getFindingById(ctx.tx, findingId);
+      if (!live) throw new PublicError("Unknown finding.");
+      if (ctx.userId) {
+        await assertRemediationRateLimit(ctx.userId);
+      }
+      const remediation = await getRemediationByFindingId(ctx.tx, findingId);
+      if (!remediation) {
+        throw new PublicError("No remediation for that finding.");
+      }
+      if (remediation.status !== "implemented") {
+        throw new PublicError(VERIFY_REQUIRES_IMPLEMENTED_MESSAGE);
+      }
+      if (live.location.kind === "source") {
+        throw new PublicError(SOURCE_VERIFY_MESSAGE);
+      }
+      // Re-validate under the lock: a concurrent write may have dismissed
+      // the finding since the preview read.
+      assertVerifiableFinding(live);
+
+      await recoverExpiredAssessmentLeases();
+      const job = await enqueueAssessmentJob({
+        projectId: live.projectId,
+        trigger: "verify_remediation",
+        requestedByUserId: ctx.userId,
+        payload: { findingId },
+      });
+      await insertEvidence(ctx.tx, {
+        kind: "assessment_job",
+        summary: `Remediation verify job ${job.id} queued for "${ctx.project.name}"`,
+        projectId: live.projectId,
+        controlId: live.controlId,
+        findingId: live.id,
+        detail: {
+          phase: "queued",
+          jobId: job.id,
           trigger: "verify_remediation",
-          requestedByUserId: workspace.userId,
-          payload: { findingId },
-        });
-        const payload: ProjectWritePayload = {};
-        appendEvidence(payload, {
-          kind: "assessment_job",
-          summary: `Remediation verify job ${job.id} queued for "${workspace.project?.name ?? live.projectId}"`,
-          projectId: live.projectId,
-          controlId: live.controlId,
-          findingId: live.id,
-          detail: {
-            phase: "queued",
-            jobId: job.id,
-            trigger: "verify_remediation",
-          },
-        });
-        return payload;
-      },
-    );
+        },
+        actor: ctx.actor,
+      });
+    });
 
     if (shouldDrainAssessmentJobsInline()) {
       const message = await scheduleAssessmentDrain();
@@ -160,33 +148,37 @@ export async function markRemediationImplementedAction(
   return runFindingAction(
     findingIdRaw,
     "project.remediate",
-    async ({ db, finding, workspace }) => {
-      if (workspace.userId) {
-        await assertRemediationRateLimit(workspace.userId);
+    async (ctx) => {
+      if (ctx.userId) {
+        await assertRemediationRateLimit(ctx.userId);
       }
       const { note: parsedNote } = parseForm(markImplementedInput, formData);
-      const remediation = remediationForFinding(db, finding.id);
+      const remediation = await getRemediationByFindingId(
+        ctx.tx,
+        ctx.finding.id,
+      );
+      if (!remediation) {
+        throw new PublicError("No remediation for that finding.");
+      }
       if (remediation.status !== "approved") {
         throw new PublicError(IMPLEMENT_REQUIRES_APPROVED_MESSAGE);
       }
       const note =
         parsedNote ??
         "Marked implemented by user (applied outside the platform)";
-      const payload: ProjectWritePayload = {};
 
-      replaceRemediation(
-        payload,
+      await upsertRemediations(ctx.tx, [
         advanceRemediation(remediation, "implemented"),
-      );
-      appendEvidence(payload, {
+      ]);
+      await insertEvidence(ctx.tx, {
         kind: "remediation_implemented",
-        summary: remediationEvidenceSummary("implemented", finding),
-        projectId: finding.projectId,
-        controlId: finding.controlId,
-        findingId: finding.id,
+        summary: remediationEvidenceSummary("implemented", ctx.finding),
+        projectId: ctx.finding.projectId,
+        controlId: ctx.finding.controlId,
+        findingId: ctx.finding.id,
         detail: remediationEvidenceDetail({ manual: true, note }),
+        actor: ctx.actor,
       });
-      return payload;
     },
     "Marked as implemented.",
   );
@@ -217,51 +209,47 @@ export async function attestRemediationVerifiedAction(
   return runAction(async () => {
     const findingId = parseEntityId(findingIdRaw);
     const { note } = parseForm(attestVerifiedInput, formData);
-    const finding = await requireFinding(findingId);
-    if (finding.location.kind === "source") {
+    const preview = await requireFinding(findingId);
+    if (preview.location.kind === "source") {
       throw new PublicError(SOURCE_VERIFY_MESSAGE);
     }
-    if (finding.status !== "resolved") {
+    if (preview.status !== "resolved") {
       throw new PublicError(ATTEST_REQUIRES_RESOLVED_MESSAGE);
     }
-    const previewRemediation = await requireRemediationForFinding(findingId);
-    if (previewRemediation.status !== "implemented") {
-      throw new PublicError(VERIFY_REQUIRES_IMPLEMENTED_MESSAGE);
-    }
-    await requireProjectAccess(finding.projectId, "project.remediate");
-    await withFindingWrite(
-      findingId,
-      "project.remediate",
-      async ({ db, finding: live, workspace }) => {
-        if (workspace.userId) {
-          await assertRemediationRateLimit(workspace.userId);
-        }
-        if (live.status !== "resolved") {
-          throw new PublicError(ATTEST_REQUIRES_RESOLVED_MESSAGE);
-        }
-        if (!sameInstance(finding, live)) {
-          throw new PublicError("Finding changed since load. Re-assess.");
-        }
-        const remediation = remediationForFinding(db, findingId);
-        if (remediation.status !== "implemented") {
-          throw new PublicError(VERIFY_REQUIRES_IMPLEMENTED_MESSAGE);
-        }
-        const payload: ProjectWritePayload = {};
-        replaceRemediation(
-          payload,
-          advanceRemediation(remediation, "verified"),
-        );
-        appendEvidence(payload, {
-          kind: "remediation_manually_verified",
-          summary: remediationEvidenceSummary("verified", live),
-          projectId: live.projectId,
-          controlId: live.controlId,
-          findingId: live.id,
-          detail: remediationEvidenceDetail({ manual: true, note }),
-        });
-        return payload;
-      },
-    );
+
+    await withProjectTx(preview.projectId, "project.remediate", async (ctx) => {
+      const live = await getFindingById(ctx.tx, findingId);
+      if (!live) throw new PublicError("Unknown finding.");
+      if (ctx.userId) {
+        await assertRemediationRateLimit(ctx.userId);
+      }
+      if (live.status !== "resolved") {
+        throw new PublicError(ATTEST_REQUIRES_RESOLVED_MESSAGE);
+      }
+      if (!sameInstance(preview, live)) {
+        throw new PublicError("Finding changed since load. Re-assess.");
+      }
+      const remediation = await getRemediationByFindingId(ctx.tx, findingId);
+      if (!remediation) {
+        throw new PublicError("No remediation for that finding.");
+      }
+      if (remediation.status !== "implemented") {
+        throw new PublicError(VERIFY_REQUIRES_IMPLEMENTED_MESSAGE);
+      }
+
+      await upsertRemediations(ctx.tx, [
+        advanceRemediation(remediation, "verified"),
+      ]);
+      await insertEvidence(ctx.tx, {
+        kind: "remediation_manually_verified",
+        summary: remediationEvidenceSummary("verified", live),
+        projectId: live.projectId,
+        controlId: live.controlId,
+        findingId: live.id,
+        detail: remediationEvidenceDetail({ manual: true, note }),
+        actor: ctx.actor,
+      });
+    });
     refresh(...COMPLIANCE_LOOP_ROUTES);
     return "Fix marked verified with manual confirmation.";
   });

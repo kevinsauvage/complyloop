@@ -1,4 +1,5 @@
 import "@/test-fixtures/register-action-workspace-mock";
+import "@/test-fixtures/register-repo-mock";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -6,9 +7,9 @@ import type { Requirement } from "@complyloop/analysis-core/contract/entities";
 
 import { initialActionState } from "@/core/actions/action-state";
 import {
-  clearProjectWritePayloads,
-  mockProjectWrite,
-  projectWritePayload,
+  clearRecordedWrites,
+  mockProjectTx,
+  mockStore,
 } from "@/test-fixtures/action-workspace-mocks";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
@@ -68,21 +69,27 @@ function workspaceWithTwoFindings(requirement: Partial<Requirement> = {}) {
   });
 }
 
+/**
+ * The requirement as it stands after the action: the refresh re-reads the
+ * control's requirement + open findings from the (in-memory) store, so the
+ * persisted row is the source of truth — a refresh that changes nothing writes
+ * nothing.
+ */
 function refreshedRequirementStatus(): string | undefined {
-  return projectWritePayload()?.requirements?.find(
+  return mockStore()?.db.requirements.find(
     (candidate) => candidate.controlId === controlId,
   )?.status;
 }
 
 afterEach(() => {
-  clearProjectWritePayloads();
+  clearRecordedWrites();
   vi.clearAllMocks();
 });
 
 describe("targeted writes use the full finding set", () => {
   it("keeps the requirement failed when one of two open findings is dismissed", async () => {
     const workspace = workspaceWithTwoFindings({});
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
     const form = new FormData();
     form.set("reason", "false_positive");
     form.set("note", "one occurrence is not real");
@@ -91,6 +98,30 @@ describe("targeted writes use the full finding set", () => {
 
     expect(result.ok).toBe(true);
     expect(refreshedRequirementStatus()).toBe("failed");
+  });
+
+  // Discriminating ordering test: the refresh must read the finding the same
+  // transaction just dismissed. Deriving before the write would still see an
+  // open finding and report "failed"; after the write it must leave "failed".
+  it("derives the requirement from the row written by the same transaction", async () => {
+    const workspace = workspaceWithTwoFindings({});
+    workspace.db.findings = [
+      testFinding({
+        id: "f1",
+        projectId: project.id,
+        controlId,
+        status: "open",
+      }),
+    ];
+    mockProjectTx(workspace);
+    const form = new FormData();
+    form.set("reason", "false_positive");
+    form.set("note", "not a real issue");
+
+    const result = await dismissFindingAction("f1", initialActionState, form);
+
+    expect(result.ok).toBe(true);
+    expect(refreshedRequirementStatus()).toBe("unable_to_verify");
   });
 
   it("returns the requirement to failed when a stale exception is cleared", async () => {
@@ -102,7 +133,7 @@ describe("targeted writes use the full finding set", () => {
         at: "2026-01-02T00:00:00.000Z",
       },
     });
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
 
     const result = await clearRequirementExceptionAction(
       "req-1",

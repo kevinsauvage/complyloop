@@ -1,4 +1,5 @@
 import "@/test-fixtures/register-action-workspace-mock";
+import "@/test-fixtures/register-repo-mock";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -6,7 +7,7 @@ import { initialActionState } from "@/core/actions/action-state";
 import {
   actionAuthMocks,
   actionWorkspaceMocks,
-  mockProjectWrite,
+  mockProjectTx,
 } from "@/test-fixtures/action-workspace-mocks";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
@@ -85,7 +86,7 @@ describe("generateAiFixAction", () => {
   it("generates and persists a verified patch in the request", async () => {
     const current = workspace();
     getWorkspace.mockResolvedValue(current);
-    mockProjectWrite(current);
+    mockProjectTx(current);
     const candidate = {
       description: "Add alt",
       provenance: "ai",
@@ -120,10 +121,10 @@ describe("generateAiFixAction", () => {
       expect.objectContaining({ aiAvailable: expect.any(Boolean) }),
     );
     expect(persistPatchCandidate).toHaveBeenCalledWith(
-      current.db,
+      expect.anything(),
       finding,
       candidate,
-      expect.any(Object),
+      "user-1",
     );
     expect(assertAiRateLimit).toHaveBeenCalledWith("user-1");
     expect(refresh).toHaveBeenCalled();
@@ -162,7 +163,7 @@ describe("generateAiFixAction", () => {
       },
     };
     getWorkspace.mockResolvedValue(current);
-    mockProjectWrite(current);
+    mockProjectTx(current);
     actionAuthMocks.auth.mockResolvedValue({
       user: { id: "user-1", login: "user-1" },
     });

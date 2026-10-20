@@ -14,9 +14,9 @@ import {
 } from "@/test-fixtures/action-workspace-mocks";
 import { testMembership } from "@/test-fixtures/membership";
 import { testProject } from "@/test-fixtures/project";
+import type { TestWorkspace } from "@/test-fixtures/workspace";
 import { testWorkspace } from "@/test-fixtures/workspace";
 
-import type { ProjectWriteWorkspace } from "../workspace/workspace";
 import {
   changeOrgMemberRoleAction,
   createOrgAction,
@@ -192,7 +192,7 @@ function emptyWorkspaceSlice(memberships = [ownerMembership]): WorkspaceSlice {
 
 function fixtureWorkspace(
   db: WorkspaceSlice = emptyWorkspaceSlice(),
-): ProjectWriteWorkspace {
+): TestWorkspace {
   return testWorkspace({
     role: "owner",
     userId: "user-1",

@@ -9,6 +9,7 @@ import {
   countFindingsByStatusForList,
   countOpenFindingsByControlForProject,
   getFindingById,
+  listFindingIdsForQueue,
   listFindingsForProject,
   listFindingsPageForProject,
   upsertFindings,
@@ -127,6 +128,89 @@ describe.skipIf(!enabled)("findings pagination and bounded loads", () => {
         fixture.projectId,
       );
       expect(byControl.get(fixture.controlId)).toBe(5);
+    } finally {
+      await cleanupProjectSliceFixture(drizzle, fixture);
+    }
+  });
+
+  // The finding page's prev/next queue is ids-only SQL now. It must agree with
+  // the paginated list for every SQL-expressible filter, or prev/next would
+  // disagree with the list the user came from.
+  it("returns the same ids, in the same order, as the paginated list", async () => {
+    const drizzle = await getDrizzle();
+    const suffix = `${Date.now()}-queue`;
+    const fixture = await insertProjectSliceFixture(drizzle, suffix);
+    const assessmentId = `assessment-${suffix}`;
+    const base = await getFindingById(drizzle, fixture.findingOneId);
+    if (!base) throw new Error("Expected seeded finding.");
+    await upsertFindings(drizzle, [
+      {
+        ...base,
+        id: `queue-critical-${suffix}`,
+        severity: "critical",
+        assessmentId,
+      },
+      { ...base, id: `queue-minor-${suffix}`, severity: "minor", assessmentId },
+      {
+        ...base,
+        id: `queue-runtime-${suffix}`,
+        severity: "moderate",
+        assessmentId,
+        analyzerId: "axe" as const,
+      },
+    ]);
+
+    const cases: Array<{
+      label: string;
+      filters: Parameters<typeof listFindingsPageForProject>[2];
+      queue: Parameters<typeof listFindingIdsForQueue>[2];
+    }> = [
+      {
+        label: "open tab",
+        filters: { statuses: ["open"] },
+        queue: { statuses: ["open"] },
+      },
+      {
+        label: "severity",
+        filters: { statuses: ["open"], severity: "serious" },
+        queue: { statuses: ["open"], severity: "serious" },
+      },
+      {
+        label: "control",
+        filters: { statuses: ["open"], controlId: fixture.controlId },
+        queue: { statuses: ["open"], controlId: fixture.controlId },
+      },
+      {
+        label: "engine",
+        filters: { statuses: ["open"], engine: "runtime" },
+        queue: { statuses: ["open"], engine: "runtime" },
+      },
+      {
+        label: "remediation",
+        filters: { statuses: ["open"], remediation: "suggested" },
+        queue: { statuses: ["open"], remediation: "suggested" },
+      },
+      {
+        label: "preset scope",
+        filters: { statuses: ["open"], controlIds: [fixture.controlId] },
+        queue: { statuses: ["open"], controlIds: [fixture.controlId] },
+      },
+    ];
+
+    try {
+      for (const { label, filters, queue } of cases) {
+        const page = await listFindingsPageForProject(
+          drizzle,
+          fixture.projectId,
+          { ...filters, pageSize: 100 },
+        );
+        const ids = await listFindingIdsForQueue(
+          drizzle,
+          fixture.projectId,
+          queue,
+        );
+        expect(ids, label).toEqual(page.rows.map((finding) => finding.id));
+      }
     } finally {
       await cleanupProjectSliceFixture(drizzle, fixture);
     }

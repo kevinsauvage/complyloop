@@ -1,4 +1,5 @@
 import "@/test-fixtures/register-action-workspace-mock";
+import "@/test-fixtures/register-repo-mock";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -9,9 +10,9 @@ import type {
 
 import { initialActionState } from "@/core/actions/action-state";
 import {
-  clearProjectWritePayloads,
-  mockProjectWrite,
-  projectWritePayload,
+  clearRecordedWrites,
+  mockProjectTx,
+  recordedWrites,
 } from "@/test-fixtures/action-workspace-mocks";
 import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
@@ -31,13 +32,13 @@ function mockWrite(project: Project, role: OrgMembership["role"] = "admin") {
     findings: [],
     remediations: [],
   });
-  mockProjectWrite(workspace);
+  mockProjectTx(workspace);
   return workspace;
 }
 
 afterEach(() => {
   vi.clearAllMocks();
-  clearProjectWritePayloads();
+  clearRecordedWrites();
 });
 
 describe("setDefaultPresetAction", () => {
@@ -70,8 +71,8 @@ describe("setDefaultPresetAction", () => {
     );
 
     expect(result.message).toBe("Default assessment preset saved");
-    expect(project.defaultPresetId).toBe("preset-wcag-aa");
-    expect(projectWritePayload()?.project).toBe(project);
+    expect(recordedWrites().project?.defaultPresetId).toBe("preset-wcag-aa");
+    expect(recordedWrites().project?.id).toBe(project.id);
   });
 
   it("records evidence when the default changes", async () => {
@@ -81,7 +82,7 @@ describe("setDefaultPresetAction", () => {
       formWith("preset-wcag-aa"),
     );
     expect(
-      projectWritePayload()?.evidence?.some(
+      recordedWrites()?.evidence?.some(
         (record) =>
           record.kind === "requirements_imported" &&
           record.summary.includes("Default assessment preset"),
@@ -102,7 +103,7 @@ describe("setDefaultPresetAction", () => {
     );
 
     expect(result.message).toBe("This is already the default preset.");
-    expect(projectWritePayload()?.evidence).toBeUndefined();
+    expect(recordedWrites().evidence).toHaveLength(0);
   });
 
   it("rejects an unknown preset", async () => {

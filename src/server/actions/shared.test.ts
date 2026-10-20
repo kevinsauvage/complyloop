@@ -1,9 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
-import { testRemediation } from "@/test-fixtures/remediation";
 import { testWorkspace } from "@/test-fixtures/workspace";
 
 const getSession = vi.hoisted(() => vi.fn());
@@ -17,12 +15,7 @@ vi.mock("@/server/auth-session", () => ({
   getSession: (...args: unknown[]) => getSession(...args),
 }));
 
-import {
-  refresh,
-  replaceRemediation,
-  requireOnActive,
-  requireSignedIn,
-} from "./shared";
+import { refresh, requireOnActive, requireSignedIn } from "./shared";
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -69,23 +62,6 @@ describe("requireSignedIn", () => {
   it("throws the caller-supplied message", async () => {
     getSession.mockResolvedValue({ user: {} });
     await expect(requireSignedIn("Nope.")).rejects.toThrow("Nope.");
-  });
-});
-
-describe("replaceRemediation", () => {
-  it("appends to an existing remediation list", () => {
-    const existing = testRemediation({ id: "r-old" });
-    const updated = testRemediation({ id: "r-new" });
-    const payload: ProjectWritePayload = { remediations: [existing] };
-    replaceRemediation(payload, updated);
-    expect(payload.remediations).toEqual([existing, updated]);
-  });
-
-  it("starts a list when none exists", () => {
-    const updated = testRemediation({ id: "r-new" });
-    const payload: ProjectWritePayload = {};
-    replaceRemediation(payload, updated);
-    expect(payload.remediations).toEqual([updated]);
   });
 });
 

@@ -70,7 +70,6 @@ vi.mock("@complyloop/db/repo/apply", async () => {
     ...actual,
     applyAssessmentPayload: (...args: unknown[]) =>
       applyAssessmentPayload(...args),
-    buildAssessmentApplyPayload: (input: unknown) => input,
   };
 });
 

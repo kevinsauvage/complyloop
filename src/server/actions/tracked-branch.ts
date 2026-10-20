@@ -3,6 +3,7 @@
 import { z } from "zod";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { updateProject } from "@complyloop/db/repo/projects";
 
 import type { ActionState } from "@/core/actions/action-state";
 import { parseForm } from "@/core/actions/validate";
@@ -15,7 +16,10 @@ import {
 } from "../github/github-access";
 import { assertRuntimeAuditRateLimit } from "../rate-limit";
 import { getWorkspace } from "../workspace/workspace";
-import { withProjectWrite } from "../workspace/workspace-write";
+import {
+  resolveActiveProjectId,
+  withProjectTx,
+} from "../workspace/workspace-write";
 import { refresh, requireOnActive } from "./shared";
 
 const updateTrackedBranchInput = z.object({
@@ -36,7 +40,7 @@ export async function updateTrackedBranchAction(
     const requested = parsed.trackedBranch?.trim() ?? "";
     const branch = requested.length > 0 ? parseCheckoutRef(requested) : null;
 
-    // Verify against GitHub outside the write lock (network call).
+    // Verify against GitHub outside the write transaction (network call).
     if (branch !== null) {
       const current = await getWorkspace();
       requireOnActive(current, "project.connect");
@@ -57,24 +61,24 @@ export async function updateTrackedBranchAction(
       await assertBranchExists(token, fullName, branch);
     }
 
-    await withProjectWrite(async (workspace) => {
-      requireOnActive(workspace, "project.connect");
-      if (workspace.userId) {
-        await assertRuntimeAuditRateLimit(workspace.userId);
+    const projectId = await resolveActiveProjectId();
+    await withProjectTx(projectId, "project.connect", async (ctx) => {
+      if (ctx.userId) {
+        await assertRuntimeAuditRateLimit(ctx.userId);
       }
-      const { project } = workspace;
-      if (!project.github) {
+      if (!ctx.project.github) {
         throw new PublicError(
           "This project is not connected to a GitHub repository.",
           "connect",
         );
       }
+      const next = { ...ctx.project, github: { ...ctx.project.github } };
       if (branch === null) {
-        delete project.github.trackedBranch;
+        delete next.github.trackedBranch;
       } else {
-        project.github.trackedBranch = branch;
+        next.github.trackedBranch = branch;
       }
-      return { project };
+      await updateProject(ctx.tx, next);
     });
     refresh("/settings", "/dashboard", "/requirements");
     return branch === null

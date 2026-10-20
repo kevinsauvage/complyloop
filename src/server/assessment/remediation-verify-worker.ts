@@ -16,25 +16,23 @@ import {
 } from "@complyloop/analysis-core/runtime/scan";
 import { getDrizzle } from "@complyloop/db/postgres";
 import {
-  persistProjectRows,
-  type ProjectWritePayload,
-  snapshotProjectSlice,
-} from "@complyloop/db/repo/apply";
-import { getFindingById } from "@complyloop/db/repo/findings";
+  insertEvidence,
+  insertEvidenceRecords,
+} from "@complyloop/db/repo/evidence";
+import { getFindingById, upsertFindings } from "@complyloop/db/repo/findings";
 import { getProjectById } from "@complyloop/db/repo/projects";
-import { listRemediationsForProject } from "@complyloop/db/repo/remediations";
+import {
+  getRemediationByFindingId,
+  upsertRemediations,
+} from "@complyloop/db/repo/remediations";
+import { upsertRequirements } from "@complyloop/db/repo/requirements";
 
 import { advanceRemediation } from "@/core/requirements/remediation-lifecycle";
 
 import { reportWarning } from "../observability";
 import { withProjectLock } from "../workspace/db";
-import {
-  appendEvidence,
-  cloneProjectRows,
-  upsertFindingInRows,
-} from "../workspace/project-rows";
 import { sameInstance } from "./assessment-findings";
-import { applyRequirementStatusRefresh } from "./assessment-status";
+import { refreshRequirementsForControls } from "./assessment-status";
 import {
   remediationEvidenceDetail,
   remediationEvidenceSummary,
@@ -195,12 +193,14 @@ async function computeVerifyVerdict(
     }
   }
 }
-
 /**
  * Runs a `verify_remediation` job: load → re-audit → apply, as the project's
  * system actor (no viewer session). A "still failing" verdict is a recorded
  * outcome, not a job failure — the job only fails when the re-audit itself
  * throws (retried by the queue like any other job).
+ *
+ * Writes are targeted: only the finding, remediation, requirement row(s) and
+ * evidence this verdict changes, all read inside the project lock.
  */
 export async function runRemediationVerifyJob(
   findingId: string,
@@ -221,7 +221,7 @@ export async function runRemediationVerifyJob(
   await withProjectLock(finding.projectId, async (tx) => {
     const live = await getFindingById(tx, findingId);
     if (!live) return;
-    const remediation = await loadRemediationForFinding(tx, live);
+    const remediation = await getRemediationByFindingId(tx, findingId);
     if (!remediation || remediation.status !== "implemented") {
       // A concurrent write already advanced it, or there is nothing to
       // verify (dismissed / removed).
@@ -241,29 +241,15 @@ export async function runRemediationVerifyJob(
       return;
     }
 
-    // Snapshot the rows we are about to write so `persistProjectRows` applies
-    // its stale-write guard (updatedAt match) instead of blind-upserting.
-    const loadedSlice = snapshotProjectSlice(
-      [],
-      [live],
-      [remediation],
-      [],
-      finding.projectId,
-    );
-    const payload: ProjectWritePayload = verdict.present
-      ? stillFailingPayload(live, remediation, verdict.stillFailingMessage)
-      : verifiedPayload(project, live, remediation, verdict);
-    await persistProjectRows(tx, payload, { loadedSlice });
+    if (verdict.present) {
+      await applyStillFailing(tx, live, verdict.stillFailingMessage);
+      return;
+    }
+    await applyVerified(tx, project, live, remediation, verdict);
   });
 }
 
-async function loadRemediationForFinding(
-  tx: Parameters<typeof listRemediationsForProject>[0],
-  finding: Finding,
-): Promise<Remediation | undefined> {
-  const rows = await listRemediationsForProject(tx, finding.projectId);
-  return rows.find((row) => row.findingId === finding.id);
-}
+type ProjectTxDb = Parameters<typeof upsertFindings>[0];
 
 /**
  * A resolved finding proven live again must not stay closed: re-open it so
@@ -272,23 +258,20 @@ async function loadRemediationForFinding(
  * specific reason (timeout vs preview-down vs still-present) rides on the
  * evidence `note` so the finding page can explain the failure.
  */
-function stillFailingPayload(
+async function applyStillFailing(
+  tx: ProjectTxDb,
   finding: Finding,
-  remediation: Remediation,
   stillFailingMessage?: string,
-): ProjectWritePayload {
+): Promise<void> {
   const note =
     stillFailingMessage ??
     "Verification failed: the violation is still detected on the page.";
-  const findings =
-    finding.status === "resolved"
-      ? [{ ...finding, status: "open" as const, resolvedNote: undefined }]
-      : undefined;
-  const payload: ProjectWritePayload = {
-    remediations: [remediation],
-    ...(findings ? { findings } : {}),
-  };
-  appendEvidence(payload, {
+  if (finding.status === "resolved") {
+    await upsertFindings(tx, [
+      { ...finding, status: "open", resolvedNote: undefined },
+    ]);
+  }
+  await insertEvidence(tx, {
     kind: "remediation_verification_failed",
     summary: `Verification failed for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
     projectId: finding.projectId,
@@ -296,27 +279,27 @@ function stillFailingPayload(
     findingId: finding.id,
     detail: remediationEvidenceDetail({ note }),
   });
-  return payload;
 }
 
-function verifiedPayload(
+async function applyVerified(
+  tx: ProjectTxDb,
   project: Project,
   live: Finding,
   remediation: Remediation,
   verdict: VerifyVerdict,
-): ProjectWritePayload {
-  const rows = cloneProjectRows([live], [remediation], [], live.projectId);
-  const verifiedRemediation = advanceRemediation(remediation, "verified");
+): Promise<void> {
   const alreadyResolved = live.status === "resolved";
-  const updatedFinding: Finding = alreadyResolved
-    ? live
-    : {
+  if (!alreadyResolved) {
+    await upsertFindings(tx, [
+      {
         ...live,
         status: "resolved",
         resolvedNote: "Fix verified by re-running the runtime audit.",
-      };
-  if (!alreadyResolved) upsertFindingInRows(rows, updatedFinding);
-  appendEvidence(rows, {
+      },
+    ]);
+  }
+  await upsertRemediations(tx, [advanceRemediation(remediation, "verified")]);
+  await insertEvidence(tx, {
     kind: "remediation_verified",
     summary: remediationEvidenceSummary("verified", live),
     projectId: live.projectId,
@@ -327,16 +310,20 @@ function verifiedPayload(
       note: verdict.note,
     }),
   });
-  applyRequirementStatusRefresh(rows, project, {
-    controlIds: [live.controlId],
-    runtimeRan: verdict.audit.runtimeRan,
-    siteLevelChecksRan: verdict.audit.siteLevelChecksRan,
-    htmlValidateRan: verdict.audit.htmlValidateRan,
-  });
-  return {
-    findings: [updatedFinding],
-    requirements: rows.requirements,
-    evidence: rows.evidence,
-    remediations: [verifiedRemediation],
-  };
+
+  // Re-derive the control from the rows that now exist: the resolved finding
+  // is excluded, the control's other open findings still count, and a sticky
+  // human decision keeps holding.
+  const refreshed = await refreshRequirementsForControls(
+    tx,
+    project,
+    [live.controlId],
+    {
+      runtimeRan: verdict.audit.runtimeRan,
+      siteLevelChecksRan: verdict.audit.siteLevelChecksRan,
+      htmlValidateRan: verdict.audit.htmlValidateRan,
+    },
+  );
+  await upsertRequirements(tx, refreshed.requirements);
+  await insertEvidenceRecords(tx, refreshed.evidence);
 }

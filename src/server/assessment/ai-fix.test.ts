@@ -5,12 +5,11 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type {
+  EvidenceRecord,
   Finding,
   Remediation,
 } from "@complyloop/analysis-core/contract/entities";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
-import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import { emptyWorkspaceSlice } from "@complyloop/db/types";
 
 import type { PatchCandidate } from "@/ai/verified-fix";
 
@@ -31,12 +30,58 @@ vi.mock("../observability", () => ({
   reportError: vi.fn(),
 }));
 
+const mocks = vi.hoisted(() => ({
+  evidence: [] as EvidenceRecord[],
+  remediation: undefined as Remediation | undefined,
+  writtenEvidence: [] as EvidenceRecord[],
+  writtenRemediations: [] as Remediation[],
+}));
+
+vi.mock("@complyloop/db/repo/evidence", async () => {
+  const actual = await vi.importActual<
+    typeof import("@complyloop/db/repo/evidence")
+  >("@complyloop/db/repo/evidence");
+  return {
+    ...actual,
+    listEvidenceForFinding: async () => mocks.evidence,
+    insertEvidence: async (
+      _tx: unknown,
+      entry: Omit<EvidenceRecord, "id" | "at">,
+    ) => {
+      const record: EvidenceRecord = {
+        ...entry,
+        id: crypto.randomUUID(),
+        at: new Date().toISOString(),
+      };
+      mocks.writtenEvidence.push(record);
+      return record;
+    },
+  };
+});
+
+vi.mock("@complyloop/db/repo/remediations", async () => {
+  const actual = await vi.importActual<
+    typeof import("@complyloop/db/repo/remediations")
+  >("@complyloop/db/repo/remediations");
+  return {
+    ...actual,
+    getRemediationByFindingId: async () => mocks.remediation,
+    upsertRemediations: async (_tx: unknown, items: Remediation[]) => {
+      mocks.writtenRemediations.push(...items);
+    },
+  };
+});
+
 const tempDirs: string[] = [];
 
 afterEach(() => {
   for (const dir of tempDirs.splice(0)) {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+  mocks.evidence = [];
+  mocks.remediation = undefined;
+  mocks.writtenEvidence.length = 0;
+  mocks.writtenRemediations.length = 0;
 });
 
 const control: Control = {
@@ -333,7 +378,7 @@ describe("persistPatchCandidate", () => {
     projectId: "p1",
     controlId: "c1",
     assessmentId: "a1",
-    checkId: "img-alt",
+    checkId: "redundant-role",
     status: "open",
     kind: "violation",
     severity: "serious",
@@ -374,38 +419,34 @@ describe("persistPatchCandidate", () => {
     complyLoop: { passed: true, remaining: [] },
   };
 
-  it("records ready evidence and moves remediation to suggested", () => {
-    const db = emptyWorkspaceSlice();
-    db.findings.push(patchFinding);
-    db.remediations.push(remediation);
-    const payload: ProjectWritePayload = {};
+  const tx = {} as never;
 
-    persistPatchCandidate(db, patchFinding, candidate, payload);
+  it("records ready evidence and moves remediation to suggested", async () => {
+    mocks.evidence = [];
+    mocks.remediation = remediation;
 
-    expect(payload.evidence?.[0]?.kind).toBe("ai_patch_ready");
-    expect(payload.evidence?.[0]?.detail).toMatchObject({
+    await persistPatchCandidate(tx, patchFinding, candidate, "alice");
+
+    expect(mocks.writtenEvidence[0]?.kind).toBe("ai_patch_ready");
+    expect(mocks.writtenEvidence[0]?.actor).toBe("alice");
+    expect(mocks.writtenEvidence[0]?.detail).toMatchObject({
       provenance: "ai",
       model: "minimax/minimax-m3",
       complyLoopPassed: true,
     });
-    expect(payload.remediations?.[0]?.status).toBe("suggested");
-    expect(payload.remediations?.[0]?.suggestion).toMatchObject({
+    expect(mocks.writtenRemediations[0]?.status).toBe("suggested");
+    expect(mocks.writtenRemediations[0]?.suggestion).toMatchObject({
       provenance: "ai",
       proposedSnippet: '<img alt="Hero" />',
     });
-    // Loaded db is not mutated.
-    expect(db.remediations[0]?.status).toBe("detected");
-    expect(db.evidence).toHaveLength(0);
   });
 
-  it("warns and skips the suggestion when remediation already advanced", () => {
+  it("warns and skips the suggestion when remediation already advanced", async () => {
     reportWarningMock.mockClear();
-    const db = emptyWorkspaceSlice();
-    db.findings.push(patchFinding);
-    db.remediations.push({ ...remediation, status: "verified" });
-    const payload: ProjectWritePayload = {};
+    mocks.evidence = [];
+    mocks.remediation = { ...remediation, status: "verified" };
 
-    persistPatchCandidate(db, patchFinding, candidate, payload);
+    await persistPatchCandidate(tx, patchFinding, candidate, "alice");
 
     expect(reportWarningMock).toHaveBeenCalledWith(
       expect.stringContaining("already advanced"),
@@ -415,48 +456,40 @@ describe("persistPatchCandidate", () => {
         status: "verified",
       }),
     );
-    expect(payload.remediations).toBeUndefined();
-    expect(payload.evidence?.[0]?.kind).toBe("ai_patch_ready");
+    expect(mocks.writtenRemediations).toHaveLength(0);
+    expect(mocks.writtenEvidence[0]?.kind).toBe("ai_patch_ready");
   });
 
-  it("skips byte-identical patch evidence already on the finding", () => {
-    const db = emptyWorkspaceSlice();
-    db.findings.push(patchFinding);
-    db.remediations.push(remediation);
-    const first: ProjectWritePayload = {};
-    persistPatchCandidate(db, patchFinding, candidate, first);
-    expect(first.evidence).toHaveLength(1);
+  it("skips byte-identical patch evidence already on the finding", async () => {
+    mocks.evidence = [];
+    mocks.remediation = remediation;
+    await persistPatchCandidate(tx, patchFinding, candidate, "alice");
+    expect(mocks.writtenEvidence).toHaveLength(1);
+    const detail = mocks.writtenEvidence[0]?.detail;
 
-    const second: ProjectWritePayload = {};
-    persistPatchCandidate(
+    mocks.writtenEvidence.length = 0;
+    mocks.evidence = [
       {
-        ...db,
-        evidence: [
-          {
-            id: "e-ready",
-            at: "2026-01-01T00:00:00.000Z",
-            kind: "ai_patch_ready",
-            summary: "Patch ready",
-            projectId: "p1",
-            controlId: "c1",
-            findingId: "f1",
-            detail: first.evidence?.[0]?.detail,
-          },
-        ],
+        id: "e-ready",
+        at: "2026-01-01T00:00:00.000Z",
+        kind: "ai_patch_ready",
+        summary: "Patch ready",
+        projectId: "p1",
+        controlId: "c1",
+        findingId: "f1",
+        detail,
       },
-      patchFinding,
-      candidate,
-      second,
-    );
-    expect(second.evidence ?? []).toHaveLength(0);
+    ];
+    await persistPatchCandidate(tx, patchFinding, candidate, "alice");
+    expect(mocks.writtenEvidence).toHaveLength(0);
   });
 
-  it("throws without a remediation row for the finding", () => {
-    const db = emptyWorkspaceSlice();
-    db.findings.push(patchFinding);
-    expect(() =>
-      persistPatchCandidate(db, patchFinding, candidate, {}),
-    ).toThrow(/No remediation/);
+  it("throws without a remediation row for the finding", async () => {
+    mocks.evidence = [];
+    mocks.remediation = undefined;
+    await expect(
+      persistPatchCandidate(tx, patchFinding, candidate, "alice"),
+    ).rejects.toThrow(/No remediation/);
   });
 });
 

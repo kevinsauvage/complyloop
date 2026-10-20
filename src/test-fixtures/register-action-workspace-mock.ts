@@ -8,17 +8,28 @@ import { vi } from "vitest";
 import {
   actionAuthMocks,
   actionWorkspaceMocks,
+  clearRecordedWrites,
+  mockStore,
 } from "./action-workspace-mocks";
 
-import type {
-  Finding,
-  Remediation,
-} from "@complyloop/analysis-core/contract/entities";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
-import { requireOnFindingProject } from "@/server/workspace/project-visibility";
+import type { TestWorkspace } from "./workspace";
+
+import { assertProjectPermission } from "@/server/workspace/project-visibility";
 import type { Permission } from "@/core/rbac";
-import type { ProjectWriteWorkspace } from "@/server/workspace/workspace";
+
+/**
+ * Request-scoped read source: `getWorkspace` when a test provides one (pages /
+ * preview guards), else the in-memory transaction store. Keeping the two
+ * distinct is what lets a test simulate drift between the pre-lock preview and
+ * the row re-read inside the transaction.
+ */
+async function readSource(): Promise<TestWorkspace | null> {
+  const fromWorkspace =
+    (await actionWorkspaceMocks.getWorkspace()) as TestWorkspace | null;
+  return fromWorkspace ?? mockStore();
+}
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
@@ -46,26 +57,22 @@ vi.mock("@/server/workspace/workspace", async () => {
     typeof import("@/server/workspace/workspace")
   >("@/server/workspace/workspace");
 
-  type WriteSlice = {
-    db?: { findings: Finding[]; remediations: Remediation[] };
-  };
-
   return {
     ...actual,
     getWorkspace: () => actionWorkspaceMocks.getWorkspace(),
+    // Store-backed when a fixture workspace is installed; otherwise the real
+    // guard runs against the test's own repo mocks.
     requireFinding: async (findingId: string) => {
-      const workspace =
-        (await actionWorkspaceMocks.getWorkspace()) as WriteSlice;
-      const finding = workspace.db?.findings.find(
-        (row) => row.id === findingId,
-      );
+      const store = await readSource();
+      if (!store) return actual.requireFinding(findingId);
+      const finding = store.db.findings.find((row) => row.id === findingId);
       if (!finding) throw new PublicError("Unknown finding.");
       return finding;
     },
     requireRemediationForFinding: async (findingId: string) => {
-      const workspace =
-        (await actionWorkspaceMocks.getWorkspace()) as WriteSlice;
-      const remediation = workspace.db?.remediations.find(
+      const store = await readSource();
+      if (!store) return actual.requireRemediationForFinding(findingId);
+      const remediation = store.db.remediations.find(
         (row) => row.findingId === findingId,
       );
       if (!remediation)
@@ -73,17 +80,13 @@ vi.mock("@/server/workspace/workspace", async () => {
       return remediation;
     },
     requireProjectAccess: async (projectId: string, permission: Permission) => {
-      const workspace =
-        (await actionWorkspaceMocks.getWorkspace()) as WriteSlice & {
-          projects: Array<{ id: string }>;
-        };
+      // Write-model tests get the in-memory store; lighter tests (alerts,
+      // polling) provide a workspace through `getWorkspace`.
+      const workspace = await readSource();
+      if (!workspace) throw new PublicError("Unknown project.");
       const project = workspace.projects.find((row) => row.id === projectId);
       if (!project) throw new PublicError("Unknown project.");
-      requireOnFindingProject(
-        workspace as Parameters<typeof requireOnFindingProject>[0],
-        { projectId } as Finding,
-        permission,
-      );
+      assertProjectPermission(project, workspace.access, permission);
       return project;
     },
   };
@@ -95,23 +98,12 @@ vi.mock("@/server/workspace/workspace-write", async () => {
   >("@/server/workspace/workspace-write");
   return {
     ...actual,
-    withProjectWrite: (fn: Parameters<typeof actual.withProjectWrite>[0]) =>
-      actionWorkspaceMocks.withProjectWrite(fn),
-    withFindingWrite: (
-      findingId: string,
-      permission: Parameters<typeof actual.withFindingWrite>[1],
-      fn: Parameters<typeof actual.withFindingWrite>[2],
-    ) =>
-      actionWorkspaceMocks.withProjectWrite(
-        (workspace: ProjectWriteWorkspace) => {
-          const finding = workspace.db.findings.find(
-            (row) => row.id === findingId,
-          );
-          if (!finding) throw new PublicError("Unknown finding.");
-          requireOnFindingProject(workspace, finding, permission);
-          return fn({ db: workspace.db, finding, workspace });
-        },
-      ),
+    withProjectTx: (
+      projectId: string,
+      permission: Permission,
+      fn: (ctx: unknown) => Promise<unknown>,
+    ) => actionWorkspaceMocks.withProjectTx(projectId, permission, fn),
+    resolveActiveProjectId: () => actionWorkspaceMocks.resolveActiveProjectId(),
     withOrgWrite: (fn: Parameters<typeof actual.withOrgWrite>[0]) =>
       actionWorkspaceMocks.withOrgWrite(fn),
     withConnectWrite: (
@@ -133,3 +125,5 @@ vi.mock("@/server/workspace/db", async () => {
     ) => actionWorkspaceMocks.withProjectLock(projectId, fn),
   };
 });
+
+export { clearRecordedWrites };

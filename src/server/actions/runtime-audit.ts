@@ -5,14 +5,18 @@ import { z } from "zod";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { normalizeRoutes } from "@complyloop/analysis-core/runtime/routes";
 import { assertSafeRuntimeUrl } from "@complyloop/analysis-core/runtime/url-safety";
+import { updateProject } from "@complyloop/db/repo/projects";
 
 import type { ActionState } from "@/core/actions/action-state";
 import { parseForm } from "@/core/actions/validate";
 
 import { runAction } from "../action-state";
 import { assertRuntimeAuditRateLimit } from "../rate-limit";
-import { withProjectWrite } from "../workspace/workspace-write";
-import { refresh, requireOnActive } from "./shared";
+import {
+  resolveActiveProjectId,
+  withProjectTx,
+} from "../workspace/workspace-write";
+import { refresh } from "./shared";
 
 const ABSOLUTE_ROUTE_MESSAGE =
   "Routes must be paths under the Preview / staging URL (e.g. `/` or `/pricing`), not absolute http(s) URLs.";
@@ -47,29 +51,28 @@ export async function updateRuntimeAuditAction(
     const base = parsed.runtimeBaseUrl?.trim() ?? "";
     const routes = parseRoutes(parsed.runtimeRoutes);
 
-    // DNS check outside the write lock so a slow lookup does not block writers.
+    // DNS check outside the write transaction so a slow lookup does not block
+    // writers.
     let normalized: string | null = null;
     if (base.length > 0) {
       const resolved = await assertSafeRuntimeUrl(base);
       normalized = new URL(resolved).origin;
     }
 
-    await withProjectWrite(async (workspace) => {
-      requireOnActive(workspace, "project.connect");
-      if (workspace.userId) {
-        await assertRuntimeAuditRateLimit(workspace.userId);
+    const projectId = await resolveActiveProjectId();
+    await withProjectTx(projectId, "project.connect", async (ctx) => {
+      if (ctx.userId) {
+        await assertRuntimeAuditRateLimit(ctx.userId);
       }
-      const { project } = workspace;
-
+      const next = { ...ctx.project };
       if (normalized == null) {
-        delete project.runtimeBaseUrl;
-        delete project.runtimeRoutes;
-        return { project };
+        delete next.runtimeBaseUrl;
+        delete next.runtimeRoutes;
+      } else {
+        next.runtimeBaseUrl = normalized;
+        next.runtimeRoutes = routes;
       }
-
-      project.runtimeBaseUrl = normalized;
-      project.runtimeRoutes = routes;
-      return { project };
+      await updateProject(ctx.tx, next);
     });
     refresh("/settings", "/dashboard", "/requirements");
     return "Runtime audit settings saved. Run assessment to audit the pages.";

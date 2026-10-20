@@ -3,10 +3,10 @@ import "server-only";
 import { cache } from "react";
 
 import { shippedCatalog } from "@complyloop/analysis-core/catalog/catalog";
-import {
-  type Alert,
-  type Finding,
-  type Remediation,
+import type {
+  Alert,
+  Finding,
+  Remediation,
 } from "@complyloop/analysis-core/contract/entities";
 import type {
   Control,
@@ -55,9 +55,6 @@ export interface Workspace {
   /** Selected org for management + new connects; null when unsigned. */
   activeOrgId: string | null;
 }
-
-/** Workspace plus the in-transaction project slice for {@link withProjectWrite}. */
-export type ProjectWriteWorkspace = Workspace & { db: WorkspaceSlice };
 
 function projectsForActiveOrg(
   projects: ReadonlyArray<Project>,
@@ -237,33 +234,8 @@ export function controlById(controlId: string): Control {
 }
 
 /**
- * Slice lookups for inside `withProjectWrite` / `withFindingWrite` callbacks
- * (in-memory rows, already locked). Page/action previews that need a fresh
- * DB row use `requireFinding` / `requireRemediationForFinding` below instead.
+ * Request-path finding load (pages / action previews). Memoized per request.
  */
-export function findingById(db: WorkspaceSlice, findingId: string): Finding {
-  const finding = db.findings.find((candidate) => candidate.id === findingId);
-  if (!finding) throw new PublicError("Unknown finding.");
-  return finding;
-}
-
-function findRemediationForFinding(
-  db: WorkspaceSlice,
-  findingId: string,
-): Remediation | undefined {
-  return db.remediations.find((candidate) => candidate.findingId === findingId);
-}
-
-export function remediationForFinding(
-  db: WorkspaceSlice,
-  findingId: string,
-): Remediation {
-  const remediation = findRemediationForFinding(db, findingId);
-  if (!remediation) throw new PublicError("No remediation for that finding.");
-  return remediation;
-}
-
-/** Request-path finding load (pages / action previews). Memoized per request. */
 export const requireFinding = cache(
   async (findingId: string): Promise<Finding> => {
     const finding = await getFindingById(await getDrizzle(), findingId);

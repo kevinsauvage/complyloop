@@ -6,7 +6,7 @@ import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses"
 import type { DrizzleDb } from "../postgres.ts";
 import { findings, remediations } from "../schema.ts";
 import { remediationToRow } from "./mappers.ts";
-import { type StaleWriteOptions, upsertPayloadRows } from "./upsert-guard.ts";
+import { upsertPayloadRows } from "./upsert-guard.ts";
 
 export async function getRemediationByFindingId(
   drizzle: DrizzleDb,
@@ -86,31 +86,18 @@ export async function listRemediationsForFindings(
 export async function upsertRemediations(
   tx: DrizzleDb,
   items: ReadonlyArray<Remediation>,
-  options: StaleWriteOptions = {},
 ): Promise<void> {
-  await upsertPayloadRows(
-    items,
-    options.loadedUpdatedAtById,
-    async (ids) => {
-      const rows = await tx
-        .select({ id: remediations.id, payload: remediations.payload })
-        .from(remediations)
-        .where(inArray(remediations.id, [...ids]));
-      return new Map(rows.map((row) => [row.id, row.payload.updatedAt]));
-    },
-    remediationToRow,
-    async (rows) => {
-      await tx
-        .insert(remediations)
-        .values(rows)
-        .onConflictDoUpdate({
-          target: remediations.id,
-          set: {
-            findingId: sql`excluded.finding_id`,
-            status: sql`excluded.status`,
-            payload: sql`excluded.payload`,
-          },
-        });
-    },
-  );
+  await upsertPayloadRows(items, remediationToRow, async (rows) => {
+    await tx
+      .insert(remediations)
+      .values(rows)
+      .onConflictDoUpdate({
+        target: remediations.id,
+        set: {
+          findingId: sql`excluded.finding_id`,
+          status: sql`excluded.status`,
+          payload: sql`excluded.payload`,
+        },
+      });
+  });
 }

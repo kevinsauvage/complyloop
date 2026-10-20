@@ -13,15 +13,28 @@ None open.
 
 ## P1 — High
 
-### [ ] Replace the "load the whole project, mutate, diff" write model with targeted writes
+### [x] Replace the "load the whole project, mutate, diff" write model with targeted writes
 
-**Why:** Every click (dismiss a finding, approve, set an exception) runs `withProjectWrite` or `withFindingWrite`. That loads the project's full history (every finding, remediation, requirement and alert), snapshots it, and deep-diffs it (`equalIgnoringUpdatedAt`) to find the one changed row. Cost grows with project age, and the snapshot-ordering rules ("callers MUST snapshot before invoking the handler") are an easy way to silently drop writes. Read pages have the same problem: the finding detail page loads every finding in its status tab to render one.
+**Done 2026-10-20.** `withProjectTx(projectId, permission, fn)` replaced
+`withProjectWrite` / `withFindingWrite`: authorize → project lock → one
+transaction → the callback calls explicit repo functions for the rows it
+touches. Deleted `ProjectWritePayload`, `persistProjectRows`,
+`snapshotProjectSlice`, `changedSinceLoaded`, `ProjectWriteWorkspace` and
+`loadProjectWriteDb`; the `updatedAt` stale-write guard went with them (the
+per-project lock is the serialisation point, and every write now reads its
+target row inside its own transaction).
 
-**Where:** `src/server/workspace/workspace-write.ts`, `packages/db/src/workspace-load.ts` (`loadProjectRuntime`), `packages/db/src/repo/apply.ts` (`persistProjectRows`, `changedSinceLoaded`), `src/server/workspace/finding-detail-view.ts:101`, every action in `src/server/actions/`.
-
-**Change:** Keep the per-project advisory lock and a single `withProjectTx(projectId, permission, fn)`. Inside it, actions call explicit repo functions (`updateFinding`, `upsertRequirement`, `insertEvidence`, …) for the rows they touch. Requirement refresh loads only the affected controls' open findings. Delete `ProjectWritePayload`, the snapshot/diff machinery, and the `WorkspaceSlice`-as-write-input pattern. Page loaders query only what they render (the neighbor IDs for prev/next, not the whole tab). Do this after the reconcile item above.
-
-**Impact:** High
+- Requirement refresh is scoped: `refreshRequirementsForControls` loads only the
+  affected controls' requirement rows + open findings.
+- Behaviour change (deliberate): the remediation-verify worker now derives the
+  control's requirement from its real rows instead of a single-finding scratch
+  slice — a sticky human decision survives a verification, and the requirement
+  row id is no longer replaced.
+- Read side: the finding page's prev/next queue is a SQL id query
+  (`listFindingIdsForQueue`) instead of loading the whole tab; the bounded
+  payload load remains only for free-text search, which SQL cannot match.
+- Tests assert on the repo writes the action makes (`recordedWrites()`), backed
+  by an in-memory repo/transaction harness (`src/test-fixtures/register-repo-mock.ts`).
 
 ### [ ] Promote queried JSONB fields to real columns
 

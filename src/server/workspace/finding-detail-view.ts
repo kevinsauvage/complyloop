@@ -10,6 +10,8 @@ import type {
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import { getDrizzle } from "@complyloop/db/postgres";
+import { listFindingIdsForQueue } from "@complyloop/db/repo/findings";
 
 import { aiAvailable as isAiAvailable } from "@/ai/ai-call";
 import {
@@ -31,7 +33,10 @@ import { displayControl } from "@/server/reporting/report";
 import type { ProjectCapabilities } from "@/server/workspace/project-capabilities";
 import { projectCapabilities } from "@/server/workspace/project-capabilities";
 import { getProjectRuntime } from "@/server/workspace/project-runtime";
-import { findingsInScope } from "@/server/workspace/project-scope";
+import {
+  findingsInScope,
+  scopedControlIds,
+} from "@/server/workspace/project-scope";
 import { isProjectVisible } from "@/server/workspace/project-visibility";
 import {
   getWorkspace,
@@ -54,7 +59,6 @@ export type FindingDetailView =
       aiAvailable: boolean;
       act: FindingActView;
       handoff: ReturnType<typeof buildDeveloperHandoff> | null;
-      queueIds: string[];
       queuePosition: ReturnType<typeof findingQueuePosition>;
       listParams: FindingListParams;
       /**
@@ -89,25 +93,17 @@ export async function loadFindingDetailView(
     return { finding: null };
   }
 
-  const statusForTab = listParams.tab;
   // Findings without a remediation row (scoped re-assess, stale apply,
   // manual DB edit) render as not-found, like a missing finding — the list
   // page tolerates orphans the same way instead of 500ing. Only PublicError
   // (unknown ids) maps to null; anything else still throws.
   let remediation: Remediation;
-  let runtime: Awaited<ReturnType<typeof getProjectRuntime>>;
   try {
-    [runtime, remediation] = await Promise.all([
-      getProjectRuntime(project.id, { findingStatuses: [statusForTab] }),
-      requireRemediationForFinding(finding.id),
-    ]);
+    remediation = await requireRemediationForFinding(finding.id);
   } catch (error) {
     if (error instanceof PublicError) return { finding: null };
     throw error;
   }
-  const remediationByFindingId = new Map(
-    runtime.remediations.map((row) => [row.findingId, row]),
-  );
   const caps = projectCapabilities(project, access, project.orgId);
 
   const control = displayControl(finding.controlId, project);
@@ -130,20 +126,10 @@ export async function loadFindingDetailView(
     ? buildDeveloperHandoff(project, control, finding, remediation)
     : null;
 
-  const scopedFindings = findingsInScope(runtime.findings, project);
-  const controls = shippedCatalog().controls;
-  const queueFilterContext: FilterFindingsContext = {
-    controls,
-    remediationStatusFor: (findingId) =>
-      remediationByFindingId.get(findingId)?.status,
-  };
-
-  const queueIds = orderedFindingIdsForQueue(
-    scopedFindings,
-    listParams,
-    queueFilterContext,
+  const queuePosition = findingQueuePosition(
+    await loadFindingQueueIds(project, listParams),
+    finding.id,
   );
-  const queuePosition = findingQueuePosition(queueIds, finding.id);
 
   // Staleness anchor: the latest AI suggestion/patch evidence stamps the
   // location it was generated for. A re-scan that moved the finding leaves
@@ -177,9 +163,46 @@ export async function loadFindingDetailView(
     aiAvailable,
     act,
     handoff,
-    queueIds,
     queuePosition,
     listParams,
     suggestionStale,
   };
+}
+
+/**
+ * Ordered finding ids for the prev/next queue of one tab.
+ *
+ * Ids come straight from SQL (severity-first, same order as the list) with the
+ * SQL-expressible filters applied — the page never loads the tab's payloads.
+ * Free-text search matches catalog text SQL cannot see, so only that case falls
+ * back to the bounded payload load.
+ */
+async function loadFindingQueueIds(
+  project: Project,
+  listParams: FindingListParams,
+): Promise<string[]> {
+  if (listParams.q) {
+    const runtime = await getProjectRuntime(project.id, {
+      findingStatuses: [listParams.tab],
+    });
+    const context: FilterFindingsContext = {
+      controls: shippedCatalog().controls,
+      remediationStatusFor: (findingId) =>
+        runtime.remediations.find((row) => row.findingId === findingId)?.status,
+    };
+    return orderedFindingIdsForQueue(
+      findingsInScope(runtime.findings, project),
+      listParams,
+      context,
+    );
+  }
+  const scoped = scopedControlIds(project);
+  return listFindingIdsForQueue(await getDrizzle(), project.id, {
+    statuses: [listParams.tab],
+    severity: listParams.severity,
+    controlId: listParams.control,
+    ...(scoped ? { controlIds: [...scoped] } : {}),
+    engine: listParams.engine,
+    remediation: listParams.remediation,
+  });
 }

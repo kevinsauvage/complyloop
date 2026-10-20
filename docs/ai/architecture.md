@@ -146,15 +146,24 @@ Chain per domain. `exists` = shipped, `evolves` = shipped but domain-blind today
   findings pages load via `src/server/reporting/evidence-queries.ts` and
   `src/server/workspace/project-view.ts` (`loadFindingsView`).
 - **Writes (the write model)** — all mutations go through helpers in
-  `src/server/workspace/workspace-write.ts` (`withProjectWrite` /
-  `withFindingWrite` / `withOrgWrite` / `withConnectWrite`) with locking in
-  `src/server/workspace/db.ts` (`withProjectLock`). Finding-scope permission
-  (`requireOnFindingProject`) lives in
-  `src/server/workspace/project-visibility.ts` so the write layer never
-  imports from the action edge.
+  `src/server/workspace/workspace-write.ts` (`withProjectTx` /
+  `withOrgWrite` / `withConnectWrite`) with locking in
+  `src/server/workspace/db.ts` (`withProjectLock`). The permission matrix lives
+  in `src/server/workspace/project-visibility.ts` (`assertProjectPermission`
+  over the project's org memberships) so the write layer never imports from the
+  action edge.
   - Project **compliance** mutations (findings, remediations, requirements,
-    evidence) → `withProjectWrite` / `withFindingWrite` (locking,
-    stale-write guards, evidence appends).
+    evidence) → `withProjectTx(projectId, permission, fn)`: authorize, take the
+    project lock, open one transaction, and let the callback call the explicit
+    repo functions for the rows it touches (`upsertFindings`,
+    `upsertRemediations`, `upsertRequirements`, `insertEvidence`,
+    `updateProject`). No project-wide load, snapshot or diff: a click costs what
+    it touches, not the project's history.
+  - Requirement status after a write is re-derived by
+    `refreshRequirementsForControls(tx, project, controlIds, options)`
+    (`src/server/assessment/assessment-status.ts`): it loads only those
+    controls' requirement rows and **open findings**, reuses the pure
+    `refreshRequirementStatuses`, and returns the changed rows to write.
   - Tenancy/org/connect mutations → `withOrgWrite` / `withConnectWrite`.
   - Actions never call `getDrizzle()` (ESLint).
   - Single-row alert touches use the `requireAlertAccess` /
@@ -165,9 +174,8 @@ Chain per domain. `exists` = shipped, `evolves` = shipped but domain-blind today
     reporting loaders, and job/infra paths. SQL lives in `packages/db/repo/*`
     (rate-limit buckets, GitHub tokens, webhook deliveries each have a repo
     module — server files keep only policy/cryptography).
-  - Callback returns a `ProjectWritePayload` (or void); `persistProjectRows`
-    upserts it. Org writes return `{ result, insertOrgs, upsertMemberships,
-deleteMembershipIds, deleteOrgIds }` — no JSON-diff of the in-memory slice.
+  - Org writes return `{ result, insertOrgs, upsertMemberships,
+deleteMembershipIds, deleteOrgIds }` — explicit rows, no in-memory slice diff.
   - Connect/disconnect uses `withConnectWrite` (tenancy load, org lock, no
     project lock — there may be no active project yet) and returns
     `{ result, insertProjects, deleteProjectIds, evidence }`.
@@ -179,15 +187,15 @@ deleteMembershipIds, deleteOrgIds }` — no JSON-diff of the in-memory slice.
     `applyAuthoritativeAssessment` reconcile on rows it loads **inside** the
     apply transaction, under the project lock — so a scan that takes minutes
     cannot reconcile a stale slice.
-  - Stale-write guards take a single `loadedSlice` (`ProjectSlice`) and apply
-    to **interactive** writes: `persistProjectRows` derives the per-entity
-    `updatedAt` maps. Assessment apply does not use the guard — it reconciles
-    against the same rows it loads under the lock (`applyAssessmentPayload`
-    with a `baseline`), so a row a user edited mid-scan is reconciled, not
-    silently skipped while its evidence lands.
-  - Project-scoped filtering is shared via `projectScopedSlice` (used by
-    `snapshotProjectSlice`, assessment scratch clones, and
-    `buildAssessmentApplyPayload`).
+  - Stale writes are prevented by the lock, not by `updatedAt` comparison:
+    every writer of a project's findings, remediations, requirements or alerts
+    holds `project-write:{projectId}`, and interactive writes read the rows
+    they mutate _inside_ that transaction — so a concurrent human decision
+    cannot be reverted by a stale copy. Assessment apply reconciles against the
+    rows it loads under the lock too (`applyAssessmentPayload` with a
+    `baseline`), skipping unchanged rows only to avoid churning `updatedAt`.
+  - Project-scoped filtering is shared via `projectScopedSlice` (assessment
+    scratch clones).
 - **Locks** — job claim `FOR UPDATE SKIP LOCKED`. Interactive project writes
   and apply take `project-write:{projectId}`; org and connect writes take the
   user-scoped org lock.
@@ -198,9 +206,10 @@ deleteMembershipIds, deleteOrgIds }` — no JSON-diff of the in-memory slice.
   - Corrupt job payloads terminal-fail at claim time instead of scanning.
   - Scan authority is explicit (`resolveJobAuthoritative`: manual, or webhook
     push without a PR SHA).
-  - Requirement, finding and remediation upserts skip rows whose DB `updatedAt`
-    is newer than the loaded slice (`repo/upsert-guard.ts`), so a stale apply
-    cannot revert a concurrent human decision.
+  - Project `updatedAt` on findings/remediations/requirements is still stamped
+    on every write (`repo/upsert-guard.ts`), but it is no longer a stale-write
+    guard: the per-project lock serialises writers and each write reads its
+    target row inside its own transaction.
 - **Latest assessment** — `latestAssessmentFor` compares `completedAt`.
   Do not use `.at(-1)` (loaders return newest-first).
 - **Read bounding** — findings list order is severity-first

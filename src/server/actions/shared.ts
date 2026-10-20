@@ -2,13 +2,13 @@ import { revalidatePath } from "next/cache";
 
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
-import { advanceRemediation } from "@/core/requirements/remediation-lifecycle";
 import { getSession } from "@/server/auth-session";
 
-import { assertProjectPermission } from "../workspace/project-visibility";
-import type { Workspace } from "../workspace/workspace";
+import {
+  type AccessContext,
+  assertProjectPermission,
+} from "../workspace/project-visibility";
 
 export interface SignedInUser {
   userId: string;
@@ -39,17 +39,15 @@ export function refresh(...paths: string[]): void {
   for (const path of new Set(paths)) revalidatePath(path);
 }
 
-export function replaceRemediation(
-  payload: ProjectWritePayload,
-  updated: ReturnType<typeof advanceRemediation>,
-): void {
-  payload.remediations = [...(payload.remediations ?? []), updated];
-}
-
+/**
+ * Pre-flight permission check against an already-loaded workspace. The write
+ * itself re-authorizes inside `withProjectTx`; this only fails fast before
+ * expensive work (a GitHub round-trip) or a network call.
+ */
 export function requireOnActive(
-  workspace: Workspace,
+  workspace: { project: Project | null; access: AccessContext },
   permission: Parameters<typeof assertProjectPermission>[2],
-): asserts workspace is Workspace & { project: Project } {
+): asserts workspace is { project: Project; access: AccessContext } {
   if (!workspace.project) {
     throw new PublicError("No project connected.");
   }
