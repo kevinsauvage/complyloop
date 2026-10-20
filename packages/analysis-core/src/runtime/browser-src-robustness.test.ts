@@ -27,7 +27,6 @@ import {
   LOAD_HIT_CAPTURE_SRC,
   loadHitCapture,
 } from "./custom-checks/hit-capture";
-import { gapBetweenRects } from "./custom-checks/label-adjacent";
 import {
   IS_LAYOUT_TABLE_SRC,
   isLayoutTable,
@@ -178,8 +177,7 @@ describe("browser source survives bundler anonymization", () => {
   });
 
   it("css color parser body parses as a function body", () => {
-    // Mirrors the `new Function` bodies in non-text-contrast.ts and
-    // forced-colors.ts. The parser nests all helpers so the serialized
+    // Mirrors the `new Function` bodies in non-text-contrast.ts. The parser nests all helpers so the serialized
     // source is complete (no module-scope dangling references).
     const body = `const parseCssColor = (${anonymizeHelper(parseCssColor.toString())}); return parseCssColor(value);`;
     expect(() => new Function("value", body)).not.toThrow();
@@ -187,12 +185,6 @@ describe("browser source survives bundler anonymization", () => {
     expect(anonymizeHelper(parseCssColor.toString())).not.toMatch(
       /__vite_ssr_import__|__vite_ssr_dynamic_import__|require\(/,
     );
-  });
-
-  it("label gap body parses as a function body", () => {
-    // Mirrors the `new Function` body in label-adjacent.ts.
-    const body = `const gapBetweenRects = (${anonymizeHelper(gapBetweenRects.toString())}); return gapBetweenRects(a, b);`;
-    expect(() => new Function("a", "b", body)).not.toThrow();
   });
 
   it("leaf helpers stay self-contained (no cross-closure references)", () => {

@@ -1,15 +1,20 @@
+"use client";
+
+import { useSyncExternalStore } from "react";
+
 import { formatDateTimeWithZone } from "@/core/datetime";
 import { cn } from "@/lib/utils";
 
+const subscribe = () => () => {};
+
 /**
- * Zone-qualified timestamp for viewer UI (server component — no client
- * boundary, no hydration mismatch).
- *
- * The previous client-side `toLocaleString` rendered UTC on hard loads
- * (Vercel server TZ, kept by `suppressHydrationWarning`) and local time on
- * client navigations — inconsistent instants in a compliance product.
- * `formatDateTimeWithZone` appends the renderer offset (e.g. "+02:00"), so
- * the printed instant is unambiguous everywhere, matching reports/exports.
+ * Zone-qualified timestamp for viewer UI. Every instance renders the same
+ * way no matter where its parent runs: the server pass and the hydration
+ * pass print UTC, then the browser re-renders in the viewer's zone. Before
+ * this, server-rendered stamps (Vercel = UTC) and stamps inside client
+ * components (browser zone) sat side by side on the dashboard and disagreed
+ * by the UTC offset. The printed offset (e.g. "UTC+02:00") keeps the instant
+ * unambiguous in both passes.
  */
 export function FormattedDateTime({
   iso,
@@ -18,9 +23,14 @@ export function FormattedDateTime({
   iso: string;
   className?: string;
 }) {
+  const label = useSyncExternalStore(
+    subscribe,
+    () => formatDateTimeWithZone(iso),
+    () => formatDateTimeWithZone(iso, "UTC"),
+  );
   return (
     <time dateTime={iso} className={cn(className)}>
-      {formatDateTimeWithZone(iso)}
+      {label}
     </time>
   );
 }

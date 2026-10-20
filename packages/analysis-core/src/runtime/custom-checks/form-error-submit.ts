@@ -1,5 +1,6 @@
 import type { Page } from "playwright-core";
 
+import { withBlockedWrites } from "./block-writes.ts";
 import {
   isInvalidField,
   submitFirstValidatableForm,
@@ -21,9 +22,13 @@ const IS_INVALID_SOURCE = isInvalidField.toString();
  * and focus is predictable. Browser-native validation messages are not custom
  * error UI and are left alone.
  */
-export async function formErrorSubmitViolation(
+export function formErrorSubmitViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
+  return withBlockedWrites(page, () => submitAndInspect(page));
+}
+
+async function submitAndInspect(page: Page): Promise<CustomViolation | null> {
   const submitted = await page.evaluate(submitFirstValidatableForm);
 
   if (!submitted) return null;

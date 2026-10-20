@@ -92,4 +92,31 @@ describe("formErrorSubmitViolation", () => {
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "never lets the probe send a write request to the audited site",
+    async () => {
+      await withProbePage(
+        `
+        <!doctype html><html lang="fr"><body>
+          <form id="f" method="post" action="/subscribe">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" />
+            <button type="submit">Envoyer</button>
+          </form>
+        </body></html>
+      `,
+        async (page) => {
+          let reachedNetwork = false;
+          await page.route("**/subscribe", async (route) => {
+            reachedNetwork = true;
+            await route.fulfill({ status: 200, body: "ok" });
+          });
+          await formErrorSubmitViolation(page);
+          expect(reachedNetwork).toBe(false);
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
 });

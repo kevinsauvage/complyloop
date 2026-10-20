@@ -71,7 +71,7 @@ describe("findingsFromAxePages", () => {
         violations: [],
         customFindings: [
           {
-            checkId: "focus-not-obscured-enhanced",
+            checkId: "focus-not-obscured",
             kind: "violation",
             severity: "serious",
             confidence: "high",
@@ -87,7 +87,7 @@ describe("findingsFromAxePages", () => {
             },
             fix: null,
             analyzerId: "playwright-custom",
-            analyzerRuleId: "focus-not-obscured-enhanced",
+            analyzerRuleId: "focus-not-obscured",
           },
         ],
       },

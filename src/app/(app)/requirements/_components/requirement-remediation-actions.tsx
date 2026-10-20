@@ -8,6 +8,7 @@ import type { Control } from "@complyloop/analysis-core/contract/project-types";
 
 import { ReasonNoteFields } from "@/components/forms/reason-note-fields";
 import { StatefulActionForm } from "@/components/forms/stateful-action-form";
+import { FormattedDateTime } from "@/components/primitives/formatted-datetime";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -30,17 +31,10 @@ export function RequirementRemediationActions({
   control,
   requirement,
   canRemediate,
-  humanPassAtLabel,
-  exceptionAtLabel,
-  exceptionExpiresAtLabel,
 }: {
   control: Control;
   requirement: Requirement;
   canRemediate: boolean;
-  /** Server-formatted zone-qualified stamps (this file is client-rendered). */
-  humanPassAtLabel?: string;
-  exceptionAtLabel?: string;
-  exceptionExpiresAtLabel?: string;
 }) {
   // Drives the conditional `required` on the expiry date (server enforces it
   // too — this just surfaces the requirement before submit).
@@ -66,9 +60,7 @@ export function RequirementRemediationActions({
             {requirement.humanPass.note}
             <span className="mt-1 block text-xs text-muted-foreground">
               Set{" "}
-              <time dateTime={requirement.humanPass.at}>
-                {humanPassAtLabel ?? requirement.humanPass.at}
-              </time>{" "}
+              <FormattedDateTime iso={requirement.humanPass.at} />{" "}
               — sticky until cleared (assessments will not overwrite).
             </span>
             {canRemediate ? (
@@ -99,16 +91,12 @@ export function RequirementRemediationActions({
             {requirement.exception.note}
             <span className="mt-1 block text-xs text-muted-foreground">
               Set{" "}
-              <time dateTime={requirement.exception.at}>
-                {exceptionAtLabel ?? requirement.exception.at}
-              </time>
+              <FormattedDateTime iso={requirement.exception.at} />
               {requirement.exception.expiresAt ? (
                 <>
                   {" "}
                   — expires{" "}
-                  <time dateTime={requirement.exception.expiresAt}>
-                    {exceptionExpiresAtLabel ?? requirement.exception.expiresAt}
-                  </time>
+                  <FormattedDateTime iso={requirement.exception.expiresAt} />
                 </>
               ) : (
                 " — sticky until cleared (assessments will not overwrite)"

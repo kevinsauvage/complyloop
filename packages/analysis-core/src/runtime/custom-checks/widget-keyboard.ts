@@ -145,6 +145,10 @@ async function collectWidgetHits(
       const seen = new Set<string>();
 
       document.querySelectorAll(selector).forEach((el) => {
+        // A toggle hidden at this viewport (desktop-only or mobile-only
+        // control) is not reachable by anyone, so it cannot trap them.
+        if (el.getClientRects().length === 0) return;
+        if (el.closest("[inert]")) return;
         if (!isViolation(el, helpers)) return;
 
         const key = `${el.id}\0${el.getAttribute("role") ?? ""}\0${el.tagName}`;

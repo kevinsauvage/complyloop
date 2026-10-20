@@ -175,28 +175,6 @@ export async function focusCustomViolations(
     });
   }
 
-  if (collected.obscuredEnhanced.length > 0) {
-    violations.push({
-      id: "focus-not-obscured-enhanced",
-      impact: "serious",
-      description:
-        "Any part of the focused control is covered by other content.",
-      help: "No part of the focused control may be hidden (WCAG 2.4.12).",
-      nodes: collected.obscuredEnhanced,
-    });
-  }
-
-  if (collected.appearance.length > 0) {
-    violations.push({
-      id: "focus-appearance",
-      impact: "moderate",
-      description:
-        "Focus indicator is too thin to meet minimum size requirements.",
-      help: "Focus indicators need sufficient area and contrast (WCAG 2.4.13).",
-      nodes: collected.appearance,
-    });
-  }
-
   return violations;
 }
 
@@ -218,8 +196,6 @@ interface FocusStopResult {
   sequenceKey: string;
   visible: FocusStopHit | null;
   obscured: FocusStopHit | null;
-  obscuredEnhanced: FocusStopHit | null;
-  appearance: FocusStopHit | null;
 }
 
 function takeFocusHit(
@@ -235,7 +211,7 @@ function takeFocusHit(
 
 /**
  * One Tab traversal feeding every focus check: per stop a single evaluate
- * computes the visible/obscured/appearance predicates for the focused
+ * computes the visible/obscured predicates for the focused
  * element and the trap-analysis sequence key. Predicates are verbatim copies
  * of the former per-collector bodies — only the traversal is shared.
  */
@@ -243,17 +219,11 @@ async function collectFocusWalkViolations(page: Page): Promise<{
   visible: CustomViolationNode[];
   trap: CustomViolationNode | null;
   obscured: CustomViolationNode[];
-  obscuredEnhanced: CustomViolationNode[];
-  appearance: CustomViolationNode[];
 }> {
   const visible: CustomViolationNode[] = [];
   const obscured: CustomViolationNode[] = [];
-  const obscuredEnhanced: CustomViolationNode[] = [];
-  const appearance: CustomViolationNode[] = [];
   const seenVisible = new Set<string>();
   const seenObscured = new Set<string>();
-  const seenObscuredEnhanced = new Set<string>();
-  const seenAppearance = new Set<string>();
   const sequence: string[] = [];
 
   const focusableCount = await page.evaluate((selector) => {
@@ -316,47 +286,19 @@ async function collectFocusWalkViolations(page: Page): Promise<{
 
         function firstObscuredCorner(
           target: Element,
-          strict: boolean,
         ): { x: number; y: number; corner: string } | undefined {
           const rect = target.getBoundingClientRect();
           if (rect.width === 0 || rect.height === 0) return undefined;
-          const corners = strict
-            ? [
-                { corner: "top-left", x: rect.left + 1, y: rect.top + 1 },
-                { corner: "top-right", x: rect.right - 1, y: rect.top + 1 },
-                { corner: "bottom-left", x: rect.left + 1, y: rect.bottom - 1 },
-                {
-                  corner: "bottom-right",
-                  x: rect.right - 1,
-                  y: rect.bottom - 1,
-                },
-                {
-                  corner: "center",
-                  x: rect.left + rect.width / 2,
-                  y: rect.top + rect.height / 2,
-                },
-              ]
-            : [
-                {
-                  corner: "center",
-                  x: rect.left + rect.width / 2,
-                  y: rect.top + rect.height / 2,
-                },
-              ];
+          const corners = [
+            {
+              corner: "center",
+              x: rect.left + rect.width / 2,
+              y: rect.top + rect.height / 2,
+            },
+          ];
           return corners.find((corner) =>
             pointObscured(target, corner.x, corner.y),
           );
-        }
-
-        function indicatorTooSmall(target: Element): boolean {
-          const style = getComputedStyle(target);
-          const outlineWidth = parseFloat(style.outlineWidth) || 0;
-          if (outlineWidth >= 2) return false;
-          const shadow = style.boxShadow;
-          if (!shadow || shadow === "none") return true;
-          const match = /(\d+(?:\.\d+)?)px/.exec(shadow);
-          if (!match) return true;
-          return parseFloat(match[1] ?? "0") < 2;
         }
 
         const key = sequenceKey();
@@ -364,8 +306,6 @@ async function collectFocusWalkViolations(page: Page): Promise<{
           sequenceKey: key,
           visible: null,
           obscured: null,
-          obscuredEnhanced: null,
-          appearance: null,
         };
 
         const el = document.activeElement;
@@ -404,31 +344,16 @@ async function collectFocusWalkViolations(page: Page): Promise<{
         }
 
         let obscuredHit: FocusStopHit | null = null;
-        const obscuredAt = firstObscuredCorner(el, false);
+        const obscuredAt = firstObscuredCorner(el);
         if (obscuredAt) {
           const capture = captureHit(el, { obscuredAt });
           obscuredHit = { key: capture.selector, capture };
-        }
-
-        let obscuredEnhancedHit: FocusStopHit | null = null;
-        const obscuredAtStrict = firstObscuredCorner(el, true);
-        if (obscuredAtStrict) {
-          const capture = captureHit(el, { obscuredAt: obscuredAtStrict });
-          obscuredEnhancedHit = { key: capture.selector, capture };
-        }
-
-        let appearanceHit: FocusStopHit | null = null;
-        if (indicatorTooSmall(el)) {
-          const capture = captureHit(el);
-          appearanceHit = { key: capture.selector, capture };
         }
 
         return {
           sequenceKey: key,
           visible: visibleHit,
           obscured: obscuredHit,
-          obscuredEnhanced: obscuredEnhancedHit,
-          appearance: appearanceHit,
         };
       },
       {
@@ -442,23 +367,7 @@ async function collectFocusWalkViolations(page: Page): Promise<{
     let fresh = false;
     fresh = takeFocusHit(result.visible, seenVisible, visible) || fresh;
     fresh = takeFocusHit(result.obscured, seenObscured, obscured) || fresh;
-    fresh =
-      takeFocusHit(
-        result.obscuredEnhanced,
-        seenObscuredEnhanced,
-        obscuredEnhanced,
-      ) || fresh;
-    fresh =
-      takeFocusHit(result.appearance, seenAppearance, appearance) || fresh;
-    if (
-      stop > 5 &&
-      !fresh &&
-      seenVisible.size +
-        seenObscured.size +
-        seenObscuredEnhanced.size +
-        seenAppearance.size >
-        0
-    ) {
+    if (stop > 5 && !fresh && seenVisible.size + seenObscured.size > 0) {
       break;
     }
   }
@@ -483,5 +392,5 @@ async function collectFocusWalkViolations(page: Page): Promise<{
     trap = trapHit ? toViolationNode(trapHit) : null;
   }
 
-  return { visible, trap, obscured, obscuredEnhanced, appearance };
+  return { visible, trap, obscured };
 }

@@ -84,7 +84,7 @@ describe("FindingUnderstandCard", () => {
     ]);
     const runtimeFinding: Finding = {
       ...finding,
-      checkId: "focus-not-obscured-enhanced",
+      checkId: "focus-not-obscured",
       location: {
         kind: "dom",
         url: "https://www.kevin-sauvage.com/a",

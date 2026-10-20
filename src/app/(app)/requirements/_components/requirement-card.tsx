@@ -16,7 +16,6 @@ import { FormattedDateTime } from "@/components/primitives/formatted-datetime";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { formatDateTimeWithZone } from "@/core/datetime";
 import { determinationDisplay, requirementStatusDisplay } from "@/core/display";
 import { findingsListHref } from "@/core/filter-params";
 import {
@@ -179,21 +178,6 @@ export function RequirementCard({
           control={control}
           requirement={requirement}
           canRemediate={canRemediate}
-          humanPassAtLabel={
-            requirement.humanPass
-              ? formatDateTimeWithZone(requirement.humanPass.at)
-              : undefined
-          }
-          exceptionAtLabel={
-            requirement.exception
-              ? formatDateTimeWithZone(requirement.exception.at)
-              : undefined
-          }
-          exceptionExpiresAtLabel={
-            requirement.exception?.expiresAt
-              ? formatDateTimeWithZone(requirement.exception.expiresAt)
-              : undefined
-          }
         />
       </CardContent>
     </Card>

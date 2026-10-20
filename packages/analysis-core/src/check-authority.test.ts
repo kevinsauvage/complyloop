@@ -82,7 +82,7 @@ describe("check authority", () => {
     }
     expect(isRuntimeOnlyCheck("img-alt")).toBe(false);
     expect(isRuntimeOnlyCheck("input-label")).toBe(false);
-    expect(RUNTIME_ONLY_CHECK_IDS.length).toBeGreaterThan(55);
+    expect(RUNTIME_ONLY_CHECK_IDS.length).toBeGreaterThan(45);
   });
 
   it("keeps runtime findings open only for authority-gated ids", () => {
@@ -91,7 +91,7 @@ describe("check authority", () => {
     expect(keepsRuntimeFindingsOpen("empty-heading")).toBe(true);
     expect(keepsRuntimeFindingsOpen("target-size")).toBe(true);
     expect(keepsRuntimeFindingsOpen("target-size-enhanced")).toBe(true);
-    expect(keepsRuntimeFindingsOpen("forced-colors")).toBe(true);
+    expect(keepsRuntimeFindingsOpen("reflow")).toBe(true);
     expect(keepsRuntimeFindingsOpen("img-alt")).toBe(false);
   });
 
@@ -143,9 +143,9 @@ describe("check authority", () => {
     expect(authorityForCheck("consistent-lang")).toBe("site_level");
     expect(isRuntimeOnlyCheck("consistent-lang")).toBe(false);
 
-    expect(isRuntimeOnlyCheck("label-adjacent")).toBe(true);
-    expect(isHeuristicCheck("label-adjacent")).toBe(false);
-    expect(authorityForCheck("label-adjacent")).toBe("runtime_only");
+    expect(isRuntimeOnlyCheck("reflow")).toBe(true);
+    expect(isHeuristicCheck("reflow")).toBe(false);
+    expect(authorityForCheck("reflow")).toBe("runtime_only");
     expect(authorityForCheck("video-caption")).toBe("runtime_only");
     expect(authorityForCheck("audio-caption")).toBe("runtime_only");
     expect(authorityForCheck("media-controls-present")).toBe("heuristic");

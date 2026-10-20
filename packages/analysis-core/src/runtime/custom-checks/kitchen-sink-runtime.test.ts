@@ -4,16 +4,12 @@ import { describe, expect, it } from "vitest";
 import type { CheckId } from "../../check-registry.ts";
 import { accessibleAuthEnhancedViolation } from "./accessible-auth-enhanced";
 import { captchaAlternativeViolation } from "./captcha-alternative";
-import { cssDisabledContentViolations } from "./css-disabled-content";
-import { cssHoverKeyboardViolation } from "./css-hover-keyboard";
 import { cssOffUnderstandableViolation } from "./css-off-understandable";
 import { dialogFocusViolations } from "./dialog-focus";
 import { errorPreventionViolation } from "./error-prevention";
 import { focusCustomViolations } from "./focus";
-import { forcedColorsViolation } from "./forced-colors";
 import { formErrorSubmitViolation } from "./form-error-submit";
 import { hoverContentViolation } from "./hover-content";
-import { labelAdjacentViolation } from "./label-adjacent";
 import { LAYOUT_TABLE_IMPLICIT_BODY } from "./layout-table-fixtures";
 import { layoutTableLinearizationViolation } from "./layout-table-linearization";
 import { liveRegionUpdatesViolation } from "./live-region-updates";
@@ -28,7 +24,6 @@ import {
 import { registerPlaywrightBrowserTeardown } from "./playwright-test-teardown";
 import { reducedMotionViolation } from "./reduced-motion";
 import { reflowViolation } from "./reflow";
-import { resizeTextViolation } from "./resize-text";
 import { supplementaryContentKeyboardViolation } from "./supplementary-content-keyboard";
 import { targetSizeEnhancedViolation } from "./target-size-enhanced";
 import { textSpacingRuntimeViolation } from "./text-spacing-runtime";
@@ -76,8 +71,8 @@ describe("kitchen-sink custom probes", () => {
   probeCase(
     "text-spacing-runtime",
     `<!doctype html><html lang="en"><body>
-      <style>#ts{width:150px;height:20px;overflow:hidden;white-space:nowrap}</style>
-      <p id="ts">A long line of text that must clip once spacing grows</p>
+      <style>#ts{width:600px;height:20px;overflow:hidden;white-space:nowrap}</style>
+      <p id="ts">Text that fits until spacing grows</p>
     </body></html>`,
     textSpacingRuntimeViolation,
   );
@@ -88,24 +83,6 @@ describe("kitchen-sink custom probes", () => {
       <button id="ok" aria-label="OK" style="width:40px;height:40px;border:1px solid #eeeeee;background:#ffffff;color:#000000"></button>
     </body></html>`,
     nonTextContrastViolation,
-  );
-
-  probeCase(
-    "label-adjacent",
-    `<!doctype html><html lang="en"><body>
-      <label for="email">Email address</label>
-      <input id="email" style="position:absolute;left:400px" type="email">
-    </body></html>`,
-    labelAdjacentViolation,
-  );
-
-  probeCase(
-    "css-disabled-content",
-    `<!doctype html><html lang="fr"><body>
-      <style>.download::before{content:"Télécharger le document"}</style>
-      <span class="download" aria-label="Télécharger"></span>
-    </body></html>`,
-    cssDisabledContentViolations,
   );
 
   it.skipIf(!chromiumExecutableAvailable())(
@@ -126,15 +103,6 @@ describe("kitchen-sink custom probes", () => {
       );
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
-  );
-
-  probeCase(
-    "css-hover-keyboard",
-    `<!doctype html><html lang="en"><body>
-      <style>.menu .panel{display:none}.menu:hover .panel{display:block}</style>
-      <div class="menu"><button>Menu</button><div class="panel">Panel content</div></div>
-    </body></html>`,
-    cssHoverKeyboardViolation,
   );
 
   it.skipIf(!chromiumExecutableAvailable())(
@@ -217,25 +185,6 @@ describe("kitchen-sink custom probes", () => {
       <style>#cover{position:fixed;inset:0;background:white;z-index:9999}</style>
       <button id="go">Go</button>
       <div id="cover">Overlay</div>
-    </body></html>`,
-    focusCustomViolations,
-  );
-
-  probeCase(
-    "focus-not-obscured-enhanced",
-    `<!doctype html><html lang="en"><body>
-      <style>#cover{position:fixed;inset:0;background:white;z-index:9999}</style>
-      <button id="go">Go</button>
-      <div id="cover">Overlay</div>
-    </body></html>`,
-    focusCustomViolations,
-  );
-
-  probeCase(
-    "focus-appearance",
-    `<!doctype html><html lang="en"><body>
-      <style>#go:focus{outline:1px dotted #fefefe;outline-offset:0}</style>
-      <button id="go">Go</button>
     </body></html>`,
     focusCustomViolations,
   );
@@ -360,20 +309,6 @@ describe("kitchen-sink custom probes", () => {
   );
 
   probeCase(
-    "forced-colors",
-    `<!doctype html><html lang="fr"><head><style>
-      .icon-btn {
-        box-shadow: 0 0 0 2px #000;
-        border: 0;
-        background: transparent;
-      }
-    </style></head><body>
-      <button class="icon-btn" aria-label="Supprimer"></button>
-    </body></html>`,
-    forcedColorsViolation,
-  );
-
-  probeCase(
     "reduced-motion",
     `<!doctype html><html lang="en"><body>
       <style>.spinner{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}</style>
@@ -388,14 +323,6 @@ describe("kitchen-sink custom probes", () => {
       <div id="wide" style="width:800px">Wide content that cannot wrap.</div>
     </body></html>`,
     reflowViolation,
-  );
-
-  probeCase(
-    "resize-text",
-    `<!doctype html><html lang="en"><body>
-      <div id="clip" style="width:400px;overflow:hidden;white-space:nowrap">A long line of text that clips after the 200 percent resize</div>
-    </body></html>`,
-    resizeTextViolation,
   );
 
   probeCase(

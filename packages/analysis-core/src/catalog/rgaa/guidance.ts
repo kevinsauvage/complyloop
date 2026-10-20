@@ -512,12 +512,6 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       "Raise border, icon, and focus-ring contrast to at least 3:1 against the adjacent background.",
   },
-  "forced-colors": {
-    impact:
-      "Under Windows High Contrast / forced-colors, decorative borders and backgrounds are stripped, so icon-only controls can disappear.",
-    howToFix:
-      "Give interactive controls real borders, outlines, or filled backgrounds that survive forced-colors: active — do not rely on box-shadow or background images.",
-  },
   reflow: {
     impact:
       "Horizontal scrolling at 320px forces zoomed and mobile users to pan sideways to read content (WCAG 1.4.10 / RGAA 10.11).",
@@ -529,12 +523,6 @@ const guidance: Record<CheckId, CheckGuidance> = {
       "When users apply WCAG text-spacing overrides, content is clipped or hidden (WCAG 1.4.12 / RGAA 10.12).",
     howToFix:
       "Remove fixed heights and overflow:hidden on text containers; allow line-height and spacing to grow.",
-  },
-  "label-adjacent": {
-    impact:
-      "A distant label forces sighted users to hunt for which field it names (WCAG 3.3.2 / RGAA 11.4).",
-    howToFix:
-      "Place the <label> immediately before or above its control, or wrap the input inside the label.",
   },
   "redundant-entry": {
     impact:
@@ -559,12 +547,6 @@ const guidance: Record<CheckId, CheckGuidance> = {
       "Related checkbox sets and identity field clusters read as disconnected controls, so users can miss that the fields belong to one question (WCAG 1.3.1 / RGAA 11.5).",
     howToFix:
       "Wrap related controls in a fieldset with a legend (or a labelled group role) to expose one shared question/context.",
-  },
-  "css-disabled-content": {
-    impact:
-      "Text conveyed only through CSS content or background images is invisible when stylesheets are disabled (WCAG 1.3.1 / RGAA 10.2).",
-    howToFix:
-      "Put essential text in HTML, not in ::before/::after content or image-only backgrounds.",
   },
   "media-keyboard": {
     impact:
@@ -596,12 +578,6 @@ const guidance: Record<CheckId, CheckGuidance> = {
     howToFix:
       "Keep help/support/contact entry points in the same relative order across all preview routes.",
   },
-  "resize-text": {
-    impact:
-      "Text that clips or forces horizontal scrolling at 200% resize cannot be read by low-vision users (WCAG 1.4.4 / RGAA 10.4).",
-    howToFix:
-      "Use relative units and flexible layouts so content reflows when text is enlarged to 200%.",
-  },
   "audio-description-track": {
     impact:
       "Video without an audio description track may omit visual information for blind users (WCAG 1.2.5 / RGAA 4.5).",
@@ -625,12 +601,6 @@ const guidance: Record<CheckId, CheckGuidance> = {
       "Embedded objects without a keyboard path cannot be operated without a pointer (WCAG 2.1.1 / RGAA 4.12).",
     howToFix:
       "Add tabIndex and keyboard handlers, or replace the embed with accessible HTML content.",
-  },
-  "css-hover-keyboard": {
-    impact:
-      "Content shown only on pointer hover may be unreachable for keyboard-only users (WCAG 2.1.1 / RGAA 10.14).",
-    howToFix:
-      "Mirror :hover menus and tooltips with :focus styles or explicit keyboard toggles.",
   },
   "consistent-sitemap": {
     impact:
@@ -703,18 +673,6 @@ const guidance: Record<CheckId, CheckGuidance> = {
       "When tab order jumps around the page, keyboard users lose their place and may activate the wrong control.",
     howToFix:
       "Match DOM tab order to the visual layout; avoid positive tabindex and CSS order inversions (WCAG 2.4.3).",
-  },
-  "focus-not-obscured-enhanced": {
-    impact:
-      "Even a partially hidden focus indicator makes it hard to see which control is active.",
-    howToFix:
-      "Ensure sticky headers and overlays never cover any part of the focused control (WCAG 2.4.12).",
-  },
-  "focus-appearance": {
-    impact:
-      "A focus ring that is too thin is easy to miss, especially on high-DPI screens.",
-    howToFix:
-      "Use at least a 2px outline or equivalent box-shadow with sufficient contrast (WCAG 2.4.13).",
   },
   "identical-links-purpose": {
     impact:

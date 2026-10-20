@@ -190,6 +190,7 @@ export const CHECK_REGISTRY = [
   {
     id: "dialog-keyboard",
     authority: "runtime_only",
+    advisory: true,
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-dialog-keyboard",
   },
@@ -515,6 +516,7 @@ export const CHECK_REGISTRY = [
   {
     id: "keyboard-trap",
     authority: "runtime_only",
+    advisory: true,
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-keyboard-trap",
   },
@@ -580,12 +582,6 @@ export const CHECK_REGISTRY = [
     catalogControlId: "ctl-non-text-contrast",
   },
   {
-    id: "forced-colors",
-    authority: "runtime_only",
-    analyzers: ["playwright-custom"],
-    catalogControlId: "ctl-forced-colors",
-  },
-  {
     id: "reflow",
     authority: "runtime_only",
     analyzers: ["playwright-custom"],
@@ -596,12 +592,6 @@ export const CHECK_REGISTRY = [
     authority: "runtime_only",
     analyzers: ["playwright-custom"],
     catalogControlId: "ctl-text-spacing-runtime",
-  },
-  {
-    id: "label-adjacent",
-    authority: "runtime_only",
-    analyzers: ["playwright-custom"],
-    catalogControlId: "ctl-label-adjacent",
   },
   {
     id: "redundant-entry",
@@ -632,12 +622,6 @@ export const CHECK_REGISTRY = [
     authority: "heuristic",
     analyzers: ["ast"],
     catalogControlId: "ctl-media-controls-present",
-  },
-  {
-    id: "css-disabled-content",
-    authority: "runtime_only",
-    analyzers: ["playwright-custom"],
-    catalogControlId: "ctl-css-disabled-content",
   },
   {
     id: "media-keyboard",
@@ -688,12 +672,6 @@ export const CHECK_REGISTRY = [
     catalogControlId: "ctl-field-grouping",
   },
   {
-    id: "resize-text",
-    authority: "runtime_only",
-    analyzers: ["playwright-custom"],
-    catalogControlId: "ctl-resize-text",
-  },
-  {
     id: "audio-description-track",
     authority: "heuristic",
     analyzers: ["ast"],
@@ -716,12 +694,6 @@ export const CHECK_REGISTRY = [
     authority: "standard",
     analyzers: ["ast"],
     catalogControlId: "ctl-media-keyboard-static",
-  },
-  {
-    id: "css-hover-keyboard",
-    authority: "runtime_only",
-    analyzers: ["playwright-custom"],
-    catalogControlId: "ctl-css-hover-keyboard",
   },
   {
     id: "consistent-sitemap",
@@ -798,18 +770,6 @@ export const CHECK_REGISTRY = [
     authority: "runtime_only",
     analyzers: ["axe"],
     catalogControlId: "ctl-focus-order-logical",
-  },
-  {
-    id: "focus-not-obscured-enhanced",
-    authority: "runtime_only",
-    analyzers: ["playwright-custom"],
-    catalogControlId: "ctl-focus-not-obscured-enhanced",
-  },
-  {
-    id: "focus-appearance",
-    authority: "runtime_only",
-    analyzers: ["playwright-custom"],
-    catalogControlId: "ctl-focus-appearance",
   },
   {
     id: "identical-links-purpose",

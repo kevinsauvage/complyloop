@@ -1,5 +1,6 @@
 import type { Page } from "playwright-core";
 
+import { withBlockedWrites } from "./block-writes.ts";
 import {
   isInvalidField,
   submitFirstValidatableForm,
@@ -71,9 +72,13 @@ type LiveRegionHelpers = {
   collectFormStatusHits: CollectFormStatusHits;
 };
 
-export async function liveRegionUpdatesViolation(
+export function liveRegionUpdatesViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
+  return withBlockedWrites(page, () => observeFormSubmit(page));
+}
+
+async function observeFormSubmit(page: Page): Promise<CustomViolation | null> {
   const before = await page.evaluate(
     ({ patternSource, helperSrc }) => {
       const statusPattern = new RegExp(patternSource, "i");

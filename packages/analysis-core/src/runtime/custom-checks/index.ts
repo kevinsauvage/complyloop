@@ -10,16 +10,12 @@ import { htmlSnippet, selectorFromTarget } from "../dom-location.ts";
 import { rawFindingFromDom } from "../raw-finding-from-dom.ts";
 import { accessibleAuthEnhancedViolation } from "./accessible-auth-enhanced.ts";
 import { captchaAlternativeViolation } from "./captcha-alternative.ts";
-import { cssDisabledContentViolations } from "./css-disabled-content.ts";
-import { cssHoverKeyboardViolation } from "./css-hover-keyboard.ts";
 import { cssOffUnderstandableViolation } from "./css-off-understandable.ts";
 import { dialogFocusViolations } from "./dialog-focus.ts";
 import { errorPreventionViolation } from "./error-prevention.ts";
 import { focusCustomViolations } from "./focus.ts";
-import { forcedColorsViolation } from "./forced-colors.ts";
 import { formErrorSubmitViolation } from "./form-error-submit.ts";
 import { hoverContentViolation } from "./hover-content.ts";
-import { labelAdjacentViolation } from "./label-adjacent.ts";
 import { layoutTableLinearizationViolation } from "./layout-table-linearization.ts";
 import { liveRegionUpdatesViolation } from "./live-region-updates.ts";
 import { mediaIdentificationViolation } from "./media-identification.ts";
@@ -27,7 +23,6 @@ import { mediaKeyboardViolation } from "./media-keyboard.ts";
 import { nonTextContrastViolation } from "./non-text-contrast.ts";
 import { reducedMotionViolation } from "./reduced-motion.ts";
 import { reflowViolation } from "./reflow.ts";
-import { resizeTextViolation } from "./resize-text.ts";
 import { supplementaryContentKeyboardViolation } from "./supplementary-content-keyboard.ts";
 import { targetSizeEnhancedViolation } from "./target-size-enhanced.ts";
 import { textSpacingRuntimeViolation } from "./text-spacing-runtime.ts";
@@ -140,13 +135,7 @@ const MEASUREMENT_PROBES: readonly GuardedProbe[] = [
     run: (page) => textSpacingRuntimeViolation(page),
   },
   { id: "non-text-contrast", run: (page) => nonTextContrastViolation(page) },
-  { id: "label-adjacent", run: (page) => labelAdjacentViolation(page) },
-  {
-    id: "css-disabled-content",
-    run: (page) => cssDisabledContentViolations(page),
-  },
   { id: "media-keyboard", run: (page) => mediaKeyboardViolation(page) },
-  { id: "css-hover-keyboard", run: (page) => cssHoverKeyboardViolation(page) },
   {
     id: "layout-table-linearization",
     run: (page) => layoutTableLinearizationViolation(page),
@@ -192,10 +181,8 @@ const INTERACTION_PROBES: readonly GuardedProbe[] = [
 ];
 
 const VIEWPORT_PROBES: readonly GuardedProbe[] = [
-  { id: "forced-colors", run: (page) => forcedColorsViolation(page) },
   { id: "reduced-motion", run: (page) => reducedMotionViolation(page) },
   { id: "reflow", run: (page) => reflowViolation(page) },
-  { id: "resize-text", run: (page) => resizeTextViolation(page) },
   {
     id: "target-size-enhanced",
     run: (page) => targetSizeEnhancedViolation(page),
