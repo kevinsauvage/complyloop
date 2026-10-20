@@ -38,7 +38,7 @@ export function FindingsTabPanel({
   resultLabel: string;
 }) {
   return (
-    <div className="mt-4 flex flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <FindingsFilterBar params={{ ...listParams, tab }} />
       <h2
         id="findings-results"

@@ -136,8 +136,8 @@ export default async function SettingsPage() {
                 Applies to future assessments only — does not re-score past
                 runs.
               </strong>{" "}
-              Default framework and level for assessments. Browse other
-              frameworks on Requirements without changing this default.
+              The framework and level that assessments and the Requirements page
+              use.
             </>
           }
         >

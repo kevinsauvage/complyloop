@@ -169,135 +169,139 @@ export default async function FindingsPage({
             narrow the list.
           </div>
         ) : null}
-        <FindingsStatusNav
-          listParams={listParams}
-          activeTab={activeTab}
-          totals={{
-            open: openSlice.total,
-            resolved: resolvedSlice.total,
-            dismissed: dismissedSlice.total,
-          }}
-        />
+        <div className="grid gap-4 lg:grid-cols-[13rem_minmax(0,1fr)] lg:items-start lg:gap-8">
+          <FindingsStatusNav
+            listParams={listParams}
+            activeTab={activeTab}
+            totals={{
+              open: openSlice.total,
+              resolved: resolvedSlice.total,
+              dismissed: dismissedSlice.total,
+            }}
+          />
 
-        {activeTab === "resolved" ? (
-          <FindingsTabPanel
-            tab="resolved"
-            slice={resolvedSlice}
-            listParams={listParams}
-            filtersActive={filtersActive}
-            items={resolvedItems}
-            emptyMessage="No resolved findings yet. Fixed findings appear here once verified."
-            emptyAction={
-              <div className="flex flex-wrap items-center justify-center gap-3">
-                <PageActionLink href={findingsListHref({ tab: "open" })}>
-                  Review open findings
-                </PageActionLink>
-                <Button variant="outline" size="sm" asChild>
-                  <Link href="/dashboard">Run assessment</Link>
-                </Button>
-              </div>
-            }
-            filteredEmptyState={filteredEmptyState("resolved")}
-            paginationQuery={paginationQuery}
-            paginationLabel="Resolved findings pagination"
-            resultCount={resolvedSlice.total}
-            resultLabel="resolved"
-          />
-        ) : activeTab === "dismissed" ? (
-          <FindingsTabPanel
-            tab="dismissed"
-            slice={dismissedSlice}
-            listParams={listParams}
-            filtersActive={filtersActive}
-            items={dismissedItems}
-            emptyMessage="No dismissed findings yet. Dismissed findings are documented exceptions with a reason — they appear here once recorded."
-            emptyAction={
-              <PageActionLink href={findingsListHref({ tab: "open" })}>
-                Review open findings
-              </PageActionLink>
-            }
-            filteredEmptyState={filteredEmptyState("dismissed")}
-            paginationQuery={paginationQuery}
-            paginationLabel="Dismissed findings pagination"
-            resultCount={dismissedSlice.total}
-            resultLabel="dismissed"
-          />
-        ) : (
-          <div className="mt-4 flex flex-col gap-4">
-            <FindingsFilterBar
-              params={{ ...listParams, tab: "open" }}
-              controlLabel={
-                listParams.control
-                  ? controls.find(
-                      (control) => control.id === listParams.control,
-                    )?.code
-                  : undefined
-              }
-            />
-            <h2
-              id="findings-results"
-              tabIndex={-1}
-              className="min-h-5 text-sm font-medium text-muted-foreground outline-none"
-            >
-              {openSlice.total === 1
-                ? "1 open finding"
-                : `${openSlice.total} open findings`}
-            </h2>
-            <FocusFilterResults targetId="findings-results" />
-            {openSlice.total === 0 ? (
-              filtersActive ? (
-                filteredEmptyState("open")
-              ) : hasAssessment ? (
-                <EmptyState
-                  title="No open findings"
-                  variant="all-clear"
-                  action={
-                    <div className="flex flex-wrap items-center justify-center gap-3">
-                      <PageActionLink href="/requirements">
-                        View requirements
-                      </PageActionLink>
-                      <Button variant="outline" size="sm" asChild>
-                        <a href={reportHref("audit", "markdown")} download>
-                          Export audit report
-                        </a>
-                      </Button>
-                    </div>
-                  }
-                >
-                  <p>
-                    Everything detected has been fixed, verified, or reviewed.
-                    Export an audit report for reviewers or check Requirements
-                    for the full status picture.
-                  </p>
-                </EmptyState>
-              ) : (
-                <EmptyState title="No assessment yet" variant="first-run">
-                  <p>
-                    Run your first assessment from the dashboard to detect
-                    findings. Evidence and findings will appear here.
-                  </p>
-                </EmptyState>
-              )
+          <div className="min-w-0">
+            {activeTab === "resolved" ? (
+              <FindingsTabPanel
+                tab="resolved"
+                slice={resolvedSlice}
+                listParams={listParams}
+                filtersActive={filtersActive}
+                items={resolvedItems}
+                emptyMessage="No resolved findings yet. Fixed findings appear here once verified."
+                emptyAction={
+                  <div className="flex flex-wrap items-center justify-center gap-3">
+                    <PageActionLink href={findingsListHref({ tab: "open" })}>
+                      Review open findings
+                    </PageActionLink>
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href="/dashboard">Run assessment</Link>
+                    </Button>
+                  </div>
+                }
+                filteredEmptyState={filteredEmptyState("resolved")}
+                paginationQuery={paginationQuery}
+                paginationLabel="Resolved findings pagination"
+                resultCount={resolvedSlice.total}
+                resultLabel="resolved"
+              />
+            ) : activeTab === "dismissed" ? (
+              <FindingsTabPanel
+                tab="dismissed"
+                slice={dismissedSlice}
+                listParams={listParams}
+                filtersActive={filtersActive}
+                items={dismissedItems}
+                emptyMessage="No dismissed findings yet. Dismissed findings are documented exceptions with a reason — they appear here once recorded."
+                emptyAction={
+                  <PageActionLink href={findingsListHref({ tab: "open" })}>
+                    Review open findings
+                  </PageActionLink>
+                }
+                filteredEmptyState={filteredEmptyState("dismissed")}
+                paginationQuery={paginationQuery}
+                paginationLabel="Dismissed findings pagination"
+                resultCount={dismissedSlice.total}
+                resultLabel="dismissed"
+              />
             ) : (
-              <>
-                <FindingsBulkList
-                  items={openItems}
-                  canRemediate={caps.canRemediate}
-                  listParams={{ ...listParams, tab: "open" }}
+              <div className="flex flex-col gap-4">
+                <FindingsFilterBar
+                  params={{ ...listParams, tab: "open" }}
+                  controlLabel={
+                    listParams.control
+                      ? controls.find(
+                          (control) => control.id === listParams.control,
+                        )?.code
+                      : undefined
+                  }
                 />
-                <PaginationNav
-                  page={openSlice.page}
-                  totalPages={openSlice.totalPages}
-                  total={openSlice.total}
-                  basePath="/findings"
-                  query={paginationQuery}
-                  label="Open findings pagination"
-                  pageSize={DEFAULT_PAGE_SIZE}
-                />
-              </>
+                <h2
+                  id="findings-results"
+                  tabIndex={-1}
+                  className="min-h-5 text-sm font-medium text-muted-foreground outline-none"
+                >
+                  {openSlice.total === 1
+                    ? "1 open finding"
+                    : `${openSlice.total} open findings`}
+                </h2>
+                <FocusFilterResults targetId="findings-results" />
+                {openSlice.total === 0 ? (
+                  filtersActive ? (
+                    filteredEmptyState("open")
+                  ) : hasAssessment ? (
+                    <EmptyState
+                      title="No open findings"
+                      variant="all-clear"
+                      action={
+                        <div className="flex flex-wrap items-center justify-center gap-3">
+                          <PageActionLink href="/requirements">
+                            View requirements
+                          </PageActionLink>
+                          <Button variant="outline" size="sm" asChild>
+                            <a href={reportHref("audit", "markdown")} download>
+                              Export audit report
+                            </a>
+                          </Button>
+                        </div>
+                      }
+                    >
+                      <p>
+                        Everything detected has been fixed, verified, or
+                        reviewed. Export an audit report for reviewers or check
+                        Requirements for the full status picture.
+                      </p>
+                    </EmptyState>
+                  ) : (
+                    <EmptyState title="No assessment yet" variant="first-run">
+                      <p>
+                        Run your first assessment from the dashboard to detect
+                        findings. Evidence and findings will appear here.
+                      </p>
+                    </EmptyState>
+                  )
+                ) : (
+                  <>
+                    <FindingsBulkList
+                      items={openItems}
+                      canRemediate={caps.canRemediate}
+                      listParams={{ ...listParams, tab: "open" }}
+                    />
+                    <PaginationNav
+                      page={openSlice.page}
+                      totalPages={openSlice.totalPages}
+                      total={openSlice.total}
+                      basePath="/findings"
+                      query={paginationQuery}
+                      label="Open findings pagination"
+                      pageSize={DEFAULT_PAGE_SIZE}
+                    />
+                  </>
+                )}
+              </div>
             )}
           </div>
-        )}
+        </div>
       </PageContent>
     </>
   );

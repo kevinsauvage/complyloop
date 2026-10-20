@@ -4,7 +4,6 @@ import "server-only";
 import { shippedCatalog } from "@complyloop/analysis-core/catalog/catalog";
 import {
   defaultConnectPreset,
-  isValidPresetId,
   presetById,
   projectDefaultPresetId,
 } from "@complyloop/analysis-core/catalog/registry";
@@ -25,7 +24,6 @@ import {
   type PageSlice,
   paginateSlice,
   parsePageParam,
-  parsePresetIdParam,
   parseRequirementsQueryParam,
   parseRequirementStatusParam,
 } from "@/core/filter-params";
@@ -76,7 +74,6 @@ export async function loadRequirementsView(
 ): Promise<RequirementsView> {
   const statusFilter = parseRequirementStatusParam(rawParams.status);
   const query = parseRequirementsQueryParam(rawParams.q);
-  const urlPresetId = parsePresetIdParam(rawParams.presetId, isValidPresetId);
   const { project, caps } = await loadActiveProjectPage();
   if (!project) return { project: null };
 
@@ -91,7 +88,9 @@ export async function loadRequirementsView(
     project.id,
   );
   const defaultPresetId = projectDefaultPresetId(project);
-  const selectedPresetId = urlPresetId ?? defaultPresetId;
+  // One scope per project, changed in Settings: a stale `?presetId=` link must
+  // not show a different framework than the one assessments use.
+  const selectedPresetId = defaultPresetId;
   const selectedPreset = presetById(selectedPresetId);
   const frameworkId =
     selectedPreset?.frameworkId ?? defaultConnectPreset().frameworkId;
@@ -163,9 +162,6 @@ export async function loadRequirementsView(
   const paginationQuery: Record<string, string> = {};
   if (statusFilter) paginationQuery.status = statusFilter;
   if (query) paginationQuery.q = query;
-  if (selectedPresetId !== defaultPresetId) {
-    paginationQuery.presetId = selectedPresetId;
-  }
 
   const targetLabel = selectedPreset?.name ?? "all catalog controls";
 

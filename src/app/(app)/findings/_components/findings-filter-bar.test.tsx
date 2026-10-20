@@ -17,9 +17,9 @@ describe("FindingsFilterBar", () => {
     );
 
     expect(
-      screen.getByRole("form", { name: /findings filter/i }),
+      screen.getByRole("search", { name: /search findings/i }),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText(/search/i)).toBeInTheDocument();
+    expect(screen.getByRole("searchbox")).toBeInTheDocument();
     expect(screen.getByLabelText(/severity/i)).toBeInTheDocument();
   });
 
@@ -29,8 +29,8 @@ describe("FindingsFilterBar", () => {
       <FindingsFilterBar params={{ tab: "open", page: 1 }} />,
     );
 
-    const form = screen.getByRole("form", {
-      name: /findings filter/i,
+    const form = screen.getByRole("search", {
+      name: /search findings/i,
     }) as HTMLFormElement;
     const submitted: Event[] = [];
     form.addEventListener("submit", (event) => {
@@ -38,10 +38,11 @@ describe("FindingsFilterBar", () => {
       submitted.push(event);
     });
 
+    await user.click(screen.getByText("Filters"));
     await user.selectOptions(screen.getByLabelText(/severity/i), "serious");
     expect(submitted).toHaveLength(0);
 
-    await user.click(screen.getByRole("button", { name: /apply filters/i }));
+    await user.click(screen.getByRole("button", { name: "Search" }));
     expect(submitted).toHaveLength(1);
   });
 
@@ -60,8 +61,9 @@ describe("FindingsFilterBar", () => {
     expect(
       screen.getByRole("link", { name: /clear search filter/i }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /show filters · 2|hide filters/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Reset" })).toHaveAttribute(
+      "href",
+      "/findings",
+    );
   });
 });

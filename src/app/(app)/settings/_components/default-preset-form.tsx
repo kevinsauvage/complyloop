@@ -29,8 +29,7 @@ export function DefaultPresetForm({
       <fieldset className="flex flex-col gap-2">
         <legend className="text-sm font-medium">Default framework scope</legend>
         <p className="text-xs text-muted-foreground">
-          Used for assessments and as the Requirements page default. Browse
-          other framework scopes on Requirements via the URL. Will apply to
+          Used for assessments and shown on the Requirements page. Applies to
           future assessments only.
         </p>
         <ul className="flex flex-col gap-2">

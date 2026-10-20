@@ -1,10 +1,8 @@
 import type { EvidenceKind } from "@complyloop/analysis-core/contract/entities";
 
 import { EvidenceKindBadge } from "@/components/primitives/badges";
-import {
-  FilterChipList,
-  HiddenCategoriesNote,
-} from "@/components/primitives/filter-chip-list";
+import { HiddenCategoriesNote } from "@/components/primitives/filter-chip-list";
+import { RailNav } from "@/components/primitives/rail-nav";
 import {
   EVIDENCE_KIND_FILTER_ORDER,
   evidenceKindHref,
@@ -34,36 +32,47 @@ export function EvidenceKindChips({
   ).length;
   const totalEvidence = [...counts.values()].reduce((a, b) => a + b, 0);
 
+  const allHref = evidenceKindHref(undefined, undefined, filters);
+
   return (
-    <div className="flex flex-col gap-2">
-      <FilterChipList
-        aria-label="Evidence kind filter"
-        allHref={evidenceKindHref(undefined, undefined, filters)}
-        showAll
-        allSelected={!selected}
-        allCount={totalEvidence}
-        items={visibleKinds.map((kind) => {
-          const isSelected = selected === kind;
-          return {
-            key: kind,
-            href: isSelected
-              ? evidenceKindHref(undefined, undefined, filters)
+    <RailNav
+      aria-label="Evidence kind filter"
+      heading="Type"
+      items={[
+        {
+          key: "all",
+          href: allHref,
+          label: "All",
+          count: totalEvidence,
+          current: !selected,
+        },
+        ...visibleKinds.map((kind) => ({
+          key: kind,
+          // Selecting the current kind again clears it, as the chips did.
+          href:
+            selected === kind
+              ? allHref
               : evidenceKindHref(kind, undefined, filters),
-            selected: isSelected,
-            label: <EvidenceKindBadge kind={kind} />,
-            count: counts.get(kind) ?? 0,
-          };
-        })}
-      />
-      {hiddenKindCount > 0 ? (
-        <p className="text-xs text-muted-foreground">
-          Plus {hiddenKindCount} more event type
-          {hiddenKindCount === 1 ? "" : "s"} grouped under these kinds.
-        </p>
-      ) : null}
-      {zeroHidden > 0 ? (
-        <HiddenCategoriesNote count={zeroHidden} noun="evidence" />
-      ) : null}
-    </div>
+          label: <EvidenceKindBadge kind={kind} />,
+          count: counts.get(kind) ?? 0,
+          current: selected === kind,
+        })),
+      ]}
+      footer={
+        hiddenKindCount > 0 || zeroHidden > 0 ? (
+          <div className="flex flex-col gap-2">
+            {hiddenKindCount > 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Plus {hiddenKindCount} more event type
+                {hiddenKindCount === 1 ? "" : "s"} grouped under these kinds.
+              </p>
+            ) : null}
+            {zeroHidden > 0 ? (
+              <HiddenCategoriesNote count={zeroHidden} noun="evidence" />
+            ) : null}
+          </div>
+        ) : null
+      }
+    />
   );
 }

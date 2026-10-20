@@ -9,13 +9,15 @@ import {
   PageSection,
 } from "@/components/primitives/page-primitives";
 import { PaginationNav } from "@/components/primitives/pagination-nav";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  ActiveFilterChip,
+  SearchFilterBar,
+} from "@/components/primitives/search-filter-bar";
+import { requirementsPageHref } from "@/core/filter-params";
 import { loadRequirementsView } from "@/server/workspace/requirements-view";
 
 import { AssessedRequirementList } from "./_components/assessed-requirement-list";
-import { RequirementsPresetPanel } from "./_components/requirements-preset-panel";
+import { RequirementsScopeNote } from "./_components/requirements-scope-note";
 import { RequirementsStatusChips } from "./_components/requirements-status-chips";
 
 export const metadata: Metadata = {
@@ -28,7 +30,6 @@ export default async function RequirementsPage({
 }: {
   searchParams: Promise<{
     status?: string | string[];
-    presetId?: string | string[];
     page?: string | string[];
     q?: string | string[];
   }>;
@@ -72,27 +73,23 @@ export default async function RequirementsPage({
       />
 
       <PageContent>
-        {/* Assessments always evaluate the project default preset —
-            any other ?presetId= is browse-only until a re-assessment runs. */}
-        {selectedPresetId !== defaultPresetId ? (
-          <div
-            role="status"
-            className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
+        <div className="grid gap-4 lg:grid-cols-[14rem_minmax(0,1fr)] lg:items-start lg:gap-8">
+          <aside
+            aria-label="Requirement filters"
+            className="flex flex-col gap-4 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:gap-6 lg:overflow-y-auto"
           >
-            Browse-only — run assessment to evaluate this preset.
-          </div>
-        ) : null}
-        {assessed.length > 0 ? (
-          <RequirementsStatusChips
-            counts={statusCounts}
-            selected={statusFilter}
-            presetId={selectedPresetId}
-            defaultPresetId={defaultPresetId}
-            q={query}
-          />
-        ) : null}
+            {assessed.length > 0 ? (
+              <RequirementsStatusChips
+                counts={statusCounts}
+                selected={statusFilter}
+                presetId={selectedPresetId}
+                defaultPresetId={defaultPresetId}
+                q={query}
+              />
+            ) : null}
+            <RequirementsScopeNote scopeName={targetLabel} />
+          </aside>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <PageSection
             title="Assessed requirements"
             description={
@@ -102,42 +99,39 @@ export default async function RequirementsPage({
                   ? `Showing ${filtered.length} requirement${filtered.length === 1 ? "" : "s"} with selected status.`
                   : `${assessed.length} requirement${assessed.length === 1 ? "" : "s"} in this preset.`
             }
-            className="lg:col-span-2"
+            className="min-w-0 border-t-0 pt-0"
           >
             {assessed.length > 0 ? (
-              <form
-                method="get"
+              <SearchFilterBar
                 action="/requirements"
-                role="search"
-                aria-label="Search requirements"
-                className="flex flex-col gap-2 sm:flex-row sm:items-end"
-              >
-                {statusFilter ? (
-                  <input type="hidden" name="status" value={statusFilter} />
-                ) : null}
-                {selectedPresetId !== defaultPresetId ? (
-                  <input
-                    type="hidden"
-                    name="presetId"
-                    value={selectedPresetId}
-                  />
-                ) : null}
-                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                  <Label htmlFor="requirements-q">Search requirements</Label>
-                  <Input
-                    id="requirements-q"
-                    name="q"
-                    type="search"
-                    defaultValue={query ?? ""}
-                    placeholder="Search code or title…"
-                    maxLength={100}
-                    autoComplete="off"
-                  />
-                </div>
-                <Button type="submit" size="sm" className="shrink-0">
-                  Search
-                </Button>
-              </form>
+                label="Search requirements"
+                inputId="requirements-q"
+                placeholder="Search code or title…"
+                defaultValue={query}
+                hiddenFields={{ status: statusFilter }}
+                activeChips={
+                  query
+                    ? [
+                        <ActiveFilterChip
+                          key="q"
+                          href={requirementsPageHref({
+                            presetId: selectedPresetId,
+                            status: statusFilter,
+                            defaultPresetId,
+                          })}
+                          clearLabel={`Clear search filter ${query}`}
+                        >
+                          <span className="max-w-48 truncate">“{query}”</span>
+                        </ActiveFilterChip>,
+                      ]
+                    : []
+                }
+                resetHref={requirementsPageHref({
+                  presetId: selectedPresetId,
+                  status: statusFilter,
+                  defaultPresetId,
+                })}
+              />
             ) : null}
             {assessed.length === 0 ? (
               <EmptyState
@@ -195,21 +189,6 @@ export default async function RequirementsPage({
               </div>
             )}
           </PageSection>
-
-          <aside aria-label="Preset navigation" className="lg:col-span-1">
-            <PageSection
-              title="Framework scope"
-              description="Browse requirements by framework."
-              className="border-t-0 pt-0"
-            >
-              <RequirementsPresetPanel
-                defaultPresetId={defaultPresetId}
-                selectedPresetId={selectedPresetId}
-                statusFilter={statusFilter}
-                q={query}
-              />
-            </PageSection>
-          </aside>
         </div>
       </PageContent>
     </>

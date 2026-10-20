@@ -1,46 +1,17 @@
-import type { Route } from "next";
-import Link from "next/link";
-import type { ReactNode } from "react";
-
+import { RailNav } from "@/components/primitives/rail-nav";
 import {
   type FindingListParams,
   findingsListHref,
   type FindingsTab,
 } from "@/core/filter-params";
-import { cn } from "@/lib/utils";
 
-function tabHref(
-  tab: FindingsTab,
-  params: FindingListParams,
-): "/findings" | `/findings?${string}` {
-  return findingsListHref({ ...params, tab, page: 1 });
-}
+const TABS: ReadonlyArray<{ tab: FindingsTab; label: string }> = [
+  { tab: "open", label: "Open" },
+  { tab: "resolved", label: "Resolved" },
+  { tab: "dismissed", label: "Dismissed" },
+];
 
-function StatusNavLink({
-  href,
-  current,
-  children,
-}: {
-  href: Route;
-  current: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      aria-current={current ? "page" : undefined}
-      className={cn(
-        "rounded-md px-3 py-1 text-sm font-medium whitespace-nowrap outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
-        current
-          ? "bg-background text-foreground shadow-sm ring-1 ring-border"
-          : "text-muted-foreground",
-      )}
-    >
-      {children}
-    </Link>
-  );
-}
-
+/** Finding lifecycle as a lateral rail (see `RailNav`). */
 export function FindingsStatusNav({
   listParams,
   activeTab,
@@ -48,35 +19,19 @@ export function FindingsStatusNav({
 }: {
   listParams: FindingListParams;
   activeTab: FindingsTab;
-  totals: {
-    open: number;
-    resolved: number;
-    dismissed: number;
-  };
+  totals: Record<FindingsTab, number>;
 }) {
   return (
-    <nav
-      aria-label="Findings"
-      className="surface-panel flex w-full items-center gap-1 overflow-x-auto rounded-xl p-1"
-    >
-      <StatusNavLink
-        href={tabHref("open", listParams)}
-        current={activeTab === "open"}
-      >
-        Open ({totals.open})
-      </StatusNavLink>
-      <StatusNavLink
-        href={tabHref("resolved", listParams)}
-        current={activeTab === "resolved"}
-      >
-        Resolved ({totals.resolved})
-      </StatusNavLink>
-      <StatusNavLink
-        href={tabHref("dismissed", listParams)}
-        current={activeTab === "dismissed"}
-      >
-        Dismissed ({totals.dismissed})
-      </StatusNavLink>
-    </nav>
+    <RailNav
+      aria-label="Finding status"
+      heading="Status"
+      items={TABS.map(({ tab, label }) => ({
+        key: tab,
+        href: findingsListHref({ ...listParams, tab, page: 1 }),
+        label,
+        count: totals[tab],
+        current: activeTab === tab,
+      }))}
+    />
   );
 }

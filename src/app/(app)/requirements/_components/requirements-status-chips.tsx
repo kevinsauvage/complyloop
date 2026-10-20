@@ -2,10 +2,7 @@ import type { RequirementStatus } from "@complyloop/analysis-core/contract/statu
 import { REQUIREMENT_STATUS_DISPLAY_ORDER } from "@complyloop/analysis-core/contract/statuses";
 
 import { RequirementStatusBadge } from "@/components/primitives/badges";
-import {
-  FilterChipList,
-  HiddenCategoriesNote,
-} from "@/components/primitives/filter-chip-list";
+import { RailNavGroup } from "@/components/primitives/rail-nav";
 import { requirementsPageHref } from "@/core/filter-params";
 
 export function RequirementsStatusChips({
@@ -37,25 +34,34 @@ export function RequirementsStatusChips({
       {
         key: status,
         href: isSelected ? pageHref() : pageHref(status),
-        selected: isSelected,
         label: <RequirementStatusBadge status={status} />,
         count,
+        current: isSelected,
       },
     ];
   });
 
   return (
-    <div className="flex flex-col gap-1">
-      <FilterChipList
+    <div className="flex flex-col gap-2">
+      <RailNavGroup
         aria-label="Requirement status filter"
-        allHref={pageHref()}
-        showAll
-        allSelected={!selected}
-        allCount={total}
-        items={items}
+        heading="Status"
+        items={[
+          {
+            key: "all",
+            href: pageHref(),
+            label: "All",
+            count: total,
+            current: !selected,
+          },
+          ...items,
+        ]}
       />
       {hiddenCount > 0 ? (
-        <HiddenCategoriesNote count={hiddenCount} noun="requirement" />
+        <p className="px-3 text-xs text-muted-foreground">
+          No requirements in {hiddenCount}{" "}
+          {hiddenCount === 1 ? "status" : "statuses"} yet
+        </p>
       ) : null}
     </div>
   );
