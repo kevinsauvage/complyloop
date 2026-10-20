@@ -95,7 +95,7 @@ export function StatefulActionForm({
       {shouldRefresh ? (
         <RefreshOnSuccess message={state.message ?? ""} />
       ) : null}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col items-start gap-2">
         <ConfirmSubmitButton
           label={showRetry ? (retryLabel ?? submitLabel) : submitLabel}
           pendingLabel={pendingLabel}

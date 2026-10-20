@@ -50,7 +50,8 @@ interface DashboardViewProject {
     label: string;
     value: string | number;
     href?: Route;
-    tone: "warning" | "success" | "muted" | "signal" | "review";
+    tone:
+      "warning" | "success" | "muted" | "signal" | "review" | "unverifiable";
   }>;
   nextAction: {
     title: string;
@@ -167,21 +168,21 @@ export async function loadDashboardView(): Promise<DashboardView> {
           ? ("signal" as const)
           : ("review" as const);
 
+  // Pass rate leads: it is the one number that answers "how compliant are
+  // we?". Unread alerts were dropped — the alerts card below owns them, and
+  // a permanent "0" in the strip read as noise.
   const quickStats: DashboardViewProject["quickStats"] = latestAssessment
     ? [
+        {
+          label: "Pass rate",
+          value: passRate,
+          tone: passRateTone,
+        },
         {
           label: "Open findings",
           value: openCount,
           href: openCount > 0 ? "/findings" : undefined,
           tone: openCount > 0 ? ("warning" as const) : ("success" as const),
-        },
-        {
-          label: "Unread alerts",
-          value: unreadAlerts.length,
-          href:
-            unreadAlerts.length > 0 ? "#regression-alerts-heading" : undefined,
-          tone:
-            unreadAlerts.length > 0 ? ("warning" as const) : ("muted" as const),
         },
         {
           label: "Failed requirements",
@@ -190,9 +191,16 @@ export async function loadDashboardView(): Promise<DashboardView> {
           tone: failedCount > 0 ? ("warning" as const) : ("muted" as const),
         },
         {
-          label: "Pass rate",
-          value: passRate,
-          tone: passRateTone,
+          label: "Unable to verify",
+          value: counts.unable_to_verify,
+          href:
+            counts.unable_to_verify > 0
+              ? "/requirements?status=unable_to_verify"
+              : undefined,
+          tone:
+            counts.unable_to_verify > 0
+              ? ("unverifiable" as const)
+              : ("muted" as const),
         },
       ]
     : [];

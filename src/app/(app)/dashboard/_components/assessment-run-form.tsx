@@ -47,6 +47,8 @@ export async function AssessmentRunForm({
         action={runAssessmentAction}
         submitLabel="Run assessment"
         pendingLabel="Queuing…"
+        variant="default"
+        size="sm"
         disabled={runningLive}
         refreshOnSuccess
       />

@@ -56,7 +56,7 @@ export function PageHeader({
           ) : null}
         </div>
         {children ? (
-          <div className="flex shrink-0 flex-wrap items-center gap-2 w-full">
+          <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto">
             {children}
           </div>
         ) : null}

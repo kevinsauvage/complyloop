@@ -2,9 +2,12 @@ import { Minus, TrendingDown, TrendingUp } from "lucide-react";
 import { useId } from "react";
 
 import { FormattedDateTime } from "@/components/primitives/formatted-datetime";
-import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
+/**
+ * Pass-rate sparkline for the snapshot panel. Rendered bare (no card) so it
+ * reads as the second half of the snapshot rather than a nested surface.
+ */
 export function AssessmentTrend({
   trend,
   className,
@@ -37,40 +40,42 @@ export function AssessmentTrend({
   const DeltaIcon = delta > 0 ? TrendingUp : delta < 0 ? TrendingDown : Minus;
   const deltaLabel =
     delta > 0 ? `+${delta} pts` : delta < 0 ? `${delta} pts` : "stable";
+  const deltaDescription =
+    delta > 0
+      ? `Up ${delta} points`
+      : delta < 0
+        ? `Down ${Math.abs(delta)} points`
+        : "No change";
 
   return (
-    <Card size="sm" className={cn("shadow-none", className)}>
-      <CardContent className="flex flex-col gap-3 p-4 sm:p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-medium">Pass rate trend</p>
-            <p className="text-xs text-muted-foreground">
-              Last {trend.length} assessments
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-xs tabular-nums",
-                delta > 0 && "bg-status-passed/15 text-status-passed",
-                delta < 0 && "bg-destructive/15 text-destructive",
-                delta === 0 && "bg-muted text-muted-foreground",
-              )}
-            >
-              <DeltaIcon className="size-3.5" aria-hidden />
-              {deltaLabel}
-            </span>
-            <span className="font-mono text-2xl font-semibold tabular-nums tracking-tight">
-              {last.passRate}%
-            </span>
-          </div>
+    <div className={cn("flex h-full flex-col gap-3", className)}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium">Pass rate trend</p>
+          <p className="text-xs text-muted-foreground">
+            Last {trend.length} assessments
+          </p>
         </div>
+        <span
+          className={cn(
+            "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 font-mono text-xs tabular-nums",
+            delta > 0 && "bg-status-passed/15 text-status-passed",
+            delta < 0 && "bg-destructive/15 text-destructive",
+            delta === 0 && "bg-muted text-muted-foreground",
+          )}
+        >
+          <DeltaIcon className="size-3.5" aria-hidden />
+          {deltaLabel}
+          <span className="sr-only"> {deltaDescription}</span>
+        </span>
+      </div>
+      <div className="relative mt-1 min-h-24 flex-1 pr-1.5">
         <svg
           viewBox="0 0 100 100"
           preserveAspectRatio="none"
-          className="h-24 w-full"
+          className="absolute inset-0 size-full"
           role="img"
-          aria-label={`Pass rate trend: ${first.passRate}% to ${last.passRate}% over ${trend.length} assessments (${deltaLabel})`}
+          aria-label={`Pass rate trend: ${first.passRate}% to ${last.passRate}% over ${trend.length} assessments (${deltaDescription.toLowerCase()})`}
         >
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -89,7 +94,7 @@ export function AssessmentTrend({
               strokeWidth="1"
               vectorEffect="non-scaling-stroke"
               className="text-border"
-              opacity="0.6"
+              opacity="0.5"
             />
           ))}
           <polygon
@@ -101,18 +106,24 @@ export function AssessmentTrend({
             points={line}
             fill="none"
             stroke="currentColor"
-            strokeWidth="2.5"
+            strokeWidth="2"
             strokeLinejoin="round"
             strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
             className="text-chart-2"
           />
         </svg>
-        <div className="flex items-baseline justify-between text-xs text-muted-foreground">
-          <FormattedDateTime iso={first.at} />
-          <FormattedDateTime iso={last.at} />
-        </div>
-      </CardContent>
-    </Card>
+        {/* Marker lives outside the SVG so non-uniform scaling keeps it round. */}
+        <span
+          aria-hidden
+          className="absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-chart-2 ring-4 ring-card"
+          style={{ left: "100%", top: `${y(last.passRate)}%` }}
+        />
+      </div>
+      <div className="mt-auto flex items-baseline justify-between gap-3 text-xs text-muted-foreground">
+        <FormattedDateTime iso={first.at} />
+        <FormattedDateTime iso={last.at} />
+      </div>
+    </div>
   );
 }
