@@ -250,7 +250,12 @@ async function collectFocusWalkViolations(page: Page): Promise<{
     },
   );
 
-  for (let stop = 0; stop < MAX_TAB_STEPS; stop++) {
+  // Walk the whole tab order, not "until a stop adds nothing new": quitting
+  // after the first quiet stop meant everything past the first ~10 stops was
+  // never inspected. Short pages stop once they have cycled, but never before
+  // the 12-stop tail the trap detector needs.
+  const maxStops = Math.min(MAX_TAB_STEPS, Math.max(focusableCount + 2, 14));
+  for (let stop = 0; stop < maxStops; stop++) {
     await page.keyboard.press("Tab");
     const result: FocusStopResult = await pageEvaluateWithHitCapture(
       page,
@@ -364,12 +369,8 @@ async function collectFocusWalkViolations(page: Page): Promise<{
       },
     );
     sequence.push(result.sequenceKey);
-    let fresh = false;
-    fresh = takeFocusHit(result.visible, seenVisible, visible) || fresh;
-    fresh = takeFocusHit(result.obscured, seenObscured, obscured) || fresh;
-    if (stop > 5 && !fresh && seenVisible.size + seenObscured.size > 0) {
-      break;
-    }
+    takeFocusHit(result.visible, seenVisible, visible);
+    takeFocusHit(result.obscured, seenObscured, obscured);
   }
 
   let trap: CustomViolationNode | null = null;

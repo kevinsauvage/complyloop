@@ -117,4 +117,33 @@ describe("focusCustomViolations", () => {
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "keeps walking past quiet stops so late controls are still checked",
+    async () => {
+      const quiet = Array.from(
+        { length: 12 },
+        (_, i) => `<a href="#q${i}" class="ok">Link ${i}</a>`,
+      ).join("\n");
+      await withProbePage(
+        `
+        <!doctype html><html lang="fr"><head><style>
+          a.ok:focus-visible { outline: 3px solid #005fcc; }
+          #first:focus-visible, #last:focus-visible { outline: none; box-shadow: none; }
+        </style></head><body>
+          <button id="first">First</button>
+          ${quiet}
+          <button id="last">Last</button>
+        </body></html>
+      `,
+        async (page) => {
+          const violations = await focusCustomViolations(page);
+          const nodes =
+            violations.find((v) => v.id === "focus-visible")?.nodes ?? [];
+          expect(nodes.map((n) => n.target[0])).toEqual(["#first", "#last"]);
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
 });
