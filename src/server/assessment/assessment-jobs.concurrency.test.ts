@@ -6,6 +6,7 @@ import { closeDrizzle, getDrizzle } from "@complyloop/db/postgres";
 import {
   claimNextAssessmentJob,
   enqueueAssessmentJob,
+  releaseInFlightAssessmentJobs,
 } from "./assessment-jobs";
 
 /** Opt-in: needs a migrated Postgres (`DATABASE_URL`). Run via `npm run test:db`. */
@@ -96,6 +97,56 @@ describe.skipIf(!enabled)("assessment job serial claim concurrency", () => {
       expect(rows).toHaveLength(1);
       expect(rows[0]?.status).toBe("failed");
       expect(rows[0]?.error).toMatch(/malformed job payload/i);
+    } finally {
+      await drizzle.execute(
+        sql`DELETE FROM assessment_jobs WHERE project_id = ${projectId}`,
+      );
+      await drizzle.execute(sql`DELETE FROM projects WHERE id = ${projectId}`);
+      await drizzle.execute(sql`DELETE FROM organizations WHERE id = ${orgId}`);
+    }
+  });
+
+  it("hands a crashed worker's in-flight job back to the queue", async () => {
+    const drizzle = await getDrizzle();
+    const suffix = `${Date.now()}-crash`;
+    const orgId = `org-crash-${suffix}`;
+    const projectId = `proj-crash-${suffix}`;
+    const jobId = `job-crash-${suffix}`;
+    await drizzle.execute(sql`
+      INSERT INTO organizations (id, slug, payload)
+      VALUES (${orgId}, ${`slug-crash-${suffix}`}, '{}'::jsonb)
+    `);
+    await drizzle.execute(sql`
+      INSERT INTO projects (id, name, owner_user_id, org_id, payload)
+      VALUES (${projectId}, 'crash-fixture', ${`user-${suffix}`}, ${orgId}, '{}'::jsonb)
+    `);
+    await drizzle.execute(sql`
+      INSERT INTO assessment_jobs
+        (id, project_id, status, trigger, payload, attempts, max_attempts, available_at, created_at, updated_at)
+      VALUES
+        (${jobId}, ${projectId}, 'queued', 'manual', '{}'::jsonb, 0, 3, NOW(), NOW(), NOW())
+    `);
+
+    try {
+      const claimed = await claimNextAssessmentJob();
+      expect(claimed?.id).toBe(jobId);
+
+      expect(await releaseInFlightAssessmentJobs("Worker crashed: test")).toBe(
+        1,
+      );
+
+      const rows = (await drizzle.execute(sql`
+        SELECT status, lease_expires_at, error FROM assessment_jobs WHERE id = ${jobId}
+      `)) as Array<{
+        status: string;
+        lease_expires_at: string | null;
+        error: string | null;
+      }>;
+      expect(rows[0]?.status).toBe("queued");
+      expect(rows[0]?.lease_expires_at).toBeNull();
+      expect(rows[0]?.error).toMatch(/worker crashed/i);
+      // Nothing left to release: a second call is a no-op.
+      expect(await releaseInFlightAssessmentJobs("again")).toBe(0);
     } finally {
       await drizzle.execute(
         sql`DELETE FROM assessment_jobs WHERE project_id = ${projectId}`,

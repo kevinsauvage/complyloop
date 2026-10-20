@@ -436,8 +436,51 @@ export async function claimNextAssessmentJob(): Promise<AssessmentJob | null> {
         .where(eq(assessmentJobs.id, claimed.id));
       return null;
     }
+    inFlightJobIds.add(claimed.id);
     return jobFromRow(claimed);
   });
+}
+
+/**
+ * Jobs this process claimed and has not yet completed or failed. A fatal
+ * crash (unhandled rejection, OOM handler) hands them back through
+ * `releaseInFlightAssessmentJobs` instead of leaving them `running` until the
+ * lease expires.
+ */
+const inFlightJobIds = new Set<string>();
+
+/**
+ * Returns this process's unfinished jobs to the queue (or fails them when
+ * attempts are exhausted — a job that crashes the worker every time must not
+ * loop forever). Best-effort: call it from a crash handler, never throws on an
+ * empty set.
+ */
+export async function releaseInFlightAssessmentJobs(
+  reason: string,
+): Promise<number> {
+  const ids = [...inFlightJobIds];
+  if (ids.length === 0) return 0;
+  const drizzle = await getDrizzle();
+  const nowIso = new Date().toISOString();
+  const released = await drizzle
+    .update(assessmentJobs)
+    .set({
+      status: sql`case when ${assessmentJobs.attempts} >= ${assessmentJobs.maxAttempts} then 'failed' else 'queued' end`,
+      availableAt: nowIso,
+      completedAt: sql`case when ${assessmentJobs.attempts} >= ${assessmentJobs.maxAttempts} then ${nowIso}::timestamptz else null end`,
+      leaseExpiresAt: null,
+      error: reason.slice(0, 2_000),
+      updatedAt: nowIso,
+    })
+    .where(
+      and(
+        inArray(assessmentJobs.id, ids),
+        eq(assessmentJobs.status, "running"),
+      ),
+    )
+    .returning({ id: assessmentJobs.id });
+  inFlightJobIds.clear();
+  return released.length;
 }
 
 function reportStaleLease(jobId: string): void {
@@ -468,6 +511,7 @@ export async function completeAssessmentJob(job: AssessmentJob): Promise<void> {
       ),
     )
     .returning({ id: assessmentJobs.id });
+  inFlightJobIds.delete(job.id);
   if (result.length === 0) {
     reportStaleLease(job.id);
   }
@@ -505,6 +549,7 @@ export async function failAssessmentJob(
       ),
     )
     .returning({ id: assessmentJobs.id });
+  inFlightJobIds.delete(job.id);
   if (result.length === 0) {
     reportStaleLease(job.id);
   }

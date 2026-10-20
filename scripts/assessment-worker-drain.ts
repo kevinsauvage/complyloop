@@ -16,6 +16,7 @@
  */
 import path from "node:path";
 
+import { releaseInFlightAssessmentJobs } from "../src/server/assessment/assessment-jobs";
 import {
   ASSESSMENT_DRAIN_DEFAULTS,
   runAssessmentJobBatch,
@@ -84,7 +85,26 @@ function isDirectRun(): boolean {
   return entry.startsWith("assessment-worker-drain");
 }
 
+/**
+ * A fatal error outside any per-job handler (an unhandled rejection from a
+ * browser callback, say) used to kill the process with the claimed job still
+ * `running` until its 30-minute lease expired — the dashboard showed a scan
+ * "running for 14 min" that no process owned. Hand the job back first, bounded
+ * so a hung DB cannot keep a dead worker alive.
+ */
+async function crash(error: unknown): Promise<never> {
+  console.error(error);
+  const reason = `Worker crashed: ${error instanceof Error ? error.message : String(error)}`;
+  await Promise.race([
+    releaseInFlightAssessmentJobs(reason).catch(() => 0),
+    new Promise((resolve) => setTimeout(resolve, 10_000)),
+  ]);
+  process.exit(1);
+}
+
 if (isDirectRun()) {
+  process.on("unhandledRejection", (error) => void crash(error));
+  process.on("uncaughtException", (error) => void crash(error));
   main().then(
     () => shutdown(0),
     async (error: unknown) => {
