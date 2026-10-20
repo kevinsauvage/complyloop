@@ -109,7 +109,7 @@ must pass ComplyLoop before **Create draft PR**. AI never sets requirement statu
 | `npm run db:migrate` / `db:reset -- --confirm` / `db:studio` | Apply migrations / wipe + remigrate / Drizzle Studio                           |
 | `npm run db:ensure-owner`                                    | Backfill org owner                                                             |
 | `npm run worker:drain`                                       | Run queued assessment jobs locally (builds + runs the executor)                |
-| `npm run ops:check`                                          | Prod config sanity (DB + required env + queue depth)                           |
+| `npm run ops:check`                                          | Prod config sanity (DB + pending migrations + required env + queue depth)      |
 | `npm run playwright:install`                                 | Chromium for runtime audits + e2e                                              |
 | `npm run test:e2e` (after `e2e:seed`)                        | Playwright e2e                                                                 |
 | `npm run build:core` / `build:db`                            | Compile workspace packages → `dist` (publish only; dev transpiles from source) |

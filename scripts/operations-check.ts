@@ -1,5 +1,8 @@
 #!/usr/bin/env tsx
 /** Fails a deployment/cron check when production operational prerequisites drift. */
+import fs from "node:fs";
+import path from "node:path";
+
 import { sql } from "drizzle-orm";
 
 import { getDrizzle } from "@complyloop/db/postgres";
@@ -8,6 +11,7 @@ import {
   oldestQueuedAssessmentJobAgeMs,
   queuedAssessmentJobCount,
 } from "../src/server/assessment/assessment-jobs";
+import { migrationDrift } from "../src/server/ops-migrations";
 import {
   DEFAULT_OPS_THRESHOLDS,
   evaluateOpsStatus,
@@ -61,6 +65,31 @@ function toNumber(value: unknown): number {
   return Number.isFinite(parsed) ? Math.trunc(parsed) : NaN;
 }
 
+/** Migration files in the checkout — same listing `db-migrate` applies. */
+function localMigrationFiles(): string[] {
+  return fs
+    .readdirSync(path.join(process.cwd(), "drizzle"))
+    .filter((name) => name.endsWith(".sql"))
+    .sort();
+}
+
+/**
+ * Applied migration ids, or none when the bookkeeping table is absent: a
+ * database that was never migrated is drift, not an error to swallow.
+ */
+async function appliedMigrationIds(
+  drizzle: Awaited<ReturnType<typeof getDrizzle>>,
+): Promise<string[]> {
+  const [table] = (await drizzle.execute(sql`
+    SELECT to_regclass('_complyloop_migrations') IS NOT NULL AS present
+  `)) as Array<{ present: unknown }>;
+  if (!table?.present) return [];
+  const rows = (await drizzle.execute(sql`
+    SELECT id FROM "_complyloop_migrations" ORDER BY id
+  `)) as Array<{ id: unknown }>;
+  return rows.map((row) => String(row.id));
+}
+
 async function main(): Promise<void> {
   // DATABASE_URL is the only hard requirement for the check to run at all.
   const dbMissing = required("DATABASE_URL");
@@ -78,6 +107,10 @@ async function main(): Promise<void> {
 
   const drizzle = await getDrizzle();
   await drizzle.execute(sql`SELECT 1`);
+  const drift = migrationDrift(
+    localMigrationFiles(),
+    await appliedMigrationIds(drizzle),
+  );
   const queuedJobs = await queuedAssessmentJobCount();
   const oldestQueuedJobAgeMs = await oldestQueuedAssessmentJobAgeMs();
 
@@ -116,7 +149,10 @@ async function main(): Promise<void> {
 
   console.info(
     JSON.stringify({
-      status: evaluation.ok && envFailures.length === 0 ? "ok" : "failing",
+      status:
+        evaluation.ok && envFailures.length === 0 && drift.pending.length === 0
+          ? "ok"
+          : "failing",
       queuedJobs,
       oldestQueuedJobAgeMs,
       evidenceBytes,
@@ -124,14 +160,28 @@ async function main(): Promise<void> {
       thresholds,
       envFailures,
       envWarnings,
+      pendingMigrations: drift.pending,
+      unknownMigrations: drift.unknown,
       at: new Date().toISOString(),
     }),
   );
   if (envWarnings.length > 0) {
     console.warn(`optional prod env unset: ${envWarnings.join(" ")}`);
   }
+  if (drift.unknown.length > 0) {
+    console.warn(
+      `database is ahead of this checkout (applied but not in drizzle/): ${drift.unknown.join(" ")}`,
+    );
+  }
   if (envFailures.length > 0) {
     throw new Error(`required prod env missing: ${envFailures.join(" ")}`);
+  }
+  // Code and schema out of step surfaces as a page-level 500 ("column …
+  // does not exist"), so name it here instead.
+  if (drift.pending.length > 0) {
+    throw new Error(
+      `pending migrations not applied to this database: ${drift.pending.join(" ")} — run \`npm run db:migrate\` against it.`,
+    );
   }
   if (!evaluation.ok) throw new Error(evaluation.failures.join(" "));
 }

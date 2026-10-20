@@ -13,64 +13,6 @@ None open.
 
 ## P1 — High
 
-### [x] Replace the "load the whole project, mutate, diff" write model with targeted writes
-
-**Done 2026-10-20.** `withProjectTx(projectId, permission, fn)` replaced
-`withProjectWrite` / `withFindingWrite`: authorize → project lock → one
-transaction → the callback calls explicit repo functions for the rows it
-touches. Deleted `ProjectWritePayload`, `persistProjectRows`,
-`snapshotProjectSlice`, `changedSinceLoaded`, `ProjectWriteWorkspace` and
-`loadProjectWriteDb`; the `updatedAt` stale-write guard went with them (the
-per-project lock is the serialisation point, and every write now reads its
-target row inside its own transaction).
-
-- Requirement refresh is scoped: `refreshRequirementsForControls` loads only the
-  affected controls' requirement rows + open findings.
-- Behaviour change (deliberate): the remediation-verify worker now derives the
-  control's requirement from its real rows instead of a single-finding scratch
-  slice — a sticky human decision survives a verification, and the requirement
-  row id is no longer replaced.
-- Read side: the finding page's prev/next queue is a SQL id query
-  (`listFindingIdsForQueue`) instead of loading the whole tab; the bounded
-  payload load remains only for free-text search, which SQL cannot match.
-- Tests assert on the repo writes the action makes (`recordedWrites()`), backed
-  by an in-memory repo/transaction harness (`src/test-fixtures/register-repo-mock.ts`).
-
-### [x] Promote queried JSONB fields to real columns
-
-**Done 2026-10-20.** `drizzle/0006_typed_query_columns.sql` (+ `schema.ts`,
-`repo/mappers.ts`, `repo/findings.ts`, `repo/assessments.ts`):
-
-- `findings.detected_at timestamptz` with `findings_open_detected_idx`
-  (`project_id, control_id, detected_at`, partial `WHERE status = 'open'`) —
-  the sticky-decision re-arm read no longer compares ISO text.
-- `assessments.started_at` / `completed_at timestamptz` with
-  `assessments_project_completed_at_idx`, replacing the payload-expression
-  index; the four ordering queries use the columns.
-- `pg_trgm` + `evidence_summary_trgm_idx` (GIN) for the evidence free-text
-  filter, which was an unindexed `ilike '%q%'` on a forever-growing table.
-
-Columns are written by the mappers and stay nullable (an unparseable legacy
-value must not abort a production migration); readers treat NULL as "unknown".
-Verified by applying the full migration chain to a scratch Postgres and running
-`test:db`; `repo/typed-query-columns.test.ts` pins the fix with payloads whose
-numeric offset sorts differently as text and as an instant (both cases fail if
-the query reverts to `payload->>'…'`).
-
-**Not done, deliberately:** `findings.kind`, `findings.severity` and
-`updated_at` columns. Nothing filters or orders on them in SQL —
-`severity_rank` already serves severity ordering/filtering, and the
-`updatedAt` guard was deleted with the write-model rewrite — so they would be
-hand-synced columns with no reader. Add them when a query needs them.
-
-### [—] Add a pull-request regression check — **do not build (recorded decision)**
-
-**Status:** blocked, not open. `docs/ai/architecture.md` records a permanent Sep 2026 decision against per-PR Check Runs; [`docs/ai/platform-direction.md`](./docs/ai/platform-direction.md#5-cicd-gated) keeps the idea as Phase 6, gated on a new owner decision (**D-CI**). Do not implement `pull_request` handling, Check Runs, PR comments or PR-scoped scans until D-CI is recorded. The analysis is kept only as the context for that decision.
-
-**Why it was considered:** the product's stated differentiator is "fix → verify → don't regress", but only pushes to the default branch are scanned (`parseHandledWebhookEvent` accepts `push` only).
-
-**Open calls on this path** (whichever way it goes): the non-authoritative scan branches (`resolveJobAuthoritative`, `authoritative === false`) are currently unreachable dead code — delete them if D-CI stays closed.
-
 ### [ ] Add a cross-project portfolio overview
 
 **Why:** The spec's target user is an agency with many client projects ("continuously, across every client project"), but every page is scoped to one active project picked from a switcher. The org page shows only a project _count_. An agency lead cannot see which clients are failing, regressing or stale without clicking through each project.

@@ -1,11 +1,13 @@
 # Ops check (replaces the old worker healthcheck).
 #
-# Runs `npm run ops:check` hourly: verifies DB reachability, assessment-queue
-# depth, oldest-queued-job age and evidence-table growth. Any breach — e.g. a
-# single job queued past the age threshold because dispatch stopped draining —
-# exits non-zero so the workflow fails and stock Actions failure notifications
-# fire. A red run here means "dispatch/schedule stopped draining" or "evidence
-# is outgrowing the database".
+# Runs `npm run ops:check` hourly: verifies DB reachability, that every
+# `drizzle/*.sql` in the checkout is applied (code/schema drift surfaces as a
+# page 500 otherwise), assessment-queue depth, oldest-queued-job age and
+# evidence-table growth. Any breach — e.g. a single job queued past the age
+# threshold because dispatch stopped draining — exits non-zero so the workflow
+# fails and stock Actions failure notifications fire. A red run here means
+# "dispatch/schedule stopped draining", "evidence is outgrowing the database",
+# or "a migration shipped but the database did not get it".
 #
 # The app's own env (AUTH_*, GITHUB_APP_*, GH_WORKER_DISPATCH_TOKEN, …) lives in
 # Vercel, not here, so the prod-env audit is skipped (`OPS_CHECK_PROD_ENV=0`):

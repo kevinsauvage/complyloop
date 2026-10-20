@@ -62,7 +62,7 @@ npm run test:coverage    # Coverage gates (vitest.config.mts)
 npm run test:db          # Postgres persistence integration (needs DATABASE_URL)
 npm run db:migrate       # Apply migrations (tsx runs with --conditions=react-server so server-only imports resolve; keep the flag on every tsx script)
 npm run worker:drain     # Run queued assessment jobs locally (builds + runs executor)
-npm run ops:check        # Prod config sanity (DB + required env + queue depth)
+npm run ops:check        # Prod config sanity (DB + pending migrations + required env + queue depth)
 npm run playwright:install  # Chromium for runtime audits + e2e
 npm run test:e2e         # Playwright (after e2e:seed)
 ```
