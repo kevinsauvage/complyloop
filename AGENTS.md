@@ -21,6 +21,7 @@ Orientation for agents. **Do not duplicate** product principles, domain vocabula
 | [`docs/ai/finding-flow.md`](./docs/ai/finding-flow.md)                                    | Finding page UX contract                          |
 | [`docs/ai/platform-direction.md`](./docs/ai/platform-direction.md)                        | Direction, roadmap, open decisions (planned work) |
 | [`.cursor/rules/`](./.cursor/rules/)                                                      | Enforceable rules (domain, quality, AI, TS, …)    |
+| [`docs/prompts/`](./docs/prompts/README.md)                                               | Reusable task prompts (review, bug, quality, …)   |
 
 ## Next.js reference — source of truth
 

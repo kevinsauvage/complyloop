@@ -12,6 +12,7 @@ deeper below.
 | [compliance-engineering-product-spec.md](./compliance-engineering-product-spec.md) | Product                     | Who it's for, scope, success                                                              |
 | [ai/DESIGN.md](./ai/DESIGN.md)                                                     | Engineers & designers       | Product UI/UX principles (advisory; enforceable UI patterns live in `ui-conventions.mdc`) |
 | [ai/platform-direction.md](./ai/platform-direction.md)                             | Engineers, agents & product | Direction, eco-design strategy, roadmap, risks (planned, not shipped)                     |
+| [prompts/](./prompts/README.md)                                                    | Engineers & agents          | Reusable prompts: security, bugs, quality, duplication, tests, reviews                    |
 | [../AGENTS.md](../AGENTS.md)                                                       | AI agents                   | Repo layout, commands, where rules live                                                   |
 
 Env reference: [../.env.example](../.env.example) (all vars, ordered by setup flow).
