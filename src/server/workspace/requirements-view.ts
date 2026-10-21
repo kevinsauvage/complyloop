@@ -83,6 +83,7 @@ export async function loadRequirementsView(
     // response.
     findingStatuses: [],
     includeRemediations: false,
+    includeAlerts: false,
   });
   // Per-control open counts come from SQL, not the loaded slice: the findings
   // row load is capped, but badges must stay exact.

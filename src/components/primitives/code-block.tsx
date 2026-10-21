@@ -64,8 +64,11 @@ export function CodeBlock({
         </button>
       </div>
       <pre
+        tabIndex={0}
+        role="region"
+        aria-label={filename ? `Code: ${filename}` : "Code sample"}
         className={cn(
-          "max-h-96 overflow-y-auto rounded-xl border border-border/60 bg-muted px-4 py-3 font-mono text-xs leading-relaxed text-foreground",
+          "max-h-96 overflow-y-auto rounded-xl border border-border/60 bg-muted px-4 py-3 font-mono text-xs leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
           wrap
             ? "break-all whitespace-pre-wrap"
             : // Always wrap on narrow viewports even when the toggle is off.

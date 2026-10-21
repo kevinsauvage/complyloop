@@ -3,7 +3,11 @@
 import { AlertTriangle, ChevronDown, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
-import type { Requirement } from "@complyloop/analysis-core/contract/entities";
+import type {
+  Requirement,
+  RequirementExceptionReason,
+} from "@complyloop/analysis-core/contract/entities";
+import { REQUIREMENT_EXCEPTION_REASONS } from "@complyloop/analysis-core/contract/entities";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 
 import { ReasonNoteFields } from "@/components/forms/reason-note-fields";
@@ -26,6 +30,18 @@ import {
   markRequirementExceptionAction,
   markRequirementPassedAction,
 } from "@/server/actions/requirements";
+
+const EXCEPTION_REASON_LABELS: Record<RequirementExceptionReason, string> = {
+  not_applicable: "Not applicable",
+  accepted_risk: "Accepted risk",
+  compensating_control: "Compensating control",
+  temporary: "Temporary",
+};
+
+const EXCEPTION_REASON_OPTIONS = REQUIREMENT_EXCEPTION_REASONS.map((value) => ({
+  value,
+  label: EXCEPTION_REASON_LABELS[value],
+}));
 
 export function RequirementRemediationActions({
   control,
@@ -202,15 +218,7 @@ export function RequirementRemediationActions({
                   noteLabel="Note (required, kept as evidence)"
                   noteRequired
                   onReasonChange={setExceptionReason}
-                  options={[
-                    { value: "not_applicable", label: "Not applicable" },
-                    { value: "accepted_risk", label: "Accepted risk" },
-                    {
-                      value: "compensating_control",
-                      label: "Compensating control",
-                    },
-                    { value: "temporary", label: "Temporary" },
-                  ]}
+                  options={EXCEPTION_REASON_OPTIONS}
                 />
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor={`exception-expires-${requirement.id}`}>

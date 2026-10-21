@@ -41,13 +41,14 @@ export async function loadSettingsView(): Promise<SettingsView> {
     // remediation or alert rows.
     findingStatuses: [],
     includeRemediations: false,
+    includeAlerts: false,
   });
   const latestAssessment = latestAssessmentFor(runtime.assessments, project.id);
   const runtimeError = latestAssessment?.engines?.runtimeError ?? null;
   const runtimeStatus = latestAssessment?.engines?.runtime
     ? `Last assessment audited ${latestAssessment.engines.runtimePagesScanned ?? 0} page(s)${
         latestAssessment.engines.runtimeTied === false
-          ? ", but not a deployment of the scanned commit: violations are reported, yet runtime results cannot pass requirements or replace source findings."
+          ? ", but not a deployment of the scanned commit: findings are reported, yet runtime results cannot pass requirements or replace source findings."
           : "."
       }`
     : runtimeError

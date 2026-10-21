@@ -214,6 +214,7 @@ export function FindingsBulkList({
                   size="sm"
                   variant="default"
                   confirmMessage={`Approve ${approvableIds.length} suggestion${approvableIds.length === 1 ? "" : "s"}?`}
+                  onSuccess={() => setSelected(new Set())}
                 >
                   {approvableIds.map((id) => (
                     <input
@@ -266,6 +267,13 @@ export function FindingsBulkList({
                     className="flex flex-col gap-3"
                     confirmMessage={`Dismiss ${selectedCount} finding${selectedCount === 1 ? "" : "s"}? Reason and note are kept as evidence.`}
                     confirmTitle="Dismiss findings"
+                    onSuccess={() => {
+                      setShowDismiss(false);
+                      setSelected(new Set());
+                      requestAnimationFrame(() =>
+                        selectAllRef.current?.focus(),
+                      );
+                    }}
                   >
                     {[...selected].map((id) => (
                       <input

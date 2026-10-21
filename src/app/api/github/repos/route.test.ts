@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { RateLimitError } from "@/server/rate-limit";
+
 import { GET } from "./route";
 
 const getSession = vi.hoisted(() => vi.fn());
@@ -13,9 +15,13 @@ vi.mock("@/server/auth-session", () => ({
   getSession: (...args: unknown[]) => getSession(...args),
 }));
 
-vi.mock("@/server/rate-limit", () => ({
-  assertReposRateLimit: (...args: unknown[]) => assertReposRateLimit(...args),
-}));
+vi.mock("@/server/rate-limit", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/server/rate-limit")>();
+  return {
+    ...actual,
+    assertReposRateLimit: (...args: unknown[]) => assertReposRateLimit(...args),
+  };
+});
 
 vi.mock("@/server/workspace/workspace", () => ({
   getWorkspace: (...args: unknown[]) => getWorkspace(...args),
@@ -85,7 +91,7 @@ describe("GET /api/github/repos", () => {
       activeOrgId: "org-1",
     });
     projectCapabilities.mockReturnValue({ canConnect: true });
-    assertReposRateLimit.mockRejectedValueOnce(new Error("Too many requests."));
+    assertReposRateLimit.mockRejectedValueOnce(new RateLimitError());
     const response = await GET(getRequest());
     expect(response.status).toBe(429);
     expect(listAvailableRepos).not.toHaveBeenCalled();

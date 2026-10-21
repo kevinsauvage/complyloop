@@ -7,7 +7,7 @@ alwaysApply: false
 # Server Conventions
 
 - Server Actions: one domain file under `actions/` — no barrel re-exports. Shared helpers live in `actions/shared.ts`.
-- Authorize before mutating (`assertProjectPermission`, `requireOnActive`, `requireOnFindingProject`).
+- Authorize before mutating (`assertProjectPermission`, `requireFinding`, `requireRemediationForFinding`).
 - User-facing failures: throw `PublicError`. Unexpected errors: `reportError` / `reportWarning` from `observability.ts`.
 - Evidence is insert-only — never UPDATE/DELETE evidence rows (DB trigger enforces this).
 - Status changes go through core helpers (`advanceRemediation`, requirement-status transitions) — actions must not invent statuses.

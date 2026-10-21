@@ -13,6 +13,7 @@ import type {
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
 import { getDrizzle } from "@complyloop/db/postgres";
+import { listUnreadAlertsForProject } from "@complyloop/db/repo/alerts";
 import { listAssessmentHistoryForProject } from "@complyloop/db/repo/assessments";
 import { countFindingsByStatusForProject } from "@complyloop/db/repo/findings";
 
@@ -21,6 +22,8 @@ import {
   hasPreviewUrl,
   latestAssessmentFor,
 } from "@/core/assessment/assessment-helpers";
+import { findingsListHref } from "@/core/filter-params";
+import { requirementsStatusHref } from "@/core/filter-params/requirements";
 import { compareFindingsBySeverity } from "@/core/findings/finding-priority";
 import { activeRegressions } from "@/core/requirements/active-regressions";
 import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
@@ -88,24 +91,30 @@ export async function loadDashboardView(): Promise<DashboardView> {
   if (!project) return { project: null, visibleProjects };
   const hasConnectedProject = visibleProjects.length > 0;
 
-  const runtime = await getProjectRuntime(project.id, {
-    findingStatuses: ["open"],
-    // The activity card renders the six most severe; the header count comes
-    // from SQL, so loading the rest of the open set buys nothing.
-    findingsLimit: 6,
-    // Nothing on the dashboard renders remediation rows.
-    includeRemediations: false,
-  });
-  const openCount = await countOpenFindings(project.id);
+  const drizzle = await getDrizzle();
+  const [runtime, openCount, unreadAlerts, history] = await Promise.all([
+    getProjectRuntime(project.id, {
+      findingStatuses: ["open"],
+      // The activity card renders the six most severe; the header count comes
+      // from SQL, so loading the rest of the open set buys nothing.
+      findingsLimit: 6,
+      includeRemediations: false,
+      // Unread alerts are loaded directly; read rows are never rendered.
+      includeAlerts: false,
+    }),
+    countOpenFindings(project.id),
+    listUnreadAlertsForProject(drizzle, project.id),
+    // Bounded history window, oldest → newest (max 10). runtime.assessments
+    // holds the latest assessment only, so the trend reads its own capped
+    // history — deriving it from the runtime slice could never reach 2 points.
+    listAssessmentHistoryForProject(drizzle, project.id, 10),
+  ]);
   const latestAssessment = latestAssessmentFor(runtime.assessments, project.id);
   const requirements = requirementsInScope(runtime.requirements, project);
   const projectFindings = findingsInScope(runtime.findings, project);
   // Severity-first display order (same order as the findings list).
   const openFindings = [...projectFindings].sort(compareFindingsBySeverity);
-  const unreadAlerts = runtime.alerts
-    .filter((alert) => alert.projectId === project.id && !alert.read)
-    .slice()
-    .reverse();
+  const oldestFirstAlerts = [...unreadAlerts].reverse();
   const regressions = activeRegressions(
     runtime.evidence,
     requirements,
@@ -127,14 +136,6 @@ export async function loadDashboardView(): Promise<DashboardView> {
     .reverse();
   const recentChanges = latestAssessment?.changesSincePrevious ?? [];
 
-  // Bounded history window, oldest → newest (max 10). runtime.assessments
-  // holds the latest assessment only, so the trend reads its own capped
-  // history — deriving it from the runtime slice could never reach 2 points.
-  const history = await listAssessmentHistoryForProject(
-    await getDrizzle(),
-    project.id,
-    10,
-  );
   const trend = history
     .sort((a, b) => (a.completedAt < b.completedAt ? -1 : 1))
     .flatMap((assessment) => {
@@ -186,13 +187,13 @@ export async function loadDashboardView(): Promise<DashboardView> {
         {
           label: "Open findings",
           value: openCount,
-          href: openCount > 0 ? "/findings" : undefined,
+          href: openCount > 0 ? findingsListHref() : undefined,
           tone: openCount > 0 ? ("warning" as const) : ("success" as const),
         },
         {
           label: "Failed requirements",
           value: failedCount,
-          href: failedCount > 0 ? "/requirements?status=failed" : undefined,
+          href: failedCount > 0 ? requirementsStatusHref("failed") : undefined,
           tone: failedCount > 0 ? ("warning" as const) : ("muted" as const),
         },
         {
@@ -200,7 +201,7 @@ export async function loadDashboardView(): Promise<DashboardView> {
           value: counts.unable_to_verify,
           href:
             counts.unable_to_verify > 0
-              ? "/requirements?status=unable_to_verify"
+              ? requirementsStatusHref("unable_to_verify")
               : undefined,
           tone:
             counts.unable_to_verify > 0
@@ -213,9 +214,9 @@ export async function loadDashboardView(): Promise<DashboardView> {
   // Single next action, most urgent first: alerts → failed
   // requirements → open findings → preview-URL coverage gap.
   const nextAction: DashboardViewProject["nextAction"] =
-    unreadAlerts.length > 0
+    oldestFirstAlerts.length > 0
       ? {
-          title: `${unreadAlerts.length} unread alert${unreadAlerts.length === 1 ? "" : "s"}`,
+          title: `${oldestFirstAlerts.length} unread alert${oldestFirstAlerts.length === 1 ? "" : "s"}`,
           description:
             "Requirement statuses changed since your last review — confirm each one before it becomes a regression.",
           cta: "Review alerts",
@@ -227,7 +228,7 @@ export async function loadDashboardView(): Promise<DashboardView> {
             description:
               "These requirements have open findings. Fix or dismiss the findings to move them to Passed.",
             cta: "See failed requirements",
-            href: "/requirements?status=failed",
+            href: requirementsStatusHref("failed"),
           }
         : openCount > 0
           ? {
@@ -235,7 +236,7 @@ export async function loadDashboardView(): Promise<DashboardView> {
               description:
                 "Triage the queue in severity order — fix each finding to Verified.",
               cta: "Triage findings",
-              href: "/findings?tab=open",
+              href: findingsListHref({ tab: "open" }),
             }
           : counts.unable_to_verify > 0 && !hasPreviewUrlValue
             ? {
@@ -255,7 +256,7 @@ export async function loadDashboardView(): Promise<DashboardView> {
     counts,
     openFindings,
     openCount,
-    unreadAlerts,
+    unreadAlerts: oldestFirstAlerts,
     regressions,
     recentVerified,
     recentEvidence,

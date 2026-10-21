@@ -6,7 +6,7 @@ import {
   recentAssessmentJobsForProject,
 } from "@/server/assessment/assessment-jobs";
 import { getSession } from "@/server/auth-session";
-import { assertJobPollRateLimit } from "@/server/rate-limit";
+import { assertJobPollRateLimit, RateLimitError } from "@/server/rate-limit";
 import { viewerCanViewProject } from "@/server/workspace/workspace";
 
 const assessmentJobsParamsSchema = z.object({
@@ -36,7 +36,8 @@ export async function GET(
   if (userId) {
     try {
       await assertJobPollRateLimit(userId);
-    } catch {
+    } catch (error) {
+      if (!(error instanceof RateLimitError)) throw error;
       return Response.json(
         { error: "Too many requests. Try again shortly." },
         { status: 429 },

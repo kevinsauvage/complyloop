@@ -118,6 +118,8 @@ export function parseCheckoutRef(ref: string): string {
   throw new PublicError("Invalid checkout ref.", "ref_not_found");
 }
 
+const CLONE_TIMEOUT_MS = 120_000;
+
 /**
  * Shallow-clones a repo into `rootPath` with pure-JS git (no `git` CLI —
  * serverless runtimes don't ship one); removes the directory on failure.
@@ -128,8 +130,9 @@ export async function cloneShallow(
   auth: GitHttpAuth = noGitHttpAuth(),
 ): Promise<void> {
   fs.mkdirSync(path.dirname(rootPath), { recursive: true });
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    await git.clone({
+    const clone = git.clone({
       fs,
       http,
       dir: rootPath,
@@ -138,13 +141,34 @@ export async function cloneShallow(
       depth: 1,
       headers: auth.headers,
     });
+    // A clone abandoned on timeout keeps running; its late failure must not
+    // surface as an unhandled rejection after we cleaned up.
+    clone.catch(() => {});
+    await Promise.race([
+      clone,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () =>
+            reject(
+              new PublicError(
+                "git clone timed out — the repository may be unreachable or too large.",
+                "connect",
+              ),
+            ),
+          CLONE_TIMEOUT_MS,
+        );
+      }),
+    ]);
   } catch (error) {
     fs.rmSync(rootPath, { recursive: true, force: true });
+    if (error instanceof PublicError) throw error;
     const detail = error instanceof Error ? error.message : "unknown error";
     throw new PublicError(
       `git clone failed: ${redactCloneUrl(detail).trim().slice(0, 400)}`,
       "connect",
     );
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
   }
 }
 

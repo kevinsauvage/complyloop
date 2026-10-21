@@ -24,7 +24,7 @@ function Tile({
       <dd
         className={cn(
           "mt-1 text-2xl font-semibold tabular-nums",
-          value === 0 && "text-muted-foreground/60",
+          value === 0 && "text-muted-foreground",
           value > 0 && tone === "danger" && "text-destructive",
           value > 0 && tone === "signal" && "text-signal",
         )}
@@ -49,7 +49,7 @@ export function PortfolioSummaryTiles({
         tone="danger"
       />
       <Tile
-        label="Open violations"
+        label="Open findings"
         value={summary.openViolations}
         tone="danger"
       />

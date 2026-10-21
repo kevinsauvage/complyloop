@@ -3,7 +3,7 @@ import { inspect } from "node:util";
 import * as Sentry from "@sentry/nextjs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { reportAppError, reportError, reportWarning } from "./observability";
+import { reportError, reportWarning } from "./observability";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -55,18 +55,6 @@ describe("observability", () => {
       "token decrypt failed",
       "warning",
     );
-  });
-
-  it("reportAppError forwards digest and code", () => {
-    const out = captureConsole("error", () =>
-      reportAppError(
-        Object.assign(new Error("boom"), { digest: "d-1" }),
-        "app_error_boundary",
-      ),
-    );
-    expect(out).toContain("app_error_boundary");
-    expect(out).toContain("d-1");
-    expect(out).toContain("boom");
   });
 
   it("redacts credentials from logged message and stack before reporting", () => {

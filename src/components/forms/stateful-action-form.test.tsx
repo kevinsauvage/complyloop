@@ -117,4 +117,24 @@ describe("StatefulActionForm", () => {
       expect(routerRefresh).toHaveBeenCalledTimes(1);
     });
   });
+
+  it("calls onSuccess once for the successful message", async () => {
+    const user = userEvent.setup();
+    const action = vi.fn(async () => ({ ok: true, message: "Done." }));
+    const onSuccess = vi.fn();
+
+    render(
+      <StatefulActionForm
+        action={action}
+        submitLabel="Save"
+        variant="default"
+        onSuccess={onSuccess}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalledTimes(1);
+    });
+  });
 });

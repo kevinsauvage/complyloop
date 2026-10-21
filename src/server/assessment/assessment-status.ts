@@ -280,7 +280,7 @@ function rearmStickyDecision(input: {
         field === "exception"
           ? "requirement_exception_cleared"
           : "requirement_human_pass_cleared",
-      summary: `${control.code} ${field === "exception" ? "exception" : "human pass"} re-opened — ${newViolationIds.length} new violation${newViolationIds.length === 1 ? "" : "s"} detected after the decision`,
+      summary: `${control.code} ${field === "exception" ? "exception" : "human pass"} re-opened — ${newViolationIds.length} new finding${newViolationIds.length === 1 ? "" : "s"} detected after the decision`,
       projectId,
       controlId: control.id,
       assessmentId,

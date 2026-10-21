@@ -1,4 +1,7 @@
-import type { Remediation } from "@complyloop/analysis-core/contract/entities";
+import type {
+  Alert,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
 import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
 
 import type { DrizzleDb } from "./postgres.ts";
@@ -50,6 +53,8 @@ export interface LoadProjectRuntimeOptions {
    * (dashboard, requirements, settings). Default true for every other reader.
    */
   includeRemediations?: boolean;
+  /** Skip alert rows for pages that load only unread ones themselves. */
+  includeAlerts?: boolean;
 }
 
 export async function loadProjectRuntime(
@@ -79,7 +84,9 @@ export async function loadProjectRuntime(
       : listRemediationsForProject(drizzle, projectId, {
           findingStatuses: options.findingStatuses,
         }),
-    listAlertsForProject(drizzle, projectId),
+    options.includeAlerts === false
+      ? Promise.resolve<Alert[]>([])
+      : listAlertsForProject(drizzle, projectId),
     // Latest only — the app consumes latestAssessmentFor + "has any".
     listLatestAssessmentForProject(drizzle, projectId),
   ]);

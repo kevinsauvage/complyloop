@@ -51,6 +51,7 @@ export function StatefulActionForm({
   retryLabel,
   disabled = false,
   refreshOnSuccess = false,
+  onSuccess,
 }: {
   action: (previous: ActionState, formData: FormData) => Promise<ActionState>;
   submitLabel: string;
@@ -74,10 +75,20 @@ export function StatefulActionForm({
    * this.
    */
   refreshOnSuccess?: boolean;
+  /** Runs once per successful message (client-side cleanup, focus, close). */
+  onSuccess?: () => void;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const formId = useId();
   useActionToast(state, pending);
+  const handledSuccess = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (pending || !state.ok || !state.message) return;
+    if (handledSuccess.current === state.message) return;
+    handledSuccess.current = state.message;
+    onSuccess?.();
+  }, [onSuccess, pending, state]);
 
   // `revalidatePath` in the action invalidates the cache but never re-renders
   // this view: without an explicit refresh the user stares at stale data

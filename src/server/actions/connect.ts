@@ -81,22 +81,6 @@ export async function openProjectAction(formData: FormData): Promise<void> {
   redirect("/dashboard");
 }
 
-export async function switchProjectAction(formData: FormData): Promise<void> {
-  const { projectId } = parseForm(switchProjectInput, formData);
-  const workspace = await getWorkspace();
-  setActiveProject(
-    {
-      projects: workspace.projects,
-      organizations: workspace.organizations,
-      memberships: workspace.access.memberships,
-    },
-    projectId,
-    workspace.userId,
-  );
-  await writeActiveProjectCookie(projectId);
-  refresh();
-}
-
 export async function connectGitHubRepoAction(
   _previous: ActionState,
   formData: FormData,

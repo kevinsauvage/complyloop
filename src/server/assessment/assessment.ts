@@ -43,17 +43,17 @@ import type { AssessmentJobStage } from "@/core/assessment/assessment-jobs";
 import { advanceRemediation } from "@/core/requirements/remediation-lifecycle";
 
 import { reportEvent, reportWarning } from "../observability";
+import type { ProjectRows } from "../workspace/project-rows";
+import { appendEvidence } from "../workspace/project-rows";
 import {
   assertAssessableCatalog,
   requirementsInScope,
 } from "../workspace/project-scope";
 import { reconcileControlFindings } from "./assessment-findings";
 import {
-  appendEvidence,
   type AssessmentPipelineInput,
   createAssessmentScratch,
-  type ProjectRows,
-} from "./assessment-pipeline";
+} from "./assessment-scratch";
 import { applyRequirementStatusRefresh } from "./assessment-status";
 import { detectChanges, readRepoHead, summarizeChanges } from "./monitor";
 import {
@@ -294,7 +294,7 @@ export function verifyRemediationOnResolve(
   );
   if (siblingPersists) {
     reportWarning(
-      "Skipping auto-verify: same-file violation persists after re-scan",
+      "Skipping auto-verify: same-file finding persists after re-scan",
       {
         code: "draft_pr_verify_scope_unproven",
         projectId: finding.projectId,

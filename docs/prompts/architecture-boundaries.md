@@ -8,7 +8,7 @@ Verify the change respects the module layout in `docs/ai/architecture.md` and th
 
 1. **Dependency direction** — `src/core` (kernel) imports nothing from UI/server adapters; `packages/analysis-core` is framework-free and has no imports from `src/`; UI and adapters import from the core, never the reverse; no import cycles (`npx madge --circular` if available, otherwise trace by hand).
 2. **Server/client split** — no `"use client"` above a file importing `@/server/*`; interactivity lives in client leaves with server content passed as children/slots; secrets and `server-only` modules never reachable from client bundles; env read via lazy getters.
-3. **Persistence access** — Server Actions use `withProjectTx` / `withOrgWrite` / `withConnectWrite` + `persistProjectRows`; no raw `getDrizzle()` in actions; `packages/db` owns schema and queries; evidence insert-only.
+3. **Persistence access** — Server Actions use `withProjectTx` / `withOrgWrite` / `withConnectWrite` + the concrete `repo/*` functions; no raw `getDrizzle()` in actions; `packages/db` owns schema and queries; evidence insert-only.
 4. **Contract stability** — nothing changes `packages/analysis-core/src/contract/` without approval; public exports of the published package stay backward compatible; analysis is deterministic (AST + jsx-a11y + optional runtime), AI is never in the verdict path.
 5. **Jobs** — assessment runs through GH Actions `repository_dispatch` + schedule backstop; no long-lived worker process, no Vercel Cron introduced; jobs are idempotent.
 6. **Cohesion** — one responsibility per module; no barrel files; no "utils" dumping ground; new shared code has 2+ consumers.

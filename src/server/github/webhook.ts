@@ -37,7 +37,7 @@ function installationIdFromPayload(
 }
 
 export function isWebhookConfigured(): boolean {
-  return Boolean(process.env.GITHUB_WEBHOOK_SECRET);
+  return Boolean(githubWebhookSecret());
 }
 
 export async function verifyGitHubSignature(

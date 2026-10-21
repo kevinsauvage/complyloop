@@ -12,5 +12,9 @@
     "jsx": "react-jsx"
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.test.ts", "dist"]
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/runtime/custom-checks/playwright-test-teardown.ts",
+    "dist"
+  ]
 }

@@ -5,7 +5,7 @@ import { publicErrorMessage } from "@/server/action-state";
 import { getSession } from "@/server/auth-session";
 import { getGitHubAccessToken } from "@/server/github/access-token";
 import { listAvailableRepos } from "@/server/github/github-connector";
-import { assertReposRateLimit } from "@/server/rate-limit";
+import { assertReposRateLimit, RateLimitError } from "@/server/rate-limit";
 import { projectCapabilities } from "@/server/workspace/project-capabilities";
 import { getWorkspace } from "@/server/workspace/workspace";
 
@@ -44,6 +44,7 @@ export async function GET(request: Request): Promise<Response> {
   try {
     await assertReposRateLimit(session.user.id);
   } catch (error) {
+    if (!(error instanceof RateLimitError)) throw error;
     return Response.json({ error: publicErrorMessage(error) }, { status: 429 });
   }
 

@@ -69,3 +69,19 @@ export function assessmentCheckoutQuota(): {
     scanTimeoutMs: positiveInt("ASSESSMENT_MAX_CHECKOUT_SCAN_MS", 30_000),
   };
 }
+
+export function workerDispatchToken(): string | undefined {
+  return trimmed("GH_WORKER_DISPATCH_TOKEN");
+}
+
+export function appRepoFullName(): string | undefined {
+  return trimmed("APP_REPO_FULL_NAME");
+}
+
+export function vercelGitRepoOwner(): string | undefined {
+  return trimmed("VERCEL_GIT_REPO_OWNER");
+}
+
+export function vercelGitRepoSlug(): string | undefined {
+  return trimmed("VERCEL_GIT_REPO_SLUG");
+}

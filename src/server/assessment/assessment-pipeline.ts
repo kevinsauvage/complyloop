@@ -17,18 +17,11 @@ import "server-only";
 
 import { eq } from "drizzle-orm";
 
-import type {
-  Alert,
-  Assessment,
-  Finding,
-  Remediation,
-  Requirement,
-} from "@complyloop/analysis-core/contract/entities";
+import type { Alert } from "@complyloop/analysis-core/contract/entities";
 import type {
   Control,
   Project,
 } from "@complyloop/analysis-core/contract/project-types";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   acquireNamedPostgresAdvisoryLock,
   getDrizzle,
@@ -41,18 +34,13 @@ import {
 } from "@complyloop/db/repo/apply";
 import { insertEvidence } from "@complyloop/db/repo/evidence";
 import { assessmentJobs } from "@complyloop/db/schema";
-import type { WorkspaceSlice } from "@complyloop/db/types";
 import { loadProjectRuntime } from "@complyloop/db/workspace-load";
 
 import type { AssessmentJobStage } from "@/core/assessment/assessment-jobs";
 
 import { reportWarning } from "../observability";
 import { loadProjectDb, withProjectLock } from "../workspace/db";
-import {
-  appendEvidence,
-  cloneProjectRows,
-  type ProjectRows,
-} from "../workspace/project-rows";
+import { appendEvidence, type ProjectRows } from "../workspace/project-rows";
 import {
   type AssessmentRunResult,
   type AssessmentScanResult,
@@ -62,60 +50,11 @@ import {
   type AssessmentJob,
   AssessmentJobCancelledError,
 } from "./assessment-jobs";
-import {
-  clearExpiredExceptions,
-  upsertRequirementsById,
-} from "./assessment-status";
-
-/**
- * Narrow pipeline input — the assessment needs project-scoped rows only,
- * never the full tenancy `WorkspaceSlice` (orgs, memberships, evidence
- * window, alerts). Use {@link toPipelineInput} to narrow a loaded slice at
- * the single call site.
- */
-export interface AssessmentPipelineInput {
-  project: Project;
-  findings: ReadonlyArray<Finding>;
-  remediations: ReadonlyArray<Remediation>;
-  requirements: ReadonlyArray<Requirement>;
-  assessments: ReadonlyArray<Assessment>;
-}
-
-/** Narrow a loaded `WorkspaceSlice` to the pipeline input (single site). */
-export function toPipelineInput(
-  db: WorkspaceSlice,
-  projectId: string,
-): AssessmentPipelineInput {
-  const project = db.projects.find((candidate) => candidate.id === projectId);
-  if (!project) throw new PublicError("Unknown project.");
-  return {
-    project,
-    findings: db.findings,
-    remediations: db.remediations,
-    requirements: db.requirements,
-    assessments: db.assessments,
-  };
-}
-
-/** Assessment-owned scratch rows: clone project rows, drop expired temporary exceptions, seed run evidence. */
-export function createAssessmentScratch(
-  input: AssessmentPipelineInput,
-): ProjectRows {
-  const projectId = input.project.id;
-  const rows = cloneProjectRows(
-    input.findings,
-    input.remediations,
-    input.requirements,
-    projectId,
-  );
-  const cleared = clearExpiredExceptions(rows.requirements, projectId);
-  rows.requirements = upsertRequirementsById(
-    rows.requirements,
-    cleared.requirements,
-  );
-  rows.evidence.push(...cleared.evidence);
-  return rows;
-}
+export {
+  type AssessmentPipelineInput,
+  createAssessmentScratch,
+  toPipelineInput,
+} from "./assessment-scratch";
 
 /**
  * Persists an authoritative run under the project write lock. It loads the

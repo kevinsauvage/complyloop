@@ -8,6 +8,7 @@ import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { StatefulActionForm } from "@/components/forms/stateful-action-form";
 import { FormattedDateTime } from "@/components/primitives/formatted-datetime";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { requirementsStatusHref } from "@/core/filter-params/requirements";
 import {
   markAlertReadAction,
   markAllAlertsReadAction,
@@ -15,11 +16,11 @@ import {
 
 function alertPrimaryHref(
   alert: AlertRecord,
-): `/findings/${string}` | "/requirements?status=failed" | null {
+): `/findings/${string}` | ReturnType<typeof requirementsStatusHref> | null {
   const findingId = alert.detail?.findingId;
   if (typeof findingId === "string") return `/findings/${findingId}`;
   const controlId = alert.detail?.controlId;
-  if (typeof controlId === "string") return "/requirements?status=failed";
+  if (typeof controlId === "string") return requirementsStatusHref("failed");
   return null;
 }
 

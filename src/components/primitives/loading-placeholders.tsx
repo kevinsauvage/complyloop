@@ -3,7 +3,7 @@
 import { ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 
-const VISIBILITY_DELAY_MS = 0;
+const VISIBILITY_DELAY_MS = 200;
 const STEP_INTERVAL_MS = 1600;
 
 /**

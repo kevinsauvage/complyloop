@@ -1,4 +1,4 @@
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import type { Alert } from "@complyloop/analysis-core/contract/entities";
 
@@ -26,6 +26,18 @@ export async function listAlertsForProject(
     .select({ payload: alerts.payload })
     .from(alerts)
     .where(eq(alerts.projectId, projectId));
+  return rows.map((row) => row.payload);
+}
+
+/** Unread alerts only — the dashboard never renders read ones. */
+export async function listUnreadAlertsForProject(
+  drizzle: DrizzleDb,
+  projectId: string,
+): Promise<Alert[]> {
+  const rows = await drizzle
+    .select({ payload: alerts.payload })
+    .from(alerts)
+    .where(and(eq(alerts.projectId, projectId), eq(alerts.read, false)));
   return rows.map((row) => row.payload);
 }
 

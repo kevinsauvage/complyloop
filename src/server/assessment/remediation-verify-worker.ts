@@ -57,7 +57,7 @@ import {
 
 /** Shown when the automated re-check still finds the violation. */
 const STILL_FAILING_VERIFY_MESSAGE =
-  "Still failing — the violation is still detected at this location.";
+  "Still failing — the finding is still detected at this location.";
 const PREVIEW_UNREACHABLE_MESSAGE = "Preview unreachable — check preview URL.";
 const NO_PAGES_SCANNED_MESSAGE = "No pages scanned — check preview routes.";
 const SITE_CHECKS_NOT_RUN_MESSAGE = "Site checks did not run.";
@@ -165,7 +165,7 @@ async function computeVerifyVerdict(
         present: verdict.present,
         conclusive: verdict.conclusive,
         engine: "runtime",
-        note: "Runtime re-audit found no remaining violation on the page",
+        note: "Runtime re-audit found no remaining finding on the page",
         audit: { runtimeRan: true },
       };
     }
@@ -202,7 +202,7 @@ async function computeVerifyVerdict(
           (!isHtmlValidateOwnedCheck(finding.checkId) ||
             result.htmlValidateRan === true),
         engine: "site",
-        note: "Runtime re-audit found no remaining site-level violation",
+        note: "Runtime re-audit found no remaining site-level finding",
         stillFailingMessage,
         audit: {
           runtimeRan: true,
@@ -303,7 +303,7 @@ async function applyStillFailing(
 ): Promise<void> {
   const note =
     verdict.stillFailingMessage ??
-    "Verification failed: the violation is still detected on the page.";
+    "Verification failed: the finding is still detected on the page.";
   if (finding.status === "resolved") {
     await upsertFindings(tx, [
       { ...finding, status: "open", resolvedNote: undefined },

@@ -563,6 +563,9 @@ pushes and PR events are ignored. Failures become
   `verify-full`): `createPostgresClient` refuses a plaintext `DATABASE_URL`
   unless `DATABASE_SSL_INSECURE=true` or the host is local (dev/e2e). A
   whole-org export is owner-only.
+- `jsx-a11y/no-noninteractive-tabindex` allows `region` in addition to
+  `tabpanel`: scrollable code blocks are keyboard focus targets (WCAG 2.1.1).
+  Every other non-interactive role stays banned.
 
 ## Tests
 

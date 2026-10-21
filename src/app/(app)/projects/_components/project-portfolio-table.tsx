@@ -30,7 +30,7 @@ const JOB_TONE: Record<
 };
 
 function countTone(status: RequirementStatus, value: number): string {
-  if (value === 0) return "text-muted-foreground/60";
+  if (value === 0) return "text-muted-foreground";
   if (status === "failed") return "font-semibold text-destructive";
   if (status === "needs_review") return "font-medium text-signal";
   return "text-foreground";
@@ -68,7 +68,7 @@ export function ProjectPortfolioTable({
               </th>
             ))}
             <th scope="col" className="py-2 pr-3 text-right font-medium">
-              Open violations
+              Open findings
             </th>
             <th scope="col" className="py-2 pr-3 text-right font-medium">
               Unread regressions
@@ -116,7 +116,7 @@ export function ProjectPortfolioTable({
                     "py-2.5 pr-3 text-right tabular-nums",
                     row.openViolations > 0
                       ? "font-semibold text-destructive"
-                      : "text-muted-foreground/60",
+                      : "text-muted-foreground",
                   )}
                 >
                   {row.openViolations}
@@ -126,7 +126,7 @@ export function ProjectPortfolioTable({
                     "py-2.5 pr-3 text-right tabular-nums",
                     row.unreadAlerts > 0
                       ? "font-medium text-signal"
-                      : "text-muted-foreground/60",
+                      : "text-muted-foreground",
                   )}
                 >
                   {row.unreadAlerts}
@@ -135,7 +135,7 @@ export function ProjectPortfolioTable({
                   {row.lastCompletedAt ? (
                     <FormattedDateTime iso={row.lastCompletedAt} />
                   ) : (
-                    <span className="text-muted-foreground/60">
+                    <span className="text-muted-foreground">
                       Never assessed
                     </span>
                   )}
@@ -148,7 +148,7 @@ export function ProjectPortfolioTable({
                       tone={JOB_TONE[jobStatus]}
                     />
                   ) : (
-                    <span className="text-muted-foreground/60">—</span>
+                    <span className="text-muted-foreground">—</span>
                   )}
                 </td>
                 <td className="py-2.5 text-right">

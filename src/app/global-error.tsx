@@ -15,7 +15,7 @@ export default function GlobalError({
     <html
       lang="en"
       data-scroll-behavior="smooth"
-      className="dark h-full antialiased"
+      className="h-full antialiased"
     >
       <body className="min-h-full bg-background p-6 text-foreground">
         <AppErrorCard

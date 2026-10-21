@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { RateLimitError } from "@/server/rate-limit";
+
 import { GET } from "./route";
 
 const recentAssessmentJobsForProject = vi.hoisted(() => vi.fn());
@@ -21,10 +23,14 @@ vi.mock("@/server/auth-session", () => ({
   getSession: (...args: unknown[]) => getSession(...args),
 }));
 
-vi.mock("@/server/rate-limit", () => ({
-  assertJobPollRateLimit: (...args: unknown[]) =>
-    assertJobPollRateLimit(...args),
-}));
+vi.mock("@/server/rate-limit", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/server/rate-limit")>();
+  return {
+    ...actual,
+    assertJobPollRateLimit: (...args: unknown[]) =>
+      assertJobPollRateLimit(...args),
+  };
+});
 
 function getRequest(
   projectId: string,
@@ -68,7 +74,7 @@ describe("GET /api/projects/[projectId]/assessment-jobs", () => {
   it("returns 429 when the poll rate limit is exhausted", async () => {
     viewerCanViewProject.mockResolvedValue(true);
     getSession.mockResolvedValue({ user: { id: "user-1" } });
-    assertJobPollRateLimit.mockRejectedValueOnce(new Error("Too many."));
+    assertJobPollRateLimit.mockRejectedValueOnce(new RateLimitError());
     const [request, ctx] = getRequest("p1");
     const response = await GET(request, ctx);
     expect(response.status).toBe(429);

@@ -36,6 +36,12 @@ const eslintConfig = defineConfig([
     files: ["**/*.{jsx,tsx}"],
     rules: {
       ...jsxA11y.flatConfigs.strict.rules,
+      // Scrollable code blocks are a legitimate focus target (WCAG 2.1.1);
+      // the rule's default role list only covers tabpanels.
+      "jsx-a11y/no-noninteractive-tabindex": [
+        "error",
+        { tags: [], roles: ["tabpanel", "region"] },
+      ],
     },
   },
   {

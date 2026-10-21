@@ -56,7 +56,7 @@ Record new stack decisions here and in `docs/ai/architecture.md`.
 npm run dev              # Dev server (Turbopack); transpiles analysis-core from source
 npm run build            # Production build; transpiles analysis-core from source
 npm run build:core       # Compile packages/analysis-core → dist (publish)
-npm run verify:gate      # Full gate: lint + typecheck + test + build + bundle check (definition of done)
+npm run verify:gate      # Full gate: format + lint + typecheck + test:coverage + build (definition of done)
 npm run lint && npm run typecheck && npm run test && npm run build  # Definition of done (same as verify:gate)
 npx vitest run <touched-file>  # Targeted verify during work (fast loop; full gate at the end)
 npm run test:coverage    # Coverage gates (vitest.config.mts)

@@ -51,6 +51,8 @@ export const getProjectRuntime = cache(
       findingsLimit?: number;
       /** Skip remediation rows for pages that never render them. */
       includeRemediations?: boolean;
+      /** Skip alert rows when the caller loads only unread ones. */
+      includeAlerts?: boolean;
     },
   ): Promise<ProjectRuntime> => {
     const drizzle = await getDrizzle();
@@ -62,6 +64,7 @@ export const getProjectRuntime = cache(
           options?.findingsLimit ??
           (options?.findingStatuses ? FINDINGS_LIST_LOAD_LIMIT : undefined),
         includeRemediations: options?.includeRemediations,
+        includeAlerts: options?.includeAlerts,
       }),
       options?.includeEvidence === false
         ? []

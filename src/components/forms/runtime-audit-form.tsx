@@ -32,7 +32,7 @@ export function RuntimeAuditForm({
           aria-describedby="runtimeBaseUrl-hint"
         />
         <p id="runtimeBaseUrl-hint" className="text-xs text-muted-foreground">
-          Fallback for manual runs, not tied to a commit: violations found here
+          Fallback for manual runs, not tied to a commit: findings found here
           are reported, but only an audit of a deployment of the scanned commit
           (sent by GitHub deployment status events) can pass live-page checks
           (contrast, page title, skip link, landmarks, target size) or replace

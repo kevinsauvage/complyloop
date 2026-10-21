@@ -107,7 +107,10 @@ export async function loadFindingDetailView(
   const caps = projectCapabilities(project, access, project.orgId);
 
   const control = displayControl(finding.controlId, project);
-  const evidence = await listEvidenceForFindingScoped(finding.id);
+  const [evidence, queueIds] = await Promise.all([
+    listEvidenceForFindingScoped(finding.id),
+    loadFindingQueueIds(project, listParams),
+  ]);
   const chronologicalEvidence = [...evidence].reverse();
   const aiAvailable = isAiAvailable();
   const prUrl = pullRequestUrlFromEvidence(chronologicalEvidence);
@@ -126,10 +129,7 @@ export async function loadFindingDetailView(
     ? buildDeveloperHandoff(project, control, finding, remediation)
     : null;
 
-  const queuePosition = findingQueuePosition(
-    await loadFindingQueueIds(project, listParams),
-    finding.id,
-  );
+  const queuePosition = findingQueuePosition(queueIds, finding.id);
 
   // Staleness anchor: the latest AI suggestion/patch evidence stamps the
   // location it was generated for. A re-scan that moved the finding leaves

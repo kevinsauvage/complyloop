@@ -17,47 +17,28 @@ Source: full audit run via `docs/prompts/master.md` (2026-10-21). Findings were 
 
 **Accessibility**
 
-- [ ] `S` `max-h` + `overflow-y-auto` on dialog, alert-dialog, sheet.
-- [ ] `S` `<pre>` in `code-block.tsx` keyboard-scrollable (`tabIndex=0`, role, label).
-- [ ] `S` Prune bulk `selected` after action; close dialog; move focus.
 - [ ] `M` "Opens in a new tab" disclosure on `target=_blank` links (RGAA 13.2).
-- [ ] `S` Drop `/60` on meaningful muted text (portfolio table/overview).
 - [ ] `M` Label-in-name fixes; persistent live region + field-error association; unique repeated link names; unique `nav` names; heading levels.
 
 **Performance**
 
 - [ ] `M` Repo picker: cache, real `page` handling, filter before slice, parallel installations.
-- [ ] `S` `Promise.all` in dashboard and finding-detail views; `listUnreadAlertsForProject`.
-- [ ] `S` Timeout / `ref` on `git.clone` (`repo-checkout.ts:132`).
 
 **Architecture & quality**
 
-- [ ] `S` Break import cycle `assessment.ts` ↔ `assessment-pipeline.ts`.
 - [ ] `L` Move job-queue SQL to `packages/db/src/repo/` (or document the exception).
-- [ ] `S` Narrow bare `catch` in `assessment-jobs/route.ts:36`, `github/repos/route.ts:46`; `reportWarning` in `monitor.ts:65`.
 - [ ] `M` Route GitHub calls through `github-connector.ts` or narrow its header.
 - [ ] `M` Single auth-config module (4 duplicated gates, 2 copies of `assertProductionGitHubAuth`).
 - [ ] `M` One `isOneOf` guard + `zeroCounts` helper (≈17 casts).
-- [ ] `S` Env reads through `src/server/env.ts` (`webhook.ts:40`, `assessment-job-dispatch.ts:16-37`, `layout.tsx:24`, `sitemap.ts:4`).
-- [ ] `S` Replace "violation" in UI copy/evidence summaries (≈12 sites).
-- [ ] `S` Use href builders instead of hard-coded list URLs; share status order + exception reasons with the contract.
 - [ ] `L` Split files >300 lines / functions >200 lines (start with `assessment.ts`, `scan.ts`, `FindingsPage`, `EvidencePage`).
-- [ ] `S` Remove or justify `switchProjectAction`, `maskedFindingDetail`, `reportAppError`, `domLocationDetails`.
 
 **Dependencies & tests**
 
-- [ ] `S` Move `@typescript-eslint/parser` to `dependencies` in `packages/analysis-core`; exclude `playwright-test-teardown.ts` from build; fix `playwright` type import.
 - [ ] `M` Tests: `remediation.ts` bulk foreign-project + non-open dismiss; `requirements.ts` exception expiry (and the hardcoded `2026-12-31`); `webhook-deliveries` + `rate-limit` DB tests (add to `test:db`); the 3 evidence download routes; `openProjectAction`.
-- [ ] `S` Bump minor/patch deps (`npm audit fix` for vite only; **not** `--force`).
 
 ## P2 — docs & cleanup
 
-- [ ] `S` `AGENTS.md:59` claims a bundle check in `verify:gate`; `scripts/verify-gate.sh` has none.
-- [ ] `S` Fix stale references: `server-conventions.mdc` (`requireOnFindingProject`), `docs/prompts/architecture-boundaries.md:12` (`persistProjectRows`), `contract/assessment-jobs.ts:5-6` paths, `architecture.md:46` (`src/ai` imports).
-- [ ] `S` Add `OPS_MAX_PIPELINE_TABLE_MB` to `.env.example`.
-- [ ] `S` `knip.json`: drop `ignoreExportsUsedInFile` or de-export ~23 in-file-only exports; justify ignored CSS deps.
 - [ ] `M` Use `testFinding` fixture in the 9+ test files with hand-written Finding literals.
-- [ ] `S` Minor: `VISIBILITY_DELAY_MS` vs "200ms" comment, `global-error.tsx` theme, `ReasonNoteFields` redundant label, `noUncheckedIndexedAccess` casts.
 
 ## Needs a human decision
 

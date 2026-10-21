@@ -60,17 +60,6 @@ function redactContext(
   return safe;
 }
 
-/**
- * App/global error boundary reporter. Delegates to {@link reportError} with
- * the Next.js error digest attached for correlation.
- */
-export function reportAppError(
-  error: Error & { digest?: string },
-  code: string,
-): void {
-  reportError(error, { code, digest: error.digest });
-}
-
 export function reportError(error: unknown, context?: ReportContext): void {
   const safeContext = redactContext(context);
   const message = redactSecrets(

@@ -119,7 +119,7 @@ export default async function ProjectsPage({
               ? `${visible.length} of ${rows.length} projects · ${PORTFOLIO_FILTER_LABEL[filter]}`
               : `${rows.length} project${rows.length === 1 ? "" : "s"}`
           }
-          description="Counts are live: requirement verdicts, open violations, unread regressions, the last completed assessment and the current pipeline state."
+          description="Counts are live: requirement verdicts, open findings, unread regressions, the last completed assessment and the current pipeline state."
         >
           <PortfolioFilterChips summary={summary} active={filter} />
           <Card className="overflow-hidden shadow-none">

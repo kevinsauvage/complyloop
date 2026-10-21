@@ -14,6 +14,7 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { shouldSnapshotFile } from "@complyloop/analysis-core/source-files";
 
 import { assessmentCheckoutQuota } from "../env";
+import { reportWarning } from "../observability";
 
 function hashFileContents(absolutePath: string): string {
   const buffer = fs.readFileSync(absolutePath);
@@ -62,7 +63,12 @@ export async function captureSnapshot(
     let directory: fs.Dir;
     try {
       directory = await fs.promises.opendir(current);
-    } catch {
+    } catch (error) {
+      reportWarning("Checkout quota scan could not open a directory", {
+        code: "assessment_quota_opendir_failed",
+        path: current,
+        error: error instanceof Error ? error.message : String(error),
+      });
       continue;
     }
     for await (const entry of directory) {
