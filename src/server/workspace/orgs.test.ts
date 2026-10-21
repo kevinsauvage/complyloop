@@ -151,7 +151,6 @@ describe("orgs", () => {
   });
 
   it("normalizes invite GitHub logins to lowercase when storing", () => {
-
     const db = emptyWorkspaceSlice();
     const org = seedOwnerOrg(db, "user-a", "alice");
     applyMembership(

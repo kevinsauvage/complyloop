@@ -9,11 +9,12 @@ import {
 import { isRuntimeOnlyCheck } from "@complyloop/analysis-core/check-authority";
 import { CHECK_REGISTRY } from "@complyloop/analysis-core/check-registry";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
+import { getDrizzle } from "@complyloop/db/postgres";
+import { listLatestAssessmentForProject } from "@complyloop/db/repo/assessments";
 
 import { latestAssessmentFor } from "@/core/assessment/assessment-helpers";
 import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
 import type { ProjectCapabilities } from "@/server/workspace/project-capabilities";
-import { getProjectRuntime } from "@/server/workspace/project-runtime";
 
 export type SettingsView =
   | { project: null }
@@ -36,14 +37,14 @@ export async function loadSettingsView(): Promise<SettingsView> {
   const { project, caps } = await loadActiveProjectPage();
   if (!project) return { project: null };
 
-  const runtime = await getProjectRuntime(project.id, {
-    // Settings renders assessment/engine metadata only — no finding,
-    // remediation or alert rows.
-    findingStatuses: [],
-    includeRemediations: false,
-    includeAlerts: false,
-  });
-  const latestAssessment = latestAssessmentFor(runtime.assessments, project.id);
+  // Only the latest assessment record is rendered here. The full runtime load
+  // would read every requirement row plus the workspace evidence window for
+  // data this page never shows.
+  const latestAssessments = await listLatestAssessmentForProject(
+    await getDrizzle(),
+    project.id,
+  );
+  const latestAssessment = latestAssessmentFor(latestAssessments, project.id);
   const runtimeError = latestAssessment?.engines?.runtimeError ?? null;
   const runtimeStatus = latestAssessment?.engines?.runtime
     ? `Last assessment audited ${latestAssessment.engines.runtimePagesScanned ?? 0} page(s)${

@@ -62,6 +62,11 @@ publish-only.
   vault). Repo-picker listings are cached for 30 s and paginate per page
   (`page` forwarded from the client), filtering before slicing.
 - Evidence is append-only. Tokens are AES-256-GCM at rest.
+- Observability is server-side by default: Sentry runs in the Node/Edge
+  runtimes, and the browser SDK is **not** in the initial bundle. There is no
+  `instrumentation-client.ts`; `clientSentry()` (`src/sentry/client.ts`)
+  imports and initializes the SDK on the first error boundary or non-"good"
+  web vital (measured: −134 KB and −2 requests per page view).
 - Server-owned env keys live in `src/server/env.ts` (lazy getters — never
   module constants); `AUTH_*` stays with auth/middleware/token crypto,
   framework keys stay direct.

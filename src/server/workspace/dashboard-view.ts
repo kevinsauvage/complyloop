@@ -2,7 +2,6 @@
 import "server-only";
 
 import type { Route } from "next";
-import { cache } from "react";
 
 import type {
   Alert,
@@ -15,7 +14,6 @@ import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuse
 import { getDrizzle } from "@complyloop/db/postgres";
 import { listUnreadAlertsForProject } from "@complyloop/db/repo/alerts";
 import { listAssessmentHistoryForProject } from "@complyloop/db/repo/assessments";
-import { countFindingsByStatusForProject } from "@complyloop/db/repo/findings";
 
 import {
   countByStatus,
@@ -27,13 +25,13 @@ import { findingsListHref } from "@/core/filter-params/findings";
 import { requirementsStatusHref } from "@/core/filter-params/requirements";
 import { compareFindingsBySeverity } from "@/core/findings/finding-priority";
 import { activeRegressions } from "@/core/requirements/active-regressions";
+import { navAttentionForProject } from "@/server/reporting/nav-attention";
 import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
 import type { ProjectCapabilities } from "@/server/workspace/project-capabilities";
 import { getProjectRuntime } from "@/server/workspace/project-runtime";
 import {
   findingsInScope,
   requirementsInScope,
-  scopedControlIds,
 } from "@/server/workspace/project-scope";
 
 interface DashboardViewProject {
@@ -73,22 +71,6 @@ export type DashboardView =
   { project: null; visibleProjects: Project[] } | DashboardViewProject;
 
 /**
- * Index-only open total, memoized per request like the rest of the loaders.
- * The loaded finding rows are capped (see `FINDINGS_LIST_LOAD_LIMIT`), so
- * counts displayed here must come from SQL, not `openFindings.length`.
- */
-const countOpenFindings = cache(async (project: Project) => {
-  const scoped = scopedControlIds(project);
-  return (
-    await countFindingsByStatusForProject(
-      await getDrizzle(),
-      project.id,
-      scoped ? [...scoped] : undefined,
-    )
-  ).open;
-});
-
-/**
  * Everything the dashboard renders: scoped runtime rows, status counts,
  * severity-ordered findings, alert/regression/evidence windows, and the
  * derived quick-stats + next-action cards. The run-assessment CTA and
@@ -100,7 +82,7 @@ export async function loadDashboardView(): Promise<DashboardView> {
   const hasConnectedProject = visibleProjects.length > 0;
 
   const drizzle = await getDrizzle();
-  const [runtime, openCount, unreadAlerts, history] = await Promise.all([
+  const [runtime, attention, unreadAlerts, history] = await Promise.all([
     getProjectRuntime(project.id, {
       findingStatuses: ["open"],
       // The activity card renders the six most severe; the header count comes
@@ -110,13 +92,16 @@ export async function loadDashboardView(): Promise<DashboardView> {
       // Unread alerts are loaded directly; read rows are never rendered.
       includeAlerts: false,
     }),
-    countOpenFindings(project),
+    // Also feeds the shell's nav badges — one cached count for both, since the
+    // loaded finding rows are capped and the displayed total must stay exact.
+    navAttentionForProject(project),
     listUnreadAlertsForProject(drizzle, project.id),
     // Bounded history window, oldest → newest (max 10). runtime.assessments
     // holds the latest assessment only, so the trend reads its own capped
     // history — deriving it from the runtime slice could never reach 2 points.
     listAssessmentHistoryForProject(drizzle, project.id, 10),
   ]);
+  const openCount = attention.openFindings;
   const latestAssessment = latestAssessmentFor(runtime.assessments, project.id);
   const requirements = requirementsInScope(runtime.requirements, project);
   const projectFindings = findingsInScope(runtime.findings, project);

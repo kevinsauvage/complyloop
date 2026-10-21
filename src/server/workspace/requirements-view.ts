@@ -82,21 +82,23 @@ export async function loadRequirementsView(
   const { project, caps } = await loadActiveProjectPage();
   if (!project) return { project: null };
 
-  const runtime = await getProjectRuntime(project.id, {
-    // This page renders no finding or remediation rows: per-control open
-    // counts come from SQL below, so loading the open set only inflates the
-    // response.
-    findingStatuses: [],
-    includeRemediations: false,
-    includeAlerts: false,
-  });
-  // Per-control open counts come from SQL, not the loaded slice: the findings
-  // row load is capped, but badges must stay exact.
   const drizzle = await getDrizzle();
-  const openFindingCounts = await countOpenFindingsByControlForProject(
-    drizzle,
-    project.id,
-  );
+  const [runtime, openFindingCounts] = await Promise.all([
+    getProjectRuntime(project.id, {
+      // This page renders no finding or remediation rows: per-control open
+      // counts come from SQL below, so loading the open set only inflates the
+      // response.
+      findingStatuses: [],
+      includeRemediations: false,
+      includeAlerts: false,
+      // Nothing on this page renders evidence; the workspace window (100 rows)
+      // would be fetched and thrown away.
+      includeEvidence: false,
+    }),
+    // Per-control open counts come from SQL, not the loaded slice: the findings
+    // row load is capped, but badges must stay exact.
+    countOpenFindingsByControlForProject(drizzle, project.id),
+  ]);
   const defaultPresetId = projectDefaultPresetId(project);
   // One scope per project, changed in Settings: a stale `?presetId=` link must
   // not show a different framework than the one assessments use.

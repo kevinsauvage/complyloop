@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import AppError from "./error";
 import NotFound from "./not-found";
@@ -13,8 +13,14 @@ vi.mock("@/auth", () => ({
   isGitHubAuthConfigured: () => false,
 }));
 
+beforeEach(() => {
+  // The browser SDK is imported on demand, and only when a DSN is configured.
+  vi.stubEnv("NEXT_PUBLIC_SENTRY_DSN", "https://key@sentry.example/1");
+});
+
 afterEach(() => {
   cleanup();
+  vi.unstubAllEnvs();
 });
 
 describe("app error and not-found pages", () => {
@@ -45,7 +51,7 @@ describe("app error and not-found pages", () => {
 
     await user.click(screen.getByRole("button", { name: "Try again" }));
     expect(retry).toHaveBeenCalledOnce();
-    expect(Sentry.captureException).toHaveBeenCalled();
+    await vi.waitFor(() => expect(Sentry.captureException).toHaveBeenCalled());
   });
 
   it("renders not-found with a path back to the dashboard", async () => {

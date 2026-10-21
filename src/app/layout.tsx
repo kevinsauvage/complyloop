@@ -1,7 +1,7 @@
 import "./globals.css";
 
 import type { Metadata, Viewport } from "next";
-import { Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import { headers } from "next/headers";
 import { ThemeProvider } from "next-themes";
 import type { ReactNode } from "react";
@@ -10,11 +10,6 @@ import { WebVitals } from "@/components/web-vitals";
 
 const jakartaSans = Plus_Jakarta_Sans({
   variable: "--font-jakarta-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
   subsets: ["latin"],
 });
 
@@ -60,7 +55,7 @@ export default async function RootLayout({
       lang="en"
       suppressHydrationWarning
       data-scroll-behavior="smooth"
-      className={`${jakartaSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${jakartaSans.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-background text-foreground">
         <ThemeProvider

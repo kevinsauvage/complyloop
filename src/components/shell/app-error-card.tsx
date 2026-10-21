@@ -1,6 +1,5 @@
 "use client";
 
-import * as Sentry from "@sentry/nextjs";
 import { RotateCcw, TriangleAlert } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
@@ -14,6 +13,7 @@ import {
   CardHeader,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { clientSentry } from "@/sentry/client";
 
 export function AppErrorCard({
   error,
@@ -36,19 +36,23 @@ export function AppErrorCard({
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
 
-  // Report once to the browser Sentry SDK + move keyboard/screen-reader
-  // focus to the error heading on mount (role="alert" announces, focus gives
-  // keyboard users a predictable starting point). Client components must not
-  // import `@/server/observability` (it pulls `node:*` into the client
-  // bundle), so reporting lives here instead of a separate module.
+  // Report once to Sentry (loaded on demand, see `clientSentry`) + move
+  // keyboard/screen-reader focus to the error heading on mount (role="alert"
+  // announces, focus gives keyboard users a predictable starting point).
+  // Client components must not import `@/server/observability` (it pulls
+  // `node:*` into the client bundle), so reporting lives here instead of a
+  // separate module.
   useEffect(() => {
     if (process.env.NODE_ENV === "development") {
       console.error(`[${reportTag}]`, error);
     }
-    Sentry.withScope((scope) => {
-      scope.setTag("code", reportTag);
-      if (error.digest) scope.setExtra("digest", error.digest);
-      Sentry.captureException(error);
+    void clientSentry().then((Sentry) => {
+      if (!Sentry) return;
+      Sentry.withScope((scope) => {
+        scope.setTag("code", reportTag);
+        if (error.digest) scope.setExtra("digest", error.digest);
+        Sentry.captureException(error);
+      });
     });
     headingRef.current?.focus();
   }, [error, reportTag]);

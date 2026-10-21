@@ -79,13 +79,21 @@ export async function loadFindingDetailView(
   rawParams: Record<string, string | string[] | undefined>,
 ): Promise<FindingDetailView> {
   const listParams = parseFindingListParams(rawParams);
-  const { access, projects } = await getWorkspace();
-  let finding: Finding;
-  try {
-    finding = await requireFinding(id);
-  } catch {
-    return { finding: null };
-  }
+
+  // Three independent lookups: the tenancy load, the finding row, and its
+  // remediation (keyed by the route param, not by the finding). Loading them
+  // in one wave removes two serial round trips from the drill-down page.
+  const [workspace, finding, remediation] = await Promise.all([
+    getWorkspace(),
+    requireFinding(id).catch(() => null),
+    requireRemediationForFinding(id).catch((error: unknown) => {
+      if (error instanceof PublicError) return null;
+      throw error;
+    }),
+  ]);
+  if (!finding || !remediation) return { finding: null };
+
+  const { access, projects } = workspace;
   const project = projects.find(
     (candidate) => candidate.id === finding.projectId,
   );
@@ -93,17 +101,6 @@ export async function loadFindingDetailView(
     return { finding: null };
   }
 
-  // Findings without a remediation row (scoped re-assess, stale apply,
-  // manual DB edit) render as not-found, like a missing finding — the list
-  // page tolerates orphans the same way instead of 500ing. Only PublicError
-  // (unknown ids) maps to null; anything else still throws.
-  let remediation: Remediation;
-  try {
-    remediation = await requireRemediationForFinding(finding.id);
-  } catch (error) {
-    if (error instanceof PublicError) return { finding: null };
-    throw error;
-  }
   const caps = projectCapabilities(project, access, project.orgId);
 
   const control = displayControl(finding.controlId, project);
