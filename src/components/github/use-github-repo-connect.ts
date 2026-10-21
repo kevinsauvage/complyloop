@@ -1,6 +1,5 @@
 "use client";
 
-import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef } from "react";
 
@@ -38,7 +37,7 @@ export function useGitHubRepoConnect() {
     const finished = wasConnecting.current && !connectPending;
     wasConnecting.current = connectPending;
     if (finished && connectState.ok && connectState.redirectTo) {
-      router.push(connectState.redirectTo as Route);
+      router.push(connectState.redirectTo);
     }
   }, [connectPending, connectState.ok, connectState.redirectTo, router]);
   useActionToast(disconnectState, disconnectPending);

@@ -209,8 +209,8 @@ export async function connectGitHubRepo(
 
 /**
  * Disconnects a GitHub project when the actor has `project.connect`.
- * Returns what to persist (scoped rows drop via the project FK cascade) plus
- * the next visible project id for the cookie. Does not mutate `db`.
+ * Returns what to persist (scoped rows drop via the project FK cascade).
+ * Does not mutate `db`.
  *
  * Retention: disconnecting drops the project's findings/remediations/
  * requirements — only the `project_disconnected` evidence row survives

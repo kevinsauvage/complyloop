@@ -6,6 +6,7 @@ import {
   type ActionState,
   unexpectedActionMessage,
 } from "@/core/actions/action-state";
+import type { AppHref } from "@/core/routes";
 
 import { reportError } from "./observability";
 
@@ -27,7 +28,7 @@ export function publicErrorMessage(error: unknown): string {
  * moves the client (see `ActionState.redirectTo`).
  */
 export async function runAction(
-  run: () => Promise<string | void | { message: string; redirectTo?: string }>,
+  run: () => Promise<string | void | { message: string; redirectTo?: AppHref }>,
 ): Promise<ActionState> {
   try {
     const result = await run();

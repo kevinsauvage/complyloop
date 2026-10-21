@@ -40,9 +40,8 @@ function countTone(status: RequirementStatus, value: number): string {
 
 /**
  * One row per project: verdict counts, open violations, unread regressions,
- * last assessment and current job. The project cell is a form button so
- * "open" also switches the active project (a plain link cannot set the
- * cookie-backed selection).
+ * last assessment and current job. "Open" links straight into that project's
+ * dashboard — the URL carries the project, so no selection has to be stored.
  */
 export function ProjectPortfolioTable({
   rows,

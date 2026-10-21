@@ -91,16 +91,13 @@ export async function runAssessmentAction(
     // One short write (permission + rate limit + enqueue + evidence, all
     // under the project lock), then the drain happens outside it.
     const context: {
-      projectId: string | null;
       job: AssessmentJob | null;
       alreadyActive: AssessmentJob | null;
     } = {
-      projectId: null,
       job: null,
       alreadyActive: null,
     };
     await withProjectTx(projectId, "project.assess", async (ctx) => {
-      context.projectId = ctx.project.id;
       if (ctx.userId) await assertAssessRateLimit(ctx.userId, ctx.tx);
       // Reclaim crashed-worker leases before reading the active job: an
       // expired-`running` row must not block re-dispatch until the 15-minute
