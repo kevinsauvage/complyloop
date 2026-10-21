@@ -31,11 +31,17 @@ describe("listAvailableRepos", () => {
   it("forwards token, paging, and query to the installation listing", async () => {
     listReposViaInstallations.mockResolvedValue([summary]);
     await expect(
-      listAvailableRepos({ accessToken: "gho_token", perPage: 50, q: "shop" }),
+      listAvailableRepos({
+        accessToken: "gho_token",
+        perPage: 50,
+        page: 2,
+        q: "shop",
+      }),
     ).resolves.toEqual([summary]);
     expect(listReposViaInstallations).toHaveBeenCalledWith({
       userAccessToken: "gho_token",
       perPage: 50,
+      page: 2,
       q: "shop",
     });
   });

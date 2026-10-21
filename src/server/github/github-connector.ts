@@ -17,9 +17,8 @@
  *   gate, not an operation.
  *
  * Out of scope (different owners): ephemeral checkouts
- * (`assessment/repo-checkout.ts` composes token + clone), user-scoped App
- * installation setup during connect (`github-app.ts` via `actions/connect.ts`),
- * and webhook delivery idempotency (the webhook route).
+ * (`assessment/repo-checkout.ts` composes token + clone), and webhook delivery
+ * idempotency (the webhook route).
  */
 import "server-only";
 
@@ -35,11 +34,20 @@ import type {
 import type { PatchCandidate } from "@/ai/verified-fix";
 
 import { fetchGitHubRepo, resolveProjectGitHubToken } from "./github-access";
-import { githubAppInstallUrl, listReposViaInstallations } from "./github-app";
+import { assertBranchExists } from "./github-access";
+import {
+  createInstallationAccessToken,
+  githubAppInstallUrl,
+  isGitHubAppConfigured,
+  listReposViaInstallations,
+  resolveUserInstallationForRepo,
+} from "./github-app";
 import type { GitHubRepoSummary } from "./github-types";
 import { preparePullRequest, type PullRequestResult } from "./pr";
 
 export type { GitHubRepoSummary };
+export { assertBranchExists, isGitHubAppConfigured };
+export { createInstallationAccessToken, resolveUserInstallationForRepo };
 
 /** Installation token for clone / PR / Checks. Null when not App-connected. */
 export { resolveProjectGitHubToken as getProjectToken };
@@ -51,11 +59,13 @@ export { githubAppInstallUrl };
 export function listAvailableRepos(options: {
   accessToken: string;
   perPage?: number;
+  page?: number;
   q?: string;
 }): Promise<GitHubRepoSummary[]> {
   return listReposViaInstallations({
     userAccessToken: options.accessToken,
     perPage: options.perPage,
+    page: options.page,
     q: options.q,
   });
 }

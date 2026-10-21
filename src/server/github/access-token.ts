@@ -3,43 +3,17 @@ import "server-only";
 import { cookies } from "next/headers";
 import { getToken } from "next-auth/jwt";
 
+import { resolveAuthSecret, sessionCookieIsSecure } from "@/auth-secret";
 import {
-  isProductionRuntime,
-  resolveAuthSecret,
-  sessionCookieIsSecure,
-} from "@/auth-secret";
-import { assertProductionGitHubApp } from "@/server/github/github-app";
+  assertProductionGitHubAuth,
+  isGitHubAuthConfigured,
+} from "@/server/github/auth-config";
 import {
   clearStoredGitHubToken,
   getStoredGitHubTokenWithExpiry,
   isTokenRefreshError,
   refreshGitHubToken,
 } from "@/server/github/github-tokens";
-
-/** Same env gate as `isGitHubAuthConfigured` in `@/auth` — kept local so the
- * token vault does not import the NextAuth composition root. */
-function githubOAuthConfigured(): boolean {
-  return Boolean(
-    process.env.AUTH_SECRET &&
-    process.env.AUTH_GITHUB_ID &&
-    process.env.AUTH_GITHUB_SECRET,
-  );
-}
-
-/**
- * Fail loud when serving in production without AUTH_URL / GitHub App.
- * Skips the Next.js production-build phase so `next build` still works.
- */
-function assertProductionGitHubAuth(): void {
-  if (!isProductionRuntime()) return;
-  if (!githubOAuthConfigured()) return;
-  if (!process.env.AUTH_URL) {
-    throw new Error(
-      "AUTH_URL is required in production when GitHub auth is configured (see docs/vercel.md).",
-    );
-  }
-  assertProductionGitHubApp();
-}
 
 /**
  * Token-state signal for repair UI. `revoked` (grant revoked/expired at
@@ -53,7 +27,7 @@ export type GitHubTokenState =
   | { state: "missing" };
 
 export async function getGitHubAccessTokenState(): Promise<GitHubTokenState> {
-  if (!githubOAuthConfigured()) return { state: "missing" };
+  if (!isGitHubAuthConfigured()) return { state: "missing" };
   assertProductionGitHubAuth();
   const cookieStore = await cookies();
   const cookieHeader = cookieStore

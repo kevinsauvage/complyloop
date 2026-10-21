@@ -15,7 +15,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getSession } from "@/server/auth-session";
-import { isGitHubAppConfigured } from "@/server/github/github-app";
+import { isGitHubAppConfigured } from "@/server/github/github-connector";
 
 import { authErrorCopy } from "./auth-error-copy";
 

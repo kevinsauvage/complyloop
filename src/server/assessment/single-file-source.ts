@@ -14,7 +14,7 @@ import {
   octokitErrorMessage,
   parseOwnerRepo,
 } from "../github/github";
-import { resolveProjectGitHubToken } from "../github/github-access";
+import { getProjectToken } from "../github/github-connector";
 import { refForProjectCheckout } from "../github/tracked-branch";
 import { withFixtureCheckout } from "./fixture-checkout";
 
@@ -34,7 +34,7 @@ export async function readProjectFile(
       "connect",
     );
   }
-  const accessToken = await resolveProjectGitHubToken(project);
+  const accessToken = await getProjectToken(project);
   if (!accessToken) {
     throw new PublicError(
       project.github?.installationId

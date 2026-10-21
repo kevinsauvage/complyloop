@@ -12,9 +12,9 @@ import { getGitHubAccessTokenState } from "@/server/github/access-token";
 import { runAction } from "../action-state";
 import {
   createInstallationAccessToken,
+  fetchRepo,
   resolveUserInstallationForRepo,
-} from "../github/github-app";
-import { fetchRepo } from "../github/github-connector";
+} from "../github/github-connector";
 import { reportEvent } from "../observability";
 import { assertConnectRateLimit } from "../rate-limit";
 import {

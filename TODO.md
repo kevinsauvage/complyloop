@@ -20,16 +20,10 @@ Source: full audit run via `docs/prompts/master.md` (2026-10-21). Findings were 
 - [ ] `M` "Opens in a new tab" disclosure on `target=_blank` links (RGAA 13.2).
 - [ ] `M` Label-in-name fixes; persistent live region + field-error association; unique repeated link names; unique `nav` names; heading levels.
 
-**Performance**
-
-- [ ] `M` Repo picker: cache, real `page` handling, filter before slice, parallel installations.
-
 **Architecture & quality**
 
 - [ ] `L` Move job-queue SQL to `packages/db/src/repo/` (or document the exception).
-- [ ] `M` Route GitHub calls through `github-connector.ts` or narrow its header.
-- [ ] `M` Single auth-config module (4 duplicated gates, 2 copies of `assertProductionGitHubAuth`).
-- [ ] `M` One `isOneOf` guard + `zeroCounts` helper (≈17 casts).
+- [ ] `M` One `isOneOf` guard + `zeroCounts` helper (≈17 casts). **Deferred** — a single helper shared by `src/core` and `packages/db` needs a contract-level util (ask-first); per-package duplicates would not be one helper.
 - [ ] `L` Split files >300 lines / functions >200 lines (start with `assessment.ts`, `scan.ts`, `FindingsPage`, `EvidencePage`).
 
 **Dependencies & tests**

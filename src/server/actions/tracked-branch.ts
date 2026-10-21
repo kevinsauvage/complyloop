@@ -12,8 +12,8 @@ import { runAction } from "../action-state";
 import { parseCheckoutRef } from "../assessment/repo-checkout";
 import {
   assertBranchExists,
-  resolveProjectGitHubToken,
-} from "../github/github-access";
+  getProjectToken,
+} from "../github/github-connector";
 import { assertRuntimeAuditRateLimit } from "../rate-limit";
 import { getWorkspace } from "../workspace/workspace";
 import {
@@ -51,7 +51,7 @@ export async function updateTrackedBranchAction(
           "connect",
         );
       }
-      const token = await resolveProjectGitHubToken(current.project);
+      const token = await getProjectToken(current.project);
       if (!token) {
         throw new PublicError(
           "Could not reach GitHub for this project. Reconnect it from Settings.",

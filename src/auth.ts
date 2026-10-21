@@ -1,40 +1,18 @@
 import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
 
-import { isProductionRuntime, resolveAuthSecret } from "@/auth-secret";
-import { assertProductionGitHubApp } from "@/server/github/github-app";
+import { resolveAuthSecret } from "@/auth-secret";
+import {
+  assertProductionGitHubAuth,
+  isGitHubAuthConfigured,
+} from "@/server/github/auth-config";
 import {
   clearStoredGitHubToken,
   storeUserGitHubToken,
 } from "@/server/github/github-tokens";
 import { ensurePersonalOrgProvisioned } from "@/server/workspace/personal-org";
 
-export function isGitHubAuthConfigured(): boolean {
-  return Boolean(
-    process.env.AUTH_SECRET &&
-    process.env.AUTH_GITHUB_ID &&
-    process.env.AUTH_GITHUB_SECRET,
-  );
-}
-
-/**
- * Fail loud when serving in production without AUTH_URL.
- * Skips the Next.js production-build phase so `next build` still works.
- */
-function assertProductionAuthUrl(): void {
-  if (!isProductionRuntime()) return;
-  if (!isGitHubAuthConfigured()) return;
-  if (!process.env.AUTH_URL) {
-    throw new Error(
-      "AUTH_URL is required in production when GitHub auth is configured (see docs/vercel.md).",
-    );
-  }
-}
-
-function assertProductionGitHubAuth(): void {
-  assertProductionAuthUrl();
-  assertProductionGitHubApp();
-}
+export { isGitHubAuthConfigured };
 
 const githubConfigured = isGitHubAuthConfigured();
 const authSecret = resolveAuthSecret();

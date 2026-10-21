@@ -18,6 +18,13 @@ const githubReposQuerySchema = z.object({
       const trimmed = value?.trim();
       return trimmed && trimmed.length > 0 ? trimmed : undefined;
     }),
+  page: z
+    .string()
+    .optional()
+    .transform((value) => {
+      const parsed = Number(value ?? "1");
+      return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 1;
+    }),
 });
 
 export async function GET(request: Request): Promise<Response> {
@@ -70,6 +77,7 @@ export async function GET(request: Request): Promise<Response> {
       githubReposQuerySchema,
       {
         q: url.searchParams.get("q") ?? undefined,
+        page: url.searchParams.get("page") ?? undefined,
       },
       "Invalid repository search.",
     );
@@ -82,6 +90,7 @@ export async function GET(request: Request): Promise<Response> {
     const repos = await listAvailableRepos({
       accessToken: token,
       perPage,
+      page: query.page,
       q: query.q,
     });
     return Response.json({

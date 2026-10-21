@@ -55,6 +55,12 @@ publish-only.
 **Runtime topology:**
 
 - **Connectors:** GitHub only. **State:** Postgres (`DATABASE_URL`).
+  `src/server/github/github-connector.ts` is the single facade for GitHub
+  operations (repo listing/fetch, install tokens, PRs); only webhook
+  idempotency and ephemeral checkouts stay outside it. The production auth
+  gate lives once in `auth-config.ts` (shared by the auth root and the token
+  vault). Repo-picker listings are cached for 30 s and paginate per page
+  (`page` forwarded from the client), filtering before slicing.
 - Evidence is append-only. Tokens are AES-256-GCM at rest.
 - Server-owned env keys live in `src/server/env.ts` (lazy getters — never
   module constants); `AUTH_*` stays with auth/middleware/token crypto,
