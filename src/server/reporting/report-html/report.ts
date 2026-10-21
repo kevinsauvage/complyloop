@@ -6,7 +6,7 @@ import {
 } from "@complyloop/analysis-core/contract/statuses";
 
 import { formatDateTimeWithZone } from "@/core/datetime";
-import { requirementStatusDisplay } from "@/core/display";
+import { requirementStatusDisplay } from "@/core/display/status";
 
 import {
   type AuditEvidenceRow,
@@ -78,7 +78,7 @@ export function buildEngineeringReportHtml(
       "summary",
       "Summary",
       `<div class="summary-grid">
-        ${summaryStat("Open findings", model.findings.length)}
+        ${summaryStat("Open findings", model.openFindingsTotal)}
       </div>`,
     ),
   ];
@@ -99,16 +99,22 @@ function renderEngineeringFindings(model: EngineeringReportModel): string {
     return emptyParagraph("No open findings.");
   }
 
-  return model.findings
-    .map((finding) => {
-      const snippet = finding.snippet
-        ? `<pre class="snippet">${escapeHtml(finding.snippet)}</pre>`
-        : "";
-      const remediationLine = finding.remediationStatus
-        ? `<p class="meta"><strong>Remediation:</strong> ${escapeHtml(finding.remediationStatus)}</p>`
-        : "";
+  const truncationNote =
+    model.findings.length < model.openFindingsTotal
+      ? `<p class="note">Showing the ${model.findings.length} most severe of ${model.openFindingsTotal} open findings.</p>\n`
+      : "";
+  return (
+    truncationNote +
+    model.findings
+      .map((finding) => {
+        const snippet = finding.snippet
+          ? `<pre class="snippet">${escapeHtml(finding.snippet)}</pre>`
+          : "";
+        const remediationLine = finding.remediationStatus
+          ? `<p class="meta"><strong>Remediation:</strong> ${escapeHtml(finding.remediationStatus)}</p>`
+          : "";
 
-      return `<article class="finding-card">
+        return `<article class="finding-card">
   <header>
     <span class="badge severity-${finding.severityClass}">${escapeHtml(finding.severity)}</span>
     <code class="control-id">${escapeHtml(finding.code)}</code>
@@ -118,8 +124,9 @@ function renderEngineeringFindings(model: EngineeringReportModel): string {
   ${remediationLine}
   ${snippet}
 </article>`;
-    })
-    .join("\n");
+      })
+      .join("\n")
+  );
 }
 
 function renderEvidence(

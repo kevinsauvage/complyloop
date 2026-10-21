@@ -1,7 +1,7 @@
 import type { FrameworkPresetSummary } from "@complyloop/analysis-core/catalog/registry";
 
 import { Badge } from "@/components/ui/badge";
-import { STATUS_TONE_BADGE } from "@/core/display";
+import { STATUS_TONE_BADGE } from "@/core/display/report-tones";
 
 /**
  * Name + badge + description + control count for one preset row. Wrapper and

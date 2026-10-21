@@ -11,7 +11,7 @@ import {
   type FindingListParams,
   findingsListHref,
   hasActiveFindingFilters,
-} from "@/core/filter-params";
+} from "@/core/filter-params/findings";
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;

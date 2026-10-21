@@ -16,22 +16,27 @@ import {
 } from "@complyloop/analysis-core/contract/statuses";
 
 import {
-  confidenceDisplay,
-  determinationDisplay,
-  engineDisplay,
   EVIDENCE_TONE_BADGE,
   EVIDENCE_TONE_DOT,
   evidenceDisplay,
+} from "@/core/display/evidence";
+import {
+  type ReportColorPair,
+  STATUS_TONE_BADGE,
+  STATUS_TONE_REPORT,
+} from "@/core/display/report-tones";
+import {
+  confidenceDisplay,
+  determinationDisplay,
+  engineDisplay,
   findingStatusDisplay,
   provenanceDisplay,
   remediationStatusDisplay,
-  type ReportColorPair,
   requirementStatusDisplay,
   roleTone,
   severityDisplay,
-  STATUS_TONE_BADGE,
-  STATUS_TONE_REPORT,
-} from "./display";
+} from "@/core/display/status";
+
 import { severityRank } from "./findings/finding-priority";
 
 const SEVERITIES: Severity[] = ["critical", "serious", "moderate", "minor"];

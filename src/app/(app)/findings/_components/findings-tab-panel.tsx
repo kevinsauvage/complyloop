@@ -2,8 +2,11 @@ import type { ReactNode } from "react";
 
 import { EmptyState } from "@/components/primitives/page-primitives";
 import { PaginationNav } from "@/components/primitives/pagination-nav";
-import type { FindingListParams, FindingsTab } from "@/core/filter-params";
-import { DEFAULT_PAGE_SIZE } from "@/core/filter-params";
+import type {
+  FindingListParams,
+  FindingsTab,
+} from "@/core/filter-params/findings";
+import { DEFAULT_PAGE_SIZE } from "@/core/filter-params/pagination";
 
 import type { FindingListItem } from "./finding-list-items";
 import { FindingsBulkList } from "./findings-bulk-list";

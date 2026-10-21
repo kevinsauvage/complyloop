@@ -121,11 +121,7 @@ async function loadWorkspaceTenancy(
   if (input.userId && input.githubLogin) {
     await provisionPersonalOrg(drizzle, input.userId, input.githubLogin);
   }
-  const orgIds = await listOrgIdsForUser(
-    drizzle,
-    input.userId,
-    input.githubLogin,
-  );
+  const orgIds = await listOrgIdsForUser(drizzle, input.userId);
   const [organizations, memberships, projects] = await Promise.all([
     listOrganizationsForUser(drizzle, orgIds),
     listMembershipsForOrgs(drizzle, orgIds),

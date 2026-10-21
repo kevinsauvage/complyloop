@@ -61,6 +61,6 @@ describe("loadTenancyDb claim-on-workspace-load", () => {
       activeProjectId: null,
     });
     expect(provisionPersonalOrg).not.toHaveBeenCalled();
-    expect(listOrgIdsForUser).toHaveBeenCalledWith(drizzle, null, null);
+    expect(listOrgIdsForUser).toHaveBeenCalledWith(drizzle, null);
   });
 });

@@ -11,26 +11,27 @@ import type {
 } from "@complyloop/analysis-core/contract/statuses";
 
 import { Badge } from "@/components/ui/badge";
+import { EVIDENCE_TONE_BADGE, evidenceDisplay } from "@/core/display/evidence";
 import {
   type BadgeVariant,
+  STATUS_TONE_BADGE,
+  type StatusTone,
+} from "@/core/display/report-tones";
+import {
   confidenceDisplay,
-  EVIDENCE_TONE_BADGE,
-  evidenceDisplay,
   findingStatusDisplay,
   provenanceDisplay,
   remediationStatusDisplay,
   requirementStatusDisplay,
   severityDisplay,
-  STATUS_TONE_BADGE,
-  type StatusTone,
-} from "@/core/display";
+} from "@/core/display/status";
 import { cn } from "@/lib/utils";
 
 import { BadgeWithDescription } from "./badge-with-description";
 
 export { BadgeWithDescription };
 
-/** The single status badge renderer, fed from the unified `@/core/display` tables. */
+/** The single status badge renderer, fed from the unified `@/core/display/*` tables. */
 export function StatusBadge({
   description,
   label,

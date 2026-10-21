@@ -23,12 +23,12 @@ import {
 } from "@/components/primitives/page-primitives";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { evidenceDisplay } from "@/core/display/evidence";
+import { confidenceDisplay, engineDisplay } from "@/core/display/status";
 import {
-  confidenceDisplay,
-  engineDisplay,
-  evidenceDisplay,
-} from "@/core/display";
-import { findingsListHref } from "@/core/filter-params";
+  findingDetailHref,
+  findingsListHref,
+} from "@/core/filter-params/findings";
 import { effectiveBranch } from "@/server/github/tracked-branch";
 import { displayControl } from "@/server/reporting/report";
 import { loadFindingDetailView } from "@/server/workspace/finding-detail-view";
@@ -140,6 +140,21 @@ export default async function FindingPage({
           </span>
           <CopyButton label="Copy check ID" text={finding.checkId} />
         </p>
+        {finding.regressionOf ? (
+          <p className="w-full text-xs text-muted-foreground sm:text-right">
+            Regression: this instance was fixed before.{" "}
+            <Link
+              href={findingDetailHref(finding.regressionOf, {
+                ...listParams,
+                tab: "resolved",
+                page: 1,
+              })}
+              className="font-medium text-foreground underline underline-offset-4"
+            >
+              View the earlier finding
+            </Link>
+          </p>
+        ) : null}
       </PageHeader>
 
       <PageContent>

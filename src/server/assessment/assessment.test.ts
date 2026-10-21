@@ -165,6 +165,27 @@ describe("runAssessment", () => {
     expect(regression).toBeDefined();
   });
 
+  it("links a regressed finding to the resolved finding it reopens", async () => {
+    await assess();
+    const firstId = db.findings[0]!.id;
+    fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
+    await assess();
+    fs.writeFileSync(path.join(rootPath, "Hero.tsx"), BROKEN);
+    await assess();
+
+    const regressed = db.findings.find((finding) => finding.status === "open");
+    expect(regressed?.id).not.toBe(firstId);
+    expect(regressed?.regressionOf).toBe(firstId);
+    expect(
+      db.evidence.some(
+        (record) =>
+          record.findingId === regressed?.id &&
+          record.detail?.event === "detected" &&
+          record.detail?.regressionOf === firstId,
+      ),
+    ).toBe(true);
+  });
+
   it("verifies a draft-PR remediation from the remediation payload when evidence is empty", async () => {
     await assess();
     const finding = db.findings[0]!;

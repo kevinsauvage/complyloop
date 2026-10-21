@@ -17,7 +17,7 @@ export function AssessedRequirementList({
   maskedFindingCounts,
   lapsedExceptionControlIds,
   frameworkId,
-  canRemediate,
+  canDecide,
   project,
 }: {
   controls: Control[];
@@ -26,7 +26,7 @@ export function AssessedRequirementList({
   maskedFindingCounts: Map<string, number>;
   lapsedExceptionControlIds: ReadonlySet<string>;
   frameworkId: string;
-  canRemediate: boolean;
+  canDecide: boolean;
   project: Pick<Project, "runtimeBaseUrl">;
 }) {
   const groups = groupControlsByTheme(controls, frameworkId);
@@ -59,7 +59,7 @@ export function AssessedRequirementList({
                 openCount={openFindingCounts.get(control.id) ?? 0}
                 maskedOpenCount={maskedFindingCounts.get(control.id) ?? 0}
                 exceptionLapsed={lapsedExceptionControlIds.has(control.id)}
-                canRemediate={canRemediate}
+                canDecide={canDecide}
                 project={project}
               />
             );

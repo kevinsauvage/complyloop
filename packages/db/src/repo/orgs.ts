@@ -1,4 +1,4 @@
-import { and, eq, inArray, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 
 import type {
   Organization,
@@ -32,48 +32,37 @@ export function nextUniqueSlug(
   return `${base}-${index}`;
 }
 
-/** Org ids the user belongs to (membership lookup before a scoped load). */
+/**
+ * Org ids the user belongs to, pending invites bound to their GitHub id
+ * included (membership lookup before a scoped load).
+ */
 export async function listOrgIdsForUser(
   drizzle: DrizzleDb,
   userId: string | null,
-  githubLogin: string | null,
 ): Promise<string[]> {
-  if (!userId && !githubLogin) return [];
-  const clauses = [];
-  if (userId) clauses.push(eq(memberships.userId, userId));
-  if (githubLogin) {
-    const login = githubLogin.trim().toLowerCase();
-    if (login) {
-      // Match unclaimed invites only — github_login may be stored with any
-      // casing. A login is recyclable: once GitHub releases it, whoever takes
-      // it next must not inherit the memberships of the previous holder, so a
-      // row already bound to another user is never matched by login alone.
-      clauses.push(
-        sql`lower(${memberships.githubLogin}) = ${login} AND ${memberships.userId} IS NULL`,
-      );
-    }
-  }
-  if (clauses.length === 0) return [];
+  if (!userId) return [];
   const rows = await drizzle
     .select({ orgId: memberships.orgId })
     .from(memberships)
-    .where(or(...clauses));
+    .where(
+      or(
+        eq(memberships.userId, userId),
+        and(eq(memberships.githubUserId, userId), isNull(memberships.userId)),
+      ),
+    );
   return [...new Set(rows.map((row) => row.orgId))];
 }
 
 /**
  * One indexed read answering "is there anything left to provision for this
- * viewer?": the user owns an org (personal org exists) and no membership row
- * for their login is still unclaimed. Callers (auth sign-in / first write)
+ * viewer?": the user owns an org (personal org exists) and no invite bound to
+ * their GitHub id is still unclaimed. Callers (auth sign-in / first write)
  * use this to skip the heavier load + claim writes in steady state.
  */
 async function isPersonalOrgProvisioned(
   drizzle: DrizzleDb,
   userId: string,
-  githubLogin: string,
 ): Promise<boolean> {
-  const login = githubLogin.trim().toLowerCase();
-  if (!login) return false;
   const rows = await drizzle
     .select({
       owned: sql<
@@ -81,13 +70,13 @@ async function isPersonalOrgProvisioned(
       >`bool_or(${memberships.userId} = ${userId} AND ${memberships.role} = 'owner')`,
       unclaimed: sql<
         boolean | null
-      >`bool_or(lower(${memberships.githubLogin}) = ${login} AND ${memberships.userId} IS NULL)`,
+      >`bool_or(${memberships.githubUserId} = ${userId} AND ${memberships.userId} IS NULL)`,
     })
     .from(memberships)
     .where(
       or(
         eq(memberships.userId, userId),
-        sql`lower(${memberships.githubLogin}) = ${login} AND ${memberships.userId} IS NULL`,
+        and(eq(memberships.githubUserId, userId), isNull(memberships.userId)),
       ),
     );
   const row = rows[0];
@@ -157,6 +146,7 @@ export async function upsertMembership(
       role: membership.role,
       userId: winner.userId ?? membership.userId,
       githubLogin: membership.githubLogin,
+      githubUserId: winner.githubUserId ?? membership.githubUserId,
     });
   }
 }
@@ -174,6 +164,7 @@ async function upsertMembershipById(
         orgId: sql`excluded.org_id`,
         userId: sql`excluded.user_id`,
         githubLogin: sql`excluded.github_login`,
+        githubUserId: sql`excluded.github_user_id`,
         role: sql`excluded.role`,
         payload: sql`excluded.payload`,
       },
@@ -245,34 +236,40 @@ export function isUnclaimedInviteExpired(
   return nowMs - created > PENDING_INVITE_TTL_MS;
 }
 
-export async function claimMembershipsForLogin(
+/**
+ * Binds the pending invites made for this GitHub account to the signed-in
+ * user. Matched by the GitHub numeric id the invite was resolved to, never by
+ * login: GitHub recycles logins, and the next holder of a released name must
+ * not inherit the previous owner's orgs. The stored login is refreshed to the
+ * current one (accounts can be renamed). Returns whether a row changed.
+ */
+export async function claimMembershipsForUser(
   tx: DrizzleDb,
   userId: string,
   githubLogin: string,
 ): Promise<boolean> {
-  const login = githubLogin.trim().toLowerCase();
-  if (!login) return false;
   const rows = await tx
     .select()
     .from(memberships)
-    .where(sql`lower(${memberships.githubLogin}) = ${login}`);
+    .where(
+      and(eq(memberships.githubUserId, userId), isNull(memberships.userId)),
+    );
   let changed = false;
   for (const row of rows) {
-    // Only unclaimed rows may be bound to this user. A row already claimed by
-    // someone else is never rebound: GitHub recycles logins, so the next
-    // holder of a released login must not inherit the previous owner's org.
-    if (row.payload.githubLogin.toLowerCase() === login && row.userId == null) {
-      // Stale unclaimed invites never resolve: prune instead of granting a
-      // months-old role.
-      if (isUnclaimedInviteExpired(row.payload, Date.now())) {
-        await deleteMembership(tx, row.payload.id);
-        changed = true;
-        continue;
-      }
-      const updated: OrgMembership = { ...row.payload, userId };
-      await upsertMembership(tx, updated);
+    // Stale unclaimed invites never resolve: prune instead of granting a
+    // months-old role.
+    if (isUnclaimedInviteExpired(row.payload, Date.now())) {
+      await deleteMembership(tx, row.payload.id);
       changed = true;
+      continue;
     }
+    const login = githubLogin.trim().toLowerCase();
+    await upsertMembership(tx, {
+      ...row.payload,
+      userId,
+      ...(login ? { githubLogin: login } : {}),
+    });
+    changed = true;
   }
   return changed;
 }
@@ -324,11 +321,11 @@ export async function provisionPersonalOrg(
     drizzle,
     orgWriteLockKey(userId),
     async (tx) => {
-      if (await isPersonalOrgProvisioned(tx, userId, githubLogin)) {
+      if (await isPersonalOrgProvisioned(tx, userId)) {
         return { created: false };
       }
 
-      await claimMembershipsForLogin(tx, userId, githubLogin);
+      await claimMembershipsForUser(tx, userId, githubLogin);
 
       if (await userOwnsOrg(tx, userId)) {
         return { created: false };

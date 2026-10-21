@@ -12,9 +12,9 @@ import {
 } from "@/components/primitives/page-primitives";
 import { PaginationNav } from "@/components/primitives/pagination-nav";
 import { Button } from "@/components/ui/button";
-import { findingsListHref } from "@/core/filter-params";
-import { reportHref } from "@/core/filter-params";
-import { DEFAULT_PAGE_SIZE } from "@/core/filter-params";
+import { reportHref } from "@/core/filter-params/evidence";
+import { findingsListHref } from "@/core/filter-params/findings";
+import { DEFAULT_PAGE_SIZE } from "@/core/filter-params/pagination";
 import { displayControl } from "@/server/reporting/report";
 import { loadFindingsView } from "@/server/workspace/findings-view";
 

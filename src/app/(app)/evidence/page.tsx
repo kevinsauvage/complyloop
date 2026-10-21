@@ -18,10 +18,10 @@ import {
 } from "@/components/primitives/search-filter-bar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { EVIDENCE_TONE_DOT, evidenceDisplay } from "@/core/display";
-import { evidenceRecordHref } from "@/core/filter-params";
-import { evidenceKindHref } from "@/core/filter-params";
-import { DEFAULT_PAGE_SIZE } from "@/core/filter-params";
+import { EVIDENCE_TONE_DOT, evidenceDisplay } from "@/core/display/evidence";
+import { evidenceRecordHref } from "@/core/filter-params/evidence";
+import { evidenceKindHref } from "@/core/filter-params/evidence";
+import { DEFAULT_PAGE_SIZE } from "@/core/filter-params/pagination";
 import { cn } from "@/lib/utils";
 import { loadEvidenceView } from "@/server/workspace/evidence-view";
 

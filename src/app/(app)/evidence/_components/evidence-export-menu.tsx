@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { reportHref } from "@/core/filter-params";
+import { reportHref } from "@/core/filter-params/evidence";
 
 export function EvidenceExportMenu() {
   return (

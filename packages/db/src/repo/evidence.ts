@@ -12,10 +12,12 @@ import {
   sql,
 } from "drizzle-orm";
 
-import type {
-  EvidenceKind,
-  EvidenceRecord,
+import {
+  EVIDENCE_KINDS,
+  type EvidenceKind,
+  type EvidenceRecord,
 } from "@complyloop/analysis-core/contract/entities";
+import { isOneOf } from "@complyloop/analysis-core/contract/literal-sets";
 import { DEFAULT_PAGE_SIZE } from "@complyloop/analysis-core/contract/project-types";
 
 import type { DrizzleDb } from "../postgres.ts";
@@ -183,7 +185,9 @@ export async function countEvidenceKindsForProject(
     .groupBy(evidence.kind);
   const counts = new Map<EvidenceKind, number>();
   for (const row of rows) {
-    counts.set(row.kind as EvidenceKind, Number(row.value ?? 0));
+    if (isOneOf(EVIDENCE_KINDS, row.kind)) {
+      counts.set(row.kind, Number(row.value ?? 0));
+    }
   }
   return counts;
 }

@@ -4,7 +4,7 @@ import type { OrgMembership } from "@complyloop/analysis-core/contract/project-t
 
 import type { DrizzleDb } from "../postgres.ts";
 import {
-  claimMembershipsForLogin,
+  claimMembershipsForUser,
   isUnclaimedInviteExpired,
   listOrgIdsForUser,
 } from "./orgs.ts";
@@ -52,35 +52,29 @@ function sqlStringParts(node: unknown, out: string[] = []): string[] {
 }
 
 describe("listOrgIdsForUser", () => {
-  it("compares github login case-insensitively via lower()", async () => {
+  it("finds pending invites by the bound GitHub id, never by login", async () => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const where = vi.fn(async (_clause: unknown) => [{ orgId: "org-mixed" }]);
+    const where = vi.fn(async (_clause: unknown) => [{ orgId: "org-invited" }]);
     const drizzle = {
       select: () => ({
         from: () => ({ where }),
       }),
     } as unknown as DrizzleDb;
 
-    const ids = await listOrgIdsForUser(drizzle, null, "  AliceDev  ");
-    expect(ids).toEqual(["org-mixed"]);
-    expect(where).toHaveBeenCalledOnce();
+    const ids = await listOrgIdsForUser(drizzle, "12345");
+    expect(ids).toEqual(["org-invited"]);
 
     const clause = where.mock.calls[0]![0];
-    const bound = sqlBoundValues(clause);
-    const parts = sqlStringParts(clause).join("");
-    expect(bound).toContain("alicedev");
-    expect(bound).not.toContain("AliceDev");
-    expect(parts.toLowerCase()).toContain("lower(");
-    // Only unclaimed rows are discoverable by login: a row already bound to
-    // another user must never surface for a recycled GitHub login.
-    expect(parts.toLowerCase()).toContain("is null");
+    const parts = sqlStringParts(clause).join("").toLowerCase();
+    expect(sqlBoundValues(clause)).toContain("12345");
+    // A recycled login must never surface another account's invite.
+    expect(parts).not.toContain("lower(");
   });
 
-  it("returns empty when neither userId nor login is usable", async () => {
+  it("returns empty without a user id", async () => {
     const select = vi.fn();
     const drizzle = { select } as unknown as DrizzleDb;
-    expect(await listOrgIdsForUser(drizzle, null, null)).toEqual([]);
-    expect(await listOrgIdsForUser(drizzle, null, "   ")).toEqual([]);
+    expect(await listOrgIdsForUser(drizzle, null)).toEqual([]);
     expect(select).not.toHaveBeenCalled();
   });
 });
@@ -91,6 +85,7 @@ function invitePayload(createdAt: string): OrgMembership {
     orgId: "org-1",
     role: "member",
     githubLogin: "bob",
+    githubUserId: "user-9",
     createdAt,
   };
 }
@@ -116,34 +111,32 @@ describe("isUnclaimedInviteExpired", () => {
   });
 });
 
-describe("claimMembershipsForLogin", () => {
-  it("never rebinds a membership already claimed by another user", async () => {
-    const claimedElsewhere = { ...invitePayload("2026-09-01T00:00:00.000Z") };
-    const upserted: string[] = [];
+describe("claimMembershipsForUser", () => {
+  it("binds the pending invite and refreshes the stored login", async () => {
+    const pending = invitePayload(
+      new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
+    );
+    const written: OrgMembership[] = [];
     const tx = {
       select: () => ({
         from: () => ({
-          where: async () => [
-            { payload: claimedElsewhere, userId: "user-other" },
-          ],
+          where: async () => [{ payload: pending, userId: null }],
         }),
       }),
       insert: () => ({
-        values: (row: { id: string }) => ({
+        values: (row: { payload: OrgMembership }) => ({
           onConflictDoUpdate: async () => {
-            upserted.push(row.id);
+            written.push(row.payload);
           },
         }),
       }),
-      delete: () => ({
-        where: async () => {},
-      }),
     } as unknown as DrizzleDb;
 
-    // A recycled GitHub login must not inherit the previous holder's org.
-    const changed = await claimMembershipsForLogin(tx, "user-new", "bob");
-    expect(changed).toBe(false);
-    expect(upserted).toEqual([]);
+    // The account was renamed since the invite: the id still matches.
+    expect(await claimMembershipsForUser(tx, "user-9", "Bobby")).toBe(true);
+    expect(written).toEqual([
+      expect.objectContaining({ userId: "user-9", githubLogin: "bobby" }),
+    ]);
   });
 
   it("prunes expired unclaimed invites instead of granting them", async () => {
@@ -177,7 +170,7 @@ describe("claimMembershipsForLogin", () => {
       }),
     } as unknown as DrizzleDb;
 
-    const changed = await claimMembershipsForLogin(tx, "user-9", "bob");
+    const changed = await claimMembershipsForUser(tx, "user-9", "bob");
     expect(changed).toBe(true);
     expect(upserted).toEqual(["m-fresh"]);
     expect(deleted).toEqual(["m-invite"]);

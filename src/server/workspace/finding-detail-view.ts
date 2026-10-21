@@ -20,7 +20,7 @@ import {
   findingQueuePosition,
   orderedFindingIdsForQueue,
   parseFindingListParams,
-} from "@/core/filter-params";
+} from "@/core/filter-params/findings";
 import type { FindingActView } from "@/core/findings/finding-act";
 import { findingAct } from "@/core/findings/finding-act";
 import {

@@ -17,9 +17,9 @@ import {
   engineDisplay,
   remediationStatusDisplay,
   severityDisplay,
-} from "@/core/display";
-import type { FindingListParams } from "@/core/filter-params";
-import { findingsListHref } from "@/core/filter-params";
+} from "@/core/display/status";
+import type { FindingListParams } from "@/core/filter-params/findings";
+import { findingsListHref } from "@/core/filter-params/findings";
 
 const SEVERITIES: Severity[] = ["critical", "serious", "moderate", "minor"];
 

@@ -158,7 +158,7 @@ export async function markRequirementExceptionAction(
   formData: FormData,
 ): Promise<ActionState> {
   return runProjectAction(
-    "project.remediate",
+    "project.decide",
     async (ctx) => {
       const requirementId = parseEntityId(requirementIdRaw);
       const parsed = parseForm(markExceptionInput, formData);
@@ -228,7 +228,7 @@ export async function markRequirementPassedAction(
   formData: FormData,
 ): Promise<ActionState> {
   return runProjectAction(
-    "project.remediate",
+    "project.decide",
     async (ctx) => {
       const requirementId = parseEntityId(requirementIdRaw);
       const { note } = parseForm(markPassedInput, formData);
@@ -318,7 +318,7 @@ async function clearRequirementOverrideAction(
   message: string,
 ): Promise<ActionState> {
   return runProjectAction(
-    "project.remediate",
+    "project.decide",
     async (ctx) => {
       const requirementId = parseEntityId(requirementIdRaw);
       if (ctx.userId) await assertRequirementsRateLimit(ctx.userId, ctx.tx);

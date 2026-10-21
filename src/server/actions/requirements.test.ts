@@ -63,10 +63,13 @@ vi.mock("../assessment/assessment-status", async () => {
 const project = testProject({ orgId: "org-1" });
 const finding = testFinding();
 
-function baseWorkspace(overrides: Partial<WorkspaceSlice> = {}): TestWorkspace {
+function baseWorkspace(
+  overrides: Partial<WorkspaceSlice> = {},
+  role: "member" | "admin" = "admin",
+): TestWorkspace {
   const { findings, remediations, ...rest } = overrides;
   return testWorkspace({
-    role: "member",
+    role,
     userId: "user-1",
     project,
     findings: findings ?? [finding],
@@ -95,6 +98,36 @@ afterEach(() => {
 });
 
 describe("requirement decision actions", () => {
+  it("refuses exceptions from a member (compliance decisions are admin/owner)", async () => {
+    const requirement: Requirement = {
+      id: "req-1",
+      projectId: "p1",
+      controlId: "ctl-img-alt",
+      status: "failed",
+      determination: "automated",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    mockProjectTx(
+      baseWorkspace(
+        { requirements: [requirement], findings: [], remediations: [] },
+        "member",
+      ),
+    );
+    const form = new FormData();
+    form.set("reason", "accepted_risk");
+    form.set("note", "Risk noted");
+
+    const result = await markRequirementExceptionAction(
+      "req-1",
+      initialActionState,
+      form,
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/project\.decide/);
+    expect(recordedWrites()?.requirements ?? []).toEqual([]);
+  });
+
   it("records a not-applicable exception", async () => {
     const requirement: Requirement = {
       id: "req-1",

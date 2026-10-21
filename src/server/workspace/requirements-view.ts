@@ -24,9 +24,11 @@ import {
   type PageSlice,
   paginateSlice,
   parsePageParam,
+} from "@/core/filter-params/pagination";
+import {
   parseRequirementsQueryParam,
   parseRequirementStatusParam,
-} from "@/core/filter-params";
+} from "@/core/filter-params/requirements";
 import { stickyDecisionAt } from "@/core/requirements/masked-findings";
 import { exceptionHasLapsed } from "@/core/requirements/requirement-human-determination";
 import { loadActiveProjectPage } from "@/server/workspace/active-project-page";

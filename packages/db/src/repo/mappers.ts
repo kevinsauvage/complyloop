@@ -1,16 +1,19 @@
-import type {
-  Alert,
-  Assessment,
-  AssessmentSnapshot,
-  EvidenceRecord,
-  Finding,
-  Remediation,
-  Requirement,
+import {
+  type Alert,
+  type Assessment,
+  type AssessmentSnapshot,
+  EVIDENCE_KINDS,
+  type EvidenceKind,
+  type EvidenceRecord,
+  type Finding,
+  type Remediation,
+  type Requirement,
 } from "@complyloop/analysis-core/contract/entities";
 import {
   type AssessmentEngine,
   engineFor,
 } from "@complyloop/analysis-core/contract/finding-types";
+import { isOneOf } from "@complyloop/analysis-core/contract/literal-sets";
 import type {
   Organization,
   OrgMembership,
@@ -46,6 +49,7 @@ export function membershipToRow(membership: OrgMembership) {
     orgId: membership.orgId,
     userId: membership.userId ?? null,
     githubLogin: membership.githubLogin,
+    githubUserId: membership.githubUserId ?? null,
     role: membership.role,
   });
 }
@@ -159,13 +163,24 @@ function nullToUndefined<T>(value: T | null | undefined): T | undefined {
   return value ?? undefined;
 }
 
+/**
+ * The evidence vocabulary is frozen and append-only, and the column has no
+ * CHECK constraint: an unknown kind is a corrupt row, so fail loud.
+ */
+function evidenceKindOf(row: typeof evidence.$inferSelect): EvidenceKind {
+  if (!isOneOf(EVIDENCE_KINDS, row.kind)) {
+    throw new Error(`Unknown evidence kind "${row.kind}" on row ${row.id}.`);
+  }
+  return row.kind;
+}
+
 export function rowToEvidence(
   row: typeof evidence.$inferSelect,
 ): EvidenceRecord {
   return {
     id: row.id,
     at: row.at,
-    kind: row.kind as EvidenceRecord["kind"],
+    kind: evidenceKindOf(row),
     summary: row.summary,
     projectId: nullToUndefined(row.projectId),
     controlId: nullToUndefined(row.controlId),

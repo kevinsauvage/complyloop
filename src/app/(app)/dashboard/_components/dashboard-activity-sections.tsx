@@ -24,11 +24,8 @@ import { SeverityBadge } from "@/components/primitives/badges";
 import { FormattedDateTime } from "@/components/primitives/formatted-datetime";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  EVIDENCE_TONE_DOT,
-  evidenceDisplay,
-  requirementStatusDisplay,
-} from "@/core/display";
+import { EVIDENCE_TONE_DOT, evidenceDisplay } from "@/core/display/evidence";
+import { requirementStatusDisplay } from "@/core/display/status";
 import { cn } from "@/lib/utils";
 
 function ActivityCard({

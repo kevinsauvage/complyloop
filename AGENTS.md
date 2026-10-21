@@ -110,7 +110,7 @@ Avoid comments. Add one only when strictly necessary: a non-obvious constraint, 
 
 ## Server vs Client convention
 
-Async data-fetching components (`workspace-context`, `connect-project-panel`, `nav-attention-badges`, `dashboard-pipeline-section`, plus server `app-shell`/`badges`) live alongside client leaves in `src/components/` with no `"use client"` and no `*.server.tsx` rename. Rule: never add `"use client"` above a file importing `@/server/*` — put interactivity in a dedicated client leaf (`mobile-nav-sheet`, `pathname-focus`, `badge-with-description`) and pass server content as slots/children.
+Async data-fetching components (`workspace-context`, `connect-project-panel`, `nav-attention-badges`, `dashboard-pipeline-section`, plus server `app-shell`/`badges`) live alongside client leaves in `src/components/` with no `"use client"` and no `*.server.tsx` rename. Rule: never add `"use client"` above a file importing `@/server/*` — put interactivity in a dedicated client leaf (`mobile-nav-sheet`, `pathname-focus`, `badge-with-description`) and pass server content as slots/children. Exception: Server Action modules (`@/server/actions/*`, `"use server"`) are meant to be imported by client components; importing them from a client leaf is fine. Every other `@/server/*` module is `server-only`.
 
 <!-- graft:start -->
 

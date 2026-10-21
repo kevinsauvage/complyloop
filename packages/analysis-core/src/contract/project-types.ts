@@ -53,10 +53,16 @@ export interface OrgMembership {
   id: string;
   orgId: string;
   role: OrgRole;
-  /** Auth.js user id once claimed. */
+  /** Auth.js user id once claimed (the GitHub numeric account id). */
   userId?: string;
-  /** GitHub login used for invite + claim on sign-in. */
+  /** GitHub login, for display; refreshed on claim (logins can be renamed). */
   githubLogin: string;
+  /**
+   * GitHub numeric account id an invite is bound to, resolved from the login
+   * at invite time. The sign-in claim matches it, never the login: GitHub
+   * recycles logins, so a later holder of the name must not inherit it.
+   */
+  githubUserId?: string;
   createdAt: string;
 }
 

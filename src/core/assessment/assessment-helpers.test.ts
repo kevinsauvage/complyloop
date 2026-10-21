@@ -6,6 +6,7 @@ import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuse
 import {
   countByStatus,
   latestAssessmentFor,
+  passRatePercent,
   runtimeCoverageSummary,
 } from "./assessment-helpers";
 
@@ -113,5 +114,18 @@ describe("countByStatus", () => {
     expect(record.needs_review).toBe(1);
     expect(record.not_applicable).toBe(0);
     expect(record.unable_to_verify).toBe(0);
+  });
+});
+
+describe("passRatePercent", () => {
+  it("leaves not_applicable out of the denominator", () => {
+    expect(passRatePercent({ passed: 3, failed: 1, not_applicable: 4 })).toBe(
+      75,
+    );
+  });
+
+  it("is null when nothing applies", () => {
+    expect(passRatePercent({ not_applicable: 2 })).toBeNull();
+    expect(passRatePercent({})).toBeNull();
   });
 });

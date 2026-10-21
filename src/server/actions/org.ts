@@ -29,7 +29,6 @@ import {
 } from "../workspace/active-cookies";
 import {
   changeOrgMemberRole,
-  findOrgMembershipByLogin,
   inviteOrgMember,
   leaveOrgMember,
   removeOrgMember,
@@ -151,36 +150,48 @@ export async function inviteOrgMemberAction(
     );
     await assertOrgInviteRateLimit(userId);
 
-    // Typo guard: verify the login exists when the inviter has a token.
-    // Unverifiable (GitHub outage) proceeds as before — never block a
-    // legitimate invite on a transient lookup failure.
+    // The invite binds to the account's GitHub id, so the login must resolve
+    // now: an unresolved invite could never be claimed.
+    const login = githubLogin.trim().replace(/^@/, "");
     const inviterToken = await getGitHubAccessToken();
-    let unverified = false;
-    if (inviterToken) {
-      const lookup = await lookupGitHubUser(inviterToken, githubLogin);
-      if (lookup.status === "not-found") {
-        throw new PublicError(
-          `No GitHub user "@${githubLogin.trim().replace(/^@/, "")}" — check the spelling.`,
-        );
-      }
-      unverified = lookup.status === "unverifiable";
+    if (!inviterToken) {
+      throw new PublicError(
+        "Could not read your GitHub token. Sign out and sign in again to invite members.",
+      );
+    }
+    const lookup = await lookupGitHubUser(inviterToken, login);
+    if (lookup.status === "not-found") {
+      throw new PublicError(`No GitHub user "@${login}" — check the spelling.`);
+    }
+    if (lookup.status === "unverifiable") {
+      throw new PublicError(
+        `Could not verify "@${login}" with GitHub right now. Try again in a moment.`,
+      );
     }
 
     const { membership, isNew } = await withOrgWrite(({ db }) => {
-      const preExisting = findOrgMembershipByLogin(db, orgId, githubLogin);
-      const invited = inviteOrgMember(db, orgId, userId, githubLogin, role);
+      const invited = inviteOrgMember(
+        db,
+        orgId,
+        userId,
+        lookup.login,
+        role,
+        lookup.id,
+      );
       return {
-        result: { membership: invited, isNew: !preExisting },
+        result: {
+          membership: invited,
+          isNew: !db.memberships.some(
+            (candidate) => candidate.id === invited.id,
+          ),
+        },
         upsertMemberships: [invited],
       };
     });
     refresh();
-    if (!isNew) {
-      return `Updated @${membership.githubLogin} role to ${role}.`;
-    }
-    return unverified
-      ? `Invited @${membership.githubLogin} as ${role} (GitHub lookup unavailable — invite created unverified).`
-      : `Invited @${membership.githubLogin} as ${role}.`;
+    return isNew
+      ? `Invited @${membership.githubLogin} as ${role}.`
+      : `Updated @${membership.githubLogin} role to ${role}.`;
   });
 }
 
@@ -308,12 +319,14 @@ export async function exportOrgDataAction(
         "export_too_large",
       );
     }
-    // The workspace slice is bounded (latest assessment, evidence window);
-    // the export is the audit artifact, so full history loads via the
-    // workspace export loader (one set-based query per entity type; evidence
-    // contributes a bounded per-project window with truncation flags).
-    const { history, evidenceTruncatedProjectIds } =
-      await loadOrgExportData(projectIds);
+    // The export is the audit artifact, loaded via the workspace export
+    // loader: one query per entity type, with evidence and findings windowed
+    // per project and truncation flagged.
+    const {
+      history,
+      evidenceTruncatedProjectIds,
+      findingsTruncatedProjectIds,
+    } = await loadOrgExportData(projectIds);
     const payload = exportOrgData(
       {
         ...emptyWorkspaceSlice(),
@@ -325,7 +338,7 @@ export async function exportOrgDataAction(
       },
       orgId,
       userId,
-      { evidenceTruncatedProjectIds },
+      { evidenceTruncatedProjectIds, findingsTruncatedProjectIds },
     );
     return { error: null, json: JSON.stringify(payload, null, 2) };
   } catch (error) {

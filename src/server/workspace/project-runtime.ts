@@ -39,7 +39,7 @@ export interface ProjectRuntime {
  * loads are additionally capped at `FINDINGS_LIST_LOAD_LIMIT` rows in
  * severity-first order (callers compare against the SQL status counts and
  * surface truncation); omit `findingStatuses` for full history (writes,
- * reports, exports).
+ * exports).
  */
 export const getProjectRuntime = cache(
   async (

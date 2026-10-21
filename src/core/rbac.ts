@@ -10,6 +10,8 @@ export type Permission =
   | "project.view"
   | "project.assess"
   | "project.remediate"
+  /** Record compliance decisions: requirement exceptions and human passes. */
+  | "project.decide"
   | "project.connect"
   | "org.manage_members";
 
@@ -20,6 +22,7 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "project.view",
     "project.assess",
     "project.remediate",
+    "project.decide",
     "project.connect",
     "org.manage_members",
   ],
@@ -27,6 +30,7 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "project.view",
     "project.assess",
     "project.remediate",
+    "project.decide",
     "project.connect",
     "org.manage_members",
   ],

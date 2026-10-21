@@ -73,6 +73,18 @@ describe("buildEngineeringReportHtml", () => {
     expect(html).not.toContain('id="requirements"');
   });
 
+  it("states the exact open total when the open-finding list was capped", () => {
+    const input = sampleReportInput();
+    input.findingCounts = { ...input.findingCounts, open: 7_500 };
+
+    const html = buildEngineeringReportHtml(input);
+
+    expect(html).toContain(
+      `Showing the ${input.findings.length} most severe of 7500 open findings.`,
+    );
+    expect(html).toMatch(/Open findings<\/div><div class="value">7500</);
+  });
+
   it("escapes HTML in finding reasons", () => {
     const input = sampleReportInput();
     input.findings[0] = {

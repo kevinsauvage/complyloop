@@ -155,7 +155,13 @@ Chain per domain. `exists` = shipped, `evolves` = shipped but domain-blind today
 ## Persistence
 
 - **Tenancy** — orgs + RBAC (`src/core/rbac.ts`). Roles
-  `owner|admin|member|viewer`. Workspace load is membership-org + active
+  `owner|admin|member|viewer`; members triage and remediate, while
+  compliance decisions (requirement exceptions, human passes) need
+  `project.decide` (admin/owner). Invites are bound to the invitee's GitHub
+  numeric id (resolved from the login at invite time; `github_user_id`) and
+  claimed on sign-in by that id — never by the recyclable login; a login
+  already held by another account in the org is refused, not re-targeted.
+  Workspace load is membership-org + active
   project. RBAC stays in the app kernel — never move the permission matrix
   into analysis-core.
 - **Reads** — `getWorkspace()` loads **tenancy only** (orgs, memberships,
@@ -261,17 +267,23 @@ deleteMembershipIds, deleteOrgIds }` — explicit rows, no in-memory slice diff.
     clause); search takes the bounded status-scoped load.
   - Status-scoped page loads cap at `FINDINGS_LIST_LOAD_LIMIT` (most severe
     first; counts stay exact via SQL, truncation is flagged, never silent).
-    Writes/reports/exports load full history.
+    Writes load full history. Reports load open findings only (capped,
+    severity-first) with exact per-status counts from SQL, and note when the
+    list is capped.
   - Dashboard loads only the six findings its activity card renders
     (`findingsLimit: 6`) and skips remediation rows; requirements and settings
     load no finding/remediation rows at all (`findingStatuses: []`,
     `includeRemediations: false`) — their badges/counts come from SQL.
   - Evidence exports cap per project (`EVIDENCE_EXPORT_LIMIT`, newest first,
-    flagged); per-finding reads cap at `FINDING_EVIDENCE_LIMIT`.
+    flagged); per-finding reads cap at `FINDING_EVIDENCE_LIMIT`. The org export
+    windows findings the same way (`FINDINGS_EXPORT_LIMIT` per project, with
+    their remediations, `findingsTruncatedProjectIds`).
 - **Retention/erasure** — evidence is append-only (trigger) with one gated
   exception: org deletion erases tenant evidence via `deleteEvidenceForOrg`
   (transaction-scoped `complyloop.allow_evidence_erase` flag). Project
-  disconnect keeps retention; the org link of a disconnected project's
+  disconnect cascade-deletes the project's live rows, exceptions and
+  dismissals included (decided rule: their history is in evidence), and keeps
+  the evidence; the org link of a disconnected project's
   evidence survives only as `detail.orgId` on its `project_connected` /
   `project_disconnected` rows, which org deletion erases by.
   - Pipeline bookkeeping is pruned on the worker tick by

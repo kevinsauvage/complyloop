@@ -5,7 +5,7 @@ import type { Project } from "@complyloop/analysis-core/contract/project-types";
 
 import { Badge } from "@/components/ui/badge";
 import { runtimeCoverageSummary } from "@/core/assessment/assessment-helpers";
-import { STATUS_TONE_BADGE } from "@/core/display";
+import { STATUS_TONE_BADGE } from "@/core/display/report-tones";
 import { cn } from "@/lib/utils";
 
 export function RuntimeCoverageChip({

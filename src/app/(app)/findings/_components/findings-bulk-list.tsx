@@ -21,11 +21,11 @@ import {
   engineDisplay,
   remediationStatusDisplay,
   severityDisplay,
-} from "@/core/display";
+} from "@/core/display/status";
 import {
   findingDetailHref,
   type FindingListParams,
-} from "@/core/filter-params";
+} from "@/core/filter-params/findings";
 import { canBulkApproveRemediation } from "@/core/requirements/remediation-lifecycle";
 import { cn } from "@/lib/utils";
 import {

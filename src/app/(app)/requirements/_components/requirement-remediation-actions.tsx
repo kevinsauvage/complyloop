@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { humanizeReasonSlug } from "@/core/display";
+import { humanizeReasonSlug } from "@/core/display/status";
 import { cn } from "@/lib/utils";
 import {
   clearRequirementExceptionAction,
@@ -47,22 +47,22 @@ export function RequirementRemediationActions({
   control,
   requirement,
   exceptionLapsed,
-  canRemediate,
+  canDecide,
 }: {
   control: Control;
   requirement: Requirement;
   /** Temporary exception past its expiry, awaiting the next clearing pass. */
   exceptionLapsed: boolean;
-  canRemediate: boolean;
+  canDecide: boolean;
 }) {
   // Drives the conditional `required` on the expiry date (server enforces it
   // too — this just surfaces the requirement before submit).
   const [exceptionReason, setExceptionReason] = useState("not_applicable");
 
-  if (!canRemediate && !requirement.humanPass && !requirement.exception) {
+  if (!canDecide && !requirement.humanPass && !requirement.exception) {
     return (
       <p className="text-xs text-muted-foreground">
-        Only editors can record passes or exceptions.
+        Only admins and owners can record passes or exceptions.
       </p>
     );
   }
@@ -81,7 +81,7 @@ export function RequirementRemediationActions({
               Set <FormattedDateTime iso={requirement.humanPass.at} /> — sticky
               until cleared (assessments will not overwrite).
             </span>
-            {canRemediate ? (
+            {canDecide ? (
               <span className="mt-2 block">
                 <StatefulActionForm
                   action={clearRequirementHumanPassAction.bind(
@@ -124,7 +124,7 @@ export function RequirementRemediationActions({
               )}
               .
             </span>
-            {canRemediate ? (
+            {canDecide ? (
               <span className="mt-2 block">
                 <StatefulActionForm
                   action={clearRequirementExceptionAction.bind(
@@ -140,7 +140,7 @@ export function RequirementRemediationActions({
             ) : null}
           </AlertDescription>
         </Alert>
-      ) : canRemediate ? (
+      ) : canDecide ? (
         <div className="flex flex-col gap-1 pt-1">
           {control.checkId === null && !requirement.humanPass ? (
             <Collapsible>

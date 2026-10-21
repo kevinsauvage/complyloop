@@ -194,10 +194,11 @@ describe("createOctokit", () => {
 
 describe("lookupGitHubUser", () => {
   it("returns the login for an existing user, tolerating @ and whitespace", async () => {
-    getByUsername.mockResolvedValue({ data: { login: "octocat" } });
+    getByUsername.mockResolvedValue({ data: { login: "octocat", id: 583231 } });
     await expect(lookupGitHubUser("token", "  @octocat ")).resolves.toEqual({
       status: "found",
       login: "octocat",
+      id: "583231",
     });
     expect(getByUsername).toHaveBeenCalledWith({ username: "octocat" });
   });

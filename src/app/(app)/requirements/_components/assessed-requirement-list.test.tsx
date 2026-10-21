@@ -46,7 +46,7 @@ describe("AssessedRequirementList", () => {
         maskedFindingCounts={new Map()}
         lapsedExceptionControlIds={new Set()}
         frameworkId={rgaaFramework.id}
-        canRemediate={false}
+        canDecide={false}
         project={{ runtimeBaseUrl: undefined }}
       />,
     );

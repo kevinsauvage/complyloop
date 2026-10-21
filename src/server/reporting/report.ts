@@ -20,10 +20,15 @@ import type {
   Project,
 } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
 import { getDrizzle } from "@complyloop/db/postgres";
 import { listEvidenceForExport } from "@complyloop/db/repo/evidence";
+import { countFindingsByStatusForProject } from "@complyloop/db/repo/findings";
 
-import { parseReportViewParam, type ReportView } from "@/core/filter-params";
+import {
+  parseReportViewParam,
+  type ReportView,
+} from "@/core/filter-params/evidence";
 import { publicErrorMessage } from "@/server/action-state";
 
 import { assertExportRateLimit } from "../rate-limit";
@@ -32,6 +37,7 @@ import {
   controlsInScope,
   findingsInScope,
   requirementsInScope,
+  scopedControlIds,
 } from "../workspace/project-scope";
 import { getWorkspace } from "../workspace/workspace";
 import type { ReportInput } from "./report-model";
@@ -80,11 +86,18 @@ export type ReportRuntimeSlice = {
   alerts?: ReadonlyArray<Alert>;
 };
 
-/** Builds report input for a project's current store snapshot. */
+/**
+ * `runtime.findings` are the open findings (capped); `counts` carries the
+ * exact totals the capped rows cannot.
+ */
 export function reportInputForProject(
   runtime: ReportRuntimeSlice,
   project: Project,
-  evidenceMeta?: { total: number; truncated: boolean },
+  counts: {
+    findingCounts: Record<FindingStatus, number>;
+    evidenceTotal: number;
+    evidenceTruncated: boolean;
+  },
 ): ReportInput {
   const findings = findingsInScope(runtime.findings, project);
   const findingIds = new Set(findings.map((finding) => finding.id));
@@ -98,9 +111,10 @@ export function reportInputForProject(
       findingIds.has(remediation.findingId),
     ),
     requirements: requirementsInScope(runtime.requirements, project),
+    findingCounts: counts.findingCounts,
     evidence: [...runtime.evidence],
-    evidenceTotal: evidenceMeta?.total ?? runtime.evidence.length,
-    evidenceTruncated: evidenceMeta?.truncated ?? false,
+    evidenceTotal: counts.evidenceTotal,
+    evidenceTruncated: counts.evidenceTruncated,
     exportedAt: new Date().toISOString(),
   };
 }
@@ -117,7 +131,7 @@ export async function loadReportInput(
     };
   }
 
-  // Exports read full finding history + up to 5,000 evidence rows: throttle
+  // Exports read up to 5,000 open findings + 5,000 evidence rows: throttle
   // before the load.
   if (userId) {
     try {
@@ -133,9 +147,22 @@ export async function loadReportInput(
   const view = parseReportViewParam(
     new URL(request.url).searchParams.get("view"),
   );
-  const [runtime, exported] = await Promise.all([
-    getProjectRuntime(project.id, { includeEvidence: false }),
-    listEvidenceForExport(await getDrizzle(), project.id),
+  const drizzle = await getDrizzle();
+  const scoped = scopedControlIds(project);
+  // Reports render open findings and per-status totals only: load the open
+  // rows (most severe first, capped) and count every status in SQL, instead
+  // of the project's whole finding history.
+  const [runtime, exported, findingCounts] = await Promise.all([
+    getProjectRuntime(project.id, {
+      includeEvidence: false,
+      findingStatuses: ["open"],
+    }),
+    listEvidenceForExport(drizzle, project.id),
+    countFindingsByStatusForProject(
+      drizzle,
+      project.id,
+      scoped ? [...scoped] : undefined,
+    ),
   ]);
 
   return {
@@ -145,7 +172,11 @@ export async function loadReportInput(
     input: reportInputForProject(
       { ...runtime, evidence: exported.records },
       project,
-      { total: exported.total, truncated: exported.truncated },
+      {
+        findingCounts,
+        evidenceTotal: exported.total,
+        evidenceTruncated: exported.truncated,
+      },
     ),
   };
 }

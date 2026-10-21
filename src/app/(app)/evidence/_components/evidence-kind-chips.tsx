@@ -8,7 +8,7 @@ import {
   EVIDENCE_KIND_FILTER_ORDER,
   evidenceKindHref,
   type EvidencePageFilters,
-} from "@/core/filter-params";
+} from "@/core/filter-params/evidence";
 
 export function EvidenceKindChips({
   counts,

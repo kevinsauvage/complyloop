@@ -48,7 +48,9 @@ function workspaceWithTwoFindings(requirement: Partial<Requirement> = {}) {
     ...requirement,
   };
   return testWorkspace({
-    role: "member",
+    // Admin: one fixture serves both triage (dismiss) and decision (clear
+    // exception) writes; members may only triage.
+    role: "admin",
     project,
     findings: [
       testFinding({

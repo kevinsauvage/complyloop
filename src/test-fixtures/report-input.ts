@@ -7,7 +7,9 @@ import type {
   Remediation,
   Requirement,
 } from "@complyloop/analysis-core/contract/entities";
+import { FINDING_STATUSES } from "@complyloop/analysis-core/contract/statuses";
 
+import { countByStatus } from "@/core/assessment/assessment-helpers";
 import type { ReportInput } from "@/server/reporting/report-model";
 
 import { testProject } from "./project";
@@ -79,6 +81,7 @@ export function sampleReportInput(): ReportInput {
     controls: rgaaControls,
     requirements,
     findings,
+    findingCounts: countByStatus(findings, FINDING_STATUSES),
     remediations,
     evidence: [
       {

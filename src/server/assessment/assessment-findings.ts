@@ -208,6 +208,8 @@ export interface ReconcileControlFindingsInput {
   rawForControl: RawFinding[];
   openFindings: Finding[];
   dismissedFindings: Finding[];
+  /** Resolved findings of this control: a re-detected instance links back. */
+  resolvedFindings?: Finding[];
   scopedFileSet: Set<string> | null;
   runtimeRan: boolean;
   /**
@@ -321,6 +323,7 @@ export function reconcileControlFindings(
     rawForControl,
     openFindings,
     dismissedFindings,
+    resolvedFindings = [],
     scopedFileSet,
     runtimeRan,
     runtimeScannedRoutes,
@@ -403,6 +406,7 @@ export function reconcileControlFindings(
         existing.contributingAnalyzers = raw.contributingAnalyzers;
       }
     } else {
+      const regressed = newestMatching(resolvedFindings, raw);
       createFinding(
         rows,
         project,
@@ -411,6 +415,7 @@ export function reconcileControlFindings(
         assessmentId,
         raw,
         fileTextCache,
+        regressed?.id,
       );
       const created = rows.findings[rows.findings.length - 1];
       if (created) {
@@ -449,6 +454,19 @@ export function reconcileControlFindings(
   }
 }
 
+/** The most recently detected finding that is the same instance as `raw`. */
+function newestMatching(
+  findings: readonly Finding[],
+  raw: RawFinding,
+): Finding | undefined {
+  let newest: Finding | undefined;
+  for (const finding of findings) {
+    if (!sameInstance(finding, raw)) continue;
+    if (!newest || finding.detectedAt > newest.detectedAt) newest = finding;
+  }
+  return newest;
+}
+
 export function createFinding(
   rows: ProjectRows,
   project: Project,
@@ -457,6 +475,7 @@ export function createFinding(
   assessmentId: string,
   raw: RawFinding,
   fileTextCache?: FileTextCache,
+  regressionOf?: string,
 ): void {
   const now = new Date().toISOString();
   const guidance = guidanceFor(raw.checkId);
@@ -479,6 +498,7 @@ export function createFinding(
     fix: raw.fix,
     explanations: [deterministicExplanation(raw.reason, guidance)],
     detectedAt: now,
+    ...(regressionOf ? { regressionOf } : {}),
   };
   rows.findings.push(finding);
 
@@ -504,6 +524,7 @@ export function createFinding(
     assessmentId,
     detail: {
       event: "detected",
+      ...(regressionOf ? { regressionOf } : {}),
       ...(raw.analyzerId ? { analyzerId: raw.analyzerId } : {}),
       ...(raw.analyzerRuleId ? { analyzerRuleId: raw.analyzerRuleId } : {}),
       ...(raw.analyzerVersion ? { analyzerVersion: raw.analyzerVersion } : {}),

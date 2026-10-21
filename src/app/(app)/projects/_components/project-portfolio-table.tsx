@@ -4,7 +4,7 @@ import type { RequirementStatus } from "@complyloop/analysis-core/contract/statu
 import { StatusBadge } from "@/components/primitives/badges";
 import { FormattedDateTime } from "@/components/primitives/formatted-datetime";
 import { Button } from "@/components/ui/button";
-import { requirementStatusDisplay } from "@/core/display";
+import { requirementStatusDisplay } from "@/core/display/status";
 import { PORTFOLIO_STATUS_COLUMNS, portfolioJobStatus } from "@/core/portfolio";
 import { cn } from "@/lib/utils";
 import { openProjectAction } from "@/server/actions/connect";

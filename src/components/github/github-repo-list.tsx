@@ -3,7 +3,7 @@
 import { ConfirmSubmitButton } from "@/components/forms/confirm-submit-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { STATUS_TONE_BADGE } from "@/core/display";
+import { STATUS_TONE_BADGE } from "@/core/display/report-tones";
 import type { GitHubRepoSummary } from "@/server/github/github-types";
 
 export type RepoOwnerGroup = {

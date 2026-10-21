@@ -22,29 +22,34 @@ import type {
   Project,
 } from "@complyloop/analysis-core/contract/project-types";
 import {
-  FINDING_STATUSES,
   type FindingStatus,
   REQUIREMENT_STATUSES,
   type RequirementStatus,
   type Severity,
 } from "@complyloop/analysis-core/contract/statuses";
 
-import { countByStatus } from "@/core/assessment/assessment-helpers";
+import {
+  countByStatus,
+  passRatePercent,
+} from "@/core/assessment/assessment-helpers";
+import { evidenceDisplay } from "@/core/display/evidence";
 import {
   determinationDisplay,
-  evidenceDisplay,
   humanizeReasonSlug,
   remediationStatusDisplay,
   requirementStatusDisplay,
   severityDisplay,
-} from "@/core/display";
+} from "@/core/display/status";
 
 export interface ReportInput {
   project: Project;
   framework: Framework;
   controls: Control[];
   requirements: Requirement[];
+  /** Open findings, most severe first; capped like list pages. */
   findings: Finding[];
+  /** Exact per-status finding counts in scope (`findings` may be capped). */
+  findingCounts: Record<FindingStatus, number>;
   remediations: Remediation[];
   evidence: EvidenceRecord[];
   /** Total evidence rows in the table (may exceed `evidence` when capped). */
@@ -96,6 +101,8 @@ export interface EngineeringFindingCard {
 export interface EngineeringReportModel {
   header: ReportHeaderModel;
   findings: EngineeringFindingCard[];
+  /** Exact open count; `findings` lists fewer when the load was capped. */
+  openFindingsTotal: number;
 }
 
 export interface AuditRequirementRow {
@@ -276,6 +283,7 @@ export function composeEngineeringReport(
 
   return {
     header: reportHeader("Engineering report", input),
+    openFindingsTotal: input.findingCounts.open,
     findings: openFindings.map((finding) =>
       toEngineeringFindingCard(
         finding,
@@ -289,8 +297,7 @@ export function composeEngineeringReport(
 }
 
 export function composeAuditReport(input: ReportInput): AuditReportModel {
-  const { framework, controls, requirements, findings, evidence, project } =
-    input;
+  const { framework, controls, requirements, evidence, project } = input;
   const statusCounts = countByStatus(requirements, REQUIREMENT_STATUSES);
   const totalRequirements = requirements.length;
   const requirementByControlId = indexBy(
@@ -301,12 +308,9 @@ export function composeAuditReport(input: ReportInput): AuditReportModel {
   return {
     header: reportHeader("Audit report", input),
     statusCounts,
-    findingCounts: countByStatus(findings, FINDING_STATUSES),
+    findingCounts: input.findingCounts,
     totalRequirements,
-    passRate:
-      totalRequirements > 0
-        ? Math.round((statusCounts.passed / totalRequirements) * 100)
-        : 0,
+    passRate: passRatePercent(statusCounts) ?? 0,
     requirements: controls.flatMap((control) => {
       const requirement = requirementByControlId.get(control.id);
       if (!requirement) return [];

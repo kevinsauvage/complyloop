@@ -15,7 +15,7 @@ Behavior-preserving only. If you find a bug on the way, report it — do not fix
 - Smallest diff that reaches the goal; extend the canonical implementation rather than adding a parallel one. New abstraction only with 2+ call sites.
 - Keep public signatures stable, or update every caller in the same change.
 - Pure functions in the domain core; side effects at the edges. Dependencies point inward (UI/adapters → core).
-- Never add `"use client"` above a file importing `@/server/*`; put interactivity in a client leaf and pass server content as children.
+- Never add `"use client"` above a file importing `@/server/*` (Server Action modules under `@/server/actions/*` excepted); put interactivity in a client leaf and pass server content as children.
 - Use domain vocabulary for names; no barrel re-exports; split files past ~300 lines along responsibility, not line count.
 - No opportunistic cleanups outside the stated goal.
 

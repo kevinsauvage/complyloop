@@ -59,6 +59,52 @@ describe.skipIf(!enabled)("membership and provisioning concurrency", () => {
     }
   });
 
+  it("claims an invite by GitHub id, never by a reused login", async () => {
+    const drizzle = await getDrizzle();
+    const suffix = `${Date.now()}-bind`;
+    const orgId = `org-${suffix}`;
+    const inviteeId = `gh-${suffix}`;
+    await drizzle.execute(sql`
+      INSERT INTO organizations (id, slug, payload)
+      VALUES (${orgId}, ${`slug-${suffix}`}, '{}'::jsonb)
+    `);
+    await upsertMembership(drizzle, {
+      id: `mem-${suffix}`,
+      orgId,
+      role: "member",
+      githubLogin: `taken-${suffix}`,
+      githubUserId: inviteeId,
+      createdAt: new Date().toISOString(),
+    });
+
+    try {
+      // Whoever holds the login later is another account: nothing to see.
+      expect(
+        await listOrgIdsForUser(drizzle, `gh-other-${suffix}`),
+      ).not.toContain(orgId);
+
+      // The invitee, renamed since, claims it on sign-in.
+      await provisionPersonalOrg(drizzle, inviteeId, `Renamed-${suffix}`);
+      expect(await listOrgIdsForUser(drizzle, inviteeId)).toContain(orgId);
+      const [row] = await drizzle.execute<{
+        user_id: string;
+        github_login: string;
+      }>(sql`
+        SELECT user_id, github_login FROM memberships WHERE id = ${`mem-${suffix}`}
+      `);
+      expect(row).toEqual({
+        user_id: inviteeId,
+        github_login: `renamed-${suffix}`,
+      });
+    } finally {
+      await drizzle.execute(sql`
+        DELETE FROM organizations
+        WHERE id = ${orgId}
+           OR id IN (SELECT org_id FROM memberships WHERE user_id = ${inviteeId})
+      `);
+    }
+  });
+
   it("converges concurrent invites for one login instead of 500ing", async () => {
     const drizzle = await getDrizzle();
     const suffix = `${Date.now()}-converge`;
@@ -126,10 +172,10 @@ describe.skipIf(!enabled)("membership and provisioning concurrency", () => {
       ]);
       expect([first.created, second.created].filter(Boolean)).toHaveLength(1);
 
-      const orgIds = await listOrgIdsForUser(drizzle, userId, githubLogin);
+      const orgIds = await listOrgIdsForUser(drizzle, userId);
       expect(orgIds).toHaveLength(1);
     } finally {
-      const orgIds = await listOrgIdsForUser(drizzle, userId, githubLogin);
+      const orgIds = await listOrgIdsForUser(drizzle, userId);
       for (const id of orgIds) {
         await drizzle.execute(sql`DELETE FROM organizations WHERE id = ${id}`);
       }

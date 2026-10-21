@@ -21,8 +21,9 @@ import {
   countByStatus,
   hasPreviewUrl,
   latestAssessmentFor,
+  passRatePercent,
 } from "@/core/assessment/assessment-helpers";
-import { findingsListHref } from "@/core/filter-params";
+import { findingsListHref } from "@/core/filter-params/findings";
 import { requirementsStatusHref } from "@/core/filter-params/requirements";
 import { compareFindingsBySeverity } from "@/core/findings/finding-priority";
 import { activeRegressions } from "@/core/requirements/active-regressions";
@@ -146,31 +147,18 @@ export async function loadDashboardView(): Promise<DashboardView> {
   const trend = history
     .sort((a, b) => (a.completedAt < b.completedAt ? -1 : 1))
     .flatMap((assessment) => {
-      const summary = assessment.summary;
-      const total = REQUIREMENT_STATUSES.reduce(
-        (sum, status) => sum + (summary[status] ?? 0),
-        0,
-      );
-      if (total === 0) return [];
-      return [
-        {
-          at: assessment.completedAt,
-          passRate: Math.round(((summary.passed ?? 0) / total) * 100),
-        },
-      ];
+      const passRate = passRatePercent(assessment.summary);
+      return passRate === null
+        ? []
+        : [{ at: assessment.completedAt, passRate }];
     });
 
   const counts = countByStatus(requirements, REQUIREMENT_STATUSES);
 
   const failedCount = counts.failed;
-  const passedCount = counts.passed;
-  const totalRequirements = requirements.length;
   const hasPreviewUrlValue = hasPreviewUrl(project);
   const showFirstRun = !latestAssessment && hasConnectedProject;
-  const passRateValue =
-    totalRequirements > 0
-      ? Math.round((passedCount / totalRequirements) * 100)
-      : null;
+  const passRateValue = passRatePercent(counts);
   const passRate = passRateValue === null ? "—" : `${passRateValue}%`;
   const passRateTone =
     passRateValue === null

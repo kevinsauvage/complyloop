@@ -19,7 +19,7 @@ Current product: accessibility compliance (RGAA/WCAG) for React/Next.js/TypeScri
 
 - **Evidence over claims**: never set a compliance status without recorded evidence.
 - **Verification over AI confidence**: AI output never determines a requirement status. Statuses come from deterministic checks or explicit human decisions only.
-- **Human in the loop**: AI remediations are suggestions until approved by a human. Decisions and exceptions keep history — never hard-delete decision records; evidence is append-only.
+- **Human in the loop**: AI remediations are suggestions until approved by a human. Decisions and exceptions keep history — never hard-delete decision records; evidence is append-only. Disconnecting a project deletes its live rows (requirements, findings) by design: the decision history survives in evidence (exception set/cleared, human pass, dismissal rows), which is the record.
 - **Explainability**: every finding answers — what failed, why, where, impact, how to fix, how we know it's fixed.
 - **Continuous**: design for re-assessment and regression detection, not one-time audits.
 - **Developer language**: findings and remediation copy are written for engineers, not lawyers.

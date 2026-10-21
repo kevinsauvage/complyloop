@@ -2,6 +2,10 @@ import type { Assessment } from "@complyloop/analysis-core/contract/entities";
 import type { AssessmentEngines } from "@complyloop/analysis-core/contract/finding-types";
 import { zeroCounts } from "@complyloop/analysis-core/contract/literal-sets";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
+import {
+  REQUIREMENT_STATUSES,
+  type RequirementStatus,
+} from "@complyloop/analysis-core/contract/statuses";
 
 /**
  * Assessment summary helpers: latest-assessment lookup, preview-coverage
@@ -94,4 +98,20 @@ export function countByStatus<T extends string>(
     counts[item.status] += 1;
   }
   return counts;
+}
+
+/**
+ * Share of applicable requirements that passed, as a whole percent; null
+ * when none apply. `not_applicable` stays out of the denominator, like the
+ * RGAA conformity rate: a criterion that does not apply is neither met nor
+ * missed.
+ */
+export function passRatePercent(
+  counts: Partial<Record<RequirementStatus, number>>,
+): number | null {
+  const applicable = REQUIREMENT_STATUSES.filter(
+    (status) => status !== "not_applicable",
+  ).reduce((sum, status) => sum + (counts[status] ?? 0), 0);
+  if (applicable === 0) return null;
+  return Math.round(((counts.passed ?? 0) / applicable) * 100);
 }

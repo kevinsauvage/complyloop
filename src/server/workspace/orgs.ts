@@ -9,9 +9,9 @@ import { getDrizzle } from "@complyloop/db/postgres";
 import { listAlertsForProjects } from "@complyloop/db/repo/alerts";
 import { listAssessmentsForProjects } from "@complyloop/db/repo/assessments";
 import { listEvidenceForExportForProjects } from "@complyloop/db/repo/evidence";
-import { listFindingsForProjects } from "@complyloop/db/repo/findings";
+import { listFindingsForExportForProjects } from "@complyloop/db/repo/findings";
 import { slugifyOrgName } from "@complyloop/db/repo/orgs";
-import { listRemediationsForProjects } from "@complyloop/db/repo/remediations";
+import { listRemediationsForFindings } from "@complyloop/db/repo/remediations";
 import { listRequirementsForProjects } from "@complyloop/db/repo/requirements";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 
@@ -62,7 +62,10 @@ export function exportOrgData(
   db: WorkspaceSlice,
   orgId: string,
   actorUserId: string,
-  options: { evidenceTruncatedProjectIds?: readonly string[] } = {},
+  options: {
+    evidenceTruncatedProjectIds?: readonly string[];
+    findingsTruncatedProjectIds?: readonly string[];
+  } = {},
 ): Record<string, unknown> {
   const index = buildOrgMembershipIndex(db.memberships);
   if (roleInOrg(index, orgId, actorUserId) !== "owner") {
@@ -79,6 +82,9 @@ export function exportOrgData(
   const findingIds = new Set(findings.map((finding) => finding.id));
   const evidenceTruncatedProjectIds = [
     ...(options.evidenceTruncatedProjectIds ?? []),
+  ];
+  const findingsTruncatedProjectIds = [
+    ...(options.findingsTruncatedProjectIds ?? []),
   ];
 
   return {
@@ -109,6 +115,8 @@ export function exportOrgData(
     alerts: db.alerts.filter((alert) => projectIds.has(alert.projectId)),
     evidenceTruncated: evidenceTruncatedProjectIds.length > 0,
     evidenceTruncatedProjectIds,
+    findingsTruncated: findingsTruncatedProjectIds.length > 0,
+    findingsTruncatedProjectIds,
   };
 }
 
@@ -142,14 +150,13 @@ export function deleteOrganization(
 }
 
 /**
- * Full-history org export rows for the audit artifact. The workspace slice
- * is bounded (latest assessment, evidence window), so the export fetches
- * history directly with one set-based query per entity type (no per-project
- * N+1). Evidence is the exception: append-only forever, so each project
- * contributes its newest export window (`EVIDENCE_EXPORT_LIMIT`, same
- * semantics as the single-project export) instead of an unbounded read —
- * long-lived orgs would otherwise materialize hundreds of MB. Truncated
- * project ids ride along so the payload flags incompleteness.
+ * Org export rows for the audit artifact, one query per entity type (findings
+ * and their remediations read per project, so the rows stay windowed). The two
+ * tables that grow without bound are windowed per project:
+ * evidence (newest `EVIDENCE_EXPORT_LIMIT`, same as the single-project
+ * export) and findings (newest `FINDINGS_EXPORT_LIMIT`, with their
+ * remediations) — long-lived orgs would otherwise materialize hundreds of MB.
+ * Truncated project ids ride along so the payload flags incompleteness.
  */
 export async function loadOrgExportData(projectIds: string[]): Promise<{
   history: Pick<
@@ -162,32 +169,42 @@ export async function loadOrgExportData(projectIds: string[]): Promise<{
     | "alerts"
   >;
   evidenceTruncatedProjectIds: string[];
+  findingsTruncatedProjectIds: string[];
 }> {
   const drizzle = await getDrizzle();
-  const [
-    evidenceExport,
-    assessments,
-    findings,
-    remediations,
-    requirements,
-    alerts,
-  ] = await Promise.all([
-    listEvidenceForExportForProjects(drizzle, projectIds),
-    listAssessmentsForProjects(drizzle, projectIds),
-    listFindingsForProjects(drizzle, projectIds),
-    listRemediationsForProjects(drizzle, projectIds),
-    listRequirementsForProjects(drizzle, projectIds),
-    listAlertsForProjects(drizzle, projectIds),
-  ]);
+  const [evidenceExport, assessments, findingsExport, requirements, alerts] =
+    await Promise.all([
+      listEvidenceForExportForProjects(drizzle, projectIds),
+      listAssessmentsForProjects(drizzle, projectIds),
+      listFindingsForExportForProjects(drizzle, projectIds),
+      listRequirementsForProjects(drizzle, projectIds),
+      listAlertsForProjects(drizzle, projectIds),
+    ]);
+  // Remediations of the exported findings only, one bounded query per
+  // project (a single IN list over every project could pass Postgres's
+  // parameter limit).
+  const remediations = (
+    await Promise.all(
+      projectIds.map((projectId) =>
+        listRemediationsForFindings(
+          drizzle,
+          findingsExport.findings
+            .filter((finding) => finding.projectId === projectId)
+            .map((finding) => finding.id),
+        ),
+      ),
+    )
+  ).flat();
   return {
     history: {
       evidence: evidenceExport.records,
       assessments,
-      findings,
+      findings: findingsExport.findings,
       remediations,
       requirements,
       alerts,
     },
     evidenceTruncatedProjectIds: evidenceExport.truncatedProjectIds,
+    findingsTruncatedProjectIds: findingsExport.truncatedProjectIds,
   };
 }

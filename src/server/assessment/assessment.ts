@@ -752,6 +752,7 @@ export async function reconcileAssessment(
     // Rows created mid-pass are control-scoped, so upfront slices stay exact.
     const openByControl = new Map<string, Finding[]>();
     const dismissedByControl = new Map<string, Finding[]>();
+    const resolvedByControl = new Map<string, Finding[]>();
     for (const finding of rows.findings) {
       if (finding.projectId !== project.id) continue;
       const target =
@@ -759,8 +760,7 @@ export async function reconcileAssessment(
           ? openByControl
           : finding.status === "dismissed"
             ? dismissedByControl
-            : null;
-      if (!target) continue;
+            : resolvedByControl;
       const list = target.get(finding.controlId) ?? [];
       list.push(finding);
       target.set(finding.controlId, list);
@@ -783,6 +783,7 @@ export async function reconcileAssessment(
         rawForControl: rawByCheckId.get(checkId) ?? [],
         openFindings: openByControl.get(control.id) ?? [],
         dismissedFindings: dismissedByControl.get(control.id) ?? [],
+        resolvedFindings: resolvedByControl.get(control.id) ?? [],
         scopedFileSet,
         runtimeRan: runtimeAuthoritative,
         runtimeScannedRoutes: new Set(runtime.scannedRoutes),

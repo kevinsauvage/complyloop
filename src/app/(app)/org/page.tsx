@@ -129,8 +129,8 @@ export default async function OrgPage() {
               <DialogHeader>
                 <DialogTitle>Invite by GitHub username</DialogTitle>
                 <DialogDescription>
-                  Teammates claim the invite on their next sign-in when their
-                  GitHub login matches.
+                  The invite is bound to that GitHub account (by its id, so a
+                  later rename still works) and is claimed on its next sign-in.
                 </DialogDescription>
               </DialogHeader>
               <InviteMemberForm

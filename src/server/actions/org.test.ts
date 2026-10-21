@@ -54,8 +54,8 @@ vi.mock("../rate-limit", async () => {
   };
 });
 const refresh = vi.hoisted(() => vi.fn());
-const listFindingsForProjects = vi.hoisted(() => vi.fn());
-const listRemediationsForProjects = vi.hoisted(() => vi.fn());
+const listFindingsForExportForProjects = vi.hoisted(() => vi.fn());
+const listRemediationsForFindings = vi.hoisted(() => vi.fn());
 const listRequirementsForProjects = vi.hoisted(() => vi.fn());
 const listAlertsForProjects = vi.hoisted(() => vi.fn());
 const lookupGitHubUser = vi.hoisted(() => vi.fn());
@@ -124,12 +124,12 @@ vi.mock("@complyloop/db/repo/assessments", () => ({
   listAssessmentsForProjects: async () => [],
 }));
 vi.mock("@complyloop/db/repo/findings", () => ({
-  listFindingsForProjects: (...args: unknown[]) =>
-    listFindingsForProjects(...args),
+  listFindingsForExportForProjects: (...args: unknown[]) =>
+    listFindingsForExportForProjects(...args),
 }));
 vi.mock("@complyloop/db/repo/remediations", () => ({
-  listRemediationsForProjects: (...args: unknown[]) =>
-    listRemediationsForProjects(...args),
+  listRemediationsForFindings: (...args: unknown[]) =>
+    listRemediationsForFindings(...args),
 }));
 vi.mock("@complyloop/db/repo/requirements", () => ({
   listRequirementsForProjects: (...args: unknown[]) =>
@@ -214,19 +214,26 @@ beforeEach(() => {
   writeActiveProjectCookie.mockReset();
   clearActiveProjectCookie.mockReset();
   refresh.mockReset();
-  listFindingsForProjects.mockReset();
-  listFindingsForProjects.mockResolvedValue([]);
-  listRemediationsForProjects.mockReset();
-  listRemediationsForProjects.mockResolvedValue([]);
+  listFindingsForExportForProjects.mockReset();
+  listFindingsForExportForProjects.mockResolvedValue({
+    findings: [],
+    truncatedProjectIds: [],
+  });
+  listRemediationsForFindings.mockReset();
+  listRemediationsForFindings.mockResolvedValue([]);
   listRequirementsForProjects.mockReset();
   listRequirementsForProjects.mockResolvedValue([]);
   listAlertsForProjects.mockReset();
   listAlertsForProjects.mockResolvedValue([]);
   deleteOrganization.mockReturnValue({ deleteMembershipIds: ["m-owner"] });
   lookupGitHubUser.mockReset();
-  lookupGitHubUser.mockResolvedValue({ status: "found", login: "bob" });
+  lookupGitHubUser.mockResolvedValue({
+    status: "found",
+    login: "bob",
+    id: "user-b",
+  });
   actionAuthMocks.getGitHubAccessToken.mockReset();
-  actionAuthMocks.getGitHubAccessToken.mockResolvedValue(null);
+  actionAuthMocks.getGitHubAccessToken.mockResolvedValue("gho_inviter");
   readActiveOrgCookie.mockReset();
   readActiveOrgCookie.mockResolvedValue(null);
   actionAuthMocks.auth.mockResolvedValue({
@@ -260,7 +267,7 @@ describe("org lifecycle actions", () => {
       expect.anything(),
       "org-1",
       "user-1",
-      { evidenceTruncatedProjectIds: [] },
+      { evidenceTruncatedProjectIds: [], findingsTruncatedProjectIds: [] },
     );
   });
 
@@ -303,14 +310,14 @@ describe("org lifecycle actions", () => {
     const result = await exportOrgDataAction("org-1");
     expect(result.error).toBeNull();
     const projectIds = ["p-0", "p-1", "p-2"];
-    expect(listFindingsForProjects).toHaveBeenCalledTimes(1);
-    expect(listFindingsForProjects).toHaveBeenCalledWith(
+    expect(listFindingsForExportForProjects).toHaveBeenCalledTimes(1);
+    expect(listFindingsForExportForProjects).toHaveBeenCalledWith(
       expect.anything(),
       projectIds,
     );
-    expect(listRemediationsForProjects).toHaveBeenCalledWith(
-      expect.anything(),
-      projectIds,
+    // One bounded remediation read per project, for its exported findings.
+    expect(listRemediationsForFindings).toHaveBeenCalledTimes(
+      projectIds.length,
     );
     expect(listRequirementsForProjects).toHaveBeenCalledWith(
       expect.anything(),
@@ -346,7 +353,7 @@ describe("org lifecycle actions", () => {
       error: expect.stringMatching(/limited to 50 projects/),
       json: null,
     });
-    expect(listFindingsForProjects).not.toHaveBeenCalled();
+    expect(listFindingsForExportForProjects).not.toHaveBeenCalled();
   });
 
   it("maps public export failures to their message", async () => {
@@ -501,10 +508,58 @@ describe("org member management actions", () => {
     expect(lookupGitHubUser).toHaveBeenCalledWith("gho_inviter", "bbo");
   });
 
+  it("binds the invite to the GitHub numeric id the login resolves to", async () => {
+    const upserted: unknown[] = [];
+    withOrgWrite.mockImplementation(async (fn) => {
+      const payload = await fn({
+        db: emptyWorkspaceSlice([ownerMembership]),
+        userId: "user-1",
+        githubLogin: "alice",
+        organizations: [org],
+      });
+      upserted.push(...(payload.upsertMemberships ?? []));
+      return payload.result;
+    });
+    const form = new FormData();
+    form.set("orgId", "org-1");
+    form.set("githubLogin", "@Bob");
+    form.set("role", "member");
+    await inviteOrgMemberAction(initialActionState, form);
+    expect(upserted).toEqual([
+      expect.objectContaining({ githubLogin: "bob", githubUserId: "user-b" }),
+    ]);
+  });
+
+  it("refuses an invite GitHub cannot verify right now", async () => {
+    lookupGitHubUser.mockResolvedValue({ status: "unverifiable" });
+    const form = new FormData();
+    form.set("orgId", "org-1");
+    form.set("githubLogin", "bob");
+    form.set("role", "member");
+    const result = await inviteOrgMemberAction(initialActionState, form);
+    expect(result.ok ? null : result.message).toMatch(
+      /Could not verify "@bob" with GitHub/,
+    );
+  });
+
+  it("refuses an invite without the inviter's GitHub token", async () => {
+    actionAuthMocks.getGitHubAccessToken.mockResolvedValue(null);
+    const form = new FormData();
+    form.set("orgId", "org-1");
+    form.set("githubLogin", "bob");
+    form.set("role", "member");
+    const result = await inviteOrgMemberAction(initialActionState, form);
+    expect(result.ok ? null : result.message).toMatch(
+      /Could not read your GitHub token/,
+    );
+    expect(lookupGitHubUser).not.toHaveBeenCalled();
+  });
+
   it("names role changes on re-invite instead of saying Invited", async () => {
     const bob = testMembership("member", {
       id: "m-bob",
-      userId: "user-2",
+      // Auth.js user id is the GitHub numeric id the lookup resolves to.
+      userId: "user-b",
       githubLogin: "bob",
     });
     const db = emptyWorkspaceSlice([ownerMembership, bob]);

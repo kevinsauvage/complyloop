@@ -12,7 +12,7 @@ import {
   findingStatusDisplay,
   requirementStatusDisplay,
   severityDisplay,
-} from "@/core/display";
+} from "@/core/display/status";
 
 import {
   type AuditReportModel,
@@ -131,7 +131,7 @@ function renderEngineeringMarkdown(model: EngineeringReportModel): string {
     ``,
     `| Metric | Count |`,
     `| --- | ---: |`,
-    `| Open findings | ${model.findings.length} |`,
+    `| Open findings | ${model.openFindingsTotal} |`,
     ``,
   ];
 
@@ -147,6 +147,12 @@ function renderEngineeringMarkdown(model: EngineeringReportModel): string {
 
   lines.push(`## Open findings`);
   lines.push(``);
+  if (model.findings.length < model.openFindingsTotal) {
+    lines.push(
+      `_Showing the ${model.findings.length} most severe of ${model.openFindingsTotal} open findings._`,
+    );
+    lines.push(``);
+  }
 
   if (model.findings.length === 0) {
     lines.push(`_No open findings — nothing to fix right now._`);

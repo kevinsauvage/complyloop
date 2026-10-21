@@ -148,14 +148,15 @@ export function normalizeGitHubFullName(fullName: string): string {
 }
 
 export type GitHubUserLookup =
-  | { status: "found"; login: string }
+  | { status: "found"; login: string; id: string }
   | { status: "not-found" }
   | { status: "unverifiable" };
 
 /**
- * Verifies a GitHub username exists (invite-time typo guard). 404 →
- * `not-found`; any other transport/API failure → `unverifiable` so a GitHub
- * outage never blocks a legitimate invite (status quo behavior).
+ * Resolves a GitHub username to its numeric account id (invites bind to the
+ * id, not the recyclable login). 404 → `not-found`; any other transport/API
+ * failure → `unverifiable`, which the caller must treat as "cannot invite
+ * now": an invite with no id could never be claimed.
  */
 export async function lookupGitHubUser(
   accessToken: string,
@@ -166,7 +167,7 @@ export async function lookupGitHubUser(
     const { data } = await octokit.rest.users.getByUsername({
       username: login.trim().replace(/^@/, ""),
     });
-    return { status: "found", login: data.login };
+    return { status: "found", login: data.login, id: String(data.id) };
   } catch (error) {
     if (
       error &&

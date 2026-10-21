@@ -3,11 +3,11 @@ import "server-only";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 
 import { formatDateTimeWithZone } from "@/core/datetime";
+import { STATUS_TONE_REPORT } from "@/core/display/report-tones";
 import {
   requirementStatusReportClass,
   severityDisplay,
-  STATUS_TONE_REPORT,
-} from "@/core/display";
+} from "@/core/display/status";
 
 import { projectSourceLabel, type ReportHeaderModel } from "../report-model";
 

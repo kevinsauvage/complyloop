@@ -16,8 +16,11 @@ import { FormattedDateTime } from "@/components/primitives/formatted-datetime";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { determinationDisplay, requirementStatusDisplay } from "@/core/display";
-import { findingsListHref } from "@/core/filter-params";
+import {
+  determinationDisplay,
+  requirementStatusDisplay,
+} from "@/core/display/status";
+import { findingsListHref } from "@/core/filter-params/findings";
 import {
   unableToVerifyReason,
   unableToVerifyReasonLabel,
@@ -32,7 +35,7 @@ export function RequirementCard({
   openCount,
   maskedOpenCount,
   exceptionLapsed,
-  canRemediate,
+  canDecide,
   project,
 }: {
   control: Control;
@@ -40,7 +43,7 @@ export function RequirementCard({
   openCount: number;
   maskedOpenCount: number;
   exceptionLapsed: boolean;
-  canRemediate: boolean;
+  canDecide: boolean;
   project: Pick<Project, "runtimeBaseUrl">;
 }) {
   const unverifiableReason =
@@ -186,7 +189,7 @@ export function RequirementCard({
           control={control}
           requirement={requirement}
           exceptionLapsed={exceptionLapsed}
-          canRemediate={canRemediate}
+          canDecide={canDecide}
         />
       </CardContent>
     </Card>

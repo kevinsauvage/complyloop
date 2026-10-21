@@ -2,6 +2,7 @@ import {
   and,
   asc,
   count,
+  desc,
   eq,
   gt,
   inArray,
@@ -233,20 +234,41 @@ export async function countFindingsByStatusForList(
   return counts;
 }
 
+/** Findings each project contributes to an org export (newest first). */
+export const FINDINGS_EXPORT_LIMIT = 5_000;
+
 /**
- * Full-history findings for many projects in one query (org export), instead
- * of one `listFindingsForProject` per project.
+ * Org-export findings: each project's newest `limitPerProject` rows, so a
+ * long-lived project's history cannot blow up the export. Projects that had
+ * more are listed in `truncatedProjectIds` (never a silent cut), the same
+ * contract as the evidence export window.
  */
-export async function listFindingsForProjects(
+export async function listFindingsForExportForProjects(
   drizzle: DrizzleDb,
   projectIds: readonly string[],
-): Promise<Finding[]> {
-  if (projectIds.length === 0) return [];
-  const rows = await drizzle
-    .select({ payload: findings.payload })
-    .from(findings)
-    .where(inArray(findings.projectId, [...projectIds]));
-  return rows.map((row) => row.payload);
+  limitPerProject: number = FINDINGS_EXPORT_LIMIT,
+): Promise<{ findings: Finding[]; truncatedProjectIds: string[] }> {
+  const pages = await Promise.all(
+    projectIds.map(async (projectId) => {
+      const rows = await drizzle
+        .select({ payload: findings.payload })
+        .from(findings)
+        .where(eq(findings.projectId, projectId))
+        .orderBy(sql`${findings.detectedAt} DESC NULLS LAST`, desc(findings.id))
+        .limit(limitPerProject + 1);
+      return {
+        projectId,
+        findings: rows.slice(0, limitPerProject).map((row) => row.payload),
+        truncated: rows.length > limitPerProject,
+      };
+    }),
+  );
+  return {
+    findings: pages.flatMap((page) => page.findings),
+    truncatedProjectIds: pages
+      .filter((page) => page.truncated)
+      .map((page) => page.projectId),
+  };
 }
 
 /**

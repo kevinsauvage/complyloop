@@ -115,6 +115,12 @@ export interface Finding {
   explanations: Explanation[];
   detectedAt: string;
   /**
+   * The resolved finding this one regresses: the same instance detected
+   * again after it was fixed. A regression is a new finding (a verified
+   * remediation never goes backwards), linked to the trail it reopens.
+   */
+  regressionOf?: string;
+  /**
    * Last-write timestamp for stale-write protection. Set on every upsert by
    * the repo layer; a concurrent write with a newer `updatedAt` wins, so a
    * webhook assessment applying a stale slice cannot revert a human decision.
@@ -207,34 +213,37 @@ export interface Requirement {
  * reusing a general kind — `finding`, `assessment_job`, or
  * `requirement_status_changed` — with a `detail` discriminant (e.g.
  * `detail.event`, `detail.phase`), and add its label/tone alongside in
- * `src/core/display.ts`'s `evidenceDisplay`. Evidence-page filter
+ * `src/core/display/evidence.ts`'s `evidenceDisplay`. Evidence-page filter
  * chips are a separate short allow-list (`EVIDENCE_KIND_FILTER_ORDER`), not
  * this type.
  */
-export type EvidenceKind =
-  | "project_connected"
-  | "project_disconnected"
-  | "project_reset"
-  | "assessment_completed"
-  | "assessment_job"
-  | "finding"
-  | "remediation_approved"
-  | "remediation_implemented"
-  | "remediation_verified"
-  | "remediation_manually_verified"
-  | "remediation_suggested"
-  | "remediation_verification_failed"
-  | "ai_remediation_suggested"
-  | "ai_patch_ready"
-  | "requirement_status_changed"
-  | "requirement_exception_set"
-  | "requirement_exception_cleared"
-  | "requirement_human_passed"
-  | "requirement_human_pass_cleared"
-  | "requirements_imported"
-  | "pull_request_prepared"
-  | "monitoring_changes_detected"
-  | "webhook_reassessment";
+export const EVIDENCE_KINDS = [
+  "project_connected",
+  "project_disconnected",
+  "project_reset",
+  "assessment_completed",
+  "assessment_job",
+  "finding",
+  "remediation_approved",
+  "remediation_implemented",
+  "remediation_verified",
+  "remediation_manually_verified",
+  "remediation_suggested",
+  "remediation_verification_failed",
+  "ai_remediation_suggested",
+  "ai_patch_ready",
+  "requirement_status_changed",
+  "requirement_exception_set",
+  "requirement_exception_cleared",
+  "requirement_human_passed",
+  "requirement_human_pass_cleared",
+  "requirements_imported",
+  "pull_request_prepared",
+  "monitoring_changes_detected",
+  "webhook_reassessment",
+] as const;
+
+export type EvidenceKind = (typeof EVIDENCE_KINDS)[number];
 
 export interface EvidenceRecord {
   id: string;

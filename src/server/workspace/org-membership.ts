@@ -56,13 +56,21 @@ export function findOrgMembershipByLogin(
   );
 }
 
-/** Returns a new or updated membership; does not mutate `db`. */
+/**
+ * Returns a new or updated membership; does not mutate `db`. `githubUserId` is
+ * the invitee's GitHub numeric id: the invite is bound to it, and an existing
+ * membership of the same account (even under an older login) is updated
+ * instead of duplicated. A login held by another account is refused, never
+ * re-targeted: `memberships_org_login_uidx` allows one row per login, so the
+ * alternative is silently changing that account's role.
+ */
 export function inviteOrgMember(
   db: WorkspaceSlice,
   orgId: string,
   actorUserId: string,
   githubLogin: string,
   role: OrgRole,
+  githubUserId: string,
 ): OrgMembership {
   const index = buildOrgMembershipIndex(db.memberships);
   const actorRole = roleInOrg(index, orgId, actorUserId);
@@ -76,18 +84,35 @@ export function inviteOrgMember(
     throw new PublicError("Invalid role.");
   }
 
-  const existing = findOrgMembershipByLogin(db, orgId, login);
+  const existing = membershipsForOrg(index, orgId).find(
+    (membership) =>
+      membership.userId === githubUserId ||
+      membership.githubUserId === githubUserId,
+  );
   if (existing) {
     assertCanManageTarget(actorRole, existing.role, "change");
     return { ...existing, role };
+  }
+
+  const sameLogin = findOrgMembershipByLogin(db, orgId, login);
+  if (sameLogin) {
+    // A pending row with no binding predates id-bound invites: adopt the id
+    // instead of leaving a row nobody can claim.
+    if (sameLogin.userId == null && sameLogin.githubUserId == null) {
+      assertCanManageTarget(actorRole, sameLogin.role, "change");
+      return { ...sameLogin, role, githubUserId };
+    }
+    throw new PublicError(
+      `@${login} is already a member of this organization as another GitHub account. Remove that member before inviting this account.`,
+    );
   }
 
   return {
     id: crypto.randomUUID(),
     orgId,
     role,
-    // Store lowercase so invite lookup / claim / listOrgIds stay aligned.
     githubLogin: login.toLowerCase(),
+    githubUserId,
     createdAt: new Date().toISOString(),
   };
 }

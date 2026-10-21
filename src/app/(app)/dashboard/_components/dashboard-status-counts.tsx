@@ -3,8 +3,9 @@ import Link from "next/link";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 import { REQUIREMENT_STATUS_DISPLAY_ORDER } from "@complyloop/analysis-core/contract/statuses";
 
-import { requirementStatusDisplay, STATUS_TONE_DOT } from "@/core/display";
-import { requirementsStatusHref } from "@/core/filter-params";
+import { STATUS_TONE_DOT } from "@/core/display/report-tones";
+import { requirementStatusDisplay } from "@/core/display/status";
+import { requirementsStatusHref } from "@/core/filter-params/requirements";
 import { cn } from "@/lib/utils";
 
 /**

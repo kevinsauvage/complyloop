@@ -11,7 +11,8 @@ import {
   CardDescription,
   CardHeader,
 } from "@/components/ui/card";
-import { roleTone, STATUS_TONE_BADGE } from "@/core/display";
+import { STATUS_TONE_BADGE } from "@/core/display/report-tones";
+import { roleTone } from "@/core/display/status";
 import { cn } from "@/lib/utils";
 
 type OrgAccountOverviewProps = {

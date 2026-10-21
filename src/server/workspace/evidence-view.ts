@@ -10,13 +10,15 @@ import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { DEFAULT_PAGE_SIZE } from "@complyloop/analysis-core/contract/project-types";
 
 import {
-  type PageSlice,
-  pageSliceFromQuery,
   parseEvidenceDateParam,
   parseEvidenceKindParam,
   parseEvidenceQueryParam,
+} from "@/core/filter-params/evidence";
+import {
+  type PageSlice,
+  pageSliceFromQuery,
   parsePageParam,
-} from "@/core/filter-params";
+} from "@/core/filter-params/pagination";
 import { loadEvidencePage } from "@/server/reporting/evidence-queries";
 import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
 

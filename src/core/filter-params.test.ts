@@ -4,17 +4,18 @@ import {
   findingDetailHref,
   findingsListHref,
   hasActiveFindingFilters,
+} from "@/core/filter-params/findings";
+import {
   pageSliceFromQuery,
   paginateSlice,
   parsePageParam,
-} from "./filter-params";
+} from "@/core/filter-params/pagination";
 
 /**
- * Barrel test for `@/core/filter-params`: pagination clamping and href
- * shape. The underlying modules are covered transitively — this pins the
- * canonical entry point plus the boundary behavior list pages rely on.
+ * Filter-param helpers: pagination clamping and href shape — the boundary
+ * behavior list pages rely on.
  */
-describe("filter-params barrel", () => {
+describe("filter-params helpers", () => {
   it("parses page params with a floor of 1", () => {
     expect(parsePageParam(undefined)).toBe(1);
     expect(parsePageParam("3")).toBe(3);

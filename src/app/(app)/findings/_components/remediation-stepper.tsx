@@ -4,7 +4,7 @@ import { useId } from "react";
 import type { RemediationStatus } from "@complyloop/analysis-core/contract/statuses";
 import { REMEDIATION_STATUSES } from "@complyloop/analysis-core/contract/statuses";
 
-import { remediationStatusDisplay } from "@/core/display";
+import { remediationStatusDisplay } from "@/core/display/status";
 import { cn } from "@/lib/utils";
 
 /**

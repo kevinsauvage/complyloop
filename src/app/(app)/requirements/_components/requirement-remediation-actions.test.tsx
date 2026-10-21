@@ -39,11 +39,13 @@ describe("RequirementRemediationActions", () => {
         control={testControl({ id: "ctl-1", checkId: null })}
         requirement={baseRequirement()}
         exceptionLapsed={false}
-        canRemediate={false}
+        canDecide={false}
       />,
     );
     expect(
-      screen.getByText("Only editors can record passes or exceptions."),
+      screen.getByText(
+        "Only admins and owners can record passes or exceptions.",
+      ),
     ).toBeInTheDocument();
   });
 
@@ -54,7 +56,7 @@ describe("RequirementRemediationActions", () => {
         control={testControl({ id: "ctl-1", checkId: null })}
         requirement={baseRequirement()}
         exceptionLapsed={false}
-        canRemediate
+        canDecide
       />,
     );
 
@@ -79,7 +81,7 @@ describe("RequirementRemediationActions", () => {
           },
         })}
         exceptionLapsed={false}
-        canRemediate
+        canDecide
       />,
     );
 
@@ -106,7 +108,7 @@ describe("RequirementRemediationActions", () => {
           },
         })}
         exceptionLapsed
-        canRemediate={false}
+        canDecide={false}
       />,
     );
 

@@ -3,7 +3,7 @@ import {
   type FindingListParams,
   findingsListHref,
   type FindingsTab,
-} from "@/core/filter-params";
+} from "@/core/filter-params/findings";
 
 const TABS: ReadonlyArray<{ tab: FindingsTab; label: string }> = [
   { tab: "open", label: "Open" },

@@ -3,7 +3,7 @@ import { REQUIREMENT_STATUS_DISPLAY_ORDER } from "@complyloop/analysis-core/cont
 
 import { RequirementStatusBadge } from "@/components/primitives/badges";
 import { RailNavGroup } from "@/components/primitives/rail-nav";
-import { requirementsPageHref } from "@/core/filter-params";
+import { requirementsPageHref } from "@/core/filter-params/requirements";
 
 export function RequirementsStatusChips({
   counts,

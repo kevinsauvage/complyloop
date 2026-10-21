@@ -31,11 +31,13 @@ import {
   type FindingsTab,
   hasActiveFindingFilters,
   orderFindingsForList,
+  parseFindingListParams,
+} from "@/core/filter-params/findings";
+import {
   type PageSlice,
   pageSliceFromQuery,
   paginateSlice,
-  parseFindingListParams,
-} from "@/core/filter-params";
+} from "@/core/filter-params/pagination";
 import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
 import type { ProjectCapabilities } from "@/server/workspace/project-capabilities";
 import { getProjectRuntime } from "@/server/workspace/project-runtime";

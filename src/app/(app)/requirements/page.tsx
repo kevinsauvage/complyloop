@@ -13,7 +13,7 @@ import {
   ActiveFilterChip,
   SearchFilterBar,
 } from "@/components/primitives/search-filter-bar";
-import { requirementsPageHref } from "@/core/filter-params";
+import { requirementsPageHref } from "@/core/filter-params/requirements";
 import { loadRequirementsView } from "@/server/workspace/requirements-view";
 
 import { AssessedRequirementList } from "./_components/assessed-requirement-list";
@@ -177,7 +177,7 @@ export default async function RequirementsPage({
                   maskedFindingCounts={maskedFindingCounts}
                   lapsedExceptionControlIds={lapsedExceptionControlIds}
                   frameworkId={frameworkId}
-                  canRemediate={caps.canRemediate}
+                  canDecide={caps.canDecide}
                   project={project}
                 />
                 <PaginationNav

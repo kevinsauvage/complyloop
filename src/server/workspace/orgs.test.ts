@@ -60,18 +60,25 @@ function seedOwnerOrg(
   );
 }
 
-/** Test fixture: attach userId to invite rows (mirrors DB claimMembershipsForLogin). */
-function claimInvite(
-  db: WorkspaceSlice,
-  userId: string,
-  githubLogin: string,
-): void {
-  const login = githubLogin.trim().toLowerCase();
+/** GitHub numeric ids the fixtures' invitees resolve to (= their user id). */
+const GITHUB_IDS: Record<string, string> = {
+  bob: "user-b",
+  carol: "user-c",
+  dana: "user-d",
+  erin: "user-e",
+  alicedev: "user-alicedev",
+};
+
+function githubIdFor(login: string): string {
+  const id = GITHUB_IDS[login.replace(/^@/, "").toLowerCase()];
+  if (!id) throw new Error(`No fixture GitHub id for ${login}`);
+  return id;
+}
+
+/** Test fixture: bind pending invites to the user (mirrors DB claimMembershipsForUser). */
+function claimInvite(db: WorkspaceSlice, userId: string): void {
   for (const membership of db.memberships) {
-    if (
-      membership.githubLogin.toLowerCase() === login &&
-      membership.userId !== userId
-    ) {
+    if (membership.githubUserId === userId && !membership.userId) {
       membership.userId = userId;
     }
   }
@@ -81,23 +88,82 @@ describe("orgs", () => {
   it("leaves pending invites unclaimed until DB provision attaches userId", () => {
     const db = emptyWorkspaceSlice();
     const org = seedOwnerOrg(db, "user-a", "alice");
-    applyMembership(db, inviteOrgMember(db, org.id, "user-a", "bob", "member"));
+    applyMembership(
+      db,
+      inviteOrgMember(
+        db,
+        org.id,
+        "user-a",
+        "bob",
+        "member",
+        githubIdFor("bob"),
+      ),
+    );
 
     expect(
       db.memberships.some((m) => m.githubLogin === "bob" && !m.userId),
     ).toBe(true);
-    claimInvite(db, "user-b", "bob");
+    claimInvite(db, "user-b");
     expect(db.memberships.find((m) => m.githubLogin === "bob")?.userId).toBe(
       "user-b",
     );
   });
 
-  it("normalizes invite GitHub logins to lowercase when storing", () => {
+  it("refuses a login held by another GitHub account instead of changing its role", () => {
     const db = emptyWorkspaceSlice();
     const org = seedOwnerOrg(db, "user-a", "alice");
     applyMembership(
       db,
-      inviteOrgMember(db, org.id, "user-a", "@AliceDev", "member"),
+      inviteOrgMember(db, org.id, "user-a", "bob", "member", "user-b"),
+    );
+    claimInvite(db, "user-b");
+
+    // GitHub released the login: a new account now holds it, with a new id.
+    expect(() =>
+      inviteOrgMember(db, org.id, "user-a", "bob", "admin", "user-recycled"),
+    ).toThrow(/already a member .* as another GitHub account/);
+    expect(db.memberships.find((m) => m.githubLogin === "bob")?.role).toBe(
+      "member",
+    );
+  });
+
+  it("binds a legacy unclaimed invite to the resolved GitHub id", () => {
+    const db = emptyWorkspaceSlice();
+    const org = seedOwnerOrg(db, "user-a", "alice");
+    db.memberships.push({
+      id: "m-legacy",
+      orgId: org.id,
+      role: "member",
+      githubLogin: "bob",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    const invited = inviteOrgMember(
+      db,
+      org.id,
+      "user-a",
+      "bob",
+      "member",
+      "user-b",
+    );
+
+    expect(invited).toMatchObject({ id: "m-legacy", githubUserId: "user-b" });
+  });
+
+  it("normalizes invite GitHub logins to lowercase when storing", () => {
+
+    const db = emptyWorkspaceSlice();
+    const org = seedOwnerOrg(db, "user-a", "alice");
+    applyMembership(
+      db,
+      inviteOrgMember(
+        db,
+        org.id,
+        "user-a",
+        "@AliceDev",
+        "member",
+        githubIdFor("@AliceDev"),
+      ),
     );
     const invited = db.memberships.find(
       (membership) => membership.githubLogin === "alicedev",
@@ -129,8 +195,18 @@ describe("orgs", () => {
         githubLogin: "alice",
       }),
     );
-    applyMembership(db, inviteOrgMember(db, team.id, "user-a", "bob", "admin"));
-    claimInvite(db, "user-b", "bob");
+    applyMembership(
+      db,
+      inviteOrgMember(
+        db,
+        team.id,
+        "user-a",
+        "bob",
+        "admin",
+        githubIdFor("bob"),
+      ),
+    );
+    claimInvite(db, "user-b");
 
     expect(
       roleInOrg(buildOrgMembershipIndex(db.memberships), team.id, "user-b"),
@@ -143,7 +219,14 @@ describe("orgs", () => {
 
     applyMembership(
       db,
-      inviteOrgMember(db, team.id, "user-b", "carol", "member"),
+      inviteOrgMember(
+        db,
+        team.id,
+        "user-b",
+        "carol",
+        "member",
+        githubIdFor("carol"),
+      ),
     );
     expect(
       db.memberships.some(
@@ -178,7 +261,14 @@ describe("orgs", () => {
     const org = seedOwnerOrg(db, "user-a", "alice");
     const invite = applyMembership(
       db,
-      inviteOrgMember(db, org.id, "user-a", "bob", "viewer"),
+      inviteOrgMember(
+        db,
+        org.id,
+        "user-a",
+        "bob",
+        "viewer",
+        githubIdFor("bob"),
+      ),
     );
 
     const updated = changeOrgMemberRole(
@@ -204,12 +294,22 @@ describe("orgs", () => {
   it("lets admins revoke pending invites via remove", () => {
     const db = emptyWorkspaceSlice();
     const org = seedOwnerOrg(db, "user-a", "alice");
-    applyMembership(db, inviteOrgMember(db, org.id, "user-a", "bob", "admin"));
-    claimInvite(db, "user-b", "bob");
+    applyMembership(
+      db,
+      inviteOrgMember(db, org.id, "user-a", "bob", "admin", githubIdFor("bob")),
+    );
+    claimInvite(db, "user-b");
 
     const pending = applyMembership(
       db,
-      inviteOrgMember(db, org.id, "user-b", "carol", "member"),
+      inviteOrgMember(
+        db,
+        org.id,
+        "user-b",
+        "carol",
+        "member",
+        githubIdFor("carol"),
+      ),
     );
     expect(pending.userId).toBeUndefined();
 
@@ -241,8 +341,11 @@ describe("orgs", () => {
       summary: "ran",
       projectId: "p1",
     });
-    applyMembership(db, inviteOrgMember(db, org.id, "user-a", "bob", "admin"));
-    claimInvite(db, "user-b", "bob");
+    applyMembership(
+      db,
+      inviteOrgMember(db, org.id, "user-a", "bob", "admin", githubIdFor("bob")),
+    );
+    claimInvite(db, "user-b");
 
     expect(() => exportOrgData(db, org.id, "user-b")).toThrow(/owner/);
     const exported = exportOrgData(db, org.id, "user-a");
@@ -264,12 +367,19 @@ describe("orgs", () => {
     const org = seedOwnerOrg(db, "user-a", "alice");
     const adminInvite = applyMembership(
       db,
-      inviteOrgMember(db, org.id, "user-a", "bob", "admin"),
+      inviteOrgMember(db, org.id, "user-a", "bob", "admin", githubIdFor("bob")),
     );
-    claimInvite(db, "user-b", "bob");
+    claimInvite(db, "user-b");
 
     expect(() =>
-      inviteOrgMember(db, org.id, "user-b", "carol", "admin"),
+      inviteOrgMember(
+        db,
+        org.id,
+        "user-b",
+        "carol",
+        "admin",
+        githubIdFor("carol"),
+      ),
     ).toThrow(/owners can invite or assign admins/);
 
     expect(() =>
@@ -278,7 +388,14 @@ describe("orgs", () => {
 
     const peer = applyMembership(
       db,
-      inviteOrgMember(db, org.id, "user-a", "dana", "admin"),
+      inviteOrgMember(
+        db,
+        org.id,
+        "user-a",
+        "dana",
+        "admin",
+        githubIdFor("dana"),
+      ),
     );
     expect(() => removeOrgMember(db, org.id, "user-b", peer.id)).toThrow(
       /owners can change or remove admins/,
@@ -287,7 +404,14 @@ describe("orgs", () => {
     // Admins may still manage members/viewers.
     const member = applyMembership(
       db,
-      inviteOrgMember(db, org.id, "user-b", "erin", "member"),
+      inviteOrgMember(
+        db,
+        org.id,
+        "user-b",
+        "erin",
+        "member",
+        githubIdFor("erin"),
+      ),
     );
     const updated = changeOrgMemberRole(
       db,
@@ -315,7 +439,14 @@ describe("buildOrgMembershipIndex", () => {
     );
     applyMembership(
       db,
-      inviteOrgMember(db, orgA.id, "user-a", "bob", "member"),
+      inviteOrgMember(
+        db,
+        orgA.id,
+        "user-a",
+        "bob",
+        "member",
+        githubIdFor("bob"),
+      ),
     );
     const bobOnA = db.memberships.find(
       (m) => m.orgId === orgA.id && m.githubLogin === "bob",
@@ -339,8 +470,18 @@ describe("leaveOrgMember", () => {
   it("returns the caller's membership id for removal", () => {
     const db = emptyWorkspaceSlice();
     const org = seedOwnerOrg(db, "user-a", "alice");
-    applyMembership(db, inviteOrgMember(db, org.id, "user-a", "bob", "member"));
-    claimInvite(db, "user-b", "bob");
+    applyMembership(
+      db,
+      inviteOrgMember(
+        db,
+        org.id,
+        "user-a",
+        "bob",
+        "member",
+        githubIdFor("bob"),
+      ),
+    );
+    claimInvite(db, "user-b");
 
     expect(leaveOrgMember(db, org.id, "user-b")).toEqual({
       removedMembershipId: expect.any(String),
@@ -350,8 +491,18 @@ describe("leaveOrgMember", () => {
   it("blocks the last owner while other members remain", () => {
     const db = emptyWorkspaceSlice();
     const org = seedOwnerOrg(db, "user-a", "alice");
-    applyMembership(db, inviteOrgMember(db, org.id, "user-a", "bob", "member"));
-    claimInvite(db, "user-b", "bob");
+    applyMembership(
+      db,
+      inviteOrgMember(
+        db,
+        org.id,
+        "user-a",
+        "bob",
+        "member",
+        githubIdFor("bob"),
+      ),
+    );
+    claimInvite(db, "user-b");
 
     expect(() => leaveOrgMember(db, org.id, "user-a")).toThrow(/last owner/);
   });
@@ -473,7 +624,14 @@ describe("exportOrgData scoping", () => {
     const org = seedOrgWithHistory(db);
     applyMembership(
       db,
-      inviteOrgMember(db, org.id, "user-a", "erin", "member"),
+      inviteOrgMember(
+        db,
+        org.id,
+        "user-a",
+        "erin",
+        "member",
+        githubIdFor("erin"),
+      ),
     );
     const exported = exportOrgData(db, org.id, "user-a") as Record<
       string,
@@ -504,6 +662,16 @@ describe("exportOrgData scoping", () => {
     });
     expect(exported.evidenceTruncated).toBe(true);
     expect(exported.evidenceTruncatedProjectIds).toEqual(["p1"]);
+  });
+
+  it("flags projects whose findings were windowed", () => {
+    const db = emptyWorkspaceSlice();
+    const org = seedOrgWithHistory(db);
+    const exported = exportOrgData(db, org.id, "user-a", {
+      findingsTruncatedProjectIds: ["p1"],
+    });
+    expect(exported.findingsTruncated).toBe(true);
+    expect(exported.findingsTruncatedProjectIds).toEqual(["p1"]);
   });
 
   it("throws when the org row is missing", () => {
@@ -552,7 +720,17 @@ describe("findOrgMembershipByLogin", () => {
   it("matches case-insensitively and tolerates @", () => {
     const db = emptyWorkspaceSlice();
     const org = seedOwnerOrg(db, "user-a", "alice");
-    applyMembership(db, inviteOrgMember(db, org.id, "user-a", "Bob", "member"));
+    applyMembership(
+      db,
+      inviteOrgMember(
+        db,
+        org.id,
+        "user-a",
+        "Bob",
+        "member",
+        githubIdFor("Bob"),
+      ),
+    );
 
     expect(findOrgMembershipByLogin(db, org.id, "@BOB")?.role).toBe("member");
     expect(findOrgMembershipByLogin(db, org.id, "carol")).toBeUndefined();

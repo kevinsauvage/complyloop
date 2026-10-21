@@ -75,12 +75,17 @@ export const memberships = pgTable(
       .references(() => organizations.id, { onDelete: "cascade" }),
     userId: text("user_id"),
     githubLogin: text("github_login").notNull(),
+    /** GitHub numeric account id a pending invite is bound to. */
+    githubUserId: text("github_user_id"),
     role: text("role").notNull(),
     payload: jsonb("payload").$type<OrgMembership>().notNull(),
   },
   (table) => [
     index("memberships_org_id_idx").on(table.orgId),
     index("memberships_user_id_idx").on(table.userId),
+    index("memberships_github_user_id_unclaimed_idx")
+      .on(table.githubUserId)
+      .where(sql`${table.userId} IS NULL`),
     index("memberships_github_login_idx").on(table.githubLogin),
     // Login lookup without an org (`lower(github_login) = $1`) cannot use the
     // composite (org_id, lower(...)) unique index.
