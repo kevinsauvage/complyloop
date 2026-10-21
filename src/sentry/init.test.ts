@@ -25,6 +25,7 @@ describe("sentryInitOptions", () => {
       dsn: "https://example.ingest.sentry.io/1",
       environment: "production",
       tracesSampleRate: 0.05,
+      beforeSend: expect.any(Function),
     });
   });
 });

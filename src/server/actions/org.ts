@@ -284,6 +284,17 @@ export async function exportOrgDataAction(
     await assertExportRateLimit(userId);
     const orgId = parseEntityId(orgIdRaw);
     const { organizations, projects, access } = await getWorkspace();
+    // A whole-org export fans out over every project's history: owner-only,
+    // and checked before the expensive load.
+    const membership = access.memberships.find(
+      (candidate) => candidate.orgId === orgId && candidate.userId === userId,
+    );
+    if (!membership || membership.role !== "owner") {
+      throw new PublicError(
+        "Only the organization owner can export organization data.",
+        "forbidden",
+      );
+    }
     const orgProjects = projects.filter((project) => project.orgId === orgId);
     const projectIds = orgProjects.map((project) => project.id);
     // Bound the fan-out: runtime loads are O(P) full history reads. Chunked

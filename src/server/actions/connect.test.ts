@@ -50,6 +50,7 @@ vi.mock("../workspace/project-visibility", async () => {
 });
 
 vi.mock("../workspace/connect-github", () => ({
+  assertGitHubRepoAssessable: async () => undefined,
   connectGitHubRepo: (...args: unknown[]) => connectGitHubRepo(...args),
   disconnectGitHubRepo: (...args: unknown[]) => disconnectGitHubRepo(...args),
   findConnectedGitHubProject: (...args: unknown[]) =>

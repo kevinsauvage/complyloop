@@ -759,11 +759,29 @@ async function collectBrowserConditionFindings(
  * rendered cleanly — an unreachable/blocked page or an empty scan must never
  * allow "verified".
  */
-export async function runtimeViolationStillPresent(
+export interface RuntimeViolationVerdict {
+  /** The violation was observed (or could not be ruled out). */
+  present: boolean;
+  /**
+   * False when the page could not be shown to have rendered cleanly (scan
+   * error, empty page, redirect, dirty load). `present` is then true only as a
+   * fail-closed default — never a proven regression.
+   */
+  conclusive: boolean;
+}
+
+/**
+ * Re-checks whether a specific DOM finding still fails on its URL.
+ * `present` is true when the same check + selector (or snippet) is still there,
+ * and also fails closed whenever the page cannot be shown to have rendered
+ * cleanly. `conclusive` separates "seen" from "could not check": an
+ * inconclusive run must never resolve or fail a requirement.
+ */
+export async function runtimeViolationVerification(
   finding: Pick<RawFinding, "checkId" | "location">,
   scanner?: RuntimePageScanner,
   options?: { browserConditions?: ReadonlyArray<BrowserCondition> },
-): Promise<boolean> {
+): Promise<RuntimeViolationVerdict> {
   if (finding.location.kind !== "dom") {
     throw new PublicError(
       "Runtime verification requires a finding with a DOM location.",
@@ -786,34 +804,35 @@ export async function runtimeViolationStillPresent(
     await assertSafeRuntimeUrl(url);
     ({ pages } = await pageScanner([url]));
   } catch (error) {
-    // Unreachable / blocked / scan failure: we cannot prove the fix, so the
-    // violation is treated as still present (fail closed — never verified).
     // Log it: verify runs from a user click with no job record, so this warn
     // is the only trace when re-verification keeps failing.
     const raw = error instanceof Error ? error.message : String(error);
     console.warn(
       `[warning] runtime re-verify failed (fail closed): ${raw.replace(/\?[^\s"'<>]*/g, "")}`,
     );
-    return true;
+    return { present: true, conclusive: false };
   }
   // A page that rendered nothing also cannot be verified clean.
-  if (pages.length === 0) return true;
-  if (pages.some((candidate) => candidate.loadedCleanly !== true)) return true;
+  if (pages.length === 0) return { present: true, conclusive: false };
+  if (pages.some((candidate) => candidate.loadedCleanly !== true)) {
+    return { present: true, conclusive: false };
+  }
   if (
     pages.some(
       (candidate) =>
         !runtimePageMatchesAuditedUrl(candidate.finalUrl ?? candidate.url, url),
     )
   ) {
-    return true;
+    return { present: true, conclusive: false };
   }
 
   const raw = findingsFromAxePages(pages);
-  return raw.some(
+  const present = raw.some(
     (candidate) =>
       candidate.checkId === finding.checkId &&
       candidate.location.kind === "dom" &&
       (candidate.location.selector === selector ||
         candidate.location.snippet === snippet),
   );
+  return { present, conclusive: true };
 }

@@ -65,9 +65,29 @@ export async function createPostgresClient(
   const hostname = parsed.hostname;
   const host = await resolveHostname(hostname);
 
+  const sslmode = parsed.searchParams.get("sslmode")?.toLowerCase() ?? null;
   const allowInsecureSsl = isDatabaseSslInsecureEnabled();
+  // Production traffic must be encrypted and verified: a URL without
+  // `sslmode` (or with `disable`/`allow`) silently downgrades to plaintext.
+  // Local Postgres (dev, e2e harness) is exempt — there is no TLS listener.
+  const isLocalHost =
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "[::1]";
+  const e2eHarness = process.env.E2E_PROD_HARNESS === "1";
+  if (
+    process.env.NODE_ENV === "production" &&
+    !allowInsecureSsl &&
+    !isLocalHost &&
+    !e2eHarness &&
+    (sslmode === null || sslmode === "disable" || sslmode === "allow")
+  ) {
+    throw new Error(
+      "DATABASE_URL must set sslmode=require (or verify-ca/verify-full) in production. Set DATABASE_SSL_INSECURE=true only for a deliberately unverified CA.",
+    );
+  }
   const ssl = resolvePostgresSslOptions({
-    sslmode: parsed.searchParams.get("sslmode"),
+    sslmode,
     hostname,
     allowInsecureSsl,
   });

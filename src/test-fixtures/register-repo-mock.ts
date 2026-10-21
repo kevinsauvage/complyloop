@@ -28,6 +28,10 @@ vi.mock("@complyloop/db/repo/findings", async () => {
     ...actual,
     getFindingById: async (_tx: unknown, findingId: string) =>
       mockStore()?.db.findings.find((row) => row.id === findingId),
+    listFindingsByIds: async (_tx: unknown, findingIds: readonly string[]) =>
+      (mockStore()?.db.findings ?? []).filter((row) =>
+        findingIds.includes(row.id),
+      ),
     listOpenFindingsForControls: async (
       _tx: unknown,
       projectId: string,
@@ -57,6 +61,13 @@ vi.mock("@complyloop/db/repo/remediations", async () => {
     ...actual,
     getRemediationByFindingId: async (_tx: unknown, findingId: string) =>
       mockStore()?.db.remediations.find((row) => row.findingId === findingId),
+    listRemediationsForFindings: async (
+      _tx: unknown,
+      findingIds: readonly string[],
+    ) =>
+      (mockStore()?.db.remediations ?? []).filter((row) =>
+        findingIds.includes(row.findingId),
+      ),
     upsertRemediations: async (_tx: unknown, items: Remediation[]) => {
       const store = mockStore();
       for (const item of items) {

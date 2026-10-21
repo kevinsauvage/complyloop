@@ -4,6 +4,11 @@ const getDrizzle = vi.hoisted(() => vi.fn());
 
 vi.mock("@complyloop/db/postgres", () => ({
   getDrizzle: () => getDrizzle(),
+  withNamedPostgresAdvisoryLock: async (
+    db: unknown,
+    _key: string,
+    fn: (tx: unknown) => Promise<unknown>,
+  ) => fn(db),
 }));
 
 vi.mock("../observability", () => ({
@@ -48,7 +53,12 @@ describe("storeUserGitHubToken", () => {
     const onConflictDoUpdate = vi.fn().mockResolvedValue(undefined);
     const values = vi.fn(() => ({ onConflictDoUpdate }));
     const insert = vi.fn(() => ({ values }));
-    const drizzle = { insert };
+    const drizzle = {
+      insert,
+      select: () => ({
+        from: () => ({ where: () => ({ limit: async () => [] }) }),
+      }),
+    };
     getDrizzle.mockResolvedValue(drizzle);
 
     await storeUserGitHubToken(
@@ -168,13 +178,26 @@ describe("getStoredGitHubTokenWithExpiry", () => {
   });
 });
 
+function emptySelectDrizzle() {
+  return {
+    select: () => ({
+      from: () => ({ where: () => ({ limit: async () => [] }) }),
+    }),
+  };
+}
+
 describe("refreshGitHubToken", () => {
   it("refreshes an expired token and persists the new one", async () => {
     const { refreshGitHubToken } = await import("./github-tokens");
     const onConflictDoUpdate = vi.fn().mockResolvedValue(undefined);
     const values = vi.fn(() => ({ onConflictDoUpdate }));
     const insert = vi.fn(() => ({ values }));
-    const drizzle = { insert };
+    const drizzle = {
+      insert,
+      select: () => ({
+        from: () => ({ where: () => ({ limit: async () => [] }) }),
+      }),
+    };
     getDrizzle.mockResolvedValue(drizzle);
 
     const originalFetch = global.fetch;
@@ -225,6 +248,7 @@ describe("refreshGitHubToken", () => {
   it("classifies invalid_grant as revoked", async () => {
     const { refreshGitHubToken, isTokenRefreshError } =
       await import("./github-tokens");
+    getDrizzle.mockResolvedValue(emptySelectDrizzle());
     const originalFetch = global.fetch;
     global.fetch = vi.fn(() =>
       Promise.resolve(
@@ -250,9 +274,39 @@ describe("refreshGitHubToken", () => {
     }
   });
 
+  it("classifies a 200 bad_refresh_token body as revoked", async () => {
+    const { refreshGitHubToken, isTokenRefreshError } =
+      await import("./github-tokens");
+    getDrizzle.mockResolvedValue(emptySelectDrizzle());
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ error: "bad_refresh_token" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    ) as unknown as typeof fetch;
+
+    process.env.AUTH_GITHUB_ID = "client-id";
+    process.env.AUTH_GITHUB_SECRET = "client-secret";
+
+    try {
+      const error = await refreshGitHubToken({
+        userId: "user-1",
+        refreshToken: "rt",
+      }).catch((cause: unknown) => cause);
+      expect(isTokenRefreshError(error)).toBe(true);
+      expect((error as { reason: string }).reason).toBe("revoked");
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
   it("classifies server errors as transient", async () => {
     const { refreshGitHubToken, isTokenRefreshError } =
       await import("./github-tokens");
+    getDrizzle.mockResolvedValue(emptySelectDrizzle());
     const originalFetch = global.fetch;
     global.fetch = vi.fn(() =>
       Promise.resolve(new Response("boom", { status: 500 })),

@@ -112,8 +112,27 @@ interface ConnectGitHubRepoInput {
 }
 
 /**
- * Validates a GitHub repo via ephemeral clone, then records the project in the
- * store (no durable workspace on disk).
+ * Validates that the repository can be assessed (has source files and a
+ * supported root). Runs an ephemeral checkout, so callers must invoke it
+ * *before* taking the org write lock — a clone takes minutes and would pin a
+ * connection + advisory lock for the whole connect.
+ */
+export async function assertGitHubRepoAssessable(input: {
+  fullName: string;
+  accessToken: string;
+}): Promise<void> {
+  await withRepoCheckout(
+    { fullName: input.fullName, accessToken: input.accessToken },
+    async (rootPath) => {
+      assertAssessableRoot(rootPath);
+    },
+  );
+}
+
+/**
+ * Records a validated GitHub repo in the store (no durable workspace on disk).
+ * The caller must run `assertGitHubRepoAssessable` first, outside the write
+ * lock — the clone is the slow part and must not pin a transaction.
  */
 export async function connectGitHubRepo(
   db: WorkspaceSlice,
@@ -144,13 +163,8 @@ export async function connectGitHubRepo(
     return { project: existing, evidence: [] };
   }
 
-  await withRepoCheckout(
-    { fullName, accessToken: input.accessToken },
-    async (rootPath) => {
-      assertAssessableRoot(rootPath);
-    },
-  );
-
+  // Validation (ephemeral clone) is the caller's job, before it takes the
+  // org write lock: see `assertGitHubRepoAssessable`.
   const name = uniqueProjectName(db, deriveProjectName(fullName));
   const github: ProjectGitHubMeta = {
     fullName,

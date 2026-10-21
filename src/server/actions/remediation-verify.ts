@@ -156,6 +156,9 @@ export async function markRemediationImplementedAction(
         await assertRemediationRateLimit(ctx.userId, ctx.tx);
       }
       const { note: parsedNote } = parseForm(markImplementedInput, formData);
+      if (ctx.finding.status !== "open") {
+        throw new PublicError("Only open findings can be marked implemented.");
+      }
       const remediation = await getRemediationByFindingId(
         ctx.tx,
         ctx.finding.id,

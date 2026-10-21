@@ -12,6 +12,7 @@ import { parseForm } from "@/core/actions/validate";
 
 import { runAction } from "../action-state";
 import { assertRuntimeAuditRateLimit } from "../rate-limit";
+import { requireProjectAccess } from "../workspace/workspace";
 import {
   resolveActiveProjectId,
   withProjectTx,
@@ -51,6 +52,11 @@ export async function updateRuntimeAuditAction(
     const base = parsed.runtimeBaseUrl?.trim() ?? "";
     const routes = parseRoutes(parsed.runtimeRoutes);
 
+    // Authorize before any network work: the DNS probe is an outbound request
+    // an unauthorized caller must not be able to trigger.
+    const projectId = await resolveActiveProjectId();
+    await requireProjectAccess(projectId, "project.connect");
+
     // DNS check outside the write transaction so a slow lookup does not block
     // writers.
     let normalized: string | null = null;
@@ -59,7 +65,6 @@ export async function updateRuntimeAuditAction(
       normalized = new URL(resolved).origin;
     }
 
-    const projectId = await resolveActiveProjectId();
     await withProjectTx(projectId, "project.connect", async (ctx) => {
       if (ctx.userId) {
         await assertRuntimeAuditRateLimit(ctx.userId, ctx.tx);

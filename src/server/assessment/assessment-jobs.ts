@@ -31,6 +31,7 @@ import {
 } from "@/core/assessment/assessment-jobs";
 
 import { reportWarning } from "../observability";
+import { redactSecrets } from "../redact";
 
 export type { AssessmentJob };
 
@@ -568,6 +569,30 @@ export async function recentAssessmentJobsForProject(
     .orderBy(desc(assessmentJobs.createdAt))
     .limit(limit);
   return rows.map(jobFromRow);
+}
+
+/**
+ * Whitelisted poll DTO: the dashboard island renders status, trigger, attempt
+ * count, timestamps, the current stage and the error. Everything else on the
+ * job row — notably `payload.runtimeTarget.url` (preview tokens), refs,
+ * idempotency keys and the requesting user — must not leave the server.
+ */
+export function publicAssessmentJobView(job: AssessmentJob): AssessmentJob {
+  return {
+    id: job.id,
+    projectId: job.projectId,
+    status: job.status,
+    trigger: job.trigger,
+    payload: job.payload.stage ? { stage: job.payload.stage } : {},
+    attempts: job.attempts,
+    maxAttempts: job.maxAttempts,
+    availableAt: job.availableAt,
+    createdAt: job.createdAt,
+    updatedAt: job.updatedAt,
+    ...(job.startedAt ? { startedAt: job.startedAt } : {}),
+    ...(job.completedAt ? { completedAt: job.completedAt } : {}),
+    ...(job.error ? { error: redactSecrets(job.error).slice(0, 500) } : {}),
+  };
 }
 
 /**

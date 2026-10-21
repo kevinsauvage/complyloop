@@ -8,7 +8,11 @@ import {
 } from "node:crypto";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { getDrizzle } from "@complyloop/db/postgres";
+import {
+  type DrizzleDb,
+  getDrizzle,
+  withNamedPostgresAdvisoryLock,
+} from "@complyloop/db/postgres";
 import {
   deleteGithubTokenRowByUserId,
   findGithubTokenRowByUserId,
@@ -77,12 +81,13 @@ export async function storeUserGitHubToken(
   accessToken: string,
   refreshToken?: string,
   expiresAt?: string,
+  db?: DrizzleDb,
 ): Promise<void> {
   if (!userId || !accessToken) return;
   // encryptToken throws a clear error when AUTH_SECRET is missing — fail loud
   // rather than silently dropping the token and breaking every later clone.
   const entry = encryptToken(accessToken);
-  const drizzle = await getDrizzle();
+  const drizzle = db ?? (await getDrizzle());
 
   let refreshEntry: EncryptedTokenEntry | null = null;
   if (refreshToken) {
@@ -111,8 +116,12 @@ export interface StoredGitHubToken {
 
 export async function getStoredGitHubTokenWithExpiry(
   userId: string,
+  db?: DrizzleDb,
 ): Promise<StoredGitHubToken | null> {
-  const row = await findGithubTokenRowByUserId(await getDrizzle(), userId);
+  const row = await findGithubTokenRowByUserId(
+    db ?? (await getDrizzle()),
+    userId,
+  );
   if (!row) return null;
   try {
     const accessToken = decryptToken({
@@ -188,15 +197,46 @@ export function isTokenRefreshError(
   return error instanceof TokenRefreshError;
 }
 
-export async function refreshGitHubToken({
-  userId,
-  refreshToken,
-}: RefreshGitHubTokenInput): Promise<RefreshGitHubTokenResult> {
+export async function refreshGitHubToken(
+  input: RefreshGitHubTokenInput,
+): Promise<RefreshGitHubTokenResult> {
   const clientId = process.env.AUTH_GITHUB_ID;
   const clientSecret = process.env.AUTH_GITHUB_SECRET;
   if (!clientId || !clientSecret) {
     throw new Error(
       "AUTH_GITHUB_ID and AUTH_GITHUB_SECRET are required to refresh GitHub tokens.",
+    );
+  }
+
+  // GitHub rotates the refresh token, so concurrent refreshes make the loser
+  // read as revoked (and can delete the winner's token). Serialize the whole
+  // refresh per user: the lock is held across the network call on purpose.
+  const drizzle = await getDrizzle();
+  return withNamedPostgresAdvisoryLock(
+    drizzle,
+    `github-token-refresh:${input.userId}`,
+    (tx) => refreshGitHubTokenLocked(tx, input, clientId, clientSecret),
+  );
+}
+
+async function refreshGitHubTokenLocked(
+  db: DrizzleDb,
+  input: RefreshGitHubTokenInput,
+  clientId: string,
+  clientSecret: string,
+): Promise<RefreshGitHubTokenResult> {
+  const stored = await getStoredGitHubTokenWithExpiry(input.userId, db);
+  if (
+    stored?.expiresAt &&
+    new Date(stored.expiresAt).getTime() > Date.now() + 60_000
+  ) {
+    return { accessToken: stored.accessToken, expiresAt: stored.expiresAt };
+  }
+  const refreshToken = stored?.refreshToken ?? input.refreshToken;
+  if (!refreshToken) {
+    throw new TokenRefreshError(
+      "transient",
+      "No refresh token is stored for this user; sign in again to reconnect GitHub.",
     );
   }
 
@@ -236,7 +276,18 @@ export async function refreshGitHubToken({
     access_token?: string;
     expires_in?: number;
     refresh_token?: string;
+    /** GitHub reports a dead refresh token with HTTP 200 + an `error` body. */
+    error?: string;
   };
+
+  if (data.error) {
+    const revoked =
+      data.error === "bad_refresh_token" || data.error === "invalid_grant";
+    throw new TokenRefreshError(
+      revoked ? "revoked" : "transient",
+      `GitHub token refresh failed: ${data.error}`,
+    );
+  }
 
   if (!data.access_token) {
     throw new TokenRefreshError(
@@ -245,20 +296,22 @@ export async function refreshGitHubToken({
     );
   }
 
+  const accessToken = data.access_token;
   const now = new Date();
   const expiresAt = data.expires_in
     ? new Date(now.getTime() + data.expires_in * 1000).toISOString()
     : new Date(now.getTime() + 8 * 60 * 60 * 1000).toISOString();
 
   await storeUserGitHubToken(
-    userId,
-    data.access_token,
+    input.userId,
+    accessToken,
     data.refresh_token ?? refreshToken,
     expiresAt,
+    db,
   );
 
   return {
-    accessToken: data.access_token,
+    accessToken,
     expiresAt,
   };
 }

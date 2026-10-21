@@ -8,6 +8,7 @@ const getSession = vi.hoisted(() => vi.fn());
 const assertJobPollRateLimit = vi.hoisted(() => vi.fn());
 
 vi.mock("@/server/assessment/assessment-jobs", () => ({
+  publicAssessmentJobView: (job: unknown) => job,
   recentAssessmentJobsForProject: (...args: unknown[]) =>
     recentAssessmentJobsForProject(...args),
 }));

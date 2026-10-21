@@ -79,6 +79,9 @@ Webhook (enqueue + after() dispatch) → assessment-worker (GH); 15-min schedule
   release upstream (`dist-tags.latest` is still v4; `beta` is the v5 line), so
   the pin _is_ the latest v5. Re-evaluate when v5 ships stable; a move to
   Better Auth is a deliberate auth/RBAC migration, not routine maintenance.
+  GitHub token refresh is serialized per user (advisory lock + re-read inside
+  it): GitHub rotates refresh tokens, so concurrent refreshes would read as
+  revoked.
 - **`reactCompiler: true`** is a stable Next 16 option, backed by the stable
   `babel-plugin-react-compiler` devDependency. The
   `experimental.turbopackRustReactCompiler` flag was removed: the Rust
@@ -193,7 +196,9 @@ Chain per domain. `exists` = shipped, `evolves` = shipped but domain-blind today
 deleteMembershipIds, deleteOrgIds }` — explicit rows, no in-memory slice diff.
   - Connect/disconnect uses `withConnectWrite` (tenancy load, org lock, no
     project lock — there may be no active project yet) and returns
-    `{ result, insertProjects, deleteProjectIds, evidence }`.
+    `{ result, insertProjects, deleteProjectIds, evidence }`. The validation
+    clone (`assertGitHubRepoAssessable`) runs **before** the write lock: a
+    checkout takes minutes and must not pin a pool connection.
   - Structural entities go through `repo/*`. An assessment runs in two phases:
     `scanAssessment` (pure: reads the checkout, returns raw findings + snapshot,
     touches no rows) then `reconcileAssessment` (folds the scan into project
@@ -278,7 +283,10 @@ deleteMembershipIds, deleteOrgIds }` — explicit rows, no in-memory slice diff.
   PR merge + re-assessment auto-verify; runtime/site via on-demand re-audit
   (works on open and resolved findings, re-opens on re-detection) or manual
   attestation with a required note (`remediation_manually_verified`).
-  The finding-page beat follows the remediation status, never the finding.
+  An inconclusive re-audit (timeout, preview down, zero pages) records a
+  failed-verification evidence row only: it never re-opens the finding or
+  derives a requirement status. The finding-page beat follows the remediation
+  status, never the finding.
 - **Webhooks** — same repo may be connected in several orgs: deliveries
   resolve via `findProjectsByGithubFullName` (all matches, id order) pinned
   by installation id; ambiguous or foreign-installation deliveries are
@@ -524,7 +532,9 @@ pushes and PR events are ignored. Failures become
   no handler needs the config export.
 - **Mutations vs routes** — mutations go through Server Actions. Route
   Handlers exist only for webhooks, polling/streaming (`assessment-jobs`,
-  picker typeahead), auth, and health.
+  picker typeahead), auth, and health. The jobs poll returns a whitelisted DTO
+  (`publicAssessmentJobView`): preview URLs in `payload.runtimeTarget`, refs and
+  idempotency keys never leave the server, and the error is redacted.
 - **Providers** — `ThemeProvider` + `TooltipProvider` + `Toaster` stay in
   the root layout (theme needs the HTML shell to avoid FOUC).
 
@@ -549,6 +559,10 @@ pushes and PR events are ignored. Failures become
   append-only evidence, and a patch whose text looks like a credential is
   refused rather than stored redacted — redaction would silently change the
   branch later committed.
+- Production DB connections require `sslmode=require` (or `verify-ca`/
+  `verify-full`): `createPostgresClient` refuses a plaintext `DATABASE_URL`
+  unless `DATABASE_SSL_INSECURE=true` or the host is local (dev/e2e). A
+  whole-org export is owner-only.
 
 ## Tests
 

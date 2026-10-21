@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { CheckAuditInput } from "@complyloop/analysis-core/check-authority";
+import { isHtmlValidateOwnedCheck } from "@complyloop/analysis-core/check-authority";
 import type { CheckId } from "@complyloop/analysis-core/check-registry";
 import { SITE_VERIFY_TIMEOUT_MS } from "@complyloop/analysis-core/contract/assessment-limits";
 import type {
@@ -11,7 +12,7 @@ import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
-  runtimeViolationStillPresent,
+  runtimeViolationVerification,
   scanRuntime,
 } from "@complyloop/analysis-core/runtime/scan";
 import { DEFAULT_THEME_CONDITIONS } from "@complyloop/analysis-core/runtime/theme-conditions";
@@ -119,6 +120,13 @@ async function scanSiteFindingForVerify(input: {
 
 interface VerifyVerdict {
   present: boolean;
+  /**
+   * False when the re-audit could not observe the page (timeout, preview down,
+   * zero pages, engine skipped). `present` is then a fail-closed default, not a
+   * proven regression: the finding must not be re-opened and the requirement
+   * must not be flipped to failed.
+   */
+  conclusive: boolean;
   engine: "runtime" | "site";
   /** Positive-fix note (verified case), or undefined when still failing. */
   note: string;
@@ -143,7 +151,7 @@ async function computeVerifyVerdict(
         "Source findings are verified by merging the draft pull request and re-assessing.",
       );
     case "dom": {
-      const present = await runtimeViolationStillPresent(
+      const verdict = await runtimeViolationVerification(
         {
           checkId: finding.checkId as CheckId,
           location,
@@ -154,7 +162,8 @@ async function computeVerifyVerdict(
         { browserConditions: DEFAULT_THEME_CONDITIONS },
       );
       return {
-        present,
+        present: verdict.present,
+        conclusive: verdict.conclusive,
         engine: "runtime",
         note: "Runtime re-audit found no remaining violation on the page",
         audit: { runtimeRan: true },
@@ -185,6 +194,13 @@ async function computeVerifyVerdict(
               : STILL_FAILING_VERIFY_MESSAGE;
       return {
         present,
+        conclusive:
+          !verifyTimedOut &&
+          !previewUnreachable &&
+          result.pagesScanned > 0 &&
+          result.siteLevelChecksRan === true &&
+          (!isHtmlValidateOwnedCheck(finding.checkId) ||
+            result.htmlValidateRan === true),
         engine: "site",
         note: "Runtime re-audit found no remaining site-level violation",
         stillFailingMessage,
@@ -249,11 +265,24 @@ export async function runRemediationVerifyJob(
       return;
     }
 
+    // Re-read the project inside the lock: `controlsInScope` filters on the
+    // project's current preset, so a preset change during the re-audit would
+    // otherwise make the requirement refresh a silent no-op.
+    const liveProject =
+      (await getProjectById(tx, finding.projectId)) ?? project;
+
     if (verdict.present) {
-      await applyStillFailing(tx, live, verdict.stillFailingMessage);
+      if (!verdict.conclusive) {
+        // Could not observe the page (timeout, preview down, zero pages):
+        // record the failed attempt without re-opening the finding or
+        // deriving a compliance status from an unobserved run.
+        await recordInconclusiveVerify(tx, live, verdict.stillFailingMessage);
+        return;
+      }
+      await applyStillFailing(tx, liveProject, live, verdict);
       return;
     }
-    await applyVerified(tx, project, live, remediation, verdict);
+    await applyVerified(tx, liveProject, live, remediation, verdict);
   });
 }
 
@@ -268,11 +297,12 @@ type ProjectTxDb = Parameters<typeof upsertFindings>[0];
  */
 async function applyStillFailing(
   tx: ProjectTxDb,
+  project: Project,
   finding: Finding,
-  stillFailingMessage?: string,
+  verdict: VerifyVerdict,
 ): Promise<void> {
   const note =
-    stillFailingMessage ??
+    verdict.stillFailingMessage ??
     "Verification failed: the violation is still detected on the page.";
   if (finding.status === "resolved") {
     await upsertFindings(tx, [
@@ -286,6 +316,41 @@ async function applyStillFailing(
     controlId: finding.controlId,
     findingId: finding.id,
     detail: remediationEvidenceDetail({ note }),
+  });
+  // The control must reflect the re-opened finding: a proven regression that
+  // leaves the requirement at `passed` is the compliance claim this loop
+  // exists to prevent.
+  const refreshed = await refreshRequirementsForControls(
+    tx,
+    project,
+    [finding.controlId],
+    {
+      runtimeRan: verdict.audit.runtimeRan,
+      siteLevelChecksRan: verdict.audit.siteLevelChecksRan,
+      htmlValidateRan: verdict.audit.htmlValidateRan,
+    },
+  );
+  await upsertRequirements(tx, refreshed.requirements);
+  await insertEvidenceRecords(tx, refreshed.evidence);
+}
+
+/** An unobserved run: record the attempt, change no finding or status. */
+async function recordInconclusiveVerify(
+  tx: ProjectTxDb,
+  finding: Finding,
+  stillFailingMessage?: string,
+): Promise<void> {
+  await insertEvidence(tx, {
+    kind: "remediation_verification_failed",
+    summary: `Verification could not run for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
+    projectId: finding.projectId,
+    controlId: finding.controlId,
+    findingId: finding.id,
+    detail: remediationEvidenceDetail({
+      note:
+        stillFailingMessage ??
+        "The re-audit could not observe the page; the finding and its requirement were left unchanged.",
+    }),
   });
 }
 

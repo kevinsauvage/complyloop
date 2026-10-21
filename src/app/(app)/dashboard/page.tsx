@@ -166,7 +166,11 @@ export default async function DashboardPage() {
       {latestAssessment ? (
         <>
           {unreadAlerts.length > 0 ? (
-            <DashboardAlertsCard alerts={unreadAlerts} project={project} />
+            <DashboardAlertsCard
+              alerts={unreadAlerts}
+              project={project}
+              canMarkRead={caps.canRemediate}
+            />
           ) : (
             <>
               <DashboardRegressionsBanner

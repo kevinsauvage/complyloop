@@ -74,7 +74,7 @@ export async function getGitHubAccessTokenState(): Promise<GitHubTokenState> {
 
   if (
     stored.expiresAt &&
-    new Date(stored.expiresAt) <= new Date() &&
+    new Date(stored.expiresAt) <= new Date(Date.now() + 60_000) &&
     stored.refreshToken
   ) {
     try {

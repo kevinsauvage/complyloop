@@ -12,26 +12,8 @@ Source: full audit run via `docs/prompts/master.md` (2026-10-21). Findings were 
 
 **Correctness**
 
-- [ ] `S` `applyStillFailing` doesn't refresh the requirement (`remediation-verify-worker.ts:261-282`).
-- [ ] `M` Redetected dismissed finding keeps old `detectedAt`; also refresh `kind`/`severity`/`confidence` (`assessment-findings.ts:302-330`).
-- [ ] `S` Exception over a human pass leaves status `passed` (`requirements.ts:179-192`).
-- [ ] `M` Portfolio/findings-list counts ignore preset scope (`packages/db/src/repo/portfolio.ts:75-95`, `findings-view.ts:203-217`).
-- [ ] `M` GitHub token refresh: serialize per user, parse `bad_refresh_token` on HTTP 200 (`github-tokens.ts:219-228`, `access-token.ts:68-86`).
-- [ ] `M` `connectGitHubRepo` clones inside tx + advisory lock (`connect-github.ts:147`).
-- [ ] `S` CI `if: env.X != ''` reads same-step env, so Slack alerts likely never fire (`ops-check.yml:60,69`, `assessment-worker.yml:121`).
-- [ ] `S` Evidence `ORDER BY at DESC` needs `id DESC` tiebreak (`packages/db/src/repo/evidence.ts:195,223,281`).
-- [ ] `S` Single approve/mark-implemented must check `finding.status === "open"` (`remediation.ts:85-107`, `remediation-verify.ts`).
-- [ ] `S` Bulk actions: `.max(100)` on `findingIds`, batch-load with `inArray` (`src/core/actions/validate.ts:38`; `src/core/` is ask-first).
-
-**Security (low)**
-
-- [ ] `S` Whitelist DTO + redact `error` in assessment-jobs poll route (`route.ts:44`, `assessment-jobs.ts:125,540`).
-- [ ] `S` Require `sslmode` in production (`packages/db/src/postgres.ts:21-24`).
-- [ ] `S` Redact `reportError` context; Sentry `beforeSend` (`observability.ts:62`, `sentry/init.ts`).
-- [ ] `S` Reject `deleted`/all-zero `after` in webhook (`webhook.ts:141`).
-- [ ] `S` Authorize before DNS lookup (`runtime-audit.ts:58`); owner check before export load (`org.ts:286`); 429 on export (`evidence/export/route.ts:16`).
-- [ ] `S` Use `isE2EHarnessEnabled()` (`github-access.ts:39`); alerts mark-read permission (`alerts.ts:36`).
-- [ ] `S` `github.ref_name` → `env:` in workflows (`assessment-worker.yml:126`, `ops-check.yml:73`).
+- [ ] `S` Exception over a human pass leaves status `passed` (`requirements.ts:179-192`). **Deferred** — fix belongs in `src/core/requirements/requirement-human-determination.ts` (ask-first boundary).
+- [ ] `M` Portfolio/findings-list counts ignore preset scope (`packages/db/src/repo/portfolio.ts:75-95`, `findings-view.ts:203-217`). **Deferred** — needs a scoped-count design (per-preset control-id sets in the grouped SQL).
 
 **Accessibility**
 

@@ -17,8 +17,14 @@ import {
   insertEvidence,
   insertEvidenceRecords,
 } from "@complyloop/db/repo/evidence";
-import { getFindingById, upsertFindings } from "@complyloop/db/repo/findings";
-import { getRemediationByFindingId } from "@complyloop/db/repo/remediations";
+import {
+  listFindingsByIds,
+  upsertFindings,
+} from "@complyloop/db/repo/findings";
+import {
+  getRemediationByFindingId,
+  listRemediationsForFindings,
+} from "@complyloop/db/repo/remediations";
 import { upsertRemediations } from "@complyloop/db/repo/remediations";
 import { upsertRequirements } from "@complyloop/db/repo/requirements";
 
@@ -49,8 +55,18 @@ import { runFindingAction } from "./define-action";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 import { refresh } from "./shared";
 
+/** Upper bound on a bulk action: keeps one click to a bounded write set. */
+const BULK_FINDING_LIMIT = 100;
+
+function boundedFindingIds(emptyMessage: string) {
+  return findingIdsField(emptyMessage).refine(
+    (ids) => ids.length <= BULK_FINDING_LIMIT,
+    { error: `Select at most ${BULK_FINDING_LIMIT} findings at a time.` },
+  );
+}
+
 const bulkApproveInput = z.object({
-  findingIds: findingIdsField("Select at least one finding to approve."),
+  findingIds: boundedFindingIds("Select at least one finding to approve."),
 });
 
 const dismissFindingInput = z.object({
@@ -61,7 +77,7 @@ const dismissFindingInput = z.object({
 });
 
 const bulkDismissInput = z.object({
-  findingIds: findingIdsField("Select at least one finding to dismiss."),
+  findingIds: boundedFindingIds("Select at least one finding to dismiss."),
   reason: z.enum(DISMISSAL_REASONS, {
     error: "A dismissal reason is required.",
   }),
@@ -88,6 +104,11 @@ async function approveInTx(
   remediation: Remediation,
   options: { bulk?: boolean; approvalNote: string },
 ): Promise<void> {
+  // Approving a dismissed/resolved finding would put a closed finding back in
+  // the remediation loop without evidence that it is still open.
+  if (finding.status !== "open") {
+    throw new PublicError("Only open findings can be approved.");
+  }
   await upsertRemediations(ctx.tx, [
     advanceRemediation(remediation, "approved"),
   ]);
@@ -199,12 +220,29 @@ export async function bulkApproveRemediationsAction(
       if (ctx.userId) {
         await assertRemediationRateLimit(ctx.userId, ctx.tx);
       }
+      // One IN query for findings + one for remediations instead of two round
+      // trips per id (bulk is capped at BULK_FINDING_LIMIT).
+      const findingsById = new Map(
+        (await listFindingsByIds(ctx.tx, findingIds)).map((finding) => [
+          finding.id,
+          finding,
+        ]),
+      );
+      const remediationsByFindingId = new Map(
+        (await listRemediationsForFindings(ctx.tx, findingIds)).map(
+          (remediation) => [remediation.findingId, remediation],
+        ),
+      );
       for (const findingId of findingIds) {
-        const finding = await getFindingById(ctx.tx, findingId);
+        const finding = findingsById.get(findingId);
         if (!finding || finding.projectId !== projectId) {
           throw new PublicError("Unknown finding.");
         }
-        const remediation = await loadRemediation(ctx.tx, findingId);
+        if (finding.status !== "open") continue;
+        const remediation = remediationsByFindingId.get(findingId);
+        if (!remediation) {
+          throw new PublicError("No remediation for that finding.");
+        }
         if (
           !canBulkApproveRemediation(
             finding,
@@ -276,8 +314,14 @@ export async function bulkDismissFindingsAction(
         await assertRemediationRateLimit(ctx.userId, ctx.tx);
       }
       const controlIds = new Set<string>();
+      const findingsById = new Map(
+        (await listFindingsByIds(ctx.tx, findingIds)).map((finding) => [
+          finding.id,
+          finding,
+        ]),
+      );
       for (const findingId of findingIds) {
-        const finding = await getFindingById(ctx.tx, findingId);
+        const finding = findingsById.get(findingId);
         if (!finding || finding.projectId !== projectId) {
           throw new PublicError("Unknown finding.");
         }

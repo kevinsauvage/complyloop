@@ -45,6 +45,22 @@ function redactError(error: Error): Error {
 }
 
 /**
+ * Redacts credential-shaped strings in context values. Context is free-form
+ * (preview URLs, engine errors, file paths) and reaches both console and
+ * Sentry, so it must not be trusted to be secret-free.
+ */
+function redactContext(
+  context: ReportContext | undefined,
+): ReportContext | undefined {
+  if (!context) return undefined;
+  const safe: ReportContext = {};
+  for (const [key, value] of Object.entries(context)) {
+    safe[key] = typeof value === "string" ? redactSecrets(value) : value;
+  }
+  return safe;
+}
+
+/**
  * App/global error boundary reporter. Delegates to {@link reportError} with
  * the Next.js error digest attached for correlation.
  */
@@ -56,18 +72,19 @@ export function reportAppError(
 }
 
 export function reportError(error: unknown, context?: ReportContext): void {
+  const safeContext = redactContext(context);
   const message = redactSecrets(
     error instanceof Error ? error.message : String(error),
   );
   console.error(`[error] ${message}`, {
-    ...context,
+    ...safeContext,
     ...(error instanceof Error
       ? { name: error.name, stack: redactSecrets(error.stack ?? "") }
       : {}),
   });
 
   Sentry.withScope((scope) => {
-    applyReportContext(scope, context);
+    applyReportContext(scope, safeContext);
     if (error instanceof Error) {
       Sentry.captureException(redactError(error));
     } else {
@@ -78,9 +95,10 @@ export function reportError(error: unknown, context?: ReportContext): void {
 
 export function reportWarning(message: string, context?: ReportContext): void {
   const safeMessage = redactSecrets(message);
-  console.warn(`[warning] ${safeMessage}`, context ?? "");
+  const safeContext = redactContext(context);
+  console.warn(`[warning] ${safeMessage}`, safeContext ?? "");
   Sentry.withScope((scope) => {
-    applyReportContext(scope, context);
+    applyReportContext(scope, safeContext);
     Sentry.captureMessage(safeMessage, "warning");
   });
 }
@@ -92,5 +110,8 @@ export function reportWarning(message: string, context?: ReportContext): void {
  * batches. Secrets are redacted; never pass tokens or headers here.
  */
 export function reportEvent(message: string, context?: ReportContext): void {
-  console.info(`[event] ${redactSecrets(message)}`, context ?? "");
+  console.info(
+    `[event] ${redactSecrets(message)}`,
+    redactContext(context) ?? "",
+  );
 }

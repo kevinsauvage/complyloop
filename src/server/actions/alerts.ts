@@ -35,7 +35,7 @@ export async function markAlertReadAction(
     // load), then the mutation under the project write lock. The mark
     // re-reads inside the lock so a concurrent assessment refresh cannot be
     // discarded by a stale payload.
-    const { project } = await requireAlertAccess(alertId, "project.view");
+    const { project } = await requireAlertAccess(alertId, "project.remediate");
 
     const marked = await withProjectLock(project.id, async (tx) => {
       return markAlertReadById(tx, alertId);
@@ -56,7 +56,7 @@ export async function markAllAlertsReadAction(
 ): Promise<ActionState> {
   return runAction(async () => {
     const { projectId } = parseForm(markAllAlertsReadInput, formData);
-    const project = await requireProjectAccess(projectId, "project.view");
+    const project = await requireProjectAccess(projectId, "project.remediate");
 
     // Read inside the lock so the unread set cannot change between the
     // check and the mark.

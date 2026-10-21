@@ -3,6 +3,7 @@ import "server-only";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
+import { isE2EHarnessEnabled } from "../e2e-harness";
 import {
   createOctokit,
   mapGitHubRepo,
@@ -36,7 +37,7 @@ export async function resolveProjectGitHubToken(
 
   // E2E harness has no GitHub App installation: return the seeded stub
   // token so fixture checkouts and PR flows can resolve a token offline.
-  if (process.env.E2E_AUTH_ENABLED === "1") {
+  if (isE2EHarnessEnabled()) {
     return process.env.E2E_GITHUB_TOKEN ?? "ghx_e2e_mock_check";
   }
 

@@ -21,9 +21,14 @@ const upsertRemediations = vi.hoisted(() => vi.fn());
 const upsertRequirements = vi.hoisted(() => vi.fn());
 const insertEvidence = vi.hoisted(() => vi.fn());
 const insertEvidenceRecords = vi.hoisted(() => vi.fn());
-const refreshRequirementsForControls = vi.hoisted(() => vi.fn());
+const refreshRequirementsForControls = vi.hoisted(() =>
+  vi.fn(async (...args: unknown[]) => {
+    void args;
+    return { requirements: [], evidence: [] };
+  }),
+);
 const withProjectLock = vi.hoisted(() => vi.fn());
-const runtimeViolationStillPresent = vi.hoisted(() => vi.fn());
+const runtimeViolationVerification = vi.hoisted(() => vi.fn());
 const scanRuntime = vi.hoisted(() => vi.fn());
 
 vi.mock("@complyloop/db/postgres", () => ({
@@ -60,8 +65,8 @@ vi.mock("./assessment-status", () => ({
 }));
 
 vi.mock("@complyloop/analysis-core/runtime/scan", () => ({
-  runtimeViolationStillPresent: (...args: unknown[]) =>
-    runtimeViolationStillPresent(...args),
+  runtimeViolationVerification: (...args: unknown[]) =>
+    runtimeViolationVerification(...args),
   scanRuntime: (...args: unknown[]) => scanRuntime(...args),
 }));
 
@@ -139,7 +144,10 @@ describe("runRemediationVerifyJob", () => {
   it("verifies a dom finding when the re-audit is clean", async () => {
     getFindingById.mockResolvedValue(domFinding());
     getRemediationByFindingId.mockResolvedValue(implementedRemediation());
-    runtimeViolationStillPresent.mockResolvedValue(false);
+    runtimeViolationVerification.mockResolvedValue({
+      present: false,
+      conclusive: true,
+    });
 
     await runRemediationVerifyJob("f1");
 
@@ -153,12 +161,15 @@ describe("runRemediationVerifyJob", () => {
   it("re-audits a dom finding under the assessment's theme conditions", async () => {
     getFindingById.mockResolvedValue(domFinding());
     getRemediationByFindingId.mockResolvedValue(implementedRemediation());
-    runtimeViolationStillPresent.mockResolvedValue(false);
+    runtimeViolationVerification.mockResolvedValue({
+      present: false,
+      conclusive: true,
+    });
 
     await runRemediationVerifyJob("f1");
 
     // A default-theme-only re-check would verify a dark-mode-only defect.
-    expect(runtimeViolationStillPresent).toHaveBeenCalledWith(
+    expect(runtimeViolationVerification).toHaveBeenCalledWith(
       expect.objectContaining({ checkId: expect.any(String) }),
       undefined,
       { browserConditions: ["dark", "light"] },
@@ -168,7 +179,10 @@ describe("runRemediationVerifyJob", () => {
   it("re-derives the control's requirement from its real rows", async () => {
     getFindingById.mockResolvedValue(domFinding());
     getRemediationByFindingId.mockResolvedValue(implementedRemediation());
-    runtimeViolationStillPresent.mockResolvedValue(false);
+    runtimeViolationVerification.mockResolvedValue({
+      present: false,
+      conclusive: true,
+    });
 
     await runRemediationVerifyJob("f1");
 
@@ -183,7 +197,10 @@ describe("runRemediationVerifyJob", () => {
   it("records still-failing (and re-opens a resolved finding) when detected", async () => {
     getFindingById.mockResolvedValue(domFinding({ status: "resolved" }));
     getRemediationByFindingId.mockResolvedValue(implementedRemediation());
-    runtimeViolationStillPresent.mockResolvedValue(true);
+    runtimeViolationVerification.mockResolvedValue({
+      present: true,
+      conclusive: true,
+    });
 
     await runRemediationVerifyJob("f1");
 
@@ -197,12 +214,36 @@ describe("runRemediationVerifyJob", () => {
     ).toBe(true);
   });
 
+  it("records an inconclusive re-audit without re-opening or re-deriving", async () => {
+    getFindingById.mockResolvedValue(domFinding({ status: "resolved" }));
+    getRemediationByFindingId.mockResolvedValue(implementedRemediation());
+    runtimeViolationVerification.mockResolvedValue({
+      present: true,
+      conclusive: false,
+    });
+
+    await runRemediationVerifyJob("f1");
+
+    // A preview outage is not a proven regression: no status may move.
+    expect(upsertFindings).not.toHaveBeenCalled();
+    expect(refreshRequirementsForControls).not.toHaveBeenCalled();
+    expect(upsertRemediations).not.toHaveBeenCalled();
+    expect(
+      written().evidence.some(
+        (row) => row.kind === "remediation_verification_failed",
+      ),
+    ).toBe(true);
+  });
+
   it("does nothing when the remediation is no longer implemented", async () => {
     getFindingById.mockResolvedValue(domFinding());
     getRemediationByFindingId.mockResolvedValue(
       testRemediation({ status: "verified", suggestion: null, history: [] }),
     );
-    runtimeViolationStillPresent.mockResolvedValue(false);
+    runtimeViolationVerification.mockResolvedValue({
+      present: false,
+      conclusive: true,
+    });
 
     await runRemediationVerifyJob("f1");
 
@@ -251,7 +292,10 @@ describe("runRemediationVerifyJob", () => {
         }),
       );
     getRemediationByFindingId.mockResolvedValue(implementedRemediation());
-    runtimeViolationStillPresent.mockResolvedValue(false);
+    runtimeViolationVerification.mockResolvedValue({
+      present: false,
+      conclusive: true,
+    });
 
     await runRemediationVerifyJob("f1");
 

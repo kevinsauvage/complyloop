@@ -1,7 +1,7 @@
 // Colocated with the evidence page on purpose: this download endpoint serves
 // that page's export menu (route handlers don't inherit layouts, so the (app)
 // group here is organizational only).
-import { assertExportRateLimit } from "@/server/rate-limit";
+import { assertExportRateLimit, RateLimitError } from "@/server/rate-limit";
 import { loadEvidenceExport } from "@/server/reporting/evidence-queries";
 import { frameworkForProject } from "@/server/reporting/report";
 import {
@@ -15,7 +15,16 @@ export async function GET(): Promise<Response> {
   if (!project) {
     return new Response("No project connected.", { status: 404 });
   }
-  if (userId) await assertExportRateLimit(userId);
+  if (userId) {
+    try {
+      await assertExportRateLimit(userId);
+    } catch (error) {
+      if (!(error instanceof RateLimitError)) throw error;
+      return new Response("Too many export requests. Try again shortly.", {
+        status: 429,
+      });
+    }
+  }
   const { exported, requirements } = await loadEvidenceExport(project.id);
   const payload = {
     exportedAt: new Date().toISOString(),

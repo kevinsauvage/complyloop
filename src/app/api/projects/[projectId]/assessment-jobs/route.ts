@@ -1,7 +1,10 @@
 import { z } from "zod";
 
 import { entityIdSchema, parseInput } from "@/core/actions/validate";
-import { recentAssessmentJobsForProject } from "@/server/assessment/assessment-jobs";
+import {
+  publicAssessmentJobView,
+  recentAssessmentJobsForProject,
+} from "@/server/assessment/assessment-jobs";
 import { getSession } from "@/server/auth-session";
 import { assertJobPollRateLimit } from "@/server/rate-limit";
 import { viewerCanViewProject } from "@/server/workspace/workspace";
@@ -41,6 +44,8 @@ export async function GET(
     }
   }
 
-  const jobs = await recentAssessmentJobsForProject(projectId);
+  const jobs = (await recentAssessmentJobsForProject(projectId)).map(
+    publicAssessmentJobView,
+  );
   return Response.json({ jobs });
 }

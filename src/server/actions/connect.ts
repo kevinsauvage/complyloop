@@ -23,6 +23,7 @@ import {
   writeActiveProjectCookie,
 } from "../workspace/active-cookies";
 import {
+  assertGitHubRepoAssessable,
   connectGitHubRepo,
   disconnectGitHubRepo,
   findConnectedGitHubProject,
@@ -141,6 +142,11 @@ export async function connectGitHubRepoAction(
       );
     }
     const accessToken = await createInstallationAccessToken(installationId);
+
+    // Validate (ephemeral clone) before taking the org write lock: the clone is
+    // the slow part and must not pin a pool connection + advisory lock.
+    await assertGitHubRepoAssessable({ fullName, accessToken });
+
     await ensurePersonalOrgProvisioned(userId, githubLogin ?? "");
     const preferredOrgId = await readActiveOrgCookie();
 

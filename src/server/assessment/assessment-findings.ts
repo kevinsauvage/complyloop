@@ -348,6 +348,14 @@ export function reconcileControlFindings(
       redetected.dismissal = undefined;
       redetected.resolvedNote = undefined;
       redetected.assessmentId = assessmentId;
+      // Re-detection is a new detection: the dismissal may be months old, and
+      // the current verdict (kind/severity/confidence) wins. Keeping the old
+      // date would hide the finding from "detected after a human decision"
+      // guards and every recency read.
+      redetected.detectedAt = new Date().toISOString();
+      redetected.kind = raw.kind;
+      redetected.severity = raw.severity;
+      redetected.confidence = raw.confidence;
       redetected.fix = mergeFix(redetected.fix, raw.fix);
       redetected.location = raw.location;
       if (raw.analyzerId) redetected.analyzerId = raw.analyzerId;

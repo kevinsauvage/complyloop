@@ -336,6 +336,30 @@ describe("handleGitHubWebhookEvent", () => {
     expect(assertRateLimit).not.toHaveBeenCalled();
   });
 
+  it("ignores a branch-deletion push with an all-zero after SHA", async () => {
+    findProjectsByGithubFullName.mockResolvedValue([
+      {
+        id: "p1",
+        orgId: "org-1",
+        defaultBranch: "main",
+      },
+    ]);
+
+    const result = await handleGitHubWebhookEvent(
+      "push",
+      {
+        repository: { full_name: "acme/app" },
+        ref: "refs/heads/main",
+        deleted: true,
+        after: "0000000000000000000000000000000000000000",
+      },
+      "delivery-delete",
+    );
+
+    expect(result.handled).toBe(false);
+    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
+  });
+
   it("accepts a webhook with a matching installation id", async () => {
     findProjectsByGithubFullName.mockResolvedValue([
       {

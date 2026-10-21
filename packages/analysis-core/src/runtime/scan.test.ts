@@ -19,7 +19,7 @@ import {
   resolveAxeMinJsPath,
   runAxeOnPage,
   type RuntimePageScanner,
-  runtimeViolationStillPresent,
+  runtimeViolationVerification,
 } from "./scan";
 import { emulateCoarsePointer } from "./viewport-conditions";
 
@@ -278,7 +278,7 @@ describe("runtime engine isolation", () => {
   );
 });
 
-describe("runtimeViolationStillPresent", () => {
+describe("runtimeViolationVerification", () => {
   const domFinding = {
     checkId: "color-contrast" as const,
     location: {
@@ -321,22 +321,22 @@ describe("runtimeViolationStillPresent", () => {
 
   it("returns true when the same violation is still present", async () => {
     await expect(
-      runtimeViolationStillPresent(
+      runtimeViolationVerification(
         domFinding,
         pageWith([presentFinding], { loadedCleanly: true }),
       ),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ present: true, conclusive: true });
   });
 
   it("fails closed when a page is returned without proof it loaded cleanly", async () => {
     await expect(
-      runtimeViolationStillPresent(domFinding, pageWith([])),
-    ).resolves.toBe(true);
+      runtimeViolationVerification(domFinding, pageWith([])),
+    ).resolves.toEqual({ present: true, conclusive: false });
   });
 
   it("returns false when the violating node is gone from a cleanly loaded page", async () => {
     await expect(
-      runtimeViolationStillPresent(domFinding, async () => ({
+      runtimeViolationVerification(domFinding, async () => ({
         pages: [
           {
             url: "https://8.8.8.8/checkout",
@@ -347,12 +347,12 @@ describe("runtimeViolationStillPresent", () => {
         ],
         pageFailures: [],
       })),
-    ).resolves.toBe(false);
+    ).resolves.toEqual({ present: false, conclusive: true });
   });
 
   it("fails closed when the loaded URL is not the audited page", async () => {
     await expect(
-      runtimeViolationStillPresent(domFinding, async () => ({
+      runtimeViolationVerification(domFinding, async () => ({
         pages: [
           {
             url: "https://8.8.8.8/login",
@@ -364,29 +364,29 @@ describe("runtimeViolationStillPresent", () => {
         ],
         pageFailures: [],
       })),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ present: true, conclusive: false });
   });
 
-  it("fails closed (true) when no page is produced", async () => {
+  it("fails closed when no page is produced", async () => {
     await expect(
-      runtimeViolationStillPresent(domFinding, async () => ({
+      runtimeViolationVerification(domFinding, async () => ({
         pages: [],
         pageFailures: [],
       })),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ present: true, conclusive: false });
   });
 
-  it("fails closed (true) when the scan throws (unreachable preview)", async () => {
+  it("fails closed when the scan throws (unreachable preview)", async () => {
     await expect(
-      runtimeViolationStillPresent(domFinding, async () => {
+      runtimeViolationVerification(domFinding, async () => {
         throw new Error("preview url unreachable");
       }),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ present: true, conclusive: false });
   });
 
   it("throws for a non-DOM finding instead of under-verifying", async () => {
     await expect(
-      runtimeViolationStillPresent(
+      runtimeViolationVerification(
         {
           checkId: "color-contrast",
           location: {

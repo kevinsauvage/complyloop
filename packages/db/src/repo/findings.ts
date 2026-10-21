@@ -38,6 +38,19 @@ export async function getFindingById(
   return rows[0]?.payload;
 }
 
+/** Batch read for bulk actions: one IN query instead of one round trip per id. */
+export async function listFindingsByIds(
+  drizzle: DrizzleDb,
+  findingIds: readonly string[],
+): Promise<Finding[]> {
+  if (findingIds.length === 0) return [];
+  const rows = await drizzle
+    .select({ payload: findings.payload })
+    .from(findings)
+    .where(inArray(findings.id, [...findingIds]));
+  return rows.map((row) => row.payload);
+}
+
 export interface ListFindingsOptions {
   /**
    * Restrict the load to these finding statuses. Omit for all statuses (the

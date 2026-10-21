@@ -38,6 +38,11 @@ jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Job-level so each step's `if` can read them: a step's own `env` is not
+    # visible to its `if`, which made these optional steps never run.
+    env:
+      HEALTH_URL: ${{ secrets.HEALTH_URL }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -58,8 +63,6 @@ jobs:
         # Optional: set repository secret HEALTH_URL to the /api/health URL.
         # The endpoint is an unauthenticated scrape target; non-200 fails.
         if: env.HEALTH_URL != ''
-        env:
-          HEALTH_URL: ${{ secrets.HEALTH_URL }}
         run: |
           code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "$HEALTH_URL") || code="000"
           echo "health HTTP $code"
@@ -68,8 +71,8 @@ jobs:
         # Optional: set repository secret SLACK_WEBHOOK_URL to post failures.
         if: failure() && env.SLACK_WEBHOOK_URL != ''
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
           curl -fsS -X POST -H 'Content-type: application/json' \
-            --data "{\"text\":\"${{ github.workflow }} failed on ${{ github.ref_name }} — ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            --data "{\"text\":\"$GITHUB_WORKFLOW failed on $REF_NAME — $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID\"}" \
             "$SLACK_WEBHOOK_URL"

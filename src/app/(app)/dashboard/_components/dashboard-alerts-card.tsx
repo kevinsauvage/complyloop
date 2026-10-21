@@ -69,9 +69,12 @@ function changeContextLink(
 export function DashboardAlertsCard({
   alerts,
   project,
+  canMarkRead,
 }: {
   alerts: AlertRecord[];
   project: Pick<Project, "github" | "id">;
+  /** Marking read mutates shared alert state: member+ only. */
+  canMarkRead: boolean;
 }) {
   if (alerts.length === 0) return null;
 
@@ -103,15 +106,17 @@ export function DashboardAlertsCard({
           <p className="rounded-full border border-destructive/25 bg-background/60 px-2.5 py-1 font-mono text-xs text-destructive tabular-nums">
             {alerts.length} unread
           </p>
-          <StatefulActionForm
-            action={markAllAlertsReadAction}
-            submitLabel="Mark all read"
-            pendingLabel="Marking…"
-            variant="outline"
-            size="sm"
-          >
-            <input type="hidden" name="projectId" value={project.id} />
-          </StatefulActionForm>
+          {canMarkRead ? (
+            <StatefulActionForm
+              action={markAllAlertsReadAction}
+              submitLabel="Mark all read"
+              pendingLabel="Marking…"
+              variant="outline"
+              size="sm"
+            >
+              <input type="hidden" name="projectId" value={project.id} />
+            </StatefulActionForm>
+          ) : null}
         </div>
       </div>
       <ul className="flex flex-col gap-3">
@@ -174,15 +179,17 @@ export function DashboardAlertsCard({
                       iso={alert.at}
                       className="text-xs text-muted-foreground"
                     />
-                    <StatefulActionForm
-                      action={markAlertReadAction}
-                      submitLabel="Mark as read"
-                      pendingLabel="Marking as read…"
-                      variant="outline"
-                      size="sm"
-                    >
-                      <input type="hidden" name="alertId" value={alert.id} />
-                    </StatefulActionForm>
+                    {canMarkRead ? (
+                      <StatefulActionForm
+                        action={markAlertReadAction}
+                        submitLabel="Mark as read"
+                        pendingLabel="Marking as read…"
+                        variant="outline"
+                        size="sm"
+                      >
+                        <input type="hidden" name="alertId" value={alert.id} />
+                      </StatefulActionForm>
+                    ) : null}
                   </div>
                 </AlertDescription>
               </Alert>

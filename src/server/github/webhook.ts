@@ -138,10 +138,17 @@ async function rememberDeployment(
   `);
 }
 
+const ZERO_SHA = "0000000000000000000000000000000000000000";
+
 function checkoutRef(event: HandledWebhookEvent): string | undefined {
+  // A branch deletion arrives as a push with `deleted: true` and an all-zero
+  // `after`: there is no commit to check out, and scanning the previous tree
+  // would resolve findings for a ref that no longer exists.
+  if (event.kind === "push" && event.payload.deleted === true) return undefined;
   const sha =
     event.kind === "push" ? event.payload.after : event.payload.deployment?.sha;
-  return typeof sha === "string" && SHA_PATTERN.test(sha) ? sha : undefined;
+  if (typeof sha !== "string" || sha === ZERO_SHA) return undefined;
+  return SHA_PATTERN.test(sha) ? sha : undefined;
 }
 
 /**

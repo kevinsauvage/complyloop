@@ -192,7 +192,7 @@ export async function listEvidencePageForProject(
     .select()
     .from(evidence)
     .where(evidenceProjectFilter(projectId, filter ?? {}))
-    .orderBy(desc(evidence.at))
+    .orderBy(desc(evidence.at), desc(evidence.id))
     .limit(pageSize)
     .offset(sqlPageOffset(page, pageSize));
   return rows.map(rowToEvidence);
@@ -220,7 +220,7 @@ export async function listEvidenceForExport(
     .select()
     .from(evidence)
     .where(eq(evidence.projectId, projectId))
-    .orderBy(desc(evidence.at))
+    .orderBy(desc(evidence.at), desc(evidence.id))
     .limit(take);
   return {
     records: rows.reverse().map(rowToEvidence),
@@ -258,7 +258,9 @@ export async function listEvidenceForExportForProjects(
   );
   const records = pages
     .flatMap(({ page }) => page.records)
-    .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+    .sort((a, b) =>
+      a.at < b.at ? -1 : a.at > b.at ? 1 : a.id.localeCompare(b.id),
+    );
   return {
     records,
     total: pages.reduce((sum, { page }) => sum + page.total, 0),
@@ -278,7 +280,7 @@ export async function listEvidenceForFinding(
     .select()
     .from(evidence)
     .where(eq(evidence.findingId, findingId))
-    .orderBy(desc(evidence.at))
+    .orderBy(desc(evidence.at), desc(evidence.id))
     .limit(limit);
   return rows.map(rowToEvidence);
 }
