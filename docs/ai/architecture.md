@@ -282,8 +282,15 @@ deleteMembershipIds, deleteOrgIds }` — explicit rows, no in-memory slice diff.
     and expired leases. Dev/e2e drain the queue inline. Expired rate-limit
     buckets prune once per batch.
 - **Checkouts** — shallow ephemeral checkout per job via pure-JS git
-  (isomorphic-git, no `git` CLI); deleted after. The executor uses its
-  locally installed Playwright browser. See [`vercel.md`](../vercel.md).
+  (isomorphic-git, no `git` CLI); deleted after. Worker-only: request handlers
+  read the one source file they need through the contents API
+  (`withProjectFileWorkspace`, `src/server/assessment/single-file-source.ts`).
+  Fix PRs never clone at all: `commitFixBranch`
+  (`src/server/github/fix-branch.ts`) writes blob → tree → commit → ref through
+  the Git Data API from the verified `candidate.edits`, re-checking each
+  `oldText` against the base commit so a stale patch fails closed. The executor
+  uses its locally installed Playwright browser. See
+  [`vercel.md`](../vercel.md).
 
 ## Analysis
 
@@ -425,7 +432,10 @@ owner records **D-CI** in that document. Until then, do not add
 
 **Remediation:**
 
-- Source: patch → ComplyLoop → draft PR → merge → re-assess → `verified`.
+- Source: patch → ComplyLoop → draft PR → merge → re-assess → `verified`. The
+  draft PR is committed through the Git Data API (`preparePullRequest` →
+  `commitFixBranch`), never a checkout; patch generation reads only the
+  Finding's file through the contents API.
 - Runtime: guidance → approve → implement → re-audit.
 - Verify fails closed on HTTP errors, redirects away from the finding URL, or
   an empty document.
@@ -486,6 +496,8 @@ pushes and PR events are ignored. Failures become
   of truth in `packages/analysis-core/src/contract/requirement-status.ts`; AI
   (`src/ai/`) is advisory only and never writes statuses.
 - Webhook assessments idempotent via job `idempotencyKey`.
+- Request handlers never clone a repository. Assessments run on the worker;
+  patch generation reads one file and fix PRs write through the Git Data API.
 
 ## Tests
 

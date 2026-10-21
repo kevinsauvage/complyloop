@@ -12,8 +12,10 @@ import type {
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 
 import type { PatchCandidate } from "@/ai/verified-fix";
+import { testProject } from "@/test-fixtures/project";
 
 import {
+  generatePatchCandidateForFinding,
   latestPatchState,
   patchCandidateFromEvidence,
   persistPatchCandidate,
@@ -23,6 +25,13 @@ import {
 
 const { reportWarningMock } = vi.hoisted(() => ({
   reportWarningMock: vi.fn(),
+}));
+
+const withProjectFileWorkspaceMock = vi.hoisted(() => vi.fn());
+
+vi.mock("./single-file-source", () => ({
+  withProjectFileWorkspace: (...args: unknown[]) =>
+    withProjectFileWorkspaceMock(...args),
 }));
 
 vi.mock("../observability", () => ({
@@ -283,6 +292,53 @@ describe("runAiFixOnCheckout", () => {
       }),
     ).rejects.toThrow(/isn't enabled for this workspace/);
     expect(propose).not.toHaveBeenCalled();
+  });
+});
+
+describe("generatePatchCandidateForFinding", () => {
+  it("works on the finding's file without cloning the repository", async () => {
+    const project = testProject();
+    const source = "export const Hero = () => <input autoFocus />;\n";
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "ai-fix-file-"));
+    tempDirs.push(root);
+    fs.writeFileSync(path.join(root, "Hero.tsx"), source, "utf8");
+    withProjectFileWorkspaceMock.mockImplementation(
+      async (
+        _project: unknown,
+        _filePath: string,
+        fn: (rootPath: string) => Promise<PatchCandidate>,
+      ) => fn(root),
+    );
+    const attributeStart = source.indexOf(" autoFocus");
+    const target = finding({
+      kind: "remove_attribute",
+      attribute: "autoFocus",
+      span: {
+        start: attributeStart,
+        end: attributeStart + " autoFocus".length,
+      },
+    });
+    target.checkId = "no-autofocus";
+    target.location = {
+      kind: "source",
+      filePath: "Hero.tsx",
+      line: 1,
+      column: 1,
+      snippet: source.trim(),
+      span: { start: source.indexOf("<input"), end: source.indexOf("/>") + 2 },
+    };
+
+    const candidate = await generatePatchCandidateForFinding(
+      project,
+      target,
+      control,
+      { aiAvailable: true },
+    );
+
+    expect(withProjectFileWorkspaceMock.mock.calls[0]?.[0]).toBe(project);
+    expect(withProjectFileWorkspaceMock.mock.calls[0]?.[1]).toBe("Hero.tsx");
+    expect(candidate.edits[0]?.path).toBe("Hero.tsx");
+    expect(candidate.edits[0]?.newText).toContain("<input />");
   });
 });
 

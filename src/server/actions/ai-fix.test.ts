@@ -17,7 +17,7 @@ import { testWorkspace } from "@/test-fixtures/workspace";
 import { generateAiFixAction } from "./ai-fix";
 
 const { getWorkspace } = actionWorkspaceMocks;
-const generatePatchCandidateOnCheckout = vi.hoisted(() => vi.fn());
+const generatePatchCandidateForFinding = vi.hoisted(() => vi.fn());
 const persistPatchCandidate = vi.hoisted(() => vi.fn());
 const assertAiRateLimit = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
@@ -26,8 +26,8 @@ vi.mock("../assessment/ai-fix", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../assessment/ai-fix")>();
   return {
     ...actual,
-    generatePatchCandidateOnCheckout: (...args: unknown[]) =>
-      generatePatchCandidateOnCheckout(...args),
+    generatePatchCandidateForFinding: (...args: unknown[]) =>
+      generatePatchCandidateForFinding(...args),
     persistPatchCandidate: (...args: unknown[]) =>
       persistPatchCandidate(...args),
   };
@@ -99,7 +99,7 @@ describe("generateAiFixAction", () => {
       ],
       complyLoop: { passed: true, remaining: [] },
     };
-    generatePatchCandidateOnCheckout.mockResolvedValue(candidate);
+    generatePatchCandidateForFinding.mockResolvedValue(candidate);
     assertAiRateLimit.mockResolvedValue(undefined);
     // Session-backed rate-limit identity (replaces the old workspace userId).
     actionAuthMocks.auth.mockResolvedValue({
@@ -114,7 +114,7 @@ describe("generateAiFixAction", () => {
 
     expect(result.ok ? null : result.message).toBeNull();
     expect(result.message).toMatch(/ready for review/i);
-    expect(generatePatchCandidateOnCheckout).toHaveBeenCalledWith(
+    expect(generatePatchCandidateForFinding).toHaveBeenCalledWith(
       project,
       finding,
       expect.objectContaining({ id: "ctl-img-alt" }),
@@ -149,7 +149,7 @@ describe("generateAiFixAction", () => {
       new FormData(),
     );
     expect(result.ok ? null : result.message).toMatch(/source findings/);
-    expect(generatePatchCandidateOnCheckout).not.toHaveBeenCalled();
+    expect(generatePatchCandidateForFinding).not.toHaveBeenCalled();
   });
 
   it("consumes the AI rate limit even for a safe deterministic fix (checkout still runs)", async () => {
@@ -168,7 +168,7 @@ describe("generateAiFixAction", () => {
       user: { id: "user-1", login: "user-1" },
     });
     assertAiRateLimit.mockResolvedValue(undefined);
-    generatePatchCandidateOnCheckout.mockResolvedValue({
+    generatePatchCandidateForFinding.mockResolvedValue({
       description: "Remove autoFocus",
       provenance: "deterministic",
       edits: [{ path: "Hero.tsx", oldText: " autoFocus", newText: "" }],
@@ -198,6 +198,6 @@ describe("generateAiFixAction", () => {
       new FormData(),
     );
     expect(result.ok ? null : result.message).toMatch(/GitHub repository/);
-    expect(generatePatchCandidateOnCheckout).not.toHaveBeenCalled();
+    expect(generatePatchCandidateForFinding).not.toHaveBeenCalled();
   });
 });

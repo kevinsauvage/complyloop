@@ -43,7 +43,7 @@ import {
 
 import { reportError, reportWarning } from "../observability";
 import { locateViolationInProject, mergeFix } from "./assessment-findings";
-import { withProjectCheckout } from "./repo-checkout";
+import { withProjectFileWorkspace } from "./single-file-source";
 
 export type PatchUiState =
   { status: "idle" } | { status: "ready"; candidate: PatchCandidate };
@@ -124,21 +124,25 @@ export async function runAiFixOnCheckout(
 }
 
 /**
- * Checkout + patch composition for the action layer: runs
- * `runAiFixOnCheckout` on an ephemeral checkout of the finding's project.
- * Actions call this (never `withProjectCheckout` + `runAiFixOnCheckout`
- * separately) so checkout wiring stays in one module.
+ * Single-file workspace composition for the action layer: fetches the
+ * Finding's file at the tracked branch through the contents API (no clone),
+ * then runs `runAiFixOnCheckout` against it. Actions call this (never the
+ * workspace helper directly) so wiring stays in one module.
  */
-export async function generatePatchCandidateOnCheckout(
+export async function generatePatchCandidateForFinding(
   project: Project,
   finding: Finding,
   control: Control,
   options: { aiAvailable: boolean },
 ): Promise<PatchCandidate> {
-  return withProjectCheckout(project, (rootPath) =>
-    runAiFixOnCheckout(rootPath, finding, control, {
-      aiAvailable: options.aiAvailable,
-    }),
+  assertSourceLocatedFinding(finding);
+  return withProjectFileWorkspace(
+    project,
+    finding.location.filePath,
+    (rootPath) =>
+      runAiFixOnCheckout(rootPath, finding, control, {
+        aiAvailable: options.aiAvailable,
+      }),
   );
 }
 

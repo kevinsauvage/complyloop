@@ -33,19 +33,33 @@ redirects).
   string mode comes back as the server's own text form, which would have broken
   string sorting and date rendering.
 
-### [ ] Move repository clones out of server actions
+### [x] Move repository clones out of server actions
 
-**Why:** "Create PR" (`preparePullRequest`) and "Generate patch" (`generatePatchCandidateOnCheckout`) each do a full isomorphic-git clone plus scan inside a Vercel server action, with no `maxDuration`. That's slow, fragile under function time and disk limits, and duplicates what the worker already does. Committing a verified single-file edit doesn't need a clone at all.
+**Done 2026-10-20.** Neither request path clones any more: "Generate patch"
+reads only the Finding's file through the contents API, and "Create PR" writes
+through the GitHub Git Data API from the verified `candidate.edits`.
 
-**Where:** `src/server/github/pr.ts:126-278`, `src/server/assessment/ai-fix.ts:126-137`, `src/server/actions/pr.ts`, `src/server/actions/ai-fix.ts`, `src/server/assessment/repo-checkout.ts`.
-
-**Change:**
-
-- **PRs:** create the branch, commit and PR through the GitHub Git Data API (`git.createTree`/`createCommit`/`createRef` via Octokit) from the already-verified `candidate.edits`.
-- **Patch generation:** fetch only the affected file(s) through the contents API and run the single-file scan in memory. If a full-tree check is genuinely required, enqueue it as a worker job instead.
-- Afterwards, `withProjectCheckout` is used only by the worker.
-
-**Impact:** Medium
+- **PRs:** `preparePullRequest` (`src/server/github/pr.ts`) → `commitFixBranch`
+  (`src/server/github/fix-branch.ts`): blob → tree → commit → ref, parented on
+  the tracked branch (falling back to the repo default when that branch is
+  gone). Each edit's `oldText` is re-checked against the base commit, so a patch
+  generated from an older revision fails closed instead of overwriting
+  concurrent work. A retry force-updates the existing branch, same net effect
+  as the old force-push; the PR still opens as a draft and reuses an open PR
+  only when it targets the same base (which is recorded in the evidence detail).
+- Committed files keep their executable bit: modes come from the base tree, with
+  a per-directory walk when GitHub truncates a large recursive listing.
+- **Patch generation:** `generatePatchCandidateForFinding` → `withProjectFileWorkspace`
+  (`src/server/assessment/single-file-source.ts`) fetches the one file and
+  materialises it in a temp dir (the ComplyLoop gate already scanned only that
+  file).
+- `withProjectCheckout` is worker-only now. `withFixtureCheckout` moved to
+  `fixture-checkout.ts` so request paths don't pull isomorphic-git into their
+  bundles.
+- Tests cover the API path against an in-memory repository (drifted file,
+  ambiguous edit, no-op patch, missing file, existing branch, PR reuse, base
+  fallback); the drift re-location assertion moved to
+  `assessment-findings.test.ts`.
 
 ---
 

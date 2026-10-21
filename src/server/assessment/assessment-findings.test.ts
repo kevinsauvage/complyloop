@@ -4,11 +4,13 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { buttonNameCheck } from "@complyloop/analysis-core/checks/families/names";
 import type {
   ProposedFix,
   SourceLocation,
 } from "@complyloop/analysis-core/contract/finding-types";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
+import { parseSource } from "@complyloop/analysis-core/parse";
 
 import { testFinding } from "@/test-fixtures/finding";
 
@@ -16,6 +18,7 @@ import type { ProjectRows } from "../workspace/project-rows";
 import {
   buildSuggestion,
   createFinding,
+  locateViolationInProject,
   mergeFix,
   reconcileControlFindings,
   sameInstance,
@@ -806,5 +809,31 @@ describe("buildSuggestion", () => {
     expect(suggestion?.confidence).toBe("high");
     expect(suggestion?.description.length).toBeGreaterThan(0);
     expect(suggestion?.proposedSnippet).toContain("alt");
+  });
+});
+
+describe("locateViolationInProject", () => {
+  it("re-locates a stored span that drifted after the finding was recorded", () => {
+    const filePath = "Hero.tsx";
+    const original = `export const Hero = () => <button></button>;\n`;
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "locate-"));
+    tempDirs.push(root);
+
+    const [raw] = buttonNameCheck.run(parseSource(filePath, original));
+    if (!raw) throw new Error("expected a button-name finding");
+
+    // Prepend lines: the stored span offsets no longer point at the element.
+    fs.writeFileSync(path.join(root, filePath), `/* banner */\n\n${original}`);
+    const match = locateViolationInProject(root, {
+      checkId: raw.checkId,
+      location: raw.location,
+    });
+
+    expect(match?.location.kind).toBe("source");
+    if (match?.location.kind !== "source" || raw.location.kind !== "source") {
+      throw new Error("expected source locations");
+    }
+    expect(match.location.span.start).not.toBe(raw.location.span.start);
+    expect(mergeFix(raw.fix, match.fix)).toBeTruthy();
   });
 });

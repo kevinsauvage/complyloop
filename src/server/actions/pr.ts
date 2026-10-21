@@ -123,6 +123,7 @@ export async function createPullRequestAction(
             findingId: finding.id,
             detail: {
               branch: result.branch,
+              base: result.base,
               prUrl: result.prUrl,
               title: result.title,
             },

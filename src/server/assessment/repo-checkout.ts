@@ -10,7 +10,7 @@ import http from "isomorphic-git/http/node";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
-import { assertE2EFixtureRoot, isE2EHarnessEnabled } from "../e2e-harness";
+import { isE2EHarnessEnabled } from "../e2e-harness";
 import { assessmentCheckoutQuota } from "../env";
 import {
   gitBasicAuthHeader,
@@ -23,6 +23,8 @@ import {
   redactCloneUrl,
 } from "../github/github";
 import { getProjectToken } from "../github/github-connector";
+import { refForProjectCheckout } from "../github/tracked-branch";
+import { withFixtureCheckout } from "./fixture-checkout";
 
 /**
  * Rejects oversized clones before AST parsing or Playwright can consume
@@ -172,26 +174,12 @@ function isRefNotFoundError(error: unknown): boolean {
   return /Could not find/i.test(message);
 }
 
-/**
- * Copies the e2e fixture into a temp directory, runs `fn`, then deletes the tree.
- * Mutating the copy cannot affect the committed fixture.
- */
-export async function withFixtureCheckout<T>(
-  fn: (rootPath: string) => Promise<T>,
-): Promise<T> {
-  const fixtureRoot = assertE2EFixtureRoot();
-  const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "complyloop-e2e-"));
-  try {
-    fs.cpSync(fixtureRoot, rootPath, { recursive: true });
-    return await fn(rootPath);
-  } finally {
-    fs.rmSync(rootPath, { recursive: true, force: true });
-  }
-}
+export { withFixtureCheckout } from "./fixture-checkout";
 
 /**
  * Shallow-clones a GitHub repo into a temp directory, runs `fn`, then deletes
- * the tree. Use for every server path that needs source (assess, webhook, PR).
+ * the tree. Worker-only: request handlers that need source read the one file
+ * they touch through the contents API (`withProjectFileWorkspace`).
  */
 export async function withRepoCheckout<T>(
   options: RepoCheckoutOptions,
@@ -268,17 +256,7 @@ export async function withRepoCheckout<T>(
  * against an ephemeral checkout of `github.fullName`. Under the e2e harness,
  * uses the local fixture.
  */
-/**
- * Ref a project checkout uses: an explicit one (a webhook job's SHA) wins;
- * otherwise the project's tracked branch; otherwise `undefined` (the
- * repository's default branch).
- */
-export function refForProjectCheckout(
-  project: Project,
-  ref?: string,
-): string | undefined {
-  return ref ?? project.github?.trackedBranch;
-}
+export { refForProjectCheckout } from "../github/tracked-branch";
 
 export async function withProjectCheckout<T>(
   project: Project,

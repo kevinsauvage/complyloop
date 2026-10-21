@@ -10,7 +10,7 @@ import { parseEntityId } from "@/core/actions/validate";
 
 import { runAction } from "../action-state";
 import {
-  generatePatchCandidateOnCheckout,
+  generatePatchCandidateForFinding,
   persistPatchCandidate,
 } from "../assessment/ai-fix";
 import { getSession } from "../auth-session";
@@ -51,14 +51,14 @@ export async function generateAiFixAction(
         "Connect a GitHub repository before generating a patch.",
       );
     }
-    // Rate-limit before *any* checkout: even a deterministic fix drives the
-    // ephemeral clone + scan through `generatePatchCandidateOnCheckout`.
+    // Rate-limit before any GitHub I/O: even a deterministic fix reads the
+    // file and re-scans it through `generatePatchCandidateForFinding`.
     const sessionUserId = (await getSession())?.user?.id;
     if (sessionUserId) await assertAiRateLimit(sessionUserId);
     const control = controlById(finding.controlId);
-    // Checkout + AI + re-verify run outside any write lock (see P2-8 /
+    // File read + AI + re-verify run outside any write lock (see P2-8 /
     // remediation-verify.ts); the transaction below only persists the candidate.
-    const candidate = await generatePatchCandidateOnCheckout(
+    const candidate = await generatePatchCandidateForFinding(
       project,
       finding,
       control,

@@ -156,6 +156,7 @@ describe("createPullRequestAction", () => {
     mockProjectTx(workspace);
     preparePullRequest.mockResolvedValue({
       branch: "fix/img-alt",
+      base: "main",
       prUrl: "https://github.com/acme/shop/pull/1",
       title: "fix: alt text",
       message: "Opened pull request.",
@@ -195,6 +196,7 @@ describe("createPullRequestAction", () => {
     mockProjectTx(workspace);
     preparePullRequest.mockResolvedValue({
       branch: "fix/img-alt",
+      base: "main",
       prUrl: "https://github.com/acme/shop/pull/1",
       title: "fix: alt text",
       message: "Opened draft pull request.",
@@ -262,6 +264,7 @@ describe("createPullRequestAction", () => {
     getWorkspace.mockResolvedValue(workspace);
     preparePullRequest.mockResolvedValue({
       branch: "fix/img-alt",
+      base: "main",
       prUrl: "https://github.com/acme/shop/pull/1",
       title: "fix: alt text",
       message: "Opened pull request.",
