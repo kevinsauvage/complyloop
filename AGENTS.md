@@ -104,6 +104,10 @@ Route by task — never run the flagship model for everything. Verify with `npm 
 
 Keep the UI dependency surface from regrowing: do not add a new Radix/`ui/` primitive without 2+ consumers, and keep success/error toasts centralized (`useActionToast` / `action-state.ts`) rather than sprinkling new `sonner` calls.
 
+## Comments
+
+Avoid comments. Add one only when strictly necessary: a non-obvious constraint, workaround, or trade-off the code cannot express. Prefer clearer names and structure; never narrate what the code does, restate a type, or leave commented-out code.
+
 ## Server vs Client convention
 
 Async data-fetching components (`workspace-context`, `connect-project-panel`, `nav-attention-badges`, `dashboard-pipeline-section`, plus server `app-shell`/`badges`) live alongside client leaves in `src/components/` with no `"use client"` and no `*.server.tsx` rename. Rule: never add `"use client"` above a file importing `@/server/*` — put interactivity in a dedicated client leaf (`mobile-nav-sheet`, `pathname-focus`, `badge-with-description`) and pass server content as slots/children.
