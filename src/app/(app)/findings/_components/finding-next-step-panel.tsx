@@ -113,7 +113,8 @@ function ActControls({
         <div>
           <Button asChild>
             <a href={act.prUrl} target="_blank" rel="noopener noreferrer">
-              Open draft PR
+              Open draft PR{" "}
+              <span className="sr-only"> (opens in a new tab)</span>
             </a>
           </Button>
         </div>

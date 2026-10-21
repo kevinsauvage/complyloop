@@ -67,7 +67,7 @@ export function FindingsFilterBar({
       <ActiveFilterChip
         key="severity"
         href={clearedHref({ severity: undefined })}
-        clearLabel="Clear severity filter"
+        clearLabel={`Clear severity filter ${severityDisplay(params.severity).label}`}
       >
         Severity: {severityDisplay(params.severity).label}
       </ActiveFilterChip>,
@@ -78,7 +78,7 @@ export function FindingsFilterBar({
       <ActiveFilterChip
         key="engine"
         href={clearedHref({ engine: undefined })}
-        clearLabel="Clear source filter"
+        clearLabel={`Clear source filter ${engineDisplay(params.engine).label}`}
       >
         Source: {engineDisplay(params.engine).label}
       </ActiveFilterChip>,
@@ -89,7 +89,7 @@ export function FindingsFilterBar({
       <ActiveFilterChip
         key="remediation"
         href={clearedHref({ remediation: undefined })}
-        clearLabel="Clear remediation filter"
+        clearLabel={`Clear remediation filter ${remediationStatusDisplay(params.remediation).label}`}
       >
         Remediation: {remediationStatusDisplay(params.remediation).label}
       </ActiveFilterChip>,
@@ -100,7 +100,7 @@ export function FindingsFilterBar({
       <ActiveFilterChip
         key="control"
         href={clearedHref({ control: undefined })}
-        clearLabel="Clear rule filter"
+        clearLabel={`Clear rule filter ${controlLabel ?? params.control}`}
       >
         Rule: {controlLabel ?? params.control}
       </ActiveFilterChip>,

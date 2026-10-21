@@ -22,7 +22,8 @@ export function GitHubRepoPickerEmpty({
       {appInstallUrl ? (
         <Button asChild size="sm" className="w-fit">
           <a href={appInstallUrl} target="_blank" rel="noreferrer">
-            Install the GitHub App
+            Install the GitHub App{" "}
+            <span className="sr-only"> (opens in a new tab)</span>
           </a>
         </Button>
       ) : (

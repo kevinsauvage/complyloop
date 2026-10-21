@@ -92,7 +92,7 @@ describe("RequirementCard", () => {
       project: { runtimeBaseUrl: undefined },
     });
 
-    const seeFindings = screen.getByRole("link", { name: "See findings" });
+    const seeFindings = screen.getByRole("link", { name: /See findings/ });
     expect(seeFindings).toHaveAttribute(
       "href",
       "/findings?control=ctl-img-alt",

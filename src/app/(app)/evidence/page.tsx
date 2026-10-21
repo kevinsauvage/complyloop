@@ -89,7 +89,7 @@ export default async function EvidencePage({
       <ActiveFilterChip
         key="from"
         href={without("from")}
-        clearLabel="Clear from date"
+        clearLabel={`Clear from date ${from}`}
       >
         From {from}
       </ActiveFilterChip>
@@ -98,7 +98,7 @@ export default async function EvidencePage({
       <ActiveFilterChip
         key="to"
         href={without("to")}
-        clearLabel="Clear to date"
+        clearLabel={`Clear to date ${to}`}
       >
         To {to}
       </ActiveFilterChip>
@@ -107,7 +107,7 @@ export default async function EvidencePage({
       <ActiveFilterChip
         key="actor"
         href={without("actor")}
-        clearLabel="Clear author filter"
+        clearLabel={`Clear author filter ${actor}`}
       >
         Author: {actor}
       </ActiveFilterChip>

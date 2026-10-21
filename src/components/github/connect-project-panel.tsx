@@ -52,7 +52,8 @@ function ConnectFailureRepair({
           rel="noreferrer"
           className="font-medium text-foreground underline underline-offset-2"
         >
-          Install the GitHub App on the target repositories, then refresh.
+          Install the GitHub App on the target repositories, then refresh.{" "}
+          <span className="sr-only"> (opens in a new tab)</span>
         </a>
       ) : (
         <span>

@@ -15,11 +15,6 @@ Source: full audit run via `docs/prompts/master.md` (2026-10-21). Findings were 
 - [ ] `S` Exception over a human pass leaves status `passed` (`requirements.ts:179-192`). **Deferred** — fix belongs in `src/core/requirements/requirement-human-determination.ts` (ask-first boundary).
 - [ ] `M` Portfolio/findings-list counts ignore preset scope (`packages/db/src/repo/portfolio.ts:75-95`, `findings-view.ts:203-217`). **Deferred** — needs a scoped-count design (per-preset control-id sets in the grouped SQL).
 
-**Accessibility**
-
-- [ ] `M` "Opens in a new tab" disclosure on `target=_blank` links (RGAA 13.2).
-- [ ] `M` Label-in-name fixes; persistent live region + field-error association; unique repeated link names; unique `nav` names; heading levels.
-
 **Architecture & quality**
 
 - [ ] `L` Move job-queue SQL to `packages/db/src/repo/` (or document the exception).
@@ -29,10 +24,6 @@ Source: full audit run via `docs/prompts/master.md` (2026-10-21). Findings were 
 **Dependencies & tests**
 
 - [ ] `M` Tests: `remediation.ts` bulk foreign-project + non-open dismiss; `requirements.ts` exception expiry (and the hardcoded `2026-12-31`); `webhook-deliveries` + `rate-limit` DB tests (add to `test:db`); the 3 evidence download routes; `openProjectAction`.
-
-## P2 — docs & cleanup
-
-- [ ] `M` Use `testFinding` fixture in the 9+ test files with hand-written Finding literals.
 
 ## Needs a human decision
 

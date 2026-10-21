@@ -6,6 +6,8 @@ import type {
 } from "@complyloop/analysis-core/contract/entities";
 import type { RemediationSuggestion } from "@complyloop/analysis-core/contract/finding-types";
 
+import { testFinding } from "@/test-fixtures/finding";
+
 import {
   advanceRemediation,
   canBulkApproveRemediation,
@@ -114,17 +116,9 @@ describe("refreshSuggestion", () => {
   });
 });
 
-const sourceFinding: Finding = {
-  id: "f1",
-  projectId: "p1",
+const sourceFinding: Finding = testFinding({
   controlId: "c1",
-  assessmentId: "a1",
-  checkId: "img-alt",
-  status: "open",
-  kind: "violation",
-  severity: "serious",
   reason: "missing alt",
-  confidence: "high",
   location: {
     kind: "source",
     filePath: "a.tsx",
@@ -133,10 +127,7 @@ const sourceFinding: Finding = {
     span: { start: 0, end: 1 },
     snippet: "<img />",
   },
-  fix: null,
-  explanations: [],
-  detectedAt: "2026-01-01T00:00:00.000Z",
-};
+});
 
 const domFinding: Finding = {
   ...sourceFinding,

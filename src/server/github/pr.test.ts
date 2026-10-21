@@ -10,6 +10,7 @@ import type {
 } from "@complyloop/analysis-core/contract/project-types";
 
 import type { PatchCandidate } from "@/ai/verified-fix";
+import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 
 import { preparePullRequest } from "./pr";
@@ -253,16 +254,10 @@ const CONTROL: Control = {
   checkId: "button-name",
 };
 
-const FINDING: Finding = {
-  id: "f1",
+const FINDING: Finding = testFinding({
   projectId: PROJECT.id,
   controlId: CONTROL.id,
-  assessmentId: "a1",
   checkId: "button-name",
-  status: "open",
-  kind: "violation",
-  severity: "serious",
-  confidence: "high",
   reason: "Button has no accessible name",
   location: {
     kind: "source",
@@ -272,10 +267,7 @@ const FINDING: Finding = {
     snippet: "<button></button>",
     span: { start: 27, end: 45 },
   },
-  fix: null,
-  explanations: [],
-  detectedAt: "2026-01-01T00:00:00.000Z",
-};
+});
 
 const REMEDIATION: Remediation = {
   id: "r1",

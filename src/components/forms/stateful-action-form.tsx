@@ -52,6 +52,7 @@ export function StatefulActionForm({
   disabled = false,
   refreshOnSuccess = false,
   onSuccess,
+  feedbackId,
 }: {
   action: (previous: ActionState, formData: FormData) => Promise<ActionState>;
   submitLabel: string;
@@ -77,6 +78,8 @@ export function StatefulActionForm({
   refreshOnSuccess?: boolean;
   /** Runs once per successful message (client-side cleanup, focus, close). */
   onSuccess?: () => void;
+  /** Id for the inline feedback message, so fields can reference it. */
+  feedbackId?: string;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const formId = useId();
@@ -118,6 +121,7 @@ export function StatefulActionForm({
         />
         {!pending && state.message ? (
           <p
+            id={feedbackId}
             role={feedbackRole}
             className={
               state.ok

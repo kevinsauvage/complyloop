@@ -124,7 +124,12 @@ export function RequirementCard({
           requirement.status === "needs_review") &&
         openFindingsHref ? (
           <Button size="sm" variant="outline" asChild className="w-fit">
-            <Link href={openFindingsHref}>See findings</Link>
+            <Link
+              href={openFindingsHref}
+              aria-label={`See findings for ${control.code}`}
+            >
+              See findings
+            </Link>
           </Button>
         ) : null}
 
@@ -164,6 +169,7 @@ export function RequirementCard({
                 <span className="mt-2 block">
                   <Link
                     href={openFindingsHref}
+                    aria-label={`Review the findings for ${control.code}`}
                     className="text-sm font-medium text-foreground underline underline-offset-4 hover:text-foreground"
                   >
                     Review the findings

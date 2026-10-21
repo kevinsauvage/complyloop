@@ -14,7 +14,7 @@ export function MarketingFooter() {
         <div className="flex flex-col gap-4 text-sm text-muted-foreground sm:items-end">
           <p>RGAA / WCAG accessibility</p>
           <nav
-            aria-label="Marketing"
+            aria-label="Footer"
             className="flex flex-wrap gap-x-4 gap-y-2 sm:justify-end"
           >
             <Link

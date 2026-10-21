@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
 
+import { testFinding } from "@/test-fixtures/finding";
+
 import {
   compareFindingsBySeverity,
   unableToVerifyReason,
@@ -14,16 +16,11 @@ function finding(
   filePath: string,
   severity: Finding["severity"] = "serious",
 ): Finding {
-  return {
+  return testFinding({
     id,
-    projectId: "p1",
-    controlId: "ctl",
-    assessmentId: "a1",
     checkId,
-    status: "open",
-    kind: "violation",
     severity,
-    confidence: "high",
+    controlId: "ctl",
     reason: "fail",
     location: {
       kind: "source",
@@ -33,10 +30,7 @@ function finding(
       snippet: "<x />",
       span: { start: 0, end: 1 },
     },
-    fix: null,
-    explanations: [],
-    detectedAt: "2026-01-01T00:00:00.000Z",
-  };
+  });
 }
 
 describe("list ordering", () => {

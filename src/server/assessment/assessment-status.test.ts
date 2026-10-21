@@ -13,6 +13,7 @@ import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { emptyWorkspaceSlice } from "@complyloop/db/types";
 
 import { testControl } from "@/test-fixtures/control";
+import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 
 import {
@@ -104,16 +105,7 @@ describe("assessment scope filters", () => {
       },
     ];
     const findings: Finding[] = [
-      {
-        id: "f1",
-        projectId: "p1",
-        controlId: "ctl-img-alt",
-        assessmentId: "a1",
-        checkId: "img-alt",
-        status: "open",
-        kind: "violation",
-        severity: "serious",
-        confidence: "high",
+      testFinding({
         reason: "missing alt",
         location: {
           kind: "source",
@@ -123,20 +115,12 @@ describe("assessment scope filters", () => {
           snippet: "<img />",
           span: { start: 0, end: 7 },
         },
-        fix: null,
-        explanations: [],
-        detectedAt: "2026-01-01T00:00:00.000Z",
-      },
-      {
+      }),
+      testFinding({
         id: "f2",
-        projectId: "p1",
         controlId: "ctl-button-name",
-        assessmentId: "a1",
         checkId: "button-name",
-        status: "open",
-        kind: "violation",
         severity: "critical",
-        confidence: "high",
         reason: "unnamed",
         location: {
           kind: "source",
@@ -146,10 +130,7 @@ describe("assessment scope filters", () => {
           snippet: "<button />",
           span: { start: 0, end: 10 },
         },
-        fix: null,
-        explanations: [],
-        detectedAt: "2026-01-01T00:00:00.000Z",
-      },
+      }),
     ];
 
     expect(requirementsInScope(requirements, scoped).map((r) => r.id)).toEqual([

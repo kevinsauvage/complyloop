@@ -12,6 +12,7 @@ import type {
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { parseSource } from "@complyloop/analysis-core/parse";
 
+import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 
 import { buildDeveloperHandoff, buildDiffForFix } from "./handoff";
@@ -48,13 +49,10 @@ describe("developer handoff", () => {
       description: "Every informative image exposes a text alternative.",
       checkId: "img-alt",
     };
-    const finding: Finding = {
+    const finding: Finding = testFinding({
       id: "f1",
       projectId: project.id,
       controlId: control.id,
-      assessmentId: "a1",
-      checkId: "img-alt",
-      status: "open",
       kind: raw.kind,
       severity: raw.severity,
       confidence: raw.confidence,
@@ -71,7 +69,7 @@ describe("developer handoff", () => {
         },
       ],
       detectedAt: new Date().toISOString(),
-    };
+    });
     const remediation: Remediation = {
       id: "r1",
       findingId: finding.id,

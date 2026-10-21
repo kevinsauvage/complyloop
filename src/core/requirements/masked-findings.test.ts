@@ -5,6 +5,8 @@ import type {
   Requirement,
 } from "@complyloop/analysis-core/contract/entities";
 
+import { testFinding } from "@/test-fixtures/finding";
+
 import { maskedFindingDetail, stickyDecisionAt } from "./masked-findings";
 
 function requirement(overrides: Partial<Requirement> = {}): Requirement {
@@ -20,22 +22,24 @@ function requirement(overrides: Partial<Requirement> = {}): Requirement {
 }
 
 function finding(id: string): Finding {
-  return {
+  return testFinding({
     id,
     projectId: "proj-1",
     assessmentId: "assessment-1",
     controlId: "rgaa-1-1",
     checkId: "some-check",
-    kind: "violation",
-    severity: "major",
-    confidence: "high",
-    status: "open",
+    severity: "serious",
     reason: "x",
-    location: { kind: "source", filePath: "src/a.tsx" },
-    explanations: [],
+    location: {
+      kind: "source",
+      filePath: "src/a.tsx",
+      line: 1,
+      column: 1,
+      snippet: "",
+      span: { start: 0, end: 0 },
+    },
     detectedAt: "2026-01-04T00:00:00.000Z",
-    fix: undefined,
-  } as unknown as Finding;
+  });
 }
 
 describe("stickyDecisionAt", () => {

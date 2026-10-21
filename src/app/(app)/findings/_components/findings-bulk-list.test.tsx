@@ -9,6 +9,7 @@ import type {
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { testFinding } from "@/test-fixtures/finding";
 
 import { FindingsBulkList } from "./findings-bulk-list";
 
@@ -49,17 +50,11 @@ function item(
   return { finding, control, remediationStatus, suggestion };
 }
 
-const sourceFinding: Finding = {
+const sourceFinding: Finding = testFinding({
   id: "f-source",
-  projectId: "p1",
   controlId: control.id,
-  assessmentId: "a1",
   checkId: "label",
-  status: "open",
-  kind: "violation",
-  severity: "serious",
   reason: "Missing label",
-  confidence: "high",
   location: {
     kind: "source",
     filePath: "Form.tsx",
@@ -68,10 +63,7 @@ const sourceFinding: Finding = {
     span: { start: 0, end: 1 },
     snippet: "<input />",
   },
-  fix: null,
-  explanations: [],
-  detectedAt: "2026-01-01T00:00:00.000Z",
-};
+});
 
 const runtimeFinding: Finding = {
   ...sourceFinding,

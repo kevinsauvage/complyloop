@@ -70,6 +70,7 @@ function DomElementBlock({ finding }: { finding: Finding }) {
             className="inline-flex items-center gap-1 text-foreground underline underline-offset-2 hover:text-signal break-all"
           >
             {location.url}
+            <span className="sr-only"> (opens in a new tab)</span>
             <ExternalLink className="size-3 shrink-0" aria-hidden />
           </a>
         </p>
@@ -159,7 +160,8 @@ export function FindingUnderstandCard({
                   rel="noreferrer"
                   className="inline-flex items-center gap-1 text-xs font-medium text-foreground underline underline-offset-2 hover:text-signal"
                 >
-                  Open exact line on GitHub
+                  Open exact line on GitHub{" "}
+                  <span className="sr-only"> (opens in a new tab)</span>
                   <ExternalLink className="size-3" aria-hidden />
                 </a>
               </p>

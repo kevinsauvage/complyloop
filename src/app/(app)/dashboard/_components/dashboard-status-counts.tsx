@@ -127,13 +127,13 @@ export function DashboardStatusCounts({
               {href ? (
                 <Link
                   href={href}
-                  aria-label={`${display.label}: ${count} (${share}%). View requirements`}
                   className={cn(
                     rowClassName,
                     "hover:bg-accent/25 focus-visible:ring-2 focus-visible:ring-ring",
                   )}
                 >
                   {row}
+                  <span className="sr-only">View requirements</span>
                 </Link>
               ) : (
                 <span className={rowClassName}>{row}</span>

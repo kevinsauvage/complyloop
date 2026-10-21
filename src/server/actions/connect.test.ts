@@ -15,9 +15,13 @@ import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
 
 import type { ConnectWriteContext } from "../workspace/workspace-write";
-import { connectGitHubRepoAction, disconnectGitHubRepoAction } from "./connect";
+import {
+  connectGitHubRepoAction,
+  disconnectGitHubRepoAction,
+  openProjectAction,
+} from "./connect";
 
-const { withConnectWrite } = actionWorkspaceMocks;
+const { getWorkspace, withConnectWrite } = actionWorkspaceMocks;
 const writeActiveProjectCookie = vi.hoisted(() => vi.fn());
 const setActiveProject = vi.hoisted(() => vi.fn());
 const connectGitHubRepo = vi.hoisted(() => vi.fn());
@@ -28,6 +32,10 @@ const resolveUserInstallationForRepo = vi.hoisted(() => vi.fn());
 const createInstallationAccessToken = vi.hoisted(() => vi.fn());
 const assertConnectRateLimit = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
+
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn(),
+}));
 
 vi.mock("../workspace/active-cookies", () => ({
   writeActiveProjectCookie: (...args: unknown[]) =>
@@ -141,6 +149,29 @@ function stubConnectWrite(membership: OrgMembership) {
 
 afterEach(() => {
   vi.clearAllMocks();
+});
+
+describe("openProjectAction", () => {
+  it("sets the active project and refreshes", async () => {
+    const workspace = workspaceFor(ownerMembership);
+    getWorkspace.mockResolvedValue(workspace);
+    const form = new FormData();
+    form.set("projectId", "p1");
+
+    await openProjectAction(form);
+
+    expect(setActiveProject).toHaveBeenCalledWith(
+      {
+        projects: workspace.projects,
+        organizations: workspace.organizations,
+        memberships: workspace.access.memberships,
+      },
+      "p1",
+      "user-1",
+    );
+    expect(writeActiveProjectCookie).toHaveBeenCalledWith("p1");
+    expect(refresh).toHaveBeenCalled();
+  });
 });
 
 describe("connectGitHubRepoAction", () => {

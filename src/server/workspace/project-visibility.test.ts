@@ -11,6 +11,7 @@ import type {
   Project,
 } from "@complyloop/analysis-core/contract/project-types";
 
+import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 
 import { findingsInScope, requirementsInScope } from "./project-scope";
@@ -72,14 +73,9 @@ describe("accessFromStore", () => {
 });
 
 function finding(partial: Pick<Finding, "id" | "projectId">): Finding {
-  return {
+  return testFinding({
     controlId: "ctrl-1",
     assessmentId: "assess-1",
-    checkId: "img-alt",
-    kind: "violation",
-    status: "open",
-    severity: "serious",
-    confidence: "high",
     reason: "missing alt",
     location: {
       kind: "source",
@@ -89,11 +85,8 @@ function finding(partial: Pick<Finding, "id" | "projectId">): Finding {
       snippet: "<img />",
       span: { start: 0, end: 10 },
     },
-    explanations: [],
-    fix: null,
-    detectedAt: "2026-01-01T00:00:00.000Z",
     ...partial,
-  };
+  });
 }
 
 function evidence(

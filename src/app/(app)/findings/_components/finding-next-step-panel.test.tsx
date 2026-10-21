@@ -207,7 +207,7 @@ describe("FindingNextStepPanel", () => {
     expect(
       screen.getByText(/Merge the draft PR, then re-assessment will verify/),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open draft PR" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /Open draft PR/ })).toHaveAttribute(
       "href",
       "https://github.com/acme/shop/pull/65",
     );

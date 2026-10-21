@@ -139,7 +139,10 @@ describe("requirement decision actions", () => {
     const form = new FormData();
     form.set("reason", "temporary");
     form.set("note", "Fix landing next sprint");
-    form.set("expiresAt", "2026-12-31");
+    const expiryDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    form.set("expiresAt", expiryDate);
 
     const result = await markRequirementExceptionAction(
       "req-temp",
@@ -151,7 +154,7 @@ describe("requirement decision actions", () => {
     expect(assertRequirementsRateLimit).toHaveBeenCalled();
     expect(recordedWrites()?.requirements?.[0]?.status).toBe("failed");
     expect(recordedWrites()?.requirements?.[0]?.exception?.expiresAt).toMatch(
-      /^2026-12-31/,
+      new RegExp(`^${expiryDate}`),
     );
   });
 

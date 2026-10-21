@@ -56,7 +56,7 @@ export function CreatePrForm({ findingId }: { findingId: string }) {
             rel="noreferrer"
             className="font-medium text-foreground underline underline-offset-4"
           >
-            Open draft PR
+            Open draft PR <span className="sr-only"> (opens in a new tab)</span>
           </a>
         </p>
       ) : null}

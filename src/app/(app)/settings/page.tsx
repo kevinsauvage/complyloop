@@ -77,6 +77,7 @@ export default async function SettingsPage() {
                       className="font-mono text-sm text-foreground underline-offset-4 hover:underline"
                     >
                       {githubFullName}
+                      <span className="sr-only"> (opens in a new tab)</span>
                     </a>
                   ) : (
                     <p className="font-mono">{githubFullName}</p>

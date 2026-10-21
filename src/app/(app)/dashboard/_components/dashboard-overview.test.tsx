@@ -32,7 +32,7 @@ describe("DashboardOverview", () => {
       screen.getByRole("list", { name: "Key compliance metrics" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Open findings: 3. View details" }),
+      screen.getByRole("link", { name: /Open findings.*View details/ }),
     ).toHaveAttribute("href", "/findings");
     expect(screen.getByText("Pass rate")).toBeInTheDocument();
   });

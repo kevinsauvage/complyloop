@@ -25,7 +25,7 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
       size={compact ? "icon" : "sm"}
       className={cn(!compact && "w-full justify-start gap-2")}
       onClick={() => setTheme(isDark ? "light" : "dark")}
-      aria-label="Toggle light and dark theme"
+      aria-label={compact ? "Toggle light and dark theme" : undefined}
       aria-pressed={mounted ? isDark : undefined}
     >
       <Sun className="size-4 dark:hidden" aria-hidden />

@@ -72,9 +72,9 @@ function QuickStatItem({ stat }: { stat: DashboardQuickStat }) {
       <Link
         href={stat.href}
         className={cn(className, "transition-colors hover:bg-accent/20")}
-        aria-label={`${stat.label}: ${stat.value}. View details`}
       >
         {inner}
+        <span className="sr-only">. View details</span>
       </Link>
     );
   }

@@ -54,14 +54,14 @@ export function ReasonNoteFields({
           name="note"
           rows={noteRows}
           required={noteRequired}
-          aria-describedby={noteRequired ? undefined : `${noteId}-hint`}
+          aria-describedby={`${noteId}-hint`}
           className="max-w-md"
         />
-        {noteRequired ? null : (
-          <p id={`${noteId}-hint`} className="text-xs text-muted-foreground">
-            Optional — anything you write is kept as evidence.
-          </p>
-        )}
+        <p id={`${noteId}-hint`} className="text-xs text-muted-foreground">
+          {noteRequired
+            ? "Required — anything you write is kept as evidence."
+            : "Optional — anything you write is kept as evidence."}
+        </p>
       </div>
     </>
   );

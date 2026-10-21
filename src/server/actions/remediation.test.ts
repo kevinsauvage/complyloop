@@ -254,6 +254,63 @@ describe("bulkApproveRemediationsAction", () => {
       /No selected findings had guidance/,
     );
   });
+  it("rejects a finding from another project", async () => {
+    const workspace = workspaceFor("member");
+    workspace.db.findings.push(
+      testFinding({ id: "f-foreign", projectId: "p2" }),
+    );
+    workspace.db.remediations.push({
+      id: "r-foreign",
+      findingId: "f-foreign",
+      status: "suggested",
+      suggestion: {
+        description: "Fix it",
+        proposedSnippet: '<img alt="" />',
+        provenance: "ai",
+      },
+      history: [],
+    });
+    mockProjectTx(workspace);
+
+    const form = new FormData();
+    form.append("findingIds", "f-foreign");
+
+    const result = await bulkApproveRemediationsAction(
+      initialActionState,
+      form,
+    );
+    expect(result.ok ? null : result.message).toMatch(/Unknown finding/);
+  });
+
+  it("skips non-open findings in bulk", async () => {
+    const workspace = workspaceFor("member");
+    workspace.db.findings.push(
+      testFinding({ id: "f-resolved", status: "resolved" }),
+    );
+    workspace.db.remediations.push({
+      id: "r-resolved",
+      findingId: "f-resolved",
+      status: "suggested",
+      suggestion: {
+        description: "Fix it",
+        proposedSnippet: '<img alt="" />',
+        provenance: "ai",
+      },
+      history: [],
+    });
+    mockProjectTx(workspace);
+
+    const form = new FormData();
+    form.append("findingIds", "f-resolved");
+
+    const result = await bulkApproveRemediationsAction(
+      initialActionState,
+      form,
+    );
+    expect(result.ok ? null : result.message).toMatch(
+      /No selected findings had guidance/,
+    );
+  });
 });
 
 describe("runAssessmentAction", () => {
