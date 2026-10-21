@@ -9,6 +9,7 @@ import {
 } from "@complyloop/db/repo/portfolio";
 
 import { projectCapabilities } from "./project-capabilities";
+import { scopedControlIds } from "./project-scope";
 import { visibleProjects } from "./project-visibility";
 import { getWorkspace } from "./workspace";
 
@@ -54,9 +55,15 @@ export async function loadPortfolioView(): Promise<PortfolioView> {
       canCreateProject,
     };
   }
+  const scopes = new Map<string, ReadonlySet<string>>();
+  for (const project of inOrg) {
+    const scoped = scopedControlIds(project);
+    if (scoped) scopes.set(project.id, scoped);
+  }
   const portfolio = await listPortfolioForProjects(
     await getDrizzle(),
     inOrg.map((project) => project.id),
+    scopes,
   );
 
   const rows: PortfolioRow[] = inOrg.map((project) => {

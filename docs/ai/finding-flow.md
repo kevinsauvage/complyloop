@@ -53,6 +53,14 @@ Runtime, done        → Verify (audit / note)
 Dismissed            → Exception on record
 ```
 
+**Dismissal on re-assessment:** a `false_positive` or `not_applicable`
+dismissal holds while the same instance is still detected (the row follows the
+instance as code moves). An `accepted_risk` dismissal re-opens on the next
+assessment, keeping its first `detectedAt` so it cannot revoke a requirement
+decision taken after it was first seen; accept a risk durably with a
+requirement exception. Code: `reconcileControlFindings`
+(`src/server/assessment/assessment-findings.ts`).
+
 **Source** code: `actions/ai-fix.ts`, `ai-fix.ts`, `verified-fix.ts`,
 `patch.ts`, `pr.ts`, `assessment.ts`.
 

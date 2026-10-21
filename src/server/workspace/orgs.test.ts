@@ -56,7 +56,7 @@ function seedOwnerOrg(
 ): Organization {
   return applyOrg(
     db,
-    createOrganization(db, { name, creatorUserId: userId, githubLogin }),
+    createOrganization({ name, creatorUserId: userId, githubLogin }),
   );
 }
 
@@ -123,7 +123,7 @@ describe("orgs", () => {
     seedOwnerOrg(db, "user-a", "alice");
     const team = applyOrg(
       db,
-      createOrganization(db, {
+      createOrganization({
         name: "Shared Team",
         creatorUserId: "user-a",
         githubLogin: "alice",
@@ -153,21 +153,21 @@ describe("orgs", () => {
     ).toBe(true);
   });
 
-  it("creates named team orgs with unique slugs", () => {
-    const db = emptyWorkspaceSlice();
-    const first = createOrganization(db, {
+  it("creates named team orgs with a slug base and one owner each", () => {
+    const first = createOrganization({
       name: "Acme",
       creatorUserId: "user-a",
       githubLogin: "alice",
     });
-    applyOrg(db, first);
-    const second = createOrganization(db, {
+    const second = createOrganization({
       name: "Acme",
       creatorUserId: "user-a",
       githubLogin: "alice",
     });
+    // Global uniqueness is allocated at insert (`insertOrganization`, test:db).
     expect(first.org.slug).toBe("acme");
-    expect(second.org.slug).toBe("acme-2");
+    expect(second.org.slug).toBe("acme");
+    expect(first.org.id).not.toBe(second.org.id);
     expect(
       [first.membership, second.membership].filter((m) => m.role === "owner"),
     ).toHaveLength(2);
@@ -307,7 +307,7 @@ describe("buildOrgMembershipIndex", () => {
     const orgA = seedOwnerOrg(db, "user-a", "alice");
     const orgB = applyOrg(
       db,
-      createOrganization(db, {
+      createOrganization({
         name: "Team",
         creatorUserId: "user-b",
         githubLogin: "bob",
@@ -384,16 +384,15 @@ describe("leaveOrgMember", () => {
 
 describe("createOrganization validation", () => {
   it("rejects blank names and logins", () => {
-    const db = emptyWorkspaceSlice();
     expect(() =>
-      createOrganization(db, {
+      createOrganization({
         name: "   ",
         creatorUserId: "user-a",
         githubLogin: "alice",
       }),
     ).toThrow(/name is required/);
     expect(() =>
-      createOrganization(db, {
+      createOrganization({
         name: "Acme",
         creatorUserId: "user-a",
         githubLogin: "  ",
@@ -532,7 +531,7 @@ describe("resolveActiveOrgId fallbacks", () => {
     const personal = seedOwnerOrg(db, "user-a", "alice");
     const team = applyOrg(
       db,
-      createOrganization(db, {
+      createOrganization({
         name: "Team",
         creatorUserId: "user-b",
         githubLogin: "bob",

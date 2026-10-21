@@ -40,4 +40,20 @@ describe("GET /evidence/report/html", () => {
     expect(response.headers.get("Content-Type")).toContain("text/html");
     await expect(response.text()).resolves.toBe("<html>audit</html>");
   });
+
+  it("hands the request's CSP nonce to the report script", async () => {
+    loadReportInput.mockResolvedValue({
+      ok: true,
+      project: { name: "Shop" },
+      view: "engineering",
+      input: {},
+    });
+    buildEngineeringReportHtml.mockReturnValue("<html>engineering</html>");
+    await GET(
+      new Request("http://localhost/evidence/report/html?view=engineering", {
+        headers: { "x-nonce": "abc123" },
+      }),
+    );
+    expect(buildEngineeringReportHtml).toHaveBeenCalledWith({}, "abc123");
+  });
 });

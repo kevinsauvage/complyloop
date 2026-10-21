@@ -12,10 +12,11 @@ export async function GET(request: Request): Promise<Response> {
   if (!context.ok) return context.response;
 
   const { view, input } = context;
+  const nonce = request.headers.get("x-nonce") ?? undefined;
   const html =
     view === "engineering"
-      ? buildEngineeringReportHtml(input)
-      : buildAuditReportHtml(input);
+      ? buildEngineeringReportHtml(input, nonce)
+      : buildAuditReportHtml(input, nonce);
 
   return new Response(html, {
     headers: {

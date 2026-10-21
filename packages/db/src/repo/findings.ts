@@ -12,6 +12,10 @@ import {
 
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import type { AssessmentEngine } from "@complyloop/analysis-core/contract/finding-types";
+import {
+  isOneOf,
+  zeroCounts,
+} from "@complyloop/analysis-core/contract/literal-sets";
 import { DEFAULT_PAGE_SIZE } from "@complyloop/analysis-core/contract/project-types";
 import {
   FINDING_STATUSES,
@@ -212,7 +216,7 @@ export async function countFindingsByStatusForList(
   projectId: string,
   filters: Pick<
     FindingsPageFilters,
-    "severity" | "controlId" | "engine" | "remediation"
+    "severity" | "controlId" | "controlIds" | "engine" | "remediation"
   > = {},
 ): Promise<Record<FindingStatus, number>> {
   const rows = await drizzle
@@ -220,12 +224,10 @@ export async function countFindingsByStatusForList(
     .from(findings)
     .where(findingsPageWhere(projectId, filters))
     .groupBy(findings.status);
-  const counts = Object.fromEntries(
-    FINDING_STATUSES.map((status) => [status, 0]),
-  ) as Record<FindingStatus, number>;
+  const counts = zeroCounts(FINDING_STATUSES);
   for (const row of rows) {
-    if ((FINDING_STATUSES as readonly string[]).includes(row.status)) {
-      counts[row.status as FindingStatus] = Number(row.value ?? 0);
+    if (isOneOf(FINDING_STATUSES, row.status)) {
+      counts[row.status] = Number(row.value ?? 0);
     }
   }
   return counts;
@@ -249,23 +251,24 @@ export async function listFindingsForProjects(
 
 /**
  * Status counts for a project. Served by `findings_project_status_idx`, so the
- * findings page can render tab totals without loading history rows.
+ * findings page can render tab totals without loading history rows. Pass the
+ * project's preset `controlIds` so totals match the scoped lists; omit them
+ * for the whole catalog.
  */
 export async function countFindingsByStatusForProject(
   drizzle: DrizzleDb,
   projectId: string,
+  controlIds?: readonly string[],
 ): Promise<Record<FindingStatus, number>> {
   const rows = await drizzle
     .select({ status: findings.status, value: count() })
     .from(findings)
-    .where(eq(findings.projectId, projectId))
+    .where(findingsPageWhere(projectId, controlIds ? { controlIds } : {}))
     .groupBy(findings.status);
-  const counts = Object.fromEntries(
-    FINDING_STATUSES.map((status) => [status, 0]),
-  ) as Record<FindingStatus, number>;
+  const counts = zeroCounts(FINDING_STATUSES);
   for (const row of rows) {
-    if ((FINDING_STATUSES as readonly string[]).includes(row.status)) {
-      counts[row.status as FindingStatus] = Number(row.value ?? 0);
+    if (isOneOf(FINDING_STATUSES, row.status)) {
+      counts[row.status] = Number(row.value ?? 0);
     }
   }
   return counts;

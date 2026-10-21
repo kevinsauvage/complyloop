@@ -83,9 +83,17 @@ export async function deleteEvidenceForOrg(
   await tx.execute(
     sql`SELECT set_config('complyloop.allow_evidence_erase', 'on', true)`,
   );
+  // A disconnected project's row is gone but its evidence is retained, so the
+  // org link survives only as `detail.orgId` on its connect/disconnect rows.
   const deleted = await tx.execute(sql`
     DELETE FROM evidence
     WHERE project_id IN (SELECT id FROM projects WHERE org_id = ${orgId})
+       OR project_id IN (
+         SELECT project_id FROM evidence
+         WHERE kind IN ('project_connected', 'project_disconnected')
+           AND detail->>'orgId' = ${orgId}
+           AND project_id IS NOT NULL
+       )
     RETURNING id
   `);
   return Array.isArray(deleted) ? deleted.length : 0;

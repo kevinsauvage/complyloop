@@ -122,8 +122,23 @@ test.describe("compliance loops", () => {
     await expect(
       page.getByRole("heading", { name: "Evidence trail" }),
     ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: /Print \/ Save as PDF/i }),
-    ).toBeVisible();
+    const printButton = page.getByRole("button", {
+      name: /Print \/ Save as PDF/i,
+    });
+    await expect(printButton).toBeVisible();
+    // The page CSP blocks inline handlers: prove the click really prints.
+    await page.evaluate(() => {
+      const target = window as Window & { printed?: boolean };
+      target.printed = false;
+      target.print = () => {
+        target.printed = true;
+      };
+    });
+    await printButton.click();
+    await expect
+      .poll(() =>
+        page.evaluate(() => (window as Window & { printed?: boolean }).printed),
+      )
+      .toBe(true);
   });
 });

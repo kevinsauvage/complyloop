@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { defaultConnectPreset } from "@complyloop/analysis-core/catalog/registry";
 import type { PortfolioProjectRow } from "@complyloop/db/repo/portfolio";
 
 import { testProject } from "@/test-fixtures/project";
@@ -75,8 +76,39 @@ describe("loadPortfolioView", () => {
     const { org, rows } = await loadPortfolioView();
 
     expect(org).toEqual({ id: orgId, name: "Acme" });
-    expect(listPortfolioForProjects).toHaveBeenCalledWith({}, [visible.id]);
+    expect(listPortfolioForProjects).toHaveBeenCalledWith(
+      {},
+      [visible.id],
+      expect.any(Map),
+    );
     expect(rows.map((entry) => entry.project.id)).toEqual([visible.id]);
+  });
+
+  it("counts each project within its preset scope", async () => {
+    const preset = defaultConnectPreset();
+    const scoped = testProject({
+      id: "p-scoped",
+      orgId,
+      defaultPresetId: preset.id,
+    });
+    getWorkspace.mockResolvedValue(
+      testWorkspace({
+        role: "member",
+        project: scoped,
+        db: { projects: [scoped] },
+      }),
+    );
+    listPortfolioForProjects.mockResolvedValue([row(scoped.id)]);
+
+    await loadPortfolioView();
+
+    const scopes = listPortfolioForProjects.mock.calls[0]?.[2] as ReadonlyMap<
+      string,
+      ReadonlySet<string>
+    >;
+    expect([...(scopes.get(scoped.id) ?? [])].sort()).toEqual(
+      [...preset.controlIds].sort(),
+    );
   });
 
   it("sorts by what needs attention, then by staleness", async () => {

@@ -149,10 +149,45 @@ export async function closeRuntimeBrowser(): Promise<void> {
 }
 
 /**
+ * The only variables the browser inherits. The worker process holds
+ * `DATABASE_URL` and the GitHub App private key, and Playwright passes the
+ * whole `process.env` to Chromium by default — a renderer exploit on an
+ * audited page must find no secrets to read.
+ */
+const BROWSER_ENV_KEYS = [
+  "PATH",
+  "HOME",
+  "TMPDIR",
+  "TMP",
+  "TEMP",
+  "LANG",
+  "LC_ALL",
+  "TZ",
+  "XDG_CONFIG_HOME",
+  "XDG_CACHE_HOME",
+  "FONTCONFIG_PATH",
+] as const;
+
+export function browserEnv(
+  source: Readonly<Record<string, string | undefined>> = process.env,
+): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const key of BROWSER_ENV_KEYS) {
+    const value = source[key];
+    if (value !== undefined) env[key] = value;
+  }
+  return env;
+}
+
+/**
  * Runtime audits run on the GitHub Actions executor, which installs its own
  * Playwright Chromium (`npm run playwright:install`); local dev does the same.
  * There is no serverless-browser path — nothing Vercel-reachable imports this
  * module (see `docs/vercel.md`).
+ *
+ * The sandbox is explicit because Playwright disables it by default on Linux;
+ * Ubuntu 24.04 runners must allow unprivileged user namespaces for it
+ * (`apparmor_restrict_unprivileged_userns=0`, set in the workflows).
  */
 async function getBrowser(): Promise<Browser> {
   if (sharedBrowserTainted) {
@@ -164,7 +199,11 @@ async function getBrowser(): Promise<Browser> {
   if (!sharedBrowser) {
     console.info("[progress] runtime browser launch started");
     const { chromium } = await import("playwright-core");
-    sharedBrowser = await chromium.launch({ headless: true });
+    sharedBrowser = await chromium.launch({
+      headless: true,
+      chromiumSandbox: true,
+      env: browserEnv(),
+    });
     process.on("exit", () => {
       sharedBrowser?.close().catch(() => {});
     });

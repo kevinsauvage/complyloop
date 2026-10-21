@@ -46,10 +46,13 @@ const EXCEPTION_REASON_OPTIONS = REQUIREMENT_EXCEPTION_REASONS.map((value) => ({
 export function RequirementRemediationActions({
   control,
   requirement,
+  exceptionLapsed,
   canRemediate,
 }: {
   control: Control;
   requirement: Requirement;
+  /** Temporary exception past its expiry, awaiting the next clearing pass. */
+  exceptionLapsed: boolean;
   canRemediate: boolean;
 }) {
   // Drives the conditional `required` on the expiry date (server enforces it
@@ -101,6 +104,7 @@ export function RequirementRemediationActions({
           <AlertTriangle className="size-4 text-status-review" aria-hidden />
           <AlertTitle className="text-status-review">
             Exception: {humanizeReasonSlug(requirement.exception.reason)}
+            {exceptionLapsed ? " (expired)" : null}
           </AlertTitle>
           <AlertDescription className="text-muted-foreground">
             {requirement.exception.note}
@@ -109,8 +113,11 @@ export function RequirementRemediationActions({
               {requirement.exception.expiresAt ? (
                 <>
                   {" "}
-                  — expires{" "}
+                  — {exceptionLapsed ? "expired" : "expires"}{" "}
                   <FormattedDateTime iso={requirement.exception.expiresAt} />
+                  {exceptionLapsed
+                    ? "; it no longer holds and is cleared on the next background check"
+                    : null}
                 </>
               ) : (
                 " — sticky until cleared (assessments will not overwrite)"

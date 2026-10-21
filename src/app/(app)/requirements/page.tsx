@@ -57,6 +57,7 @@ export default async function RequirementsPage({
     statusCounts,
     openFindingCounts,
     maskedFindingCounts,
+    lapsedExceptionControlIds,
     filtered,
     filteredControls,
     page,
@@ -174,6 +175,7 @@ export default async function RequirementsPage({
                   requirements={pageRequirements}
                   openFindingCounts={openFindingCounts}
                   maskedFindingCounts={maskedFindingCounts}
+                  lapsedExceptionControlIds={lapsedExceptionControlIds}
                   frameworkId={frameworkId}
                   canRemediate={caps.canRemediate}
                   project={project}

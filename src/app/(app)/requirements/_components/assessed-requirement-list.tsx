@@ -15,6 +15,7 @@ export function AssessedRequirementList({
   requirements,
   openFindingCounts,
   maskedFindingCounts,
+  lapsedExceptionControlIds,
   frameworkId,
   canRemediate,
   project,
@@ -23,6 +24,7 @@ export function AssessedRequirementList({
   requirements: Requirement[];
   openFindingCounts: Map<string, number>;
   maskedFindingCounts: Map<string, number>;
+  lapsedExceptionControlIds: ReadonlySet<string>;
   frameworkId: string;
   canRemediate: boolean;
   project: Pick<Project, "runtimeBaseUrl">;
@@ -56,6 +58,7 @@ export function AssessedRequirementList({
                 requirement={requirement}
                 openCount={openFindingCounts.get(control.id) ?? 0}
                 maskedOpenCount={maskedFindingCounts.get(control.id) ?? 0}
+                exceptionLapsed={lapsedExceptionControlIds.has(control.id)}
                 canRemediate={canRemediate}
                 project={project}
               />

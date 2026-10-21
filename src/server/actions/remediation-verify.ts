@@ -1,5 +1,6 @@
 "use server";
 
+import { after } from "next/server";
 import { z } from "zod";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
@@ -132,7 +133,6 @@ export async function verifyRemediationAction(
       refresh(...COMPLIANCE_LOOP_ROUTES);
       return message ?? "Fix verified by automated re-check.";
     }
-    const { after } = await import("next/server");
     after(() => scheduleAssessmentDrain());
     refresh(...COMPLIANCE_LOOP_ROUTES);
     return "Verification queued — the worker re-audits shortly. Track it on this finding.";

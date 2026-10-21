@@ -15,8 +15,6 @@
  */
 import "server-only";
 
-import { eq } from "drizzle-orm";
-
 import type { Alert } from "@complyloop/analysis-core/contract/entities";
 import type {
   Control,
@@ -32,8 +30,8 @@ import {
   applyAssessmentPayload,
   type ProjectSlice,
 } from "@complyloop/db/repo/apply";
+import { getAssessmentJobStatus } from "@complyloop/db/repo/assessment-jobs";
 import { insertEvidence } from "@complyloop/db/repo/evidence";
-import { assessmentJobs } from "@complyloop/db/schema";
 import { loadProjectRuntime } from "@complyloop/db/workspace-load";
 
 import type { AssessmentJobStage } from "@/core/assessment/assessment-jobs";
@@ -84,11 +82,7 @@ export async function applyAuthoritativeAssessment(input: {
     // still discard the run. Re-check the job status inside the transaction
     // (under the project lock) so the check and the writes are atomic —
     // throwing here rolls everything back and the worker reports `cancelled`.
-    const [jobRow] = await tx
-      .select({ status: assessmentJobs.status })
-      .from(assessmentJobs)
-      .where(eq(assessmentJobs.id, job.id));
-    if (!jobRow || jobRow.status !== "running") {
+    if ((await getAssessmentJobStatus(tx, job.id)) !== "running") {
       throw new AssessmentJobCancelledError(job.id);
     }
 

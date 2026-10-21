@@ -1,4 +1,5 @@
 import type { EvidenceKind } from "@complyloop/analysis-core/contract/entities";
+import { isOneOf } from "@complyloop/analysis-core/contract/literal-sets";
 
 import { EvidenceKindBadge } from "@/components/primitives/badges";
 import { HiddenCategoriesNote } from "@/components/primitives/filter-chip-list";
@@ -23,9 +24,7 @@ export function EvidenceKindChips({
     (kind) => (counts.get(kind) ?? 0) > 0,
   );
   const hiddenKindCount = [...counts.entries()].filter(
-    ([kind, count]) =>
-      count > 0 &&
-      !(EVIDENCE_KIND_FILTER_ORDER as readonly string[]).includes(kind),
+    ([kind, count]) => count > 0 && !isOneOf(EVIDENCE_KIND_FILTER_ORDER, kind),
   ).length;
   const zeroHidden = EVIDENCE_KIND_FILTER_ORDER.filter(
     (k) => (counts.get(k) ?? 0) === 0,

@@ -266,6 +266,37 @@ describe("runAssessment", () => {
     ).toBe(true);
   });
 
+  it("keeps a false-positive dismissal and a later requirement exception across re-assessment", async () => {
+    await assess();
+    const findingId = db.findings[0].id;
+    const decidedAt = new Date().toISOString();
+    db.findings[0].status = "dismissed";
+    db.findings[0].dismissal = {
+      reason: "false_positive",
+      note: "Decorative image",
+      at: decidedAt,
+    };
+    const requirement = db.requirements.find(
+      (candidate) => candidate.controlId === "ctl-img-alt",
+    );
+    if (!requirement) throw new Error("expected requirement");
+    requirement.determination = "human_review";
+    requirement.exception = {
+      reason: "accepted_risk",
+      note: "Reviewed with the design team",
+      at: decidedAt,
+    };
+
+    await assess();
+    expect(db.findings).toHaveLength(1);
+    expect(db.findings[0].id).toBe(findingId);
+    expect(db.findings[0].status).toBe("dismissed");
+    expect(
+      db.requirements.find((candidate) => candidate.controlId === "ctl-img-alt")
+        ?.exception?.note,
+    ).toBe("Reviewed with the design team");
+  });
+
   it("does not overwrite a human requirement exception on re-assessment", async () => {
     await assess();
     const requirement = db.requirements.find(

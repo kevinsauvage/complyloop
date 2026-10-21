@@ -25,7 +25,10 @@ import {
   summaryStat,
 } from "./primitives";
 
-export function buildAuditReportHtml(input: ReportInput): string {
+export function buildAuditReportHtml(
+  input: ReportInput,
+  scriptNonce?: string,
+): string {
   const model = composeAuditReport(input);
   const { statusCounts, totalRequirements, passRate, findingCounts } = model;
 
@@ -61,10 +64,13 @@ ${renderSummaryRows(statusCounts)}
     ),
   ].join("\n");
 
-  return reportShell(model.header, body);
+  return reportShell(model.header, body, scriptNonce);
 }
 
-export function buildEngineeringReportHtml(input: ReportInput): string {
+export function buildEngineeringReportHtml(
+  input: ReportInput,
+  scriptNonce?: string,
+): string {
   const model = composeEngineeringReport(input);
 
   const sections = [
@@ -85,7 +91,7 @@ export function buildEngineeringReportHtml(input: ReportInput): string {
     ),
   );
 
-  return reportShell(model.header, sections.join("\n"));
+  return reportShell(model.header, sections.join("\n"), scriptNonce);
 }
 
 function renderEngineeringFindings(model: EngineeringReportModel): string {

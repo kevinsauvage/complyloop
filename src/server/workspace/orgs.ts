@@ -10,7 +10,7 @@ import { listAlertsForProjects } from "@complyloop/db/repo/alerts";
 import { listAssessmentsForProjects } from "@complyloop/db/repo/assessments";
 import { listEvidenceForExportForProjects } from "@complyloop/db/repo/evidence";
 import { listFindingsForProjects } from "@complyloop/db/repo/findings";
-import { nextUniqueSlug, slugifyOrgName } from "@complyloop/db/repo/orgs";
+import { slugifyOrgName } from "@complyloop/db/repo/orgs";
 import { listRemediationsForProjects } from "@complyloop/db/repo/remediations";
 import { listRequirementsForProjects } from "@complyloop/db/repo/requirements";
 import type { WorkspaceSlice } from "@complyloop/db/types";
@@ -21,58 +21,37 @@ import {
   roleInOrg,
 } from "./org-queries";
 
-/** Picks an unused slug from a read-only org list (does not mutate). */
-function uniqueOrgSlug(
-  db: Pick<WorkspaceSlice, "organizations">,
-  base: string,
-): string {
-  return nextUniqueSlug(base, new Set(db.organizations.map((o) => o.slug)));
-}
-
 export interface CreateOrganizationResult {
   org: Organization;
   membership: OrgMembership;
 }
 
-/** Builds org + owner membership without mutating `db`. */
-export function createOrganization(
-  db: Pick<WorkspaceSlice, "organizations">,
-  input: { name: string; creatorUserId: string; githubLogin: string },
-): CreateOrganizationResult {
+/**
+ * Builds org + owner membership. The slug is only a base: `insertOrganization`
+ * makes it unique across every tenant, which this caller cannot see.
+ */
+export function createOrganization(input: {
+  name: string;
+  creatorUserId: string;
+  githubLogin: string;
+}): CreateOrganizationResult {
   const name = input.name.trim();
   if (!name) throw new PublicError("Organization name is required.");
   const login = input.githubLogin.trim();
   if (!login) throw new PublicError("GitHub login is required.");
 
-  return buildOrgWithOwner(db, {
-    name,
-    slugBase: name,
-    ownerUserId: input.creatorUserId,
-    githubLogin: login,
-  });
-}
-
-function buildOrgWithOwner(
-  db: Pick<WorkspaceSlice, "organizations">,
-  input: {
-    name: string;
-    slugBase: string;
-    ownerUserId: string;
-    githubLogin: string;
-  },
-): CreateOrganizationResult {
   const org: Organization = {
     id: crypto.randomUUID(),
-    name: input.name,
-    slug: uniqueOrgSlug(db, slugifyOrgName(input.slugBase)),
+    name,
+    slug: slugifyOrgName(name),
     createdAt: new Date().toISOString(),
   };
   const membership: OrgMembership = {
     id: crypto.randomUUID(),
     orgId: org.id,
     role: "owner",
-    userId: input.ownerUserId,
-    githubLogin: input.githubLogin,
+    userId: input.creatorUserId,
+    githubLogin: login,
     createdAt: new Date().toISOString(),
   };
   return { org, membership };

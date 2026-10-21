@@ -492,10 +492,11 @@ describe("cancelAssessmentJobAction", () => {
     const result = await cancelAssessmentJobAction(initialActionState, form);
 
     expect(result).toEqual({ ok: true, message: "Assessment cancelled." });
-    expect(cancelAssessmentJob).toHaveBeenCalledWith({
-      projectId: "p1",
-      jobId: "job-1",
-    });
+    // Runs on the action's transaction, atomically with its evidence.
+    expect(cancelAssessmentJob).toHaveBeenCalledWith(
+      { projectId: "p1", jobId: "job-1" },
+      expect.anything(),
+    );
     expect(
       recordedWrites()?.evidence?.some(
         (row) =>

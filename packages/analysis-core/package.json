@@ -52,8 +52,5 @@
         "default": "./dist/*.js"
       }
     }
-  },
-  "devDependencies": {
-    "@typescript-eslint/parser": "^8.70.1"
   }
 }

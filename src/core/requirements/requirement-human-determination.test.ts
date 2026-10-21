@@ -4,6 +4,7 @@ import type { Requirement } from "@complyloop/analysis-core/contract/entities";
 
 import {
   clearRequirementHumanDetermination,
+  exceptionHasLapsed,
   normalizeExpiryInstant,
   setRequirementHumanDetermination,
 } from "./requirement-human-determination";
@@ -18,7 +19,7 @@ const base: Requirement = {
 };
 
 describe("setRequirementHumanDetermination", () => {
-  it("sets exception and clears humanPass", () => {
+  it("sets exception and clears humanPass without keeping the pass's status", () => {
     const withPass: Requirement = {
       ...base,
       humanPass: { note: "ok", at: "2026-01-01T00:00:00.000Z" },
@@ -37,7 +38,20 @@ describe("setRequirementHumanDetermination", () => {
     expect(updated.exception?.reason).toBe("accepted_risk");
     expect(updated.humanPass).toBeUndefined();
     expect(updated.determination).toBe("human_review");
-    expect(updated.status).toBe("passed");
+    // Nothing backs `passed` once the human pass is gone.
+    expect(updated.status).toBe("unable_to_verify");
+  });
+
+  it("keeps the current status when an exception is set without a prior human pass", () => {
+    const { updated } = setRequirementHumanDetermination(base, {
+      kind: "exception",
+      exception: {
+        reason: "accepted_risk",
+        note: "risk noted",
+        at: "2026-02-01T00:00:00.000Z",
+      },
+    });
+    expect(updated.status).toBe("failed");
   });
 
   it("sets not_applicable status when requested", () => {
@@ -133,5 +147,44 @@ describe("exhaustive switches", () => {
     expect(() =>
       clearRequirementHumanDetermination(base, "bogus" as never),
     ).toThrow(/Unhandled clear field/);
+  });
+});
+
+describe("exceptionHasLapsed", () => {
+  const now = Date.parse("2026-06-01T12:00:00.000Z");
+  const temporary = (expiresAt?: string) => ({
+    reason: "temporary" as const,
+    note: "fix scheduled",
+    at: "2026-05-01T00:00:00.000Z",
+    expiresAt,
+  });
+
+  it("is true once a temporary exception is past its expiry", () => {
+    expect(exceptionHasLapsed(temporary("2026-06-01T11:59:59.999Z"), now)).toBe(
+      true,
+    );
+    expect(exceptionHasLapsed(temporary("2026-06-01T12:00:00.001Z"), now)).toBe(
+      false,
+    );
+  });
+
+  it("treats an unparseable expiry as lapsed", () => {
+    expect(exceptionHasLapsed(temporary("not a date"), now)).toBe(true);
+  });
+
+  it("never lapses an exception without an expiry or of another reason", () => {
+    expect(exceptionHasLapsed(undefined, now)).toBe(false);
+    expect(exceptionHasLapsed(temporary(undefined), now)).toBe(false);
+    expect(
+      exceptionHasLapsed(
+        {
+          reason: "accepted_risk",
+          note: "accepted",
+          at: "2026-05-01T00:00:00.000Z",
+          expiresAt: "2026-01-01T00:00:00.000Z",
+        },
+        now,
+      ),
+    ).toBe(false);
   });
 });

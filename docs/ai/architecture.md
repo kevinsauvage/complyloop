@@ -196,8 +196,13 @@ Chain per domain. `exists` = shipped, `evolves` = shipped but domain-blind today
     (`src/server/workspace/orgs.ts`); PR evidence reads via the reporting loader.
   - Connection acquisition lives in `workspace/*`, `project-runtime.ts`,
     reporting loaders, and job/infra paths. SQL lives in `packages/db/repo/*`
-    (rate-limit buckets, GitHub tokens, webhook deliveries each have a repo
-    module — server files keep only policy/cryptography).
+    (rate-limit buckets, GitHub tokens, webhook deliveries and the assessment
+    job queue each have a repo module — server files keep only
+    policy/cryptography). The only SQL outside it is the health probe.
+  - Webhook-owned project fields (`lastDeployment`, `github.defaultBranch`)
+    are written by deliveries without the project lock (a delivery must answer
+    in seconds); `updateProject` keeps their stored values so a concurrent
+    settings save cannot roll them back.
   - Org writes return `{ result, insertOrgs, upsertMemberships,
 deleteMembershipIds, deleteOrgIds }` — explicit rows, no in-memory slice diff.
   - Connect/disconnect uses `withConnectWrite` (tenancy load, org lock, no
@@ -266,7 +271,9 @@ deleteMembershipIds, deleteOrgIds }` — explicit rows, no in-memory slice diff.
 - **Retention/erasure** — evidence is append-only (trigger) with one gated
   exception: org deletion erases tenant evidence via `deleteEvidenceForOrg`
   (transaction-scoped `complyloop.allow_evidence_erase` flag). Project
-  disconnect keeps retention.
+  disconnect keeps retention; the org link of a disconnected project's
+  evidence survives only as `detail.orgId` on its `project_connected` /
+  `project_disconnected` rows, which org deletion erases by.
   - Pipeline bookkeeping is pruned on the worker tick by
     `repo/retention.ts` (`prunePipelineRetention`): terminal
     (`succeeded`/`failed`/`cancelled`) `assessment_jobs` older than 30 days,
@@ -295,8 +302,10 @@ deleteMembershipIds, deleteOrgIds }` — explicit rows, no in-memory slice diff.
   status, never the finding.
 - **Webhooks** — same repo may be connected in several orgs: deliveries
   resolve via `findProjectsByGithubFullName` (all matches, id order) pinned
-  by installation id; ambiguous or foreign-installation deliveries are
-  rejected, never run against an arbitrary row.
+  by installation id, and fan out to every project bound to that
+  installation (one job each, idempotency key `${deliveryId}:${projectId}`);
+  installation-less deliveries for several projects and foreign-installation
+  deliveries are rejected, never run against an arbitrary row.
 - **Migrations** — `scripts/vercel-build.mjs` applies `drizzle/*.sql` on
   production deploys only (`VERCEL_ENV=production` or unset). Preview and
   development builds skip `db:migrate`: a preview pointed at a shared/staging
@@ -439,8 +448,10 @@ list → runtime map if needed → catalog `checkId` → `guidance.ts`. Tests:
 ### Status derivation (`contract/requirement-status.ts`)
 
 1. Sticky human decisions (held until cleared; temp exceptions expire via
-   `clearExpiredExceptions`; an open violation detected after the decision
-   re-arms it — the decision is revoked with evidence and status re-derives).
+   `clearExpiredExceptions` on every assessment and on the worker tick for
+   quiet projects (`exception-expiry.ts`), and the UI marks a lapsed one
+   until then; an open violation detected after the decision re-arms it —
+   the decision is revoked with evidence and status re-derives).
 2. Open findings → `failed` / `needs_review`.
 3. Applicability (runtime absence) → `not_applicable`.
 4. Authority gates → `unable_to_verify` or `passed`.

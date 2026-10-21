@@ -40,9 +40,9 @@ export interface AssessmentJobBatchOptions {
    */
   deadlineAt?: number;
   /**
-   * Run the per-tick prunes (rate-limit buckets, webhook deliveries, pipeline
-   * retention). A drain that loops batches sets `prune: false` after the
-   * first, so one drain prunes once.
+   * Run the per-tick housekeeping (rate-limit buckets, webhook deliveries,
+   * pipeline retention, lapsed temporary exceptions). A drain that loops
+   * batches sets `prune: false` after the first, so one drain prunes once.
    */
   prune?: boolean;
 }
@@ -119,6 +119,17 @@ export async function runAssessmentJobBatch(
     } catch (error) {
       reportWarning("Batch prune failed.", {
         code: "batch_prune_failed",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+    // Separate from the prunes: a failed prune must not keep a lapsed
+    // exception in force. Dynamic import for the same static-graph reason.
+    try {
+      const { expireLapsedExceptions } = await import("./exception-expiry");
+      await expireLapsedExceptions();
+    } catch (error) {
+      reportWarning("Lapsed exception sweep failed.", {
+        code: "exception_expiry_failed",
         error: error instanceof Error ? error.message : String(error),
       });
     }

@@ -94,11 +94,18 @@ async function isPersonalOrgProvisioned(
   return row?.owned === true && row?.unclaimed !== true;
 }
 
+/**
+ * Inserts an org, treating `org.slug` as a base: `organizations_slug_uidx` is
+ * global, and a caller only sees its own tenancy, so the unique slug is
+ * allocated here against the whole table. Returns the org as persisted.
+ */
 export async function insertOrganization(
   tx: DrizzleDb,
   org: Organization,
-): Promise<void> {
-  await tx.insert(organizations).values(organizationToRow(org));
+): Promise<Organization> {
+  const persisted = { ...org, slug: await allocateOrgSlug(tx, org.slug) };
+  await tx.insert(organizations).values(organizationToRow(persisted));
+  return persisted;
 }
 
 export async function deleteOrganizationRow(
@@ -328,12 +335,11 @@ export async function provisionPersonalOrg(
       }
 
       const label = githubLogin.trim() || userId.slice(0, 8);
-      const slug = await allocateOrgSlug(tx, slugifyOrgName(label));
       const now = new Date().toISOString();
       const org: Organization = {
         id: crypto.randomUUID(),
         name: `${label}'s workspace`,
-        slug,
+        slug: slugifyOrgName(label),
         createdAt: now,
       };
       const membership: OrgMembership = {

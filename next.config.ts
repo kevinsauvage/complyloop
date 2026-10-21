@@ -46,9 +46,9 @@ const nextConfig: NextConfig = {
   },
   // NOTE: `cacheComponents` is intentionally off. Enabling it is not a
   // rename-only change — it requires adopting the Cache Components model
-  // (`use cache` + `<Suspense>` around every uncached/dynamic read). All
-  // authenticated routes here are `force-dynamic` today; see the Caching
-  // guide before opting in.
+  // (`use cache` + `<Suspense>` around every uncached/dynamic read). The
+  // authenticated routes are dynamic from usage (cookies/auth), with no
+  // `force-dynamic` export; see the Caching guide before opting in.
   // Runtime analysis engines use dynamic requires Playwright/Node APIs; keep them
   // out of the Turbopack graph (same rationale as disk-loaded axe.min.js).
   // `isomorphic-git` is a serverless-safe pure-JS path — same treatment so

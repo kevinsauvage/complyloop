@@ -5,6 +5,7 @@ import type { OrgMembership } from "@complyloop/analysis-core/contract/project-t
 
 import { closeDrizzle, getDrizzle } from "../postgres.ts";
 import {
+  insertOrganization,
   listOrgIdsForUser,
   provisionPersonalOrg,
   upsertMembership,
@@ -31,6 +32,31 @@ function invite(
 describe.skipIf(!enabled)("membership and provisioning concurrency", () => {
   afterAll(async () => {
     await closeDrizzle();
+  });
+
+  it("allocates a free slug when another tenant already owns the base", async () => {
+    const drizzle = await getDrizzle();
+    const base = `taken-${Date.now()}`;
+    const foreignId = `org-foreign-${base}`;
+    const ownId = `org-own-${base}`;
+    await drizzle.execute(sql`
+      INSERT INTO organizations (id, slug, payload)
+      VALUES (${foreignId}, ${base}, '{}'::jsonb)
+    `);
+
+    try {
+      const persisted = await insertOrganization(drizzle, {
+        id: ownId,
+        name: "Taken",
+        slug: base,
+        createdAt: "2026-01-01T00:00:00.000Z",
+      });
+      expect(persisted.slug).toBe(`${base}-2`);
+    } finally {
+      await drizzle.execute(
+        sql`DELETE FROM organizations WHERE id IN (${foreignId}, ${ownId})`,
+      );
+    }
   });
 
   it("converges concurrent invites for one login instead of 500ing", async () => {

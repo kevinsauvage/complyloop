@@ -57,4 +57,36 @@ describe("FindingQueueNav", () => {
     expect(push).toHaveBeenCalledWith(expect.stringContaining("/findings/f0"));
     expect(screen.getByText(/Moving to finding 1 of 3/i)).toBeInTheDocument();
   });
+
+  it("lets the viewer turn the single-key shortcuts off (WCAG 2.1.4)", async () => {
+    const user = userEvent.setup();
+    render(
+      <FindingQueueNav
+        listParams={{ tab: "open", page: 1 }}
+        prevId="f0"
+        nextId="f2"
+        index={1}
+        total={3}
+      />,
+    );
+    const toggle = screen.getByRole("checkbox", {
+      name: /keyboard shortcuts/i,
+    });
+    expect(toggle).toBeChecked();
+
+    await user.click(toggle);
+    expect(toggle).not.toBeChecked();
+    expect(
+      window.localStorage.getItem("complyloop:finding-queue-shortcuts"),
+    ).toBe("off");
+    // Keys typed into a form control never navigate: leave the checkbox first.
+    toggle.blur();
+    await user.keyboard("j");
+    expect(push).not.toHaveBeenCalled();
+
+    await user.click(toggle);
+    toggle.blur();
+    await user.keyboard("j");
+    expect(push).toHaveBeenCalledWith(expect.stringContaining("/findings/f2"));
+  });
 });

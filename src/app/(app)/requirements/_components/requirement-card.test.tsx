@@ -57,6 +57,7 @@ describe("RequirementCard", () => {
       requirement: requirement(),
       openCount: 3,
       maskedOpenCount: 0,
+      exceptionLapsed: false,
       canRemediate: false,
       project: { runtimeBaseUrl: undefined },
     });
@@ -74,6 +75,7 @@ describe("RequirementCard", () => {
       requirement: requirement({ status: "passed" }),
       openCount: 0,
       maskedOpenCount: 0,
+      exceptionLapsed: false,
       canRemediate: false,
       project: { runtimeBaseUrl: undefined },
     });
@@ -88,6 +90,7 @@ describe("RequirementCard", () => {
       requirement: requirement(),
       openCount: 2,
       maskedOpenCount: 0,
+      exceptionLapsed: false,
       canRemediate: false,
       project: { runtimeBaseUrl: undefined },
     });
@@ -117,6 +120,7 @@ describe("RequirementCard", () => {
       }),
       openCount: 0,
       maskedOpenCount: 0,
+      exceptionLapsed: false,
       canRemediate: false,
       project: { runtimeBaseUrl: undefined },
     });

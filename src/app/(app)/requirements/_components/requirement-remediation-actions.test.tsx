@@ -38,6 +38,7 @@ describe("RequirementRemediationActions", () => {
       <RequirementRemediationActions
         control={testControl({ id: "ctl-1", checkId: null })}
         requirement={baseRequirement()}
+        exceptionLapsed={false}
         canRemediate={false}
       />,
     );
@@ -52,6 +53,7 @@ describe("RequirementRemediationActions", () => {
       <RequirementRemediationActions
         control={testControl({ id: "ctl-1", checkId: null })}
         requirement={baseRequirement()}
+        exceptionLapsed={false}
         canRemediate
       />,
     );
@@ -76,6 +78,7 @@ describe("RequirementRemediationActions", () => {
             at: "2026-01-02T00:00:00.000Z",
           },
         })}
+        exceptionLapsed={false}
         canRemediate
       />,
     );
@@ -87,5 +90,27 @@ describe("RequirementRemediationActions", () => {
         name: /clear human pass/i,
       }),
     ).toBeInTheDocument();
+  });
+
+  it("marks a temporary exception past its expiry as expired", () => {
+    renderWithUiProviders(
+      <RequirementRemediationActions
+        control={testControl({ id: "ctl-1" })}
+        requirement={baseRequirement({
+          determination: "human_review",
+          exception: {
+            reason: "temporary",
+            note: "Fix scheduled",
+            at: "2026-01-02T00:00:00.000Z",
+            expiresAt: "2026-01-10T23:59:59.999Z",
+          },
+        })}
+        exceptionLapsed
+        canRemediate={false}
+      />,
+    );
+
+    expect(screen.getByText(/\(expired\)/)).toBeInTheDocument();
+    expect(screen.getByText(/no longer holds/i)).toBeInTheDocument();
   });
 });

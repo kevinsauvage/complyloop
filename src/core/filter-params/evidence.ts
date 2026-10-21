@@ -3,6 +3,7 @@ import type {
   EvidenceRecord,
   Requirement,
 } from "@complyloop/analysis-core/contract/entities";
+import { isOneOf } from "@complyloop/analysis-core/contract/literal-sets";
 
 import { href } from "./href";
 import { firstParam, trimmedQuery } from "./params";
@@ -29,10 +30,7 @@ export function parseEvidenceKindParam(
   raw: string | string[] | undefined,
 ): EvidenceKind | undefined {
   const value = firstParam(raw);
-  if (!value) return undefined;
-  return (EVIDENCE_KIND_FILTER_ORDER as readonly string[]).includes(value)
-    ? (value as EvidenceKind)
-    : undefined;
+  return isOneOf(EVIDENCE_KIND_FILTER_ORDER, value) ? value : undefined;
 }
 
 /** Trimmed evidence search query (summary substring), capped at 100 chars. */

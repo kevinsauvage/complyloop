@@ -15,7 +15,6 @@ import {
   type Finding,
   type Requirement,
 } from "@complyloop/analysis-core/contract/entities";
-import { TEMPORARY_EXCEPTION_REASON } from "@complyloop/analysis-core/contract/entities";
 import {
   type Control,
   type Project,
@@ -31,7 +30,10 @@ import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
 import { listRequirementsForControls } from "@complyloop/db/repo/requirements";
 
 import { stickyDecisionAt } from "@/core/requirements/masked-findings";
-import { clearRequirementHumanDetermination } from "@/core/requirements/requirement-human-determination";
+import {
+  clearRequirementHumanDetermination,
+  exceptionHasLapsed,
+} from "@/core/requirements/requirement-human-determination";
 
 import type { ProjectRows } from "../workspace/project-rows";
 import { controlsInScope } from "../workspace/project-scope";
@@ -70,14 +72,7 @@ export function clearExpiredExceptions(
   for (const original of requirements) {
     if (original.projectId !== projectId) continue;
     const exception = original.exception;
-    if (
-      !exception ||
-      exception.reason !== TEMPORARY_EXCEPTION_REASON ||
-      !exception.expiresAt
-    ) {
-      continue;
-    }
-    if (new Date(exception.expiresAt).getTime() > now.getTime()) continue;
+    if (!exception || !exceptionHasLapsed(exception, now.getTime())) continue;
 
     const control = controlById.get(original.controlId);
     const requirement: Requirement = {

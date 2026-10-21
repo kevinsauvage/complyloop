@@ -1,3 +1,4 @@
+import { isOneOf } from "@complyloop/analysis-core/contract/literal-sets";
 import {
   ORG_ROLES,
   type OrgMembership,
@@ -39,7 +40,7 @@ export function roleHasPermission(
 }
 
 export function isOrgRole(value: unknown): value is OrgRole {
-  return typeof value === "string" && ORG_ROLES.some((role) => role === value);
+  return isOneOf(ORG_ROLES, value);
 }
 
 export function canInOrg(

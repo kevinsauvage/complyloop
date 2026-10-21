@@ -3,7 +3,10 @@ import { ReasonNoteFields } from "@/components/forms/reason-note-fields";
 const DISMISSAL_REASON_OPTIONS = [
   { value: "false_positive", label: "False positive" },
   { value: "not_applicable", label: "Not applicable" },
-  { value: "accepted_risk", label: "Accepted risk" },
+  {
+    value: "accepted_risk",
+    label: "Accepted risk (re-opens on the next assessment)",
+  },
 ] as const;
 
 export function DismissFindingFields({

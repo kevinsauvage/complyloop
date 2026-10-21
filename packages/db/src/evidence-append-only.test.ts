@@ -79,6 +79,54 @@ describe.skipIf(!enabled)("evidence append-only DB trigger", () => {
       await drizzle.execute(sql`DELETE FROM organizations WHERE id = ${orgId}`);
     }
   });
+
+  it("erases evidence of a project disconnected before the org was deleted", async () => {
+    const drizzle = await getDrizzle();
+    const suffix = `${Date.now()}-erase-disconnected`;
+    const orgId = `org-erase-${suffix}`;
+    const otherOrgId = `org-keep-${suffix}`;
+    const goneProjectId = `proj-gone-${suffix}`;
+    const otherProjectId = `proj-other-${suffix}`;
+    await drizzle.execute(sql`
+      INSERT INTO organizations (id, slug, payload)
+      VALUES (${orgId}, ${`slug-erase-${suffix}`}, '{}'::jsonb)
+    `);
+    // The project row is already gone (disconnect cascades it); only its
+    // evidence remains, linked to the org through the disconnect detail.
+    await drizzle.execute(sql`
+      INSERT INTO evidence (id, at, kind, summary, project_id)
+      VALUES (${`evidence-run-${suffix}`}, NOW(), 'assessment_completed', 'erase-test', ${goneProjectId})
+    `);
+    await drizzle.execute(sql`
+      INSERT INTO evidence (id, at, kind, summary, project_id, detail)
+      VALUES (${`evidence-disconnect-${suffix}`}, NOW(), 'project_disconnected', 'erase-test', ${goneProjectId},
+        ${JSON.stringify({ orgId })}::jsonb)
+    `);
+    // Another org's disconnected project must survive.
+    await drizzle.execute(sql`
+      INSERT INTO evidence (id, at, kind, summary, project_id, detail)
+      VALUES (${`evidence-other-${suffix}`}, NOW(), 'project_disconnected', 'keep-test', ${otherProjectId},
+        ${JSON.stringify({ orgId: otherOrgId })}::jsonb)
+    `);
+
+    try {
+      const erased = await drizzle.transaction(async (tx) => {
+        return deleteEvidenceForOrg(tx, orgId);
+      });
+      expect(erased).toBe(2);
+
+      const leftover = await drizzle.execute(sql`
+        SELECT id FROM evidence WHERE project_id = ${goneProjectId}
+      `);
+      expect(leftover.length).toBe(0);
+      const kept = await drizzle.execute(sql`
+        SELECT id FROM evidence WHERE project_id = ${otherProjectId}
+      `);
+      expect(kept.length).toBe(1);
+    } finally {
+      await drizzle.execute(sql`DELETE FROM organizations WHERE id = ${orgId}`);
+    }
+  });
 });
 
 /** postgres.js surfaces DB failures as generic `Error("Failed query:…")` with the real PostgresError as `cause`. */

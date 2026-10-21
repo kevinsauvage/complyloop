@@ -1,27 +1,34 @@
 import "server-only";
 
 import {
-  and,
-  asc,
-  count,
-  desc,
-  eq,
-  gte,
-  inArray,
-  lt,
-  lte,
-  sql,
-} from "drizzle-orm";
-
-import {
   ASSESSMENT_JOB_STATUSES,
   ASSESSMENT_JOB_TRIGGERS,
   type AssessmentJobStatus,
   type AssessmentJobTrigger,
 } from "@complyloop/analysis-core/contract/assessment-jobs";
-import { isUniqueViolation } from "@complyloop/db/pg-errors";
+import { isOneOf } from "@complyloop/analysis-core/contract/literal-sets";
 import { type DrizzleDb, getDrizzle } from "@complyloop/db/postgres";
-import { assessmentJobs } from "@complyloop/db/schema";
+import {
+  type AssessmentJobLease,
+  type AssessmentJobRow,
+  cancelActiveAssessmentJob,
+  claimNextAssessmentJobRow,
+  countActiveAssessmentJobs,
+  failAssessmentJobTerminally,
+  findAssessmentJobByIdempotencyKey,
+  findNewestAssessmentJob,
+  findOldestQueuedAssessmentJob,
+  insertAssessmentJob,
+  listActiveAssessmentJobs,
+  listRecentAssessmentJobs,
+  oldestQueuedAssessmentJobAge,
+  recoverExpiredAssessmentJobLeases,
+  refreshQueuedAssessmentJob,
+  releaseRunningAssessmentJobs,
+  renewAssessmentJobLease,
+  settleAssessmentJob,
+  stampAssessmentJobStage,
+} from "@complyloop/db/repo/assessment-jobs";
 
 import {
   type AssessmentJob,
@@ -49,8 +56,6 @@ export class AssessmentJobCancelledError extends Error {
   }
 }
 
-type AssessmentJobRow = typeof assessmentJobs.$inferSelect;
-
 const DEFAULT_MAX_ATTEMPTS = 3;
 const DEFAULT_LEASE_MS = 30 * 60_000;
 const RETRY_BASE_MS = 30_000;
@@ -63,17 +68,17 @@ const RETRY_BASE_MS = 30_000;
 export const ASSESSMENT_JOB_HEARTBEAT_MS = 5 * 60_000;
 
 function parseJobStatus(value: string): AssessmentJobStatus {
-  if (!(ASSESSMENT_JOB_STATUSES as ReadonlyArray<string>).includes(value)) {
+  if (!isOneOf(ASSESSMENT_JOB_STATUSES, value)) {
     throw new Error(`Unexpected assessment job status: ${value}`);
   }
-  return value as AssessmentJobStatus;
+  return value;
 }
 
 function parseJobTrigger(value: string): AssessmentJobTrigger {
-  if (!(ASSESSMENT_JOB_TRIGGERS as ReadonlyArray<string>).includes(value)) {
+  if (!isOneOf(ASSESSMENT_JOB_TRIGGERS, value)) {
     throw new Error(`Unexpected assessment job trigger: ${value}`);
   }
-  return value as AssessmentJobTrigger;
+  return value;
 }
 
 function parseJobPayload(value: unknown): AssessmentJobPayload {
@@ -121,33 +126,27 @@ function jobFromRow(row: AssessmentJobRow): AssessmentJob {
   };
 }
 
+/** Lease guard for complete/fail/heartbeat writes (claim-time pair). */
+function leaseOf(job: {
+  id: string;
+  leaseExpiresAt?: string;
+  startedAt?: string;
+}): AssessmentJobLease | null {
+  return job.leaseExpiresAt && job.startedAt
+    ? {
+        id: job.id,
+        leaseExpiresAt: job.leaseExpiresAt,
+        startedAt: job.startedAt,
+      }
+    : null;
+}
+
 export interface EnqueueAssessmentJobInput {
   projectId: string;
   trigger: AssessmentJobTrigger;
   requestedByUserId?: string | null;
   idempotencyKey?: string;
   payload?: AssessmentJobPayload;
-}
-
-function newAssessmentJobRow(
-  id: string,
-  input: EnqueueAssessmentJobInput,
-  now: string,
-): typeof assessmentJobs.$inferInsert {
-  return {
-    id,
-    projectId: input.projectId,
-    status: "queued",
-    trigger: input.trigger,
-    requestedByUserId: input.requestedByUserId ?? null,
-    idempotencyKey: input.idempotencyKey ?? null,
-    payload: { ...(input.payload ?? {}) },
-    attempts: 0,
-    maxAttempts: DEFAULT_MAX_ATTEMPTS,
-    availableAt: now,
-    createdAt: now,
-    updatedAt: now,
-  };
 }
 
 /**
@@ -160,11 +159,10 @@ export async function enqueueAssessmentJob(
 ): Promise<AssessmentJob> {
   const drizzle = db ?? (await getDrizzle());
   if (input.idempotencyKey) {
-    const [existing] = await drizzle
-      .select()
-      .from(assessmentJobs)
-      .where(eq(assessmentJobs.idempotencyKey, input.idempotencyKey))
-      .limit(1);
+    const existing = await findAssessmentJobByIdempotencyKey(
+      drizzle,
+      input.idempotencyKey,
+    );
     if (existing) return jobFromRow(existing);
   }
 
@@ -174,18 +172,11 @@ export async function enqueueAssessmentJob(
   // A still-queued webhook job is refreshed in place (newest ref wins);
   // running jobs and non-webhook triggers are untouched.
   if (input.trigger === "webhook") {
-    const [pending] = await drizzle
-      .select()
-      .from(assessmentJobs)
-      .where(
-        and(
-          eq(assessmentJobs.projectId, input.projectId),
-          eq(assessmentJobs.status, "queued"),
-          eq(assessmentJobs.trigger, "webhook"),
-        ),
-      )
-      .orderBy(asc(assessmentJobs.createdAt))
-      .limit(1);
+    const pending = await findOldestQueuedAssessmentJob(
+      drizzle,
+      input.projectId,
+      "webhook",
+    );
     if (pending) {
       const pendingPayload = parseJobPayload(pending.payload);
       const oldRef = pendingPayload.ref;
@@ -208,20 +199,11 @@ export async function enqueueAssessmentJob(
       ) {
         delete mergedPayload.runtimeTarget;
       }
-      const [updated] = await drizzle
-        .update(assessmentJobs)
-        .set({
-          payload: mergedPayload,
-          availableAt: now,
-          updatedAt: now,
-        })
-        .where(
-          and(
-            eq(assessmentJobs.id, pending.id),
-            eq(assessmentJobs.status, "queued"),
-          ),
-        )
-        .returning();
+      const updated = await refreshQueuedAssessmentJob(drizzle, pending.id, {
+        payload: mergedPayload,
+        availableAt: now,
+        updatedAt: now,
+      });
       // Empty when a worker claimed the row concurrently — fall through and
       // insert so the delivery is not silently dropped.
       if (updated) return jobFromRow(updated);
@@ -234,90 +216,38 @@ export async function enqueueAssessmentJob(
     // behind the first via the serial-per-project claim — return the pending
     // manual job instead. Running jobs are untouched (the action refuses
     // those with an "already running" message); terminal rows never match.
-    const [pendingManual] = await drizzle
-      .select()
-      .from(assessmentJobs)
-      .where(
-        and(
-          eq(assessmentJobs.projectId, input.projectId),
-          eq(assessmentJobs.status, "queued"),
-          eq(assessmentJobs.trigger, "manual"),
-        ),
-      )
-      .orderBy(asc(assessmentJobs.createdAt))
-      .limit(1);
+    const pendingManual = await findOldestQueuedAssessmentJob(
+      drizzle,
+      input.projectId,
+      "manual",
+    );
     if (pendingManual) {
-      const [updated] = await drizzle
-        .update(assessmentJobs)
-        .set({ availableAt: now, updatedAt: now })
-        .where(
-          and(
-            eq(assessmentJobs.id, pendingManual.id),
-            eq(assessmentJobs.status, "queued"),
-          ),
-        )
-        .returning();
+      const updated = await refreshQueuedAssessmentJob(
+        drizzle,
+        pendingManual.id,
+        { availableAt: now, updatedAt: now },
+      );
       // Empty when a worker claimed the row concurrently — fall through and
       // insert so the request is not silently dropped.
       if (updated) return jobFromRow(updated);
     }
   }
-  try {
-    const [created] = await drizzle
-      .insert(assessmentJobs)
-      .values(newAssessmentJobRow(crypto.randomUUID(), input, now))
-      .returning();
-    if (!created) throw new Error("Could not enqueue assessment job.");
-    return jobFromRow(created);
-  } catch (error) {
-    if (input.idempotencyKey && isUniqueViolation(error)) {
-      const [existing] = await drizzle
-        .select()
-        .from(assessmentJobs)
-        .where(eq(assessmentJobs.idempotencyKey, input.idempotencyKey))
-        .limit(1);
-      if (existing) return jobFromRow(existing);
-    }
-    throw error;
-  }
-}
-
-async function recoverExpiredLeases(tx: DrizzleDb, now: string): Promise<void> {
-  // Leases expire when a worker crashes mid-run. Requeue only while attempts
-  // remain; a poison job (OOM, crash loop) at max attempts is terminal instead
-  // of being resurrected on every claim tick forever.
-  await tx
-    .update(assessmentJobs)
-    .set({
+  return jobFromRow(
+    await insertAssessmentJob(drizzle, {
+      id: crypto.randomUUID(),
+      projectId: input.projectId,
       status: "queued",
+      trigger: input.trigger,
+      requestedByUserId: input.requestedByUserId ?? null,
+      idempotencyKey: input.idempotencyKey ?? null,
+      payload: { ...(input.payload ?? {}) },
+      attempts: 0,
+      maxAttempts: DEFAULT_MAX_ATTEMPTS,
       availableAt: now,
-      leaseExpiresAt: null,
+      createdAt: now,
       updatedAt: now,
-      error: "Worker lease expired; retrying.",
-    })
-    .where(
-      and(
-        eq(assessmentJobs.status, "running"),
-        lte(assessmentJobs.leaseExpiresAt, now),
-        lt(assessmentJobs.attempts, assessmentJobs.maxAttempts),
-      ),
-    );
-  await tx
-    .update(assessmentJobs)
-    .set({
-      status: "failed",
-      completedAt: now,
-      leaseExpiresAt: null,
-      updatedAt: now,
-      error: "Worker lease expired repeatedly; giving up.",
-    })
-    .where(
-      and(
-        eq(assessmentJobs.status, "running"),
-        lte(assessmentJobs.leaseExpiresAt, now),
-        gte(assessmentJobs.attempts, assessmentJobs.maxAttempts),
-      ),
-    );
+    }),
+  );
 }
 
 /**
@@ -330,14 +260,14 @@ async function recoverExpiredLeases(tx: DrizzleDb, now: string): Promise<void> {
 export async function recoverExpiredAssessmentLeases(
   db?: DrizzleDb,
 ): Promise<void> {
-  const drizzle = db ?? (await getDrizzle());
   // An already-open transaction must not nest: run the recovery inline on it.
   if (db) {
-    await recoverExpiredLeases(db, new Date().toISOString());
+    await recoverExpiredAssessmentJobLeases(db, new Date().toISOString());
     return;
   }
+  const drizzle = await getDrizzle();
   await drizzle.transaction(async (tx) => {
-    await recoverExpiredLeases(tx, new Date().toISOString());
+    await recoverExpiredAssessmentJobLeases(tx, new Date().toISOString());
   });
 }
 
@@ -346,95 +276,22 @@ export async function claimNextAssessmentJob(): Promise<AssessmentJob | null> {
   const drizzle = await getDrizzle();
   return drizzle.transaction(async (tx) => {
     const now = new Date().toISOString();
-    await recoverExpiredLeases(tx, now);
-
-    // Single-row claim: lock exactly the job we will run. The correlated
-    // NOT EXISTS keeps one assessment per project without rescanning the table
-    // (served by assessment_jobs_ready_idx + assessment_jobs_project_idx).
-    // `attempts` and `project_id` are read in the same lock to avoid a second
-    // round trip. The final UPDATE re-checks NOT EXISTS, and the partial
-    // unique index assessment_jobs_running_project_uidx is the real backstop:
-    // under READ COMMITTED two workers claiming different queued jobs for the
-    // same project can both see "no running", so the loser gets 23505 and
-    // this function returns null. Zero rows → lost the race → null.
-    const locked = await tx.execute<{
-      id: string;
-      attempts: number;
-      project_id: string;
-    }>(sql`
-      SELECT job.id AS id, job.attempts AS attempts, job.project_id AS project_id
-      FROM assessment_jobs AS job
-      WHERE job.status = 'queued'
-        AND job.available_at <= ${now}
-        AND NOT EXISTS (
-          SELECT 1
-          FROM assessment_jobs AS running
-          WHERE running.status = 'running'
-            AND running.project_id = job.project_id
-        )
-      ORDER BY job.available_at ASC, job.created_at ASC
-      LIMIT 1
-      FOR UPDATE SKIP LOCKED
-    `);
-    const [row] = [...locked];
-    if (!row) return null;
-    const candidateId = String(row.id);
-    const candidateProjectId = String(
-      (row as { project_id?: unknown; projectId?: unknown }).project_id ??
-        (row as { projectId?: unknown }).projectId,
-    );
-
+    await recoverExpiredAssessmentJobLeases(tx, now);
     const leaseExpiresAt = new Date(
       Date.now() + DEFAULT_LEASE_MS,
     ).toISOString();
-    let claimed;
-    try {
-      [claimed] = await tx
-        .update(assessmentJobs)
-        .set({
-          status: "running",
-          attempts: Number(row.attempts) + 1,
-          startedAt: now,
-          leaseExpiresAt,
-          error: null,
-          updatedAt: now,
-        })
-        .where(
-          and(
-            eq(assessmentJobs.id, candidateId),
-            eq(assessmentJobs.status, "queued"),
-            sql`NOT EXISTS (
-            SELECT 1 FROM assessment_jobs AS running
-            WHERE running.status = 'running'
-              AND running.project_id = ${candidateProjectId}
-              AND running.id <> ${candidateId}
-          )`,
-          ),
-        )
-        .returning();
-    } catch (error) {
-      // Lost the race: a concurrent claim for the same project committed
-      // first and the partial unique index
-      // (assessment_jobs_running_project_uidx) rejected this UPDATE. Zero
-      // rows would mean the same thing — no scan, just null.
-      if (isUniqueViolation(error)) return null;
-      throw error;
-    }
+    const claimed = await claimNextAssessmentJobRow(tx, now, leaseExpiresAt);
     if (!claimed) return null;
     if (!isJobPayloadWellFormed(claimed.payload)) {
       // Fail closed: never hand a corrupt row to a worker (lenient parsing
       // would degrade it to `{}` and scan as authoritative). Terminal, not a
       // retry — re-running would fail identically.
-      await tx
-        .update(assessmentJobs)
-        .set({
-          status: "failed",
-          completedAt: now,
-          leaseExpiresAt: null,
-          updatedAt: now,
-          error: "Malformed job payload; refusing to scan.",
-        })
-        .where(eq(assessmentJobs.id, claimed.id));
+      await failAssessmentJobTerminally(
+        tx,
+        claimed.id,
+        "Malformed job payload; refusing to scan.",
+        now,
+      );
       return null;
     }
     inFlightJobIds.add(claimed.id);
@@ -461,27 +318,14 @@ export async function releaseInFlightAssessmentJobs(
 ): Promise<number> {
   const ids = [...inFlightJobIds];
   if (ids.length === 0) return 0;
-  const drizzle = await getDrizzle();
-  const nowIso = new Date().toISOString();
-  const released = await drizzle
-    .update(assessmentJobs)
-    .set({
-      status: sql`case when ${assessmentJobs.attempts} >= ${assessmentJobs.maxAttempts} then 'failed' else 'queued' end`,
-      availableAt: nowIso,
-      completedAt: sql`case when ${assessmentJobs.attempts} >= ${assessmentJobs.maxAttempts} then ${nowIso}::timestamptz else null end`,
-      leaseExpiresAt: null,
-      error: reason.slice(0, 2_000),
-      updatedAt: nowIso,
-    })
-    .where(
-      and(
-        inArray(assessmentJobs.id, ids),
-        eq(assessmentJobs.status, "running"),
-      ),
-    )
-    .returning({ id: assessmentJobs.id });
+  const released = await releaseRunningAssessmentJobs(
+    await getDrizzle(),
+    ids,
+    reason.slice(0, 2_000),
+    new Date().toISOString(),
+  );
   inFlightJobIds.clear();
-  return released.length;
+  return released;
 }
 
 function reportStaleLease(jobId: string): void {
@@ -491,69 +335,50 @@ function reportStaleLease(jobId: string): void {
   });
 }
 
-export async function completeAssessmentJob(job: AssessmentJob): Promise<void> {
-  const drizzle = await getDrizzle();
-  const now = new Date().toISOString();
-  const result = await drizzle
-    .update(assessmentJobs)
-    .set({
-      status: "succeeded",
-      completedAt: now,
-      leaseExpiresAt: null,
-      error: null,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(assessmentJobs.id, job.id),
-        eq(assessmentJobs.status, "running"),
-        eq(assessmentJobs.leaseExpiresAt, job.leaseExpiresAt as string),
-        eq(assessmentJobs.startedAt, job.startedAt as string),
-      ),
-    )
-    .returning({ id: assessmentJobs.id });
+async function settleWithLease(
+  job: AssessmentJob,
+  set: Parameters<typeof settleAssessmentJob>[2],
+  now: string,
+): Promise<void> {
+  const lease = leaseOf(job);
+  const settled = lease
+    ? await settleAssessmentJob(await getDrizzle(), lease, set, now)
+    : false;
   inFlightJobIds.delete(job.id);
-  if (result.length === 0) {
-    reportStaleLease(job.id);
-  }
+  if (!settled) reportStaleLease(job.id);
+}
+
+export async function completeAssessmentJob(job: AssessmentJob): Promise<void> {
+  const now = new Date().toISOString();
+  await settleWithLease(
+    job,
+    { status: "succeeded", completedAt: now, error: null },
+    now,
+  );
 }
 
 export async function failAssessmentJob(
   job: AssessmentJob,
   error: unknown,
 ): Promise<AssessmentJobStatus> {
-  const drizzle = await getDrizzle();
   const now = new Date();
   const message =
     error instanceof Error ? error.message : "Assessment job failed.";
   const terminal = job.attempts >= job.maxAttempts;
   const status: AssessmentJobStatus = terminal ? "failed" : "queued";
   const delay = RETRY_BASE_MS * 2 ** Math.max(0, job.attempts - 1);
-  const result = await drizzle
-    .update(assessmentJobs)
-    .set({
+  await settleWithLease(
+    job,
+    {
       status,
       availableAt: terminal
         ? now.toISOString()
         : new Date(now.getTime() + delay).toISOString(),
       completedAt: terminal ? now.toISOString() : null,
-      leaseExpiresAt: null,
       error: message.slice(0, 2_000),
-      updatedAt: now.toISOString(),
-    })
-    .where(
-      and(
-        eq(assessmentJobs.id, job.id),
-        eq(assessmentJobs.status, "running"),
-        eq(assessmentJobs.leaseExpiresAt, job.leaseExpiresAt as string),
-        eq(assessmentJobs.startedAt, job.startedAt as string),
-      ),
-    )
-    .returning({ id: assessmentJobs.id });
-  inFlightJobIds.delete(job.id);
-  if (result.length === 0) {
-    reportStaleLease(job.id);
-  }
+    },
+    now.toISOString(),
+  );
   return status;
 }
 
@@ -561,13 +386,11 @@ export async function recentAssessmentJobsForProject(
   projectId: string,
   limit = 5,
 ): Promise<AssessmentJob[]> {
-  const drizzle = await getDrizzle();
-  const rows = await drizzle
-    .select()
-    .from(assessmentJobs)
-    .where(eq(assessmentJobs.projectId, projectId))
-    .orderBy(desc(assessmentJobs.createdAt))
-    .limit(limit);
+  const rows = await listRecentAssessmentJobs(
+    await getDrizzle(),
+    projectId,
+    limit,
+  );
   return rows.map(jobFromRow);
 }
 
@@ -603,18 +426,11 @@ export function publicAssessmentJobView(job: AssessmentJob): AssessmentJob {
 export async function latestWebhookJobRef(
   projectId: string,
 ): Promise<string | null> {
-  const drizzle = await getDrizzle();
-  const [row] = await drizzle
-    .select()
-    .from(assessmentJobs)
-    .where(
-      and(
-        eq(assessmentJobs.projectId, projectId),
-        eq(assessmentJobs.trigger, "webhook"),
-      ),
-    )
-    .orderBy(desc(assessmentJobs.createdAt))
-    .limit(1);
+  const row = await findNewestAssessmentJob(
+    await getDrizzle(),
+    projectId,
+    "webhook",
+  );
   return row ? (parseJobPayload(row.payload).ref ?? null) : null;
 }
 
@@ -629,20 +445,14 @@ export async function activeAssessmentJobForProject(
   projectId: string,
   db?: DrizzleDb,
 ): Promise<AssessmentJob | null> {
-  const drizzle = db ?? (await getDrizzle());
-  const rows = await drizzle
-    .select()
-    .from(assessmentJobs)
-    .where(
-      and(
-        eq(assessmentJobs.projectId, projectId),
-        inArray(assessmentJobs.status, ["queued", "running"]),
-      ),
-    )
-    .limit(25);
+  const rows = await listActiveAssessmentJobs(
+    db ?? (await getDrizzle()),
+    projectId,
+    25,
+  );
   // Oldest-first in JS (not ORDER BY): one row is all the caller needs and
   // this stays deterministic regardless of index order.
-  let oldest: (typeof rows)[number] | null = null;
+  let oldest: AssessmentJobRow | null = null;
   for (const row of rows) {
     if (!oldest || row.createdAt < oldest.createdAt) oldest = row;
   }
@@ -664,26 +474,13 @@ export interface CancelAssessmentJobInput {
  */
 export async function cancelAssessmentJob(
   input: CancelAssessmentJobInput,
+  db?: DrizzleDb,
 ): Promise<AssessmentJob | null> {
-  const drizzle = await getDrizzle();
-  const now = new Date().toISOString();
-  const [cancelled] = await drizzle
-    .update(assessmentJobs)
-    .set({
-      status: "cancelled",
-      completedAt: now,
-      leaseExpiresAt: null,
-      error: null,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(assessmentJobs.id, input.jobId),
-        eq(assessmentJobs.projectId, input.projectId),
-        inArray(assessmentJobs.status, ["queued", "running"]),
-      ),
-    )
-    .returning();
+  const cancelled = await cancelActiveAssessmentJob(
+    db ?? (await getDrizzle()),
+    input,
+    new Date().toISOString(),
+  );
   return cancelled ? jobFromRow(cancelled) : null;
 }
 
@@ -702,22 +499,12 @@ export interface RefreshAssessmentJobLeaseInput {
 export async function refreshAssessmentJobLease(
   input: RefreshAssessmentJobLeaseInput,
 ): Promise<string | null> {
-  const drizzle = await getDrizzle();
-  const now = new Date().toISOString();
-  const leaseExpiresAt = new Date(Date.now() + DEFAULT_LEASE_MS).toISOString();
-  const [refreshed] = await drizzle
-    .update(assessmentJobs)
-    .set({ leaseExpiresAt, updatedAt: now })
-    .where(
-      and(
-        eq(assessmentJobs.id, input.id),
-        eq(assessmentJobs.status, "running"),
-        eq(assessmentJobs.leaseExpiresAt, input.leaseExpiresAt),
-        eq(assessmentJobs.startedAt, input.startedAt),
-      ),
-    )
-    .returning({ leaseExpiresAt: assessmentJobs.leaseExpiresAt });
-  return refreshed?.leaseExpiresAt ?? null;
+  return renewAssessmentJobLease(
+    await getDrizzle(),
+    input,
+    new Date(Date.now() + DEFAULT_LEASE_MS).toISOString(),
+    new Date().toISOString(),
+  );
 }
 
 /**
@@ -734,23 +521,12 @@ export async function updateAssessmentJobStage(
   stage: AssessmentJobStage,
 ): Promise<boolean> {
   try {
-    const drizzle = await getDrizzle();
-    const now = new Date().toISOString();
-    // Single atomic jsonb merge — no SELECT-then-UPDATE, so two overlapping
-    // stage stamps converge on the last writer instead of clobbering each
-    // other's payload keys. Gated on `running` so it can neither resurrect a
-    // terminal job nor fight a cancel.
-    const [updated] = await drizzle
-      .update(assessmentJobs)
-      .set({
-        payload: sql`${assessmentJobs.payload} || jsonb_build_object('stage', ${stage}::text, 'stageStartedAt', ${now}::text)`,
-        updatedAt: now,
-      })
-      .where(
-        and(eq(assessmentJobs.id, jobId), eq(assessmentJobs.status, "running")),
-      )
-      .returning({ id: assessmentJobs.id });
-    return updated !== undefined;
+    return await stampAssessmentJobStage(
+      await getDrizzle(),
+      jobId,
+      stage,
+      new Date().toISOString(),
+    );
   } catch (error) {
     reportWarning("Assessment job stage update failed", {
       code: "assessment_job_stage_update_failed",
@@ -763,12 +539,7 @@ export async function updateAssessmentJobStage(
 }
 
 export async function queuedAssessmentJobCount(): Promise<number> {
-  const drizzle = await getDrizzle();
-  const [row] = await drizzle
-    .select({ value: count() })
-    .from(assessmentJobs)
-    .where(inArray(assessmentJobs.status, ["queued", "running"]));
-  return Number(row?.value ?? 0);
+  return countActiveAssessmentJobs(await getDrizzle());
 }
 
 /**
@@ -780,16 +551,5 @@ export async function queuedAssessmentJobCount(): Promise<number> {
  * forever with no depth signal.
  */
 export async function oldestQueuedAssessmentJobAgeMs(): Promise<number | null> {
-  const drizzle = await getDrizzle();
-  const [row] = await drizzle
-    .select({
-      ageMs: sql<
-        string | null
-      >`(EXTRACT(EPOCH FROM (now() - min(${assessmentJobs.createdAt}))) * 1000)::bigint`,
-    })
-    .from(assessmentJobs)
-    .where(eq(assessmentJobs.status, "queued"));
-  if (row?.ageMs === null || row?.ageMs === undefined) return null;
-  const parsed = Number(row.ageMs);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+  return oldestQueuedAssessmentJobAge(await getDrizzle());
 }

@@ -28,6 +28,7 @@ import {
   parseRequirementStatusParam,
 } from "@/core/filter-params";
 import { stickyDecisionAt } from "@/core/requirements/masked-findings";
+import { exceptionHasLapsed } from "@/core/requirements/requirement-human-determination";
 import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
 import type { ProjectCapabilities } from "@/server/workspace/project-capabilities";
 import { getProjectRuntime } from "@/server/workspace/project-runtime";
@@ -57,6 +58,8 @@ export type RequirementsView =
       statusCounts: Record<(typeof REQUIREMENT_STATUSES)[number], number>;
       openFindingCounts: Map<string, number>;
       maskedFindingCounts: Map<string, number>;
+      /** Controls whose temporary exception expired but is not cleared yet. */
+      lapsedExceptionControlIds: Set<string>;
       filtered: Requirement[];
       filteredControls: Control[];
       page: PageSlice<Control>;
@@ -136,6 +139,13 @@ export async function loadRequirementsView(
     }
   }
 
+  const now = Date.now();
+  const lapsedExceptionControlIds = new Set(
+    assessed
+      .filter((requirement) => exceptionHasLapsed(requirement.exception, now))
+      .map((requirement) => requirement.controlId),
+  );
+
   const statusCounts = countByStatus(assessed, REQUIREMENT_STATUSES);
 
   const filtered = statusFilter
@@ -183,6 +193,7 @@ export async function loadRequirementsView(
     statusCounts,
     openFindingCounts,
     maskedFindingCounts: maskedByControlId,
+    lapsedExceptionControlIds,
     filtered,
     filteredControls,
     page,

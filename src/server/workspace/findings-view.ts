@@ -39,7 +39,10 @@ import {
 import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
 import type { ProjectCapabilities } from "@/server/workspace/project-capabilities";
 import { getProjectRuntime } from "@/server/workspace/project-runtime";
-import { findingsInScope } from "@/server/workspace/project-scope";
+import {
+  findingsInScope,
+  scopedControlIds,
+} from "@/server/workspace/project-scope";
 
 export type FindingsView =
   | { project: null }
@@ -68,11 +71,17 @@ export type FindingsView =
     };
 
 /**
- * Index-only tab totals, memoized per request like the rest of the loaders.
+ * Index-only tab totals within the project's preset scope (the same scope as
+ * the lists and the finding-page queue), memoized per request.
  */
-const countFindingsByStatus = cache(async (projectId: string) =>
-  countFindingsByStatusForProject(await getDrizzle(), projectId),
-);
+const countFindingsByStatus = cache(async (project: Project) => {
+  const scoped = scopedControlIds(project);
+  return countFindingsByStatusForProject(
+    await getDrizzle(),
+    project.id,
+    scoped ? [...scoped] : undefined,
+  );
+});
 
 /**
  * Everything the findings list page renders, derived in one place. Two paths:
@@ -114,7 +123,7 @@ export async function loadFindingsView(
   const findingStatuses: FindingStatus[] =
     statusForTab === "open" ? ["open"] : ["open", statusForTab];
   const [statusCounts, runtime] = await Promise.all([
-    countFindingsByStatus(project.id),
+    countFindingsByStatus(project),
     getProjectRuntime(project.id, { findingStatuses }),
   ]);
   const totalFindings =
@@ -200,16 +209,18 @@ async function loadFindingsViewFast(
   activeTab: FindingsTab,
 ): Promise<FindingsView> {
   const statusForTab: FindingStatus = activeTab;
+  const scoped = scopedControlIds(project);
   const sqlFilters = {
     severity: listParams.severity,
     controlId: listParams.control,
+    ...(scoped ? { controlIds: [...scoped] } : {}),
     engine: listParams.engine,
     remediation: listParams.remediation,
   };
   const drizzle = await getDrizzle();
   const [statusCounts, filteredCounts, page, latestAssessments] =
     await Promise.all([
-      countFindingsByStatus(project.id),
+      countFindingsByStatus(project),
       countFindingsByStatusForList(drizzle, project.id, sqlFilters),
       listFindingsPageForProject(drizzle, project.id, {
         statuses: [statusForTab],

@@ -336,23 +336,27 @@ export function reconcileControlFindings(
   // same open row instead of minting siblings (axe can emit overlapping nodes).
   const matchPool = [...openFindings];
   for (const raw of rawForControl) {
-    // A dismissal never blinds future runs: re-detection re-opens the
-    // dismissed row (status + current assessment + re-detected evidence)
-    // instead of dropping the raw hit or minting a duplicate.
     const redetected = dismissedFindings.find((finding) =>
       sameInstance(finding, raw),
     );
+    if (redetected && redetected.dismissal?.reason !== "accepted_risk") {
+      // A false-positive / not-applicable dismissal is a human verdict on
+      // this instance: it holds while the same instance is detected. Track
+      // the location so the match survives code moving around it.
+      matchedIds.add(redetected.id);
+      redetected.location = raw.location;
+      continue;
+    }
     if (redetected) {
+      // An accepted risk is still a failure, so it re-opens (accept a risk
+      // durably with a requirement exception). The row keeps its first
+      // `detectedAt`: the finding is not new, and a fresh date would revoke a
+      // requirement decision taken after it was first seen.
       matchedIds.add(redetected.id);
       redetected.status = "open";
       redetected.dismissal = undefined;
       redetected.resolvedNote = undefined;
       redetected.assessmentId = assessmentId;
-      // Re-detection is a new detection: the dismissal may be months old, and
-      // the current verdict (kind/severity/confidence) wins. Keeping the old
-      // date would hide the finding from "detected after a human decision"
-      // guards and every recency read.
-      redetected.detectedAt = new Date().toISOString();
       redetected.kind = raw.kind;
       redetected.severity = raw.severity;
       redetected.confidence = raw.confidence;

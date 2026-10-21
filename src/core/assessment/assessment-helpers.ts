@@ -1,5 +1,6 @@
 import type { Assessment } from "@complyloop/analysis-core/contract/entities";
 import type { AssessmentEngines } from "@complyloop/analysis-core/contract/finding-types";
+import { zeroCounts } from "@complyloop/analysis-core/contract/literal-sets";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 
 /**
@@ -88,9 +89,7 @@ export function countByStatus<T extends string>(
   items: readonly { status: T }[],
   statuses: readonly T[],
 ): Record<T, number> {
-  const counts = Object.fromEntries(
-    statuses.map((status) => [status, 0]),
-  ) as Record<T, number>;
+  const counts = zeroCounts(statuses);
   for (const item of items) {
     counts[item.status] += 1;
   }

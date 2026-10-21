@@ -119,13 +119,14 @@ describe("createFinding analyzer evidence", () => {
 });
 
 describe("reconcileControlFindings", () => {
-  it("re-opens a dismissed finding when the same instance is re-detected", () => {
+  it("re-opens an accepted-risk dismissal on re-detection, keeping its first detection time", () => {
     const dismissed = testFinding({
       id: "f-dismissed",
       projectId: project.id,
       controlId: "ctl-img-alt",
       assessmentId: "a0",
       status: "dismissed",
+      detectedAt: "2026-01-01T00:00:00.000Z",
       dismissal: {
         reason: "accepted_risk",
         note: "Placeholder asset",
@@ -183,6 +184,8 @@ describe("reconcileControlFindings", () => {
     expect(dismissed.status).toBe("open");
     expect(dismissed.assessmentId).toBe("a1");
     expect(dismissed.dismissal).toBeUndefined();
+    // Not a new finding: a fresh date would revoke later requirement decisions.
+    expect(dismissed.detectedAt).toBe("2026-01-01T00:00:00.000Z");
     expect(
       rows.evidence.some(
         (record) =>
@@ -191,6 +194,74 @@ describe("reconcileControlFindings", () => {
       ),
     ).toBe(true);
   });
+
+  it.each(["false_positive", "not_applicable"] as const)(
+    "keeps a %s dismissal while the same instance is still detected",
+    (reason) => {
+      const dismissed = testFinding({
+        id: "f-dismissed",
+        projectId: project.id,
+        controlId: "ctl-img-alt",
+        status: "dismissed",
+        dismissal: {
+          reason,
+          note: "Decorative",
+          at: "2026-01-02T00:00:00.000Z",
+        },
+        location: sourceLoc({
+          filePath: "Hero.tsx",
+          line: 1,
+          snippet: '<img src="/hero.png" />',
+        }),
+      });
+      const rows = emptyRows();
+      rows.findings.push(dismissed);
+      const moved = sourceLoc({
+        filePath: "Hero.tsx",
+        line: 4,
+        snippet: '<img src="/hero.png" />',
+      });
+
+      reconcileControlFindings({
+        rows,
+        project,
+        control: {
+          id: "ctl-img-alt",
+          frameworkId: "rgaa",
+          code: "RGAA 1.1",
+          secondaryCode: "WCAG 1.1.1",
+          title: "Images",
+          description: "Images have text alternatives",
+          checkId: "img-alt",
+        },
+        assessmentId: "a1",
+        rootPath: "/tmp",
+        rawForControl: [
+          {
+            checkId: "img-alt",
+            kind: "violation",
+            severity: "serious",
+            confidence: "high",
+            reason: "Missing alt",
+            location: moved,
+            fix: null,
+          },
+        ],
+        openFindings: [],
+        dismissedFindings: [dismissed],
+        scopedFileSet: null,
+        runtimeRan: false,
+        onFindingResolved: () => {},
+      });
+
+      expect(rows.findings).toHaveLength(1);
+      expect(dismissed.status).toBe("dismissed");
+      expect(dismissed.dismissal?.reason).toBe(reason);
+      // Tracks the instance as the code around it moves.
+      expect(dismissed.location).toEqual(moved);
+      expect(rows.evidence).toEqual([]);
+    },
+  );
 
   it("updates kind/severity/confidence when an open finding is re-detected with a changed verdict", () => {
     const existing = testFinding({

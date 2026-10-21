@@ -32,6 +32,7 @@ import { getProjectRuntime } from "@/server/workspace/project-runtime";
 import {
   findingsInScope,
   requirementsInScope,
+  scopedControlIds,
 } from "@/server/workspace/project-scope";
 
 interface DashboardViewProject {
@@ -75,10 +76,16 @@ export type DashboardView =
  * The loaded finding rows are capped (see `FINDINGS_LIST_LOAD_LIMIT`), so
  * counts displayed here must come from SQL, not `openFindings.length`.
  */
-const countOpenFindings = cache(
-  async (projectId: string) =>
-    (await countFindingsByStatusForProject(await getDrizzle(), projectId)).open,
-);
+const countOpenFindings = cache(async (project: Project) => {
+  const scoped = scopedControlIds(project);
+  return (
+    await countFindingsByStatusForProject(
+      await getDrizzle(),
+      project.id,
+      scoped ? [...scoped] : undefined,
+    )
+  ).open;
+});
 
 /**
  * Everything the dashboard renders: scoped runtime rows, status counts,
@@ -102,7 +109,7 @@ export async function loadDashboardView(): Promise<DashboardView> {
       // Unread alerts are loaded directly; read rows are never rendered.
       includeAlerts: false,
     }),
-    countOpenFindings(project.id),
+    countOpenFindings(project),
     listUnreadAlertsForProject(drizzle, project.id),
     // Bounded history window, oldest → newest (max 10). runtime.assessments
     // holds the latest assessment only, so the trend reads its own capped

@@ -2,12 +2,12 @@ import "server-only";
 
 import type { EmitterWebhookEvent } from "@octokit/webhooks";
 import { verify as verifyWebhookSignature } from "@octokit/webhooks-methods";
-import { sql } from "drizzle-orm";
 
 import { type DrizzleDb, getDrizzle } from "@complyloop/db/postgres";
 import {
   findProjectsByGithubFullName,
-  getProjectById,
+  recordProjectDefaultBranch,
+  recordProjectLastDeployment,
 } from "@complyloop/db/repo/projects";
 
 import {
@@ -103,40 +103,16 @@ async function persistDefaultBranchIfChanged(
   storedBranch: string | undefined,
 ): Promise<string | undefined> {
   if (liveBranch === storedBranch) return storedBranch ?? liveBranch;
-  // Atomic compare-and-set: concurrent deliveries race here, so the check and
-  // the write must happen in one UPDATE. IS DISTINCT FROM also covers a NULL
-  // stored branch. Checkout-ref validation stays at checkoutRef() (40-hex).
-  await drizzle.execute(sql`
-    UPDATE projects
-    SET payload = jsonb_set(payload, '{github,defaultBranch}', to_jsonb(${liveBranch}::text), true)
-    WHERE id = ${projectId}
-      AND (payload->'github'->>'defaultBranch' IS DISTINCT FROM ${liveBranch})
-  `);
   // Decide authority on the post-write row so concurrent renames converge
-  // instead of each delivery acting on its own stale view.
-  const fresh = await getProjectById(drizzle, projectId);
-  return fresh?.github?.defaultBranch ?? liveBranch;
+  // instead of each delivery acting on its own stale view. Checkout-ref
+  // validation stays at checkoutRef() (40-hex).
+  return (
+    (await recordProjectDefaultBranch(drizzle, projectId, liveBranch)) ??
+    liveBranch
+  );
 }
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/i;
-
-/**
- * Records the newest tracked-branch deployment on the project so manual runs
- * can audit it. Compare-and-set on the SHA: the delivery that already passed
- * the "newest pushed commit" guard wins, and a redelivery is a no-op.
- */
-async function rememberDeployment(
-  drizzle: DrizzleDb,
-  projectId: string,
-  target: { url: string; sha: string },
-): Promise<void> {
-  await drizzle.execute(sql`
-    UPDATE projects
-    SET payload = jsonb_set(payload, '{lastDeployment}', ${JSON.stringify(target)}::jsonb, true)
-    WHERE id = ${projectId}
-      AND (payload->'lastDeployment'->>'sha') IS DISTINCT FROM ${target.sha}
-  `);
-}
 
 const ZERO_SHA = "0000000000000000000000000000000000000000";
 
@@ -209,69 +185,55 @@ function isTrackedBranchPush(
 export interface WebhookHandleResult {
   handled: boolean;
   message: string;
-  jobId?: string;
+  /** One job per project the delivery was routed to. */
+  jobIds?: string[];
 }
 
+type WebhookProject = Awaited<
+  ReturnType<typeof findProjectsByGithubFullName>
+>[number];
+
 /**
- * Validated webhook delivery boundary. It never clones or scans in the request
- * path: it only resolves the project and creates an idempotent durable job.
+ * The projects a delivery is for. The same repo may be connected in several
+ * orgs, and orgs of one GitHub account share its installation, so a pinned
+ * delivery goes to every project bound to that installation — never to an
+ * unbound or foreign-installation row. An installation-less delivery is only
+ * accepted for a single unbound project.
  */
-export async function handleGitHubWebhookEvent(
-  eventName: string,
-  payload: unknown,
-  deliveryId?: string,
-): Promise<WebhookHandleResult> {
-  const parsed = parseHandledWebhookEvent(eventName, payload);
-  if (!parsed.ok) return { handled: false, message: parsed.message };
-
-  const fullName = repositoryFullName(parsed.event);
-  if (!fullName) return { handled: false, message: "No repository in payload" };
-
-  const drizzle = await getDrizzle();
-  // Uniqueness is per-org: the same public repo may be connected in several
-  // orgs. Resolve by installation id — never an arbitrary row. A delivery
-  // that cannot be pinned to exactly one project is rejected instead of
-  // scanning or mutating the wrong tenant.
-  const candidates = await findProjectsByGithubFullName(drizzle, fullName);
-  if (candidates.length === 0) {
-    return { handled: false, message: `No connected project for ${fullName}` };
-  }
-
-  const payloadInstallationId = installationIdFromPayload(parsed.event.payload);
-  let project: (typeof candidates)[number] | null = null;
+function deliveryProjects(
+  candidates: readonly WebhookProject[],
+  payloadInstallationId: number | undefined,
+  fullName: string,
+): { ok: true; projects: WebhookProject[] } | { ok: false; message: string } {
   if (payloadInstallationId !== undefined) {
-    // Pinned delivery: only the project bound to this installation may run.
-    // An unbound row never matches, so a foreign installation cannot
-    // commandeer another tenant's project through a shared repo name.
-    project =
-      candidates.find(
-        (candidate) => candidate.installationId === payloadInstallationId,
-      ) ?? null;
-    if (!project) {
-      return {
-        handled: false,
-        message: `Installation id mismatch for ${fullName}.`,
-      };
-    }
-  } else if (candidates.length > 1) {
+    const pinned = candidates.filter(
+      (candidate) => candidate.installationId === payloadInstallationId,
+    );
+    return pinned.length > 0
+      ? { ok: true, projects: pinned }
+      : { ok: false, message: `Installation id mismatch for ${fullName}.` };
+  }
+  if (candidates.length > 1) {
     return {
-      handled: false,
+      ok: false,
       message: `Ambiguous project for ${fullName}: connected in ${candidates.length} organizations without a delivery installation id.`,
     };
-  } else {
-    // Exactly one candidate (empty was returned above). A bound project with
-    // an installation-less delivery is the same mismatch as before; an
-    // unbound single project keeps the legacy accept.
-    project = candidates[0]!;
-    if (project.installationId !== undefined) {
-      return {
-        handled: false,
-        message: `Installation id mismatch for ${fullName}.`,
-      };
-    }
   }
+  const [only] = candidates;
+  if (!only || only.installationId !== undefined) {
+    return { ok: false, message: `Installation id mismatch for ${fullName}.` };
+  }
+  return { ok: true, projects: [only] };
+}
 
-  const payloadDefaultBranch = repositoryDefaultBranch(parsed.event);
+async function handleProjectDelivery(
+  drizzle: DrizzleDb,
+  event: HandledWebhookEvent,
+  project: WebhookProject,
+  fullName: string,
+  deliveryId: string | undefined,
+): Promise<{ message: string; jobId?: string }> {
+  const payloadDefaultBranch = repositoryDefaultBranch(event);
   let liveDefaultBranch = payloadDefaultBranch ?? project.defaultBranch;
   if (payloadDefaultBranch) {
     const freshBranch = await persistDefaultBranchIfChanged(
@@ -288,35 +250,29 @@ export async function handleGitHubWebhookEvent(
   const trackedBranch = project.trackedBranch ?? liveDefaultBranch;
 
   if (
-    parsed.event.kind === "push" &&
-    !isTrackedBranchPush(parsed.event.payload, trackedBranch)
+    event.kind === "push" &&
+    !isTrackedBranchPush(event.payload, trackedBranch)
   ) {
     // Other branches are not authoritative; scanning them could resolve
     // findings / auto-verify remediations off the project's real state.
     return {
-      handled: false,
       message: `Ignored push to a branch other than the tracked branch (${trackedBranch ?? "unknown"}) for ${fullName}.`,
     };
   }
 
   await assertRateLimit(`webhook:${project.id}`, 60, 60_000);
-  const ref = checkoutRef(parsed.event);
+  const ref = checkoutRef(event);
   if (!ref) {
     return {
-      handled: false,
-      message: `Ignored ${parsed.event.kind} without a valid checkout SHA for ${fullName}.`,
+      message: `Ignored ${event.kind} without a valid checkout SHA for ${fullName}.`,
     };
   }
 
   let runtimeTarget: { url: string; sha: string } | undefined;
-  if (parsed.event.kind === "deployment_status") {
-    const origin = trackedBranchDeploymentOrigin(
-      parsed.event.payload,
-      trackedBranch,
-    );
+  if (event.kind === "deployment_status") {
+    const origin = trackedBranchDeploymentOrigin(event.payload, trackedBranch);
     if (!origin) {
       return {
-        handled: false,
         message: `Ignored deployment status for ${fullName}: not a successful tracked-branch https deployment.`,
       };
     }
@@ -326,27 +282,72 @@ export async function handleGitHubWebhookEvent(
     // code.
     if ((await latestWebhookJobRef(project.id)) !== ref) {
       return {
-        handled: false,
         message: `Ignored deployment of ${ref.slice(0, 7)} for ${fullName}: it is not the latest pushed commit.`,
       };
     }
     runtimeTarget = { url: origin, sha: ref };
-    await rememberDeployment(drizzle, project.id, runtimeTarget);
+    await recordProjectLastDeployment(drizzle, project.id, runtimeTarget);
   }
 
   const job = await enqueueAssessmentJob({
     projectId: project.id,
     trigger: "webhook",
-    idempotencyKey: deliveryId,
+    // Per project: one delivery may fan out, and the key is globally unique.
+    idempotencyKey: deliveryId ? `${deliveryId}:${project.id}` : undefined,
     payload: {
       ref,
-      eventName: parsed.event.kind,
+      eventName: event.kind,
       ...(runtimeTarget ? { runtimeTarget } : {}),
     },
   });
+  return { message: `Queued re-assessment of ${fullName}.`, jobId: job.id };
+}
+
+/**
+ * Validated webhook delivery boundary. It never clones or scans in the request
+ * path: it only resolves the projects and creates idempotent durable jobs.
+ */
+export async function handleGitHubWebhookEvent(
+  eventName: string,
+  payload: unknown,
+  deliveryId?: string,
+): Promise<WebhookHandleResult> {
+  const parsed = parseHandledWebhookEvent(eventName, payload);
+  if (!parsed.ok) return { handled: false, message: parsed.message };
+
+  const fullName = repositoryFullName(parsed.event);
+  if (!fullName) return { handled: false, message: "No repository in payload" };
+
+  const drizzle = await getDrizzle();
+  const candidates = await findProjectsByGithubFullName(drizzle, fullName);
+  if (candidates.length === 0) {
+    return { handled: false, message: `No connected project for ${fullName}` };
+  }
+  const routed = deliveryProjects(
+    candidates,
+    installationIdFromPayload(parsed.event.payload),
+    fullName,
+  );
+  if (!routed.ok) return { handled: false, message: routed.message };
+
+  const outcomes = [];
+  for (const project of routed.projects) {
+    outcomes.push(
+      await handleProjectDelivery(
+        drizzle,
+        parsed.event,
+        project,
+        fullName,
+        deliveryId,
+      ),
+    );
+  }
+  const jobIds = outcomes.flatMap((outcome) =>
+    outcome.jobId ? [outcome.jobId] : [],
+  );
   return {
-    handled: true,
-    message: `Queued re-assessment of ${fullName}.`,
-    jobId: job.id,
+    handled: jobIds.length > 0,
+    message: [...new Set(outcomes.map((outcome) => outcome.message))].join(" "),
+    ...(jobIds.length > 0 ? { jobIds } : {}),
   };
 }

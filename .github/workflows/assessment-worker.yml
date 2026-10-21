@@ -57,15 +57,22 @@ jobs:
         id: gate
         # Deliberately before checkout/npm ci: an idle scheduled tick must cost
         # seconds, not a full install + browser download (~96 installs a day
-        # otherwise). `psql` ships on ubuntu-latest; the query mirrors
+        # otherwise). `psql` ships on ubuntu-latest; the first count mirrors
         # `queuedAssessmentJobCount()` (queued + running — running is included
-        # so an expired lease gets recovered). Explicit drains
-        # (repository_dispatch, workflow_dispatch) always run.
+        # so an expired lease gets recovered). The second counts lapsed
+        # temporary exceptions so the drain's sweep (`exception-expiry.ts`)
+        # runs on quiet projects too; expiries are stored as UTC ISO strings
+        # (`normalizeExpiryInstant`), hence the byte-order text comparison.
+        # Explicit drains (repository_dispatch, workflow_dispatch) always run.
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           depth=$(psql "$DATABASE_URL" -tAc \
-            "SELECT count(*) FROM assessment_jobs WHERE status IN ('queued','running')")
+            "SELECT (SELECT count(*) FROM assessment_jobs WHERE status IN ('queued','running'))
+                  + (SELECT count(*) FROM requirements
+                     WHERE payload->'exception'->>'reason' = 'temporary'
+                       AND (payload->'exception'->>'expiresAt') COLLATE \"C\"
+                           <= replace(to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS.MS'), ' ', 'T') || 'Z')")
           echo "depth=$depth" >> "$GITHUB_OUTPUT"
           if [ "$depth" = "0" ] && [ "${{ github.event_name }}" = "schedule" ]; then
             echo "empty=true" >> "$GITHUB_OUTPUT"
@@ -102,6 +109,15 @@ jobs:
           key: playwright-${{ hashFiles('package-lock.json') }}
       - run: npx playwright install chromium --with-deps
         if: steps.gate.outputs.empty != 'true'
+      - name: Allow the Chromium sandbox
+        if: steps.gate.outputs.empty != 'true'
+        # The scan launches Chromium with its sandbox on (`scan.ts`), which
+        # needs unprivileged user namespaces; Ubuntu 24.04 blocks them via
+        # AppArmor. Older images lack the knob and need nothing.
+        run: |
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
       - name: Drain assessment queue
         if: steps.gate.outputs.empty != 'true'
         # The drain loops until the queue is idle or ASSESSMENT_WORKER_MAX_MS

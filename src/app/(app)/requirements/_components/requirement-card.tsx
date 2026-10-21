@@ -31,6 +31,7 @@ export function RequirementCard({
   requirement,
   openCount,
   maskedOpenCount,
+  exceptionLapsed,
   canRemediate,
   project,
 }: {
@@ -38,6 +39,7 @@ export function RequirementCard({
   requirement: Requirement;
   openCount: number;
   maskedOpenCount: number;
+  exceptionLapsed: boolean;
   canRemediate: boolean;
   project: Pick<Project, "runtimeBaseUrl">;
 }) {
@@ -183,6 +185,7 @@ export function RequirementCard({
         <RequirementRemediationActions
           control={control}
           requirement={requirement}
+          exceptionLapsed={exceptionLapsed}
           canRemediate={canRemediate}
         />
       </CardContent>

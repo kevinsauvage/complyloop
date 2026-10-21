@@ -3,6 +3,7 @@ import {
   type AssessmentEngine,
   engineFor,
 } from "@complyloop/analysis-core/contract/finding-types";
+import { isOneOf } from "@complyloop/analysis-core/contract/literal-sets";
 import {
   formatLocationRef,
   locationPathOrUrl,
@@ -57,23 +58,15 @@ export function parseFindingListParams(
   const tab = firstParam(raw.tab);
   return {
     q: q?.trim() || undefined,
-    severity: (SEVERITIES as readonly string[]).includes(severity ?? "")
-      ? (severity as Severity)
-      : undefined,
-    engine: (ENGINE_VALUES as readonly string[]).includes(engine ?? "")
-      ? (engine as AssessmentEngine)
-      : undefined,
-    remediation: (REMEDIATION_STATUSES as readonly string[]).includes(
-      remediation ?? "",
-    )
-      ? (remediation as RemediationStatus)
+    severity: isOneOf(SEVERITIES, severity) ? severity : undefined,
+    engine: isOneOf(ENGINE_VALUES, engine) ? engine : undefined,
+    remediation: isOneOf(REMEDIATION_STATUSES, remediation)
+      ? remediation
       : undefined,
     control: control || undefined,
     // Unknown tabs (including the removed `by_cause`) fall back to `open`,
     // so old bookmarks and dashboard links keep working.
-    tab: (FINDINGS_TABS as readonly string[]).includes(tab ?? "")
-      ? (tab as FindingsTab)
-      : "open",
+    tab: isOneOf(FINDINGS_TABS, tab) ? tab : "open",
     page: parsePageParam(raw.page),
   };
 }

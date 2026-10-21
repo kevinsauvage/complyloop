@@ -1,6 +1,10 @@
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 
 import {
+  isOneOf,
+  zeroCounts,
+} from "@complyloop/analysis-core/contract/literal-sets";
+import {
   REQUIREMENT_STATUSES,
   type RequirementStatus,
 } from "@complyloop/analysis-core/contract/statuses";
@@ -45,23 +49,25 @@ function isoOrNull(value: string | null): string | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
-function emptyCounts(): Record<RequirementStatus, number> {
-  return Object.fromEntries(
-    REQUIREMENT_STATUSES.map((status) => [status, 0]),
-  ) as Record<RequirementStatus, number>;
-}
-
 /**
  * Portfolio rows for a set of projects, in one pass of grouped queries.
  * Projects with no rows yet still get a row (zeros / nulls) so the caller can
  * render "never assessed" instead of dropping the project from the list.
+ *
+ * `scopes` holds each project's preset control ids: requirement and violation
+ * counts only cover those controls, like every other view of the project.
+ * Rows from controls a preset change left behind are not counted. A project
+ * without an entry counts the whole catalog.
  */
 export async function listPortfolioForProjects(
   drizzle: DrizzleDb,
   projectIds: readonly string[],
+  scopes: ReadonlyMap<string, ReadonlySet<string>> = new Map(),
 ): Promise<PortfolioProjectRow[]> {
   if (projectIds.length === 0) return [];
   const ids = [...projectIds];
+  const inScope = (projectId: string, controlId: string) =>
+    scopes.get(projectId)?.has(controlId) ?? true;
 
   const [
     requirementRows,
@@ -73,14 +79,23 @@ export async function listPortfolioForProjects(
     drizzle
       .select({
         projectId: requirements.projectId,
+        controlId: requirements.controlId,
         status: requirements.status,
         value: count(),
       })
       .from(requirements)
       .where(inArray(requirements.projectId, ids))
-      .groupBy(requirements.projectId, requirements.status),
+      .groupBy(
+        requirements.projectId,
+        requirements.controlId,
+        requirements.status,
+      ),
     drizzle
-      .select({ projectId: findings.projectId, value: count() })
+      .select({
+        projectId: findings.projectId,
+        controlId: findings.controlId,
+        value: count(),
+      })
       .from(findings)
       .where(
         and(
@@ -89,7 +104,7 @@ export async function listPortfolioForProjects(
           eq(findings.kind, "violation"),
         ),
       )
-      .groupBy(findings.projectId),
+      .groupBy(findings.projectId, findings.controlId),
     drizzle
       .select({ projectId: alerts.projectId, value: count() })
       .from(alerts)
@@ -133,7 +148,7 @@ export async function listPortfolioForProjects(
       projectId,
       {
         projectId,
-        requirements: emptyCounts(),
+        requirements: zeroCounts(REQUIREMENT_STATUSES),
         openViolations: 0,
         unreadAlerts: 0,
         lastCompletedAt: null,
@@ -145,16 +160,15 @@ export async function listPortfolioForProjects(
 
   for (const row of requirementRows) {
     const entry = byProject.get(row.projectId);
-    if (!entry) continue;
-    if ((REQUIREMENT_STATUSES as readonly string[]).includes(row.status)) {
-      entry.requirements[row.status as RequirementStatus] = Number(
-        row.value ?? 0,
-      );
+    if (!entry || !inScope(row.projectId, row.controlId)) continue;
+    if (isOneOf(REQUIREMENT_STATUSES, row.status)) {
+      entry.requirements[row.status] += Number(row.value ?? 0);
     }
   }
   for (const row of openViolationRows) {
     const entry = byProject.get(row.projectId);
-    if (entry) entry.openViolations = Number(row.value ?? 0);
+    if (!entry || !inScope(row.projectId, row.controlId)) continue;
+    entry.openViolations += Number(row.value ?? 0);
   }
   for (const row of alertRows) {
     const entry = byProject.get(row.projectId);

@@ -1,5 +1,6 @@
 import type { AssessmentJobStatus } from "@complyloop/analysis-core/contract/assessment-jobs";
 import { ASSESSMENT_JOB_STATUSES } from "@complyloop/analysis-core/contract/assessment-jobs";
+import { isOneOf } from "@complyloop/analysis-core/contract/literal-sets";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 
 /**
@@ -26,10 +27,7 @@ export function portfolioJobStatus(row: {
   latestJobStatus: string | null;
 }): AssessmentJobStatus | null {
   const status = row.latestJobStatus;
-  return status !== null &&
-    (ASSESSMENT_JOB_STATUSES as readonly string[]).includes(status)
-    ? (status as AssessmentJobStatus)
-    : null;
+  return isOneOf(ASSESSMENT_JOB_STATUSES, status) ? status : null;
 }
 
 /** The row fields the overview summary and filters read. */

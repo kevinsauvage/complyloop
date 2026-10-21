@@ -5,21 +5,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { handleGitHubWebhookEvent, verifyGitHubSignature } from "./webhook";
 
 const findProjectsByGithubFullName = vi.hoisted(() => vi.fn());
-const getProjectById = vi.hoisted(() => vi.fn());
-const drizzleExecute = vi.hoisted(() => vi.fn());
+const recordProjectDefaultBranch = vi.hoisted(() => vi.fn());
+const recordProjectLastDeployment = vi.hoisted(() => vi.fn());
 const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
 const assertRateLimit = vi.hoisted(() => vi.fn());
 const latestWebhookJobRef = vi.hoisted(() => vi.fn());
 
-vi.mock("@complyloop/db/postgres", () => ({
-  getDrizzle: async () => ({
-    execute: (...args: unknown[]) => drizzleExecute(...args),
-  }),
-}));
+vi.mock("@complyloop/db/postgres", () => ({ getDrizzle: async () => ({}) }));
 vi.mock("@complyloop/db/repo/projects", () => ({
   findProjectsByGithubFullName: (...args: unknown[]) =>
     findProjectsByGithubFullName(...args),
-  getProjectById: (...args: unknown[]) => getProjectById(...args),
+  recordProjectDefaultBranch: (...args: unknown[]) =>
+    recordProjectDefaultBranch(...args),
+  recordProjectLastDeployment: (...args: unknown[]) =>
+    recordProjectLastDeployment(...args),
 }));
 vi.mock("../assessment/assessment-jobs", () => ({
   enqueueAssessmentJob,
@@ -84,7 +83,7 @@ describe("handleGitHubWebhookEvent", () => {
     expect(enqueueAssessmentJob).toHaveBeenCalledWith({
       projectId: "p1",
       trigger: "webhook",
-      idempotencyKey: "delivery-1",
+      idempotencyKey: "delivery-1:p1",
       payload: {
         ref: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         eventName: "push",
@@ -93,7 +92,7 @@ describe("handleGitHubWebhookEvent", () => {
     expect(result).toEqual({
       handled: true,
       message: "Queued re-assessment of acme/app.",
-      jobId: "job-1",
+      jobIds: ["job-1"],
     });
   });
 
@@ -127,7 +126,7 @@ describe("handleGitHubWebhookEvent", () => {
       expect(enqueueAssessmentJob).toHaveBeenCalledWith({
         projectId: "p1",
         trigger: "webhook",
-        idempotencyKey: "delivery-deploy",
+        idempotencyKey: "delivery-deploy:p1",
         payload: {
           ref: sha,
           eventName: "deployment_status",
@@ -168,7 +167,11 @@ describe("handleGitHubWebhookEvent", () => {
         deployment(),
         "delivery-remember",
       );
-      expect(drizzleExecute).toHaveBeenCalled();
+      expect(recordProjectLastDeployment).toHaveBeenCalledWith(
+        expect.anything(),
+        "p1",
+        { url: "https://app-abc123.vercel.app", sha },
+      );
     });
 
     it.each([
@@ -436,6 +439,44 @@ describe("handleGitHubWebhookEvent", () => {
     );
   });
 
+  it("queues every project bound to the delivery installation", async () => {
+    // A personal org and a team org of one account share its installation.
+    findProjectsByGithubFullName.mockResolvedValue([
+      { id: "p1", orgId: "org-1", installationId: 22222 },
+      { id: "p2", orgId: "org-2", installationId: 22222 },
+      { id: "p3", orgId: "org-3", installationId: 33333 },
+    ]);
+    enqueueAssessmentJob.mockImplementation(
+      async (input: { projectId: string }) => ({
+        id: `job-${input.projectId}`,
+      }),
+    );
+
+    const result = await handleGitHubWebhookEvent(
+      "push",
+      {
+        installation: { id: 22222 },
+        repository: { full_name: "acme/app", default_branch: "main" },
+        ref: "refs/heads/main",
+        after: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
+      "delivery-fan-out",
+    );
+
+    expect(result).toEqual({
+      handled: true,
+      message: "Queued re-assessment of acme/app.",
+      jobIds: ["job-p1", "job-p2"],
+    });
+    expect(enqueueAssessmentJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "p2",
+        idempotencyKey: "delivery-fan-out:p2",
+      }),
+    );
+    expect(enqueueAssessmentJob).toHaveBeenCalledTimes(2);
+  });
+
   it("rejects an installation-less delivery for a repo connected in two orgs", async () => {
     findProjectsByGithubFullName.mockResolvedValue([
       { id: "p1", orgId: "org-1", installationId: 11111 },
@@ -488,15 +529,7 @@ describe("handleGitHubWebhookEvent", () => {
         defaultBranch: "main",
       },
     ]);
-    drizzleExecute.mockResolvedValue([]);
-    getProjectById.mockResolvedValue({
-      id: "p1",
-      name: "App",
-      source: "github",
-      orgId: "org-1",
-      createdAt: "2026-01-01T00:00:00.000Z",
-      github: { fullName: "acme/app", defaultBranch: "master", private: false },
-    });
+    recordProjectDefaultBranch.mockResolvedValue("master");
     enqueueAssessmentJob.mockResolvedValue({ id: "job-rename" });
 
     const result = await handleGitHubWebhookEvent(
@@ -512,8 +545,11 @@ describe("handleGitHubWebhookEvent", () => {
     expect(result.handled).toBe(true);
     // Atomic compare-and-set: single conditional UPDATE, then fresh read for
     // the authority decision.
-    expect(drizzleExecute).toHaveBeenCalled();
-    expect(getProjectById).toHaveBeenCalled();
+    expect(recordProjectDefaultBranch).toHaveBeenCalledWith(
+      expect.anything(),
+      "p1",
+      "master",
+    );
     expect(enqueueAssessmentJob).toHaveBeenCalled();
   });
 
@@ -525,15 +561,7 @@ describe("handleGitHubWebhookEvent", () => {
         defaultBranch: "main",
       },
     ]);
-    drizzleExecute.mockResolvedValue([]);
-    getProjectById.mockResolvedValue({
-      id: "p1",
-      name: "App",
-      source: "github",
-      orgId: "org-1",
-      createdAt: "2026-01-01T00:00:00.000Z",
-      github: { fullName: "acme/app", defaultBranch: "master", private: false },
-    });
+    recordProjectDefaultBranch.mockResolvedValue("master");
 
     const result = await handleGitHubWebhookEvent(
       "push",
@@ -549,8 +577,11 @@ describe("handleGitHubWebhookEvent", () => {
     expect(enqueueAssessmentJob).not.toHaveBeenCalled();
     // Authority is decided on the post-write row (master), so the stale-main
     // push is ignored even though the stored branch was main at read time.
-    expect(drizzleExecute).toHaveBeenCalled();
-    expect(getProjectById).toHaveBeenCalled();
+    expect(recordProjectDefaultBranch).toHaveBeenCalledWith(
+      expect.anything(),
+      "p1",
+      "master",
+    );
   });
 
   it("skips the conditional write when the stored branch already matches", async () => {
@@ -574,8 +605,7 @@ describe("handleGitHubWebhookEvent", () => {
     );
 
     expect(result.handled).toBe(true);
-    expect(drizzleExecute).not.toHaveBeenCalled();
-    expect(getProjectById).not.toHaveBeenCalled();
+    expect(recordProjectDefaultBranch).not.toHaveBeenCalled();
     expect(enqueueAssessmentJob).toHaveBeenCalled();
   });
 

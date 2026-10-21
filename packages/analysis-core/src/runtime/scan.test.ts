@@ -16,6 +16,7 @@ import {
   runtimePageMatchesAuditedUrl,
 } from "./runtime-navigation";
 import {
+  browserEnv,
   resolveAxeMinJsPath,
   runAxeOnPage,
   type RuntimePageScanner,
@@ -24,6 +25,19 @@ import {
 import { emulateCoarsePointer } from "./viewport-conditions";
 
 registerPlaywrightBrowserTeardown();
+
+describe("browserEnv", () => {
+  it("passes only the allowlisted variables to Chromium, never worker secrets", () => {
+    const env = browserEnv({
+      PATH: "/usr/bin",
+      HOME: "/home/runner",
+      DATABASE_URL: "postgres://user:secret@db/prod",
+      GITHUB_APP_PRIVATE_KEY: "-----BEGIN RSA PRIVATE KEY-----",
+      AUTH_SECRET: "secret",
+    });
+    expect(env).toEqual({ PATH: "/usr/bin", HOME: "/home/runner" });
+  });
+});
 
 describe("runAxeOnPage", () => {
   let browser: Browser | null = null;

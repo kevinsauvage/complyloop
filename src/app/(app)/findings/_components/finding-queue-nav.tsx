@@ -3,7 +3,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +38,52 @@ function isInsideModalSurface(target: EventTarget | null): boolean {
   );
 }
 
+/**
+ * WCAG 2.1.4 (RGAA 12.10): single-key shortcuts must be possible to turn off
+ * (speech input types letters too). On by default, remembered per browser.
+ */
+const SHORTCUTS_STORAGE_KEY = "complyloop:finding-queue-shortcuts";
+const SHORTCUTS_CHANGED_EVENT = "complyloop:finding-queue-shortcuts-changed";
+
+let shortcutsEnabled: boolean | null = null;
+
+function readShortcutsEnabled(): boolean {
+  if (shortcutsEnabled === null) {
+    try {
+      shortcutsEnabled =
+        window.localStorage.getItem(SHORTCUTS_STORAGE_KEY) !== "off";
+    } catch {
+      // Storage blocked (private mode, policy): default on for this page.
+      shortcutsEnabled = true;
+    }
+  }
+  return shortcutsEnabled;
+}
+
+function writeShortcutsEnabled(enabled: boolean): void {
+  shortcutsEnabled = enabled;
+  try {
+    window.localStorage.setItem(SHORTCUTS_STORAGE_KEY, enabled ? "on" : "off");
+  } catch {
+    // Storage blocked: the choice still holds until the page reloads.
+  }
+  window.dispatchEvent(new Event(SHORTCUTS_CHANGED_EVENT));
+}
+
+function subscribeShortcuts(onChange: () => void): () => void {
+  const onStorage = (event: StorageEvent) => {
+    if (event.key !== SHORTCUTS_STORAGE_KEY) return;
+    shortcutsEnabled = null;
+    onChange();
+  };
+  window.addEventListener("storage", onStorage);
+  window.addEventListener(SHORTCUTS_CHANGED_EVENT, onChange);
+  return () => {
+    window.removeEventListener("storage", onStorage);
+    window.removeEventListener(SHORTCUTS_CHANGED_EVENT, onChange);
+  };
+}
+
 export function FindingQueueNav({
   listParams,
   prevId,
@@ -52,6 +98,11 @@ export function FindingQueueNav({
   total: number;
 }) {
   const router = useRouter();
+  const shortcutsOn = useSyncExternalStore(
+    subscribeShortcuts,
+    readShortcutsEnabled,
+    () => true,
+  );
   const inQueue = index >= 0 && total > 0;
   const [liveMessage, setLiveMessage] = useState("");
   const tabLabel =
@@ -65,6 +116,7 @@ export function FindingQueueNav({
     : "";
 
   useEffect(() => {
+    if (!shortcutsOn) return;
     function onKeyDown(event: KeyboardEvent) {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       // Holding the key must not fire a burst of navigations.
@@ -84,7 +136,7 @@ export function FindingQueueNav({
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [index, listParams, nextId, prevId, router, total]);
+  }, [index, listParams, nextId, prevId, router, shortcutsOn, total]);
 
   if (!inQueue) {
     return (
@@ -111,19 +163,35 @@ export function FindingQueueNav({
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {liveMessage}
       </p>
-      <p className="text-xs text-muted-foreground">
-        {index + 1} of {total} · {tabLabel}
-        {filteredSuffix}
-        <span className="hidden sm:inline">
-          {" "}
-          · <kbd className="rounded border border-border px-1 font-mono">
-            j
-          </kbd>{" "}
-          next ·{" "}
-          <kbd className="rounded border border-border px-1 font-mono">k</kbd>{" "}
-          previous
-        </span>
-      </p>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        <p>
+          {index + 1} of {total} · {tabLabel}
+          {filteredSuffix}
+          {shortcutsOn ? (
+            <span className="hidden sm:inline">
+              {" "}
+              ·{" "}
+              <kbd className="rounded border border-border px-1 font-mono">
+                j
+              </kbd>{" "}
+              next ·{" "}
+              <kbd className="rounded border border-border px-1 font-mono">
+                k
+              </kbd>{" "}
+              previous
+            </span>
+          ) : null}
+        </p>
+        <label className="inline-flex min-h-6 cursor-pointer items-center gap-1.5">
+          <input
+            type="checkbox"
+            className="size-4 accent-foreground"
+            checked={shortcutsOn}
+            onChange={(event) => writeShortcutsEnabled(event.target.checked)}
+          />
+          Keyboard shortcuts
+        </label>
+      </div>
       <div className="flex items-center gap-1">
         {prevId ? (
           <Button variant="outline" size="sm" asChild>

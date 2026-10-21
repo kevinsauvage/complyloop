@@ -171,6 +171,30 @@ describe("complyLoopGate", () => {
     expect(gate.passed).toBe(false);
     expect(gate.remaining).toContain("img-alt");
   });
+
+  it("passes when one of two same-rule instances in the file is fixed", () => {
+    const finding = sourceFinding();
+    const sibling = rawOnFile("img-alt", "Hero.tsx", "Image has no alt");
+    const baseline = [
+      rawOnFile("img-alt", "Hero.tsx", "Image has no alt"),
+      sibling,
+    ];
+    expect(complyLoopGate(finding, baseline, [sibling]).passed).toBe(true);
+  });
+
+  it("fails when the patch adds another copy of an existing failure", () => {
+    const finding = sourceFinding();
+    const baseline = [
+      rawOnFile("img-alt", "Hero.tsx", "Image has no alt"),
+      rawOnFile("button-name", "Hero.tsx", "Button has no name"),
+    ];
+    const gate = complyLoopGate(finding, baseline, [
+      rawOnFile("button-name", "Hero.tsx", "Button has no name"),
+      rawOnFile("button-name", "Hero.tsx", "Button has no name"),
+    ]);
+    expect(gate.passed).toBe(false);
+    expect(gate.remaining).toEqual(["button-name"]);
+  });
 });
 
 describe("generatePatchCandidate", () => {

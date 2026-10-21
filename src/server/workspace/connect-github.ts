@@ -201,6 +201,7 @@ export async function connectGitHubRepo(
           source: project.source,
           sourceRef: project.sourceRef,
           fullName: project.github?.fullName,
+          orgId,
         },
       }),
     ],
@@ -214,7 +215,9 @@ export async function connectGitHubRepo(
  *
  * Retention: disconnecting drops the project's findings/remediations/
  * requirements — only the `project_disconnected` evidence row survives
- * (evidence is FK-less and retained by design; see docs/vercel.md §6).
+ * (evidence is FK-less and retained by design; see docs/vercel.md §6). Its
+ * `orgId` is the only link left from that evidence to its org once the
+ * project row is gone: `deleteEvidenceForOrg` erases by it.
  */
 export function disconnectGitHubRepo(
   db: WorkspaceSlice,
@@ -250,6 +253,7 @@ export function disconnectGitHubRepo(
     detail: {
       source: "github",
       fullName,
+      orgId: project.orgId,
     },
   });
 

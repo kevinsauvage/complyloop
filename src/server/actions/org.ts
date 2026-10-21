@@ -118,8 +118,8 @@ export async function createOrgAction(
     await assertOrgCreateRateLimit(userId);
     const { name } = parseForm(createOrgInput, formData);
 
-    const org = await withOrgWrite((workspace) => {
-      const { org: created, membership } = createOrganization(workspace.db, {
+    const org = await withOrgWrite(() => {
+      const { org: created, membership } = createOrganization({
         name,
         creatorUserId: userId,
         githubLogin,

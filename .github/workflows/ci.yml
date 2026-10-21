@@ -112,6 +112,13 @@ jobs:
       - run: npm ci
       - run: npm run db:migrate
       - run: npx playwright install chromium --with-deps
+      - name: Allow the Chromium sandbox
+        # Inline e2e assessments launch the scan browser with its sandbox on
+        # (`scan.ts`); Ubuntu 24.04 blocks unprivileged user namespaces.
+        run: |
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
       - run: npm run test:e2e
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: failure()

@@ -61,6 +61,21 @@ export async function listRequirementsForProjects(
   return rows.map((row) => row.payload);
 }
 
+/**
+ * Every requirement carrying a temporary exception, across projects. The
+ * caller decides which have lapsed: expiry is compared on parsed dates, never
+ * as `payload` text.
+ */
+export async function listTemporaryExceptionRequirements(
+  drizzle: DrizzleDb,
+): Promise<Requirement[]> {
+  const rows = await drizzle
+    .select({ payload: requirements.payload })
+    .from(requirements)
+    .where(sql`${requirements.payload}->'exception'->>'reason' = 'temporary'`);
+  return rows.map((row) => row.payload);
+}
+
 export async function upsertRequirements(
   tx: DrizzleDb,
   items: ReadonlyArray<Requirement>,

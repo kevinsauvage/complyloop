@@ -217,5 +217,7 @@ describe("disconnectGitHubRepo", () => {
     expect(db.projects).toHaveLength(1);
     expect(db.findings).toHaveLength(1);
     expect(evidence.kind).toBe("project_disconnected");
+    // The org link that lets org deletion erase this project's evidence.
+    expect(evidence.detail).toMatchObject({ orgId: "org-1" });
   });
 });

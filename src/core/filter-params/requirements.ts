@@ -1,3 +1,4 @@
+import { isOneOf } from "@complyloop/analysis-core/contract/literal-sets";
 import {
   REQUIREMENT_STATUSES,
   type RequirementStatus,
@@ -10,10 +11,7 @@ export function parseRequirementStatusParam(
   raw: string | string[] | undefined,
 ): RequirementStatus | undefined {
   const value = firstParam(raw);
-  if (!value) return undefined;
-  return (REQUIREMENT_STATUSES as readonly string[]).includes(value)
-    ? (value as RequirementStatus)
-    : undefined;
+  return isOneOf(REQUIREMENT_STATUSES, value) ? value : undefined;
 }
 
 /** Trimmed requirements search query (code or title), capped at 100 chars. */

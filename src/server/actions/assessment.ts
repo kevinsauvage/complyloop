@@ -181,10 +181,12 @@ export async function cancelAssessmentJobAction(
     );
     const activeProjectId = await resolveActiveProjectId();
     await withProjectTx(activeProjectId, "project.assess", async (ctx) => {
-      const cancelled = await cancelAssessmentJob({
-        projectId: ctx.project.id,
-        jobId,
-      });
+      // Same transaction as its evidence: a failed evidence write must not
+      // leave a cancelled job with no audit record.
+      const cancelled = await cancelAssessmentJob(
+        { projectId: ctx.project.id, jobId },
+        ctx.tx,
+      );
       if (!cancelled) {
         throw new PublicError("That assessment job already finished.");
       }

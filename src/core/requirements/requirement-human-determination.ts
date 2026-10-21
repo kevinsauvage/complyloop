@@ -1,7 +1,8 @@
-import type {
-  Requirement,
-  RequirementException,
-  RequirementHumanPass,
+import {
+  type Requirement,
+  type RequirementException,
+  type RequirementHumanPass,
+  TEMPORARY_EXCEPTION_REASON,
 } from "@complyloop/analysis-core/contract/entities";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 
@@ -41,6 +42,24 @@ export function normalizeExpiryInstant(raw: string): string | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
+/**
+ * True once a temporary exception is past its expiry; it no longer holds and
+ * is cleared on the next worker tick or assessment. An unparseable expiry
+ * counts as lapsed: an exception must not outlive a date nobody can read.
+ */
+export function exceptionHasLapsed(
+  exception: RequirementException | undefined,
+  now: number,
+): boolean {
+  if (
+    !exception?.expiresAt ||
+    exception.reason !== TEMPORARY_EXCEPTION_REASON
+  ) {
+    return false;
+  }
+  return !(Date.parse(exception.expiresAt) > now);
+}
+
 export function setRequirementHumanDetermination(
   requirement: Requirement,
   override: HumanDeterminationOverride,
@@ -58,6 +77,10 @@ export function setRequirementHumanDetermination(
       delete updated.humanPass;
       if (override.nextStatus !== undefined) {
         updated.status = override.nextStatus;
+      } else if (requirement.humanPass) {
+        // The replaced pass was the only backing for `passed`; human passes
+        // exist only on manual controls, which have no automated verdict.
+        updated.status = "unable_to_verify";
       }
       break;
     }

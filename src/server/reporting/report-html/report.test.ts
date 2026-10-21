@@ -28,6 +28,15 @@ describe("buildAuditReportHtml", () => {
     expect(html).toContain("page-break-inside: avoid");
   });
 
+  it("wires the print button through a nonce'd script, never an inline handler", () => {
+    const html = buildAuditReportHtml(sampleReportInput(), "n0nce");
+
+    // The page CSP (nonce + strict-dynamic) blocks inline event handlers.
+    expect(html).not.toContain("onclick");
+    expect(html).toContain('<script nonce="n0nce">');
+    expect(html).toContain('id="print-report"');
+  });
+
   it("escapes HTML in user-controlled fields", () => {
     const input = sampleReportInput();
     input.project = {
@@ -37,7 +46,7 @@ describe("buildAuditReportHtml", () => {
 
     const html = buildAuditReportHtml(input);
 
-    expect(html).not.toContain("<script>");
+    expect(html).not.toContain('<script>alert("x")</script>');
     expect(html).toContain("&lt;script&gt;");
   });
 

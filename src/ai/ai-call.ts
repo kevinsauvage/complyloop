@@ -10,6 +10,8 @@ import {
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
+import { redactSecrets } from "@/lib/redact";
+
 /** Error report handed to the `onError` hook on gateway failure. */
 export interface AiErrorReport {
   /** Stable machine-readable code attached to the observability report. */
@@ -84,9 +86,17 @@ export const confidenceSchema = z.enum(["high", "medium", "low"]);
 export const UNTRUSTED_FINDING_OPEN = "<untrusted-finding>";
 export const UNTRUSTED_FINDING_CLOSE = "</untrusted-finding>";
 
-/** Neutralizes a literal close tag so repo text cannot break out of its block. */
+/**
+ * Prepares repo text for a prompt: credentials are redacted (the snippet is a
+ * source line and may hold a hard-coded key, which must not reach the model
+ * gateway), and a literal close tag is neutralized so the text cannot break
+ * out of its block.
+ */
 export function neutralizeUntrusted(text: string): string {
-  return text.replaceAll(UNTRUSTED_FINDING_CLOSE, "<\\/untrusted-finding>");
+  return redactSecrets(text).replaceAll(
+    UNTRUSTED_FINDING_CLOSE,
+    "<\\/untrusted-finding>",
+  );
 }
 
 /** Shared finding/control context lines for AI prompts (location + engine). */
