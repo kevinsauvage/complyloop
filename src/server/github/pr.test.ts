@@ -40,6 +40,7 @@ const hub = vi.hoisted(() => {
     openPrs: [] as Array<{ html_url: string; base: { ref: string } }>,
     treeTruncated: false,
     failPrCreate: false,
+    readOnly: false,
     prCreateArgs: [] as Array<{
       head: string;
       base: string;
@@ -53,7 +54,15 @@ const hub = vi.hoisted(() => {
   const octokit = {
     rest: {
       repos: {
-        get: async () => ({ data: { default_branch: state.defaultBranch } }),
+        get: async () => ({
+          data: {
+            default_branch: state.defaultBranch,
+            // The App token may push: this double models a writable repo.
+            permissions: state.readOnly
+              ? { admin: false, push: false, pull: true }
+              : { admin: true, push: true },
+          },
+        }),
         getContent: async (args: { path: string }) => {
           const text = state.files.get(args.path);
           if (text === undefined) throw notFound();
@@ -210,6 +219,7 @@ const hub = vi.hoisted(() => {
       state.openPrs.length = 0;
       state.treeTruncated = false;
       state.failPrCreate = false;
+      state.readOnly = false;
       state.prCreateArgs.length = 0;
     },
   };
@@ -335,6 +345,16 @@ describe("preparePullRequest", () => {
     expect(hub.state.prCreateArgs[0]?.body).toContain(
       "Repository tests run in GitHub CI",
     );
+  });
+
+  it("refuses to commit when the App lost write access", async () => {
+    hub.state.readOnly = true;
+
+    await expect(run()).rejects.toThrow(/no longer has write access/);
+    // Nothing was written: no blob, no commit, no branch, no PR.
+    expect(hub.state.blobs).toHaveLength(0);
+    expect(hub.state.commits).toHaveLength(0);
+    expect(hub.state.createdBranches).toHaveLength(0);
   });
 
   it("resets an existing fix branch instead of failing the retry", async () => {

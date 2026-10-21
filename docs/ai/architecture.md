@@ -246,6 +246,10 @@ deleteMembershipIds, deleteOrgIds }` — explicit rows, no in-memory slice diff.
   - Status-scoped page loads cap at `FINDINGS_LIST_LOAD_LIMIT` (most severe
     first; counts stay exact via SQL, truncation is flagged, never silent).
     Writes/reports/exports load full history.
+  - Dashboard loads only the six findings its activity card renders
+    (`findingsLimit: 6`) and skips remediation rows; requirements and settings
+    load no finding/remediation rows at all (`findingStatuses: []`,
+    `includeRemediations: false`) — their badges/counts come from SQL.
   - Evidence exports cap per project (`EVIDENCE_EXPORT_LIMIT`, newest first,
     flagged); per-finding reads cap at `FINDING_EVIDENCE_LIMIT`.
 - **Retention/erasure** — evidence is append-only (trigger) with one gated
@@ -314,7 +318,11 @@ deleteMembershipIds, deleteOrgIds }` — explicit rows, no in-memory slice diff.
   Fix PRs never clone at all: `commitFixBranch`
   (`src/server/github/fix-branch.ts`) writes blob → tree → commit → ref through
   the Git Data API from the verified `candidate.edits`, re-checking each
-  `oldText` against the base commit so a stale patch fails closed. The executor
+  `oldText` against the base commit so a stale patch fails closed. Connecting a
+  repo requires write access on the **user's** token (`permissions.push`
+  /`admin`), and `commitFixBranch` re-checks the installation's permission
+  before writing, so a read-only collaborator cannot have the App open branches
+  for them. The executor
   uses its locally installed Playwright browser. See
   [`vercel.md`](../vercel.md).
 
@@ -337,6 +345,15 @@ Engine containment: a throwing custom probe is recorded on
 failures are non-fatal. A per-page failure (axe crash, navigation, …)
 is contained to that page (`pageFailures`) and sibling pages continue;
 only a total outage (zero pages) fails the sub-scan.
+
+**Partial coverage is not authority.** Findings from rendered pages are still
+reported and those routes may resolve their own findings, but a run with any
+`pageFailures` is not authoritative: runtime-only/site-level requirements stay
+`unable_to_verify`, applicability is not confirmed, and AST findings are not
+dropped by the merge (`runtimeCoverage` stays `null`, the same fail-closed path
+as unknown coverage). A route that failed never resolves a finding recorded
+against it, and an untied run never resolves by pathname alone — the audited
+origin must match.
 
 **Custom-probe rules** (`runtime/custom-checks/`): keep a probe only if it
 measures one deterministic fact on an unmodified page. Probes that inject CSS,
@@ -524,6 +541,14 @@ pushes and PR events are ignored. Failures become
 - Webhook assessments idempotent via job `idempotencyKey`.
 - Request handlers never clone a repository. Assessments run on the worker;
   patch generation reads one file and fix PRs write through the Git Data API.
+- Repo-derived text is untrusted at the AI boundary: finding reasons, snippets,
+  locations and file contents are wrapped in `<untrusted-finding>` /
+  `<untrusted-file>` blocks with close tags neutralized, and model-authored
+  `attributeValue` rejects characters that could break out of the source edit.
+- A ready patch stores a bounded edit window (not the whole file) in
+  append-only evidence, and a patch whose text looks like a credential is
+  refused rather than stored redacted — redaction would silently change the
+  branch later committed.
 
 ## Tests
 

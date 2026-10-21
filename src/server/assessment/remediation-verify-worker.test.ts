@@ -150,6 +150,21 @@ describe("runRemediationVerifyJob", () => {
     ).toBe(true);
   });
 
+  it("re-audits a dom finding under the assessment's theme conditions", async () => {
+    getFindingById.mockResolvedValue(domFinding());
+    getRemediationByFindingId.mockResolvedValue(implementedRemediation());
+    runtimeViolationStillPresent.mockResolvedValue(false);
+
+    await runRemediationVerifyJob("f1");
+
+    // A default-theme-only re-check would verify a dark-mode-only defect.
+    expect(runtimeViolationStillPresent).toHaveBeenCalledWith(
+      expect.objectContaining({ checkId: expect.any(String) }),
+      undefined,
+      { browserConditions: ["dark", "light"] },
+    );
+  });
+
   it("re-derives the control's requirement from its real rows", async () => {
     getFindingById.mockResolvedValue(domFinding());
     getRemediationByFindingId.mockResolvedValue(implementedRemediation());

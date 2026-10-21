@@ -24,6 +24,7 @@ const summary: GitHubRepoSummary = {
   updatedAt: "",
   htmlUrl: "https://github.com/acme/shop",
   cloneUrl: "https://github.com/acme/shop.git",
+  canPush: true,
 };
 
 describe("listAvailableRepos", () => {

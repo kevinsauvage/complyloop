@@ -211,6 +211,12 @@ export interface ReconcileControlFindingsInput {
   scopedFileSet: Set<string> | null;
   runtimeRan: boolean;
   /**
+   * Route pathnames a partial runtime scan rendered cleanly. A page that
+   * failed this run is in `runtimeFailedRoutes` and never resolves a finding.
+   */
+  runtimeScannedRoutes?: ReadonlySet<string>;
+  runtimeFailedRoutes?: ReadonlySet<string>;
+  /**
    * Origin audited by a runtime scan that is not tied to the scanned commit
    * (static URL / mismatched SHA). Such a run still closes the runtime
    * findings it previously reported for that same origin — otherwise a project
@@ -221,6 +227,17 @@ export interface ReconcileControlFindingsInput {
   /** Shared per-run file-text memo so suggestion building reads each file once. */
   fileTextCache?: FileTextCache;
   onFindingResolved: (finding: Finding) => void;
+}
+
+/** Route pathname of a dom finding's URL (`/about`, `/` for the root). */
+function pathnameOfLocation(finding: Finding): string | null {
+  if (!isDomLocation(finding.location)) return null;
+  try {
+    const pathname = new URL(finding.location.url).pathname.replace(/\/+$/, "");
+    return pathname === "" ? "/" : pathname;
+  } catch {
+    return null;
+  }
 }
 
 function originOfLocation(finding: Finding): string | undefined {
@@ -250,8 +267,29 @@ export function shouldResolveOpenFinding(input: {
   scopedFileSet: Set<string> | null;
   runtimeRan: boolean;
   untiedRuntimeOrigin?: string;
+  runtimeScannedRoutes?: ReadonlySet<string>;
+  runtimeFailedRoutes?: ReadonlySet<string>;
 }): boolean {
   if (isRuntimeOwnedFinding(input.finding)) {
+    // Route-scoped first: a page that failed this run proves nothing about the
+    // finding it used to report, even when sibling pages rendered cleanly.
+    const route = isDomLocation(input.finding.location)
+      ? pathnameOfLocation(input.finding)
+      : null;
+    if (route !== null) {
+      if (input.runtimeFailedRoutes?.has(route)) return false;
+      if (input.runtimeScannedRoutes?.has(route)) {
+        // Route coverage never crosses deployments: an untied audit of another
+        // origin (rotating preview URLs) must not close a finding recorded on
+        // an origin it never audited.
+        if (
+          input.untiedRuntimeOrigin === undefined ||
+          originOfLocation(input.finding) === input.untiedRuntimeOrigin
+        ) {
+          return true;
+        }
+      }
+    }
     if (input.runtimeRan) return true;
     return (
       input.untiedRuntimeOrigin !== undefined &&
@@ -285,6 +323,8 @@ export function reconcileControlFindings(
     dismissedFindings,
     scopedFileSet,
     runtimeRan,
+    runtimeScannedRoutes,
+    runtimeFailedRoutes,
     untiedRuntimeOrigin,
     fileTextCache,
     onFindingResolved,
@@ -375,6 +415,8 @@ export function reconcileControlFindings(
         finding,
         scopedFileSet,
         runtimeRan,
+        runtimeScannedRoutes,
+        runtimeFailedRoutes,
         untiedRuntimeOrigin,
       })
     ) {

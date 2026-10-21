@@ -29,6 +29,7 @@ import { AI_PATCH_UNAVAILABLE_MESSAGE, type AiCallOnError } from "@/ai/ai-call";
 import { proposeFixEdits } from "@/ai/patch";
 import {
   assertSourceLocatedFinding,
+  boundFileEdit,
   generatePatchCandidate,
   type GeneratePatchCandidateOptions,
   type PatchCandidate,
@@ -42,6 +43,7 @@ import {
 } from "@/core/requirements/remediation-lifecycle";
 
 import { reportError, reportWarning } from "../observability";
+import { redactSecrets } from "../redact";
 import { locateViolationInProject, mergeFix } from "./assessment-findings";
 import { withProjectFileWorkspace } from "./single-file-source";
 
@@ -70,10 +72,13 @@ function deterministicProposal(
   if (!fix || match?.location.kind !== "source") return null;
   const path = match.location.filePath;
   const original = fs.readFileSync(resolveInside(rootPath, path), "utf8");
+  const updated = applyFix(original, fix);
   return {
     description: describeFix(fix),
     provenance: "deterministic",
-    edits: [{ path, oldText: original, newText: applyFix(original, fix) }],
+    // Only the changed window, never the whole file: this candidate lands in
+    // append-only evidence.
+    edits: [boundFileEdit(path, original, updated)],
   };
 }
 
@@ -102,9 +107,8 @@ export async function runAiFixOnCheckout(
             control,
             onError,
             fileContents: {
-              [filePath]: fs.readFileSync(
-                resolveInside(rootPath, filePath),
-                "utf8",
+              [filePath]: redactSecrets(
+                fs.readFileSync(resolveInside(rootPath, filePath), "utf8"),
               ),
             },
           })));
@@ -191,8 +195,31 @@ export async function persistPatchCandidate(
   actor: string | undefined,
 ): Promise<void> {
   const location = formatLocationRef(finding.location);
+  // Evidence is append-only, so a credential-shaped string inside the stored
+  // diff can never be removed. Redacting it would silently corrupt the patch
+  // the PR flow replays from this row (a changed `newText` would be committed,
+  // a changed `oldText` would never apply), so refuse instead of storing.
+  const storedCandidate: PatchCandidate = {
+    ...candidate,
+    edits: candidate.edits.map((edit) => {
+      const oldText = redactSecrets(edit.oldText);
+      const newText = redactSecrets(edit.newText);
+      if (oldText !== edit.oldText || newText !== edit.newText) {
+        reportWarning("Refusing to store a patch containing credential text", {
+          code: "ai_patch_secret_refused",
+          projectId: finding.projectId,
+          findingId: finding.id,
+          path: edit.path,
+        });
+        throw new PublicError(
+          "The suggested patch touches text that looks like a credential, so it was not stored. Apply the fix manually from the developer handoff.",
+        );
+      }
+      return { path: edit.path, oldText, newText };
+    }),
+  };
   const detail = {
-    ...patchCandidateToDetail(candidate),
+    ...patchCandidateToDetail(storedCandidate),
     // Staleness anchor (see remediation-ai.ts): suggestion-time location.
     locationRef: location,
   };
@@ -223,7 +250,7 @@ export async function persistPatchCandidate(
   }
   const suggestion = {
     description: candidate.description,
-    proposedSnippet: snippetFromCandidate(candidate),
+    proposedSnippet: snippetFromCandidate(storedCandidate),
     provenance: candidate.provenance,
     ...(candidate.provenance === "ai"
       ? {

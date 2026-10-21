@@ -208,6 +208,32 @@ export async function commitFixBranch(
   const { owner, repo } = parseOwnerRepo(options.fullName);
   const octokit = createOctokit(options.accessToken);
 
+  // Fail closed on read-only access: connect already refuses it, but a stored
+  // project may predate that check or the App installation may have been
+  // downgraded since. An installation token must never open a branch on a repo
+  // the user can only read.
+  let repository: Awaited<ReturnType<typeof octokit.rest.repos.get>>["data"];
+  try {
+    ({ data: repository } = await octokit.rest.repos.get({ owner, repo }));
+  } catch (error) {
+    throw new PublicError(
+      octokitErrorMessage(
+        error,
+        `Could not check write access to ${options.fullName}`,
+      ),
+      "forbidden",
+    );
+  }
+  if (
+    repository.permissions?.push !== true &&
+    repository.permissions?.admin !== true
+  ) {
+    throw new PublicError(
+      `The GitHub App no longer has write access to ${options.fullName}. Reinstall or update the App installation, then retry.`,
+      "forbidden",
+    );
+  }
+
   const base = await resolveBaseCommit(
     octokit,
     owner,

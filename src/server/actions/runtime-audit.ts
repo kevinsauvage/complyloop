@@ -62,7 +62,7 @@ export async function updateRuntimeAuditAction(
     const projectId = await resolveActiveProjectId();
     await withProjectTx(projectId, "project.connect", async (ctx) => {
       if (ctx.userId) {
-        await assertRuntimeAuditRateLimit(ctx.userId);
+        await assertRuntimeAuditRateLimit(ctx.userId, ctx.tx);
       }
       const next = { ...ctx.project };
       if (normalized == null) {

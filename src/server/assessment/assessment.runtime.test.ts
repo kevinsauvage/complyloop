@@ -199,6 +199,64 @@ describe("runAssessment with runtime engine", () => {
       expect(assessment.engines?.runtimeTied).toBe(false);
     });
 
+    it("does not pass runtime-only requirements when one route failed", async () => {
+      const sha = await commitCheckout();
+      const { assessment } = await assess({
+        runtimeLookup: publicLookup,
+        runtimeScanner: async (urls) => ({
+          pages: [
+            {
+              url: urls[0]!,
+              violations: [],
+              incomplete: [],
+              loadedCleanly: true,
+            },
+          ],
+          // A sibling configured route timed out: coverage is partial.
+          pageFailures: [
+            { url: "https://deploy.example/checkout", error: "timeout" },
+          ],
+        }),
+        runtimeTarget: { url: "https://deploy.example", sha },
+      });
+      expect(assessment.engines?.runtimeTied).toBe(true);
+      expect(contrastStatus()).toBe("unable_to_verify");
+    });
+
+    it("keeps a composition-sensitive AST finding when one route failed", async () => {
+      fs.writeFileSync(
+        path.join(rootPath, "Page.tsx"),
+        `export const Page = () => <img src="/x.png" />;\n`,
+      );
+      const sha = await commitCheckout();
+      const { assessment } = await assess({
+        runtimeLookup: publicLookup,
+        runtimeScanner: async (urls) => ({
+          pages: [
+            {
+              url: urls[0]!,
+              violations: [],
+              incomplete: [],
+              loadedCleanly: true,
+            },
+          ],
+          pageFailures: [
+            { url: "https://deploy.example/checkout", error: "timeout" },
+          ],
+        }),
+        runtimeTarget: { url: "https://deploy.example", sha },
+      });
+      expect(assessment.engines?.runtimeTied).toBe(true);
+      // The partial run cannot vouch for the unrendered page, so the AST
+      // finding (normally superseded by an axe-owned check) stays open.
+      expect(
+        db.findings.some(
+          (finding) =>
+            finding.checkId === "img-alt" && finding.status === "open",
+        ),
+      ).toBe(true);
+    });
+
     it("lets an untied audit close the findings it reported earlier for the same URL", async () => {
       const violating = async (urls: readonly string[]) => ({
         pages: [

@@ -29,6 +29,7 @@ function repoFixture(fullName: string) {
     updatedAt: new Date().toISOString(),
     htmlUrl: `https://github.com/${fullName}`,
     cloneUrl: `https://github.com/${fullName}.git`,
+    canPush: true,
     installationId: 123,
     owner,
   };

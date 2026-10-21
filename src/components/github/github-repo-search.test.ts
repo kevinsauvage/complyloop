@@ -14,6 +14,7 @@ const repo = {
   updatedAt: "2026-01-01T00:00:00.000Z",
   htmlUrl: "https://github.com/acme/app",
   cloneUrl: "https://github.com/acme/app.git",
+  canPush: true,
 };
 
 describe("parseGitHubRepoSearchResponse", () => {

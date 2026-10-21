@@ -86,7 +86,7 @@ export async function verifyRemediationAction(
       const live = await getFindingById(ctx.tx, findingId);
       if (!live) throw new PublicError("Unknown finding.");
       if (ctx.userId) {
-        await assertRemediationRateLimit(ctx.userId);
+        await assertRemediationRateLimit(ctx.userId, ctx.tx);
       }
       const remediation = await getRemediationByFindingId(ctx.tx, findingId);
       if (!remediation) {
@@ -102,13 +102,16 @@ export async function verifyRemediationAction(
       // the finding since the preview read.
       assertVerifiableFinding(live);
 
-      await recoverExpiredAssessmentLeases();
-      const job = await enqueueAssessmentJob({
-        projectId: live.projectId,
-        trigger: "verify_remediation",
-        requestedByUserId: ctx.userId,
-        payload: { findingId },
-      });
+      await recoverExpiredAssessmentLeases(ctx.tx);
+      const job = await enqueueAssessmentJob(
+        {
+          projectId: live.projectId,
+          trigger: "verify_remediation",
+          requestedByUserId: ctx.userId,
+          payload: { findingId },
+        },
+        ctx.tx,
+      );
       await insertEvidence(ctx.tx, {
         kind: "assessment_job",
         summary: `Remediation verify job ${job.id} queued for "${ctx.project.name}"`,
@@ -150,7 +153,7 @@ export async function markRemediationImplementedAction(
     "project.remediate",
     async (ctx) => {
       if (ctx.userId) {
-        await assertRemediationRateLimit(ctx.userId);
+        await assertRemediationRateLimit(ctx.userId, ctx.tx);
       }
       const { note: parsedNote } = parseForm(markImplementedInput, formData);
       const remediation = await getRemediationByFindingId(
@@ -221,7 +224,7 @@ export async function attestRemediationVerifiedAction(
       const live = await getFindingById(ctx.tx, findingId);
       if (!live) throw new PublicError("Unknown finding.");
       if (ctx.userId) {
-        await assertRemediationRateLimit(ctx.userId);
+        await assertRemediationRateLimit(ctx.userId, ctx.tx);
       }
       if (live.status !== "resolved") {
         throw new PublicError(ATTEST_REQUIRES_RESOLVED_MESSAGE);

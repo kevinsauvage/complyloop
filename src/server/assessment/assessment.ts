@@ -3,7 +3,10 @@ import "server-only";
 import fs from "node:fs";
 
 import {
+  isCompositionSensitiveCheck,
+  isPackageTwinSourceCheck,
   isRegisteredCheck,
+  isRuntimeOnlyCheck,
   requiresFullTreeScan,
 } from "@complyloop/analysis-core/check-authority";
 import { checkRegistrySignature } from "@complyloop/analysis-core/checks/registry";
@@ -21,6 +24,7 @@ import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
 import { mergeRawFindings } from "@complyloop/analysis-core/merge-findings";
+import type { RuntimeScanResult } from "@complyloop/analysis-core/runtime/findings";
 import {
   type RuntimePageScanner,
   scanRuntime,
@@ -105,6 +109,16 @@ function originOf(url: string | undefined): string | undefined {
   }
 }
 
+/** Route pathname of a runtime URL (query/hash dropped — preview tokens). */
+function pathnameOfUrl(url: string): string | null {
+  try {
+    const pathname = new URL(url).pathname.replace(/\/+$/, "");
+    return pathname === "" ? "/" : pathname;
+  } catch {
+    return null;
+  }
+}
+
 export interface RunAssessmentOptions {
   /** Absolute path of the current ephemeral (or test) checkout to scan. */
   rootPath: string;
@@ -157,6 +171,12 @@ export interface ResolveVerifyScope {
   sourcesUnchanged: boolean;
   /** Checkout the run scanned — backs the deletion proof below. */
   rootPath: string;
+  /**
+   * True when a runtime audit superseded this check's AST findings. The source
+   * resolve is then a merge artifact, not a confirmed fix: only the runtime
+   * re-audit path may verify those checks.
+   */
+  runtimeOwnsCheck?: boolean;
   /** Test seam for the checkout existence check. */
   fileExists?: (filePath: string) => boolean;
 }
@@ -186,6 +206,19 @@ export function verifyRemediationOnResolve(
   scope: ResolveVerifyScope,
 ): void {
   if (!isSourceLocation(finding.location)) return;
+  // A runtime audit owns these check ids at merge time (AST findings for them
+  // are dropped). Resolving a source finding because the merge dropped it is
+  // not proof the defect is fixed — a runtime re-audit is the only verifier.
+  if (scope.runtimeOwnsCheck === true) {
+    reportWarning("Skipping auto-verify: runtime authority owns this check", {
+      code: "draft_pr_verify_runtime_owned",
+      projectId: finding.projectId,
+      findingId: finding.id,
+      assessmentId,
+      checkId: finding.checkId,
+    });
+    return;
+  }
   const remediationIndex = rows.remediations.findIndex(
     (candidate) => candidate.findingId === finding.id,
   );
@@ -343,9 +376,20 @@ export interface AssessmentScanResult {
      * runtime-only requirements; an untied run just reports what it saw.
      */
     tied: boolean;
+    /**
+     * Every configured route rendered. A partial run (one page timed out, axe
+     * crashed on one page) may still report findings from the pages it did
+     * render, but it cannot pass runtime-only requirements or site-level
+     * checks — never let an unrendered page read as clean.
+     */
+    complete: boolean;
     /** Origin that was audited (set whenever runtime ran), for untied resolution. */
     auditedOrigin?: string;
     pagesScanned: number;
+    /** Route pathnames that rendered cleanly this run. */
+    scannedRoutes: readonly string[];
+    /** Route pathnames that failed this run — never resolved by this run. */
+    failedRoutes: readonly string[];
     siteLevelChecksRan?: boolean;
     htmlValidateRan?: boolean;
     applicabilityFacts?: ReadonlyMap<string, string>;
@@ -529,12 +573,19 @@ export async function scanAssessment(
           scanner: options.runtimeScanner,
           lookup: options.runtimeLookup,
         })
-      : Promise.resolve({ findings: [], pagesScanned: 0 }),
+      : Promise.resolve<RuntimeScanResult>({
+          findings: [],
+          pagesScanned: 0,
+        }),
   );
+  const runtimePageFailures = runtimeResult.pageFailures ?? [];
   const runtimeRan =
     runtimeConfigured &&
     runtimeResult.error === undefined &&
     runtimeResult.pagesScanned > 0;
+  // Rendered everything it was asked to render. A partial run still reports
+  // the pages it saw, but it is not authority over the pages that failed.
+  const runtimeComplete = runtimeRan && runtimePageFailures.length === 0;
   if (runtimeConfigured && !runtimeRan) {
     // A failed runtime sub-scan does not fail the job, so without this the
     // classified cause only lands in evidence — invisible in Vercel logs and
@@ -551,6 +602,17 @@ export async function scanAssessment(
       error: runtimeResult.error ?? "no pages",
       pagesScanned: runtimeResult.pagesScanned,
       previewOrigin,
+    });
+  }
+  if (runtimeRan && runtimePageFailures.length > 0) {
+    // Partial coverage is a degraded authority, not a failure: surface the
+    // count so a "why is this requirement unable_to_verify" question has an
+    // answer in logs and Sentry.
+    reportWarning("runtime scan covered only some routes", {
+      code: "assessment_runtime_partial",
+      projectId,
+      pagesScanned: runtimeResult.pagesScanned,
+      failedPages: runtimePageFailures.length,
     });
   }
 
@@ -574,10 +636,12 @@ export async function scanAssessment(
   // Runtime authority is scoped to the routes the audit actually rendered.
   // Without a route↔file map (`null`) the merge keeps AST findings rather than
   // assuming the whole repo was covered — a false `passed` is worse than a
-  // duplicate finding.
-  const runtimeCoverage = runtimeTied
-    ? buildRuntimeCoverage(rootPath, runtimeResult.scannedRoutes ?? [])
-    : null;
+  // duplicate finding. A partial run (some route failed) is treated the same
+  // way: it cannot vouch for the pages it never rendered.
+  const runtimeCoverage =
+    runtimeTied && runtimeComplete
+      ? buildRuntimeCoverage(rootPath, runtimeResult.scannedRoutes ?? [])
+      : null;
 
   // — Stage 5: merge AST + runtime findings (dedupe, authority). —
   const assessmentId = crypto.randomUUID();
@@ -604,8 +668,13 @@ export async function scanAssessment(
       configured: runtimeConfigured,
       ran: runtimeRan,
       tied: runtimeTied,
+      complete: runtimeComplete,
       auditedOrigin: runtimeRan ? originOf(runtimeBaseUrl) : undefined,
       pagesScanned: runtimeResult.pagesScanned,
+      scannedRoutes: runtimeResult.scannedRoutes ?? [],
+      failedRoutes: runtimePageFailures
+        .map((failure) => pathnameOfUrl(failure.url))
+        .filter((route): route is string => route !== null),
       siteLevelChecksRan: runtimeResult.siteLevelChecksRan,
       htmlValidateRan: runtimeResult.htmlValidateRan,
       applicabilityFacts: runtimeResult.applicabilityFacts,
@@ -652,6 +721,10 @@ export async function reconcileAssessment(
   const rows = createAssessmentScratch(input);
   const timed = createStageTimer(stageMs, options.onStage, projectId);
   const scoped = assertAssessableCatalog(project, options.controls);
+  // Authority requires both a tied deployment and full route coverage: a
+  // partial audit must not pass runtime-only requirements or confirm
+  // applicability for pages it never rendered.
+  const runtimeAuthoritative = runtime.tied && runtime.complete;
 
   if (changes.length > 0) {
     appendEvidence(rows, {
@@ -699,18 +772,21 @@ export async function reconcileAssessment(
       rawByCheckId.set(raw.checkId, list);
     }
     for (const control of scoped) {
-      if (control.checkId === null) continue;
+      const checkId = control.checkId;
+      if (checkId === null) continue;
       reconcileControlFindings({
         rows,
         project,
         control,
         assessmentId,
         rootPath,
-        rawForControl: rawByCheckId.get(control.checkId) ?? [],
+        rawForControl: rawByCheckId.get(checkId) ?? [],
         openFindings: openByControl.get(control.id) ?? [],
         dismissedFindings: dismissedByControl.get(control.id) ?? [],
         scopedFileSet,
-        runtimeRan: runtime.tied,
+        runtimeRan: runtimeAuthoritative,
+        runtimeScannedRoutes: new Set(runtime.scannedRoutes),
+        runtimeFailedRoutes: new Set(runtime.failedRoutes),
         untiedRuntimeOrigin: runtime.tied ? undefined : runtime.auditedOrigin,
         fileTextCache,
         // A preview scan (PR head / feature branch) must not derive the
@@ -724,6 +800,13 @@ export async function reconcileAssessment(
                   scopedFileSet,
                   sourcesUnchanged,
                   rootPath,
+                  // Merge authority: when a runtime audit ran, AST findings for
+                  // these ids are dropped without any proof of a fix.
+                  runtimeOwnsCheck:
+                    runtime.tied &&
+                    (isCompositionSensitiveCheck(checkId) ||
+                      isRuntimeOnlyCheck(checkId) ||
+                      isPackageTwinSourceCheck(checkId)),
                 }),
       });
     }
@@ -767,10 +850,16 @@ export async function reconcileAssessment(
       changeContext,
       // Untied runtime results are advisory: they must not pass runtime-only
       // requirements or confirm applicability for a commit they never saw.
-      runtimeRan: runtime.tied,
-      siteLevelChecksRan: runtime.tied ? runtime.siteLevelChecksRan : undefined,
-      htmlValidateRan: runtime.tied ? runtime.htmlValidateRan : undefined,
-      applicabilityFacts: runtime.tied ? runtime.applicabilityFacts : undefined,
+      runtimeRan: runtimeAuthoritative,
+      siteLevelChecksRan: runtimeAuthoritative
+        ? runtime.siteLevelChecksRan
+        : undefined,
+      htmlValidateRan: runtimeAuthoritative
+        ? runtime.htmlValidateRan
+        : undefined,
+      applicabilityFacts: runtimeAuthoritative
+        ? runtime.applicabilityFacts
+        : undefined,
       filesScanned,
       controls: options.controls,
     });

@@ -53,6 +53,17 @@ type GitHubRepoApiShape = {
   updated_at?: string | null;
   html_url: string;
   clone_url: string;
+  /**
+   * Effective permissions of the credential that loaded the repo. GitHub omits
+   * it for some installation listings, so absent reads as "cannot push".
+   */
+  permissions?: {
+    admin?: boolean;
+    maintain?: boolean;
+    push?: boolean;
+    pull?: boolean;
+    triage?: boolean;
+  } | null;
 };
 
 /** Maps a GitHub REST repo payload into our connect picker summary. */
@@ -69,6 +80,8 @@ export function mapGitHubRepo(
     updatedAt: repo.updated_at ?? "",
     htmlUrl: repo.html_url,
     cloneUrl: repo.clone_url,
+    canPush:
+      repo.permissions?.push === true || repo.permissions?.admin === true,
     ...(installationId != null ? { installationId } : {}),
   };
 }

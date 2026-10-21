@@ -128,9 +128,19 @@ export async function connectGitHubRepoAction(
       fullName,
       claimedInstallationId,
     });
-    const accessToken = await createInstallationAccessToken(installationId);
 
-    const repo = await fetchRepo(accessToken, fullName);
+    // Permission check runs on the *user's* token, not the installation
+    // token: `repos.get` with an App installation token reports the App's
+    // permissions, which says nothing about what this human may do. Without
+    // this, a read-only collaborator could have the App open branches for them.
+    const repo = await fetchRepo(userAccessToken, fullName);
+    if (!repo.canPush) {
+      throw new PublicError(
+        `You need write access to ${repo.fullName} to connect it: ComplyLoop opens fix branches and pull requests with the App installation token.`,
+        "connect",
+      );
+    }
+    const accessToken = await createInstallationAccessToken(installationId);
     await ensurePersonalOrgProvisioned(userId, githubLogin ?? "");
     const preferredOrgId = await readActiveOrgCookie();
 

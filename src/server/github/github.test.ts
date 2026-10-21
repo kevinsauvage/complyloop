@@ -103,8 +103,21 @@ describe("mapGitHubRepo", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
       htmlUrl: "https://github.com/acme/shop",
       cloneUrl: "https://github.com/acme/shop.git",
+      canPush: false,
       installationId: 123,
     });
+  });
+
+  it("derives push access from the token's repo permissions", () => {
+    expect(
+      mapGitHubRepo({ ...apiRepo, permissions: { push: true } }).canPush,
+    ).toBe(true);
+    expect(
+      mapGitHubRepo({ ...apiRepo, permissions: { admin: true } }).canPush,
+    ).toBe(true);
+    expect(
+      mapGitHubRepo({ ...apiRepo, permissions: { pull: true } }).canPush,
+    ).toBe(false);
   });
 
   it("falls back to main and empty timestamps when the API omits them", () => {

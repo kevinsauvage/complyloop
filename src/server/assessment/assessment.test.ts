@@ -559,6 +559,44 @@ describe("runAssessment", () => {
     ).toBe(false);
   });
 
+  it("does not auto-verify a source resolve when a runtime audit owns the check", () => {
+    const finding = testFinding({
+      projectId: project.id,
+      assessmentId: "a0",
+    });
+    const rows: ProjectRows = {
+      findings: [finding],
+      remediations: [
+        {
+          id: "r1",
+          findingId: finding.id,
+          status: "approved" as const,
+          approvalAction: "create_draft_pull_request" as const,
+          suggestion: null,
+          history: [
+            { status: "approved" as const, at: new Date().toISOString() },
+          ],
+        },
+      ],
+      requirements: [],
+      evidence: [],
+    };
+
+    // The AST finding was dropped by the runtime merge, not fixed in source.
+    verifyRemediationOnResolve(rows, finding, "a1", {
+      scopedFileSet: null,
+      sourcesUnchanged: false,
+      rootPath: "test-root",
+      fileExists: () => true,
+      runtimeOwnsCheck: true,
+    });
+
+    expect(rows.remediations[0]?.status).toBe("approved");
+    expect(
+      rows.evidence.some((record) => record.kind === "remediation_verified"),
+    ).toBe(false);
+  });
+
   it("auto-verifies a draft-PR remediation after a full re-scan", () => {
     const finding = testFinding({
       projectId: project.id,

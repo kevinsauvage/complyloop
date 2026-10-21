@@ -761,13 +761,22 @@ async function collectBrowserConditionFindings(
  */
 export async function runtimeViolationStillPresent(
   finding: Pick<RawFinding, "checkId" | "location">,
-  scanner: RuntimePageScanner = createPlaywrightAxeScanner(),
+  scanner?: RuntimePageScanner,
+  options?: { browserConditions?: ReadonlyArray<BrowserCondition> },
 ): Promise<boolean> {
   if (finding.location.kind !== "dom") {
     throw new PublicError(
       "Runtime verification requires a finding with a DOM location.",
     );
   }
+  // Re-audit under the same conditions the finding was detected under
+  // (theme/forced-colors): a dark-mode-only defect is invisible to a
+  // default-theme re-check, which would "verify" an unfixed finding.
+  const pageScanner =
+    scanner ??
+    createPlaywrightAxeScanner({
+      browserConditions: options?.browserConditions ?? [],
+    });
   const url = finding.location.url;
   const selector = finding.location.selector;
   const snippet = finding.location.snippet;
@@ -775,7 +784,7 @@ export async function runtimeViolationStillPresent(
   let pages: RuntimeScanPageResult[];
   try {
     await assertSafeRuntimeUrl(url);
-    ({ pages } = await scanner([url]));
+    ({ pages } = await pageScanner([url]));
   } catch (error) {
     // Unreachable / blocked / scan failure: we cannot prove the fix, so the
     // violation is treated as still present (fail closed — never verified).

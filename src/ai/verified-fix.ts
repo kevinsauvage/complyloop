@@ -10,6 +10,7 @@ import { assertSingleFileEdits, type ProposedFixEdits } from "./patch-types";
 
 export {
   assertSingleFileEdits,
+  boundFileEdit,
   fileEditSchema,
   patchCandidateDetailSchema,
   patchCandidateFromDetail,

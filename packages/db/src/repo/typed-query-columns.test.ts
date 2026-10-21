@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { afterAll, describe, expect, it } from "vitest";
 
 import type {
@@ -69,6 +70,46 @@ describe.skipIf(!enabled)("typed query columns", () => {
         new Date("2026-01-01T20:00:00.000Z"),
       );
       expect(beforeOffset.get(fixture.controlId) ?? 0).toBeGreaterThan(0);
+    } finally {
+      await cleanupProjectSliceFixture(drizzle, fixture);
+    }
+  });
+
+  it("refreshes typed projections when a finding is upserted again", async () => {
+    const drizzle = await getDrizzle();
+    const suffix = `${Date.now()}-typed-projection`;
+    const fixture = await insertProjectSliceFixture(drizzle, suffix);
+    const base = await getFindingById(drizzle, fixture.findingOneId);
+    if (!base) throw new Error("Expected seeded finding.");
+
+    // Same id, downgraded: the typed columns drive filters, ordering and
+    // portfolio counts, so they must follow the payload on update.
+    const downgraded: Finding = {
+      ...base,
+      kind: "warning",
+      severity: "minor",
+      analyzerId: "axe",
+      detectedAt: "2026-02-02T00:00:00.000Z",
+    };
+    await upsertFindings(drizzle, [downgraded]);
+
+    try {
+      const rows = await drizzle.execute(sql`
+        SELECT kind, severity_rank, engine, detected_at
+        FROM findings WHERE id = ${fixture.findingOneId}
+      `);
+      const row = rows[0] as {
+        kind: string;
+        severity_rank: number;
+        engine: string;
+        detected_at: string;
+      };
+      expect(row.kind).toBe("warning");
+      expect(row.severity_rank).toBe(3);
+      expect(row.engine).toBe("runtime");
+      expect(new Date(row.detected_at).toISOString()).toBe(
+        "2026-02-02T00:00:00.000Z",
+      );
     } finally {
       await cleanupProjectSliceFixture(drizzle, fixture);
     }

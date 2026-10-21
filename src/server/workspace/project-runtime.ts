@@ -47,6 +47,10 @@ export const getProjectRuntime = cache(
     options?: {
       includeEvidence?: boolean;
       findingStatuses?: readonly FindingStatus[];
+      /** Hard cap for page reads that render only a window of findings. */
+      findingsLimit?: number;
+      /** Skip remediation rows for pages that never render them. */
+      includeRemediations?: boolean;
     },
   ): Promise<ProjectRuntime> => {
     const drizzle = await getDrizzle();
@@ -54,9 +58,10 @@ export const getProjectRuntime = cache(
       loadProjectRuntime(drizzle, projectId, {
         findingStatuses: options?.findingStatuses,
         // Cap page reads only — full-history callers omit findingStatuses.
-        findingsLimit: options?.findingStatuses
-          ? FINDINGS_LIST_LOAD_LIMIT
-          : undefined,
+        findingsLimit:
+          options?.findingsLimit ??
+          (options?.findingStatuses ? FINDINGS_LIST_LOAD_LIMIT : undefined),
+        includeRemediations: options?.includeRemediations,
       }),
       options?.includeEvidence === false
         ? []

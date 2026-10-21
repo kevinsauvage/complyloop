@@ -211,6 +211,7 @@ describe("connectGitHubRepoAction", () => {
       fullName: "acme/shop",
       defaultBranch: "main",
       private: false,
+      canPush: true,
     });
     stubConnectWrite(viewerMembership);
     const form = new FormData();
@@ -218,6 +219,27 @@ describe("connectGitHubRepoAction", () => {
 
     const result = await connectGitHubRepoAction(initialActionState, form);
     expect(result.ok ? null : result.message).toMatch(/admin or owner/);
+  });
+
+  it("refuses a repository the user can only read", async () => {
+    actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1" } });
+    actionAuthMocks.getGitHubAccessToken.mockResolvedValue("gho_token");
+    assertConnectRateLimit.mockResolvedValue(undefined);
+    resolveUserInstallationForRepo.mockResolvedValue(42);
+    createInstallationAccessToken.mockResolvedValue("ghs_install");
+    fetchGitHubRepo.mockResolvedValue({
+      fullName: "acme/shop",
+      defaultBranch: "main",
+      private: false,
+      // Read-only collaborator: the App token must not open branches for them.
+      canPush: false,
+    });
+    const form = new FormData();
+    form.set("fullName", "acme/shop");
+
+    const result = await connectGitHubRepoAction(initialActionState, form);
+    expect(result.ok ? null : result.message).toMatch(/write access/);
+    expect(connectGitHubRepo).not.toHaveBeenCalled();
   });
 
   it("surfaces already-connected errors", async () => {
@@ -230,6 +252,7 @@ describe("connectGitHubRepoAction", () => {
       fullName: "acme/shop",
       defaultBranch: "main",
       private: false,
+      canPush: true,
     });
     findConnectedGitHubProject.mockReturnValue(project);
     stubConnectWrite(ownerMembership);
@@ -250,6 +273,7 @@ describe("connectGitHubRepoAction", () => {
       fullName: "acme/shop",
       defaultBranch: "main",
       private: false,
+      canPush: true,
     });
     findConnectedGitHubProject.mockReturnValue(undefined);
     connectGitHubRepo.mockResolvedValue({
@@ -271,7 +295,9 @@ describe("connectGitHubRepoAction", () => {
       fullName: "acme/shop",
       claimedInstallationId: undefined,
     });
-    expect(fetchGitHubRepo).toHaveBeenCalledWith("ghs_install", "acme/shop");
+    // The permission probe must use the signed-in user's token, not the
+    // installation token (which reports the App's permissions).
+    expect(fetchGitHubRepo).toHaveBeenCalledWith("gho_token", "acme/shop");
     expect(connectGitHubRepo).toHaveBeenCalled();
     expect(writeActiveProjectCookie).toHaveBeenCalledWith("p-new");
     expect(refresh).toHaveBeenCalled();
@@ -287,6 +313,7 @@ describe("connectGitHubRepoAction", () => {
       fullName: "acme/shop",
       defaultBranch: "main",
       private: true,
+      canPush: true,
     });
     findConnectedGitHubProject.mockReturnValue(undefined);
     connectGitHubRepo.mockResolvedValue({
@@ -306,7 +333,9 @@ describe("connectGitHubRepoAction", () => {
       fullName: "acme/shop",
       claimedInstallationId: 42,
     });
-    expect(fetchGitHubRepo).toHaveBeenCalledWith("ghs_install", "acme/shop");
+    // The permission probe must use the signed-in user's token, not the
+    // installation token (which reports the App's permissions).
+    expect(fetchGitHubRepo).toHaveBeenCalledWith("gho_user", "acme/shop");
     expect(connectGitHubRepo).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({

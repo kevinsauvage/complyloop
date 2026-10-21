@@ -179,6 +179,14 @@ describe("remediationSchema attributeValue bounds", () => {
     ).toBe(false);
   });
 
+  it("rejects characters that could break out of the source edit", () => {
+    for (const value of ['a"b', "a`b", "a{b", "a}b"]) {
+      expect(
+        remediationSchema.safeParse({ ...base, attributeValue: value }).success,
+      ).toBe(false);
+    }
+  });
+
   it("rejects an over-long description or snippet", () => {
     expect(
       remediationSchema.safeParse({

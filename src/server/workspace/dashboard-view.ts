@@ -90,6 +90,11 @@ export async function loadDashboardView(): Promise<DashboardView> {
 
   const runtime = await getProjectRuntime(project.id, {
     findingStatuses: ["open"],
+    // The activity card renders the six most severe; the header count comes
+    // from SQL, so loading the rest of the open set buys nothing.
+    findingsLimit: 6,
+    // Nothing on the dashboard renders remediation rows.
+    includeRemediations: false,
   });
   const openCount = await countOpenFindings(project.id);
   const latestAssessment = latestAssessmentFor(runtime.assessments, project.id);

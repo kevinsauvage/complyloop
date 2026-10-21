@@ -78,7 +78,11 @@ export async function loadRequirementsView(
   if (!project) return { project: null };
 
   const runtime = await getProjectRuntime(project.id, {
-    findingStatuses: ["open"],
+    // This page renders no finding or remediation rows: per-control open
+    // counts come from SQL below, so loading the open set only inflates the
+    // response.
+    findingStatuses: [],
+    includeRemediations: false,
   });
   // Per-control open counts come from SQL, not the loaded slice: the findings
   // row load is capped, but badges must stay exact.

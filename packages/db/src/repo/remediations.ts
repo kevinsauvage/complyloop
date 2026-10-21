@@ -38,6 +38,9 @@ export async function listRemediationsForProject(
   // Join through findings in one query instead of loading every finding id and
   // passing an unbounded IN list (which grows with history).
   const { findingStatuses } = options;
+  // An empty status list means "no findings match" (same as findings reads) —
+  // never "no filter", which would load the project's whole history.
+  if (findingStatuses && findingStatuses.length === 0) return [];
   const where =
     findingStatuses && findingStatuses.length > 0
       ? and(

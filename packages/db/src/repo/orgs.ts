@@ -5,6 +5,7 @@ import type {
   OrgMembership,
 } from "@complyloop/analysis-core/contract/project-types";
 
+import { isUniqueViolation } from "../pg-errors.ts";
 import type { DrizzleDb } from "../postgres.ts";
 import { orgWriteLockKey, withNamedPostgresAdvisoryLock } from "../postgres.ts";
 import { memberships, organizations } from "../schema.ts";
@@ -43,8 +44,13 @@ export async function listOrgIdsForUser(
   if (githubLogin) {
     const login = githubLogin.trim().toLowerCase();
     if (login) {
-      // Match invite / claim paths — github_login may be stored with any casing.
-      clauses.push(sql`lower(${memberships.githubLogin}) = ${login}`);
+      // Match unclaimed invites only — github_login may be stored with any
+      // casing. A login is recyclable: once GitHub releases it, whoever takes
+      // it next must not inherit the memberships of the previous holder, so a
+      // row already bound to another user is never matched by login alone.
+      clauses.push(
+        sql`lower(${memberships.githubLogin}) = ${login} AND ${memberships.userId} IS NULL`,
+      );
     }
   }
   if (clauses.length === 0) return [];
@@ -75,13 +81,13 @@ async function isPersonalOrgProvisioned(
       >`bool_or(${memberships.userId} = ${userId} AND ${memberships.role} = 'owner')`,
       unclaimed: sql<
         boolean | null
-      >`bool_or(lower(${memberships.githubLogin}) = ${login} AND (${memberships.userId} IS NULL OR ${memberships.userId} <> ${userId}))`,
+      >`bool_or(lower(${memberships.githubLogin}) = ${login} AND ${memberships.userId} IS NULL)`,
     })
     .from(memberships)
     .where(
       or(
         eq(memberships.userId, userId),
-        sql`lower(${memberships.githubLogin}) = ${login}`,
+        sql`lower(${memberships.githubLogin}) = ${login} AND ${memberships.userId} IS NULL`,
       ),
     );
   const row = rows[0];
@@ -121,18 +127,28 @@ export async function upsertMembership(
     // invite racing a sign-in claim) use different ids, so the id arbiter
     // misses and Postgres rejects the second writer (23505 on the real
     // unique keys). Converge onto the winning row instead of 500ing: role
-    // follows the incoming write (same as a sequential double-invite), and
-    // a claimed userId is never cleared by an invite.
+    // follows the incoming write (same as a sequential double-invite), and a
+    // claimed userId is never replaced — login recycling must not transfer an
+    // existing membership to a new account.
     const winner = await findMembershipByOrgLogin(
       tx,
       membership.orgId,
       membership.githubLogin,
     );
     if (!winner || winner.id === membership.id) throw error;
+    // Two different accounts cannot both be the claimant of one membership:
+    // never rewrite another account's row (role included) from a racing write.
+    if (
+      winner.userId &&
+      membership.userId &&
+      winner.userId !== membership.userId
+    ) {
+      throw error;
+    }
     await upsertMembershipById(tx, {
       ...winner,
       role: membership.role,
-      userId: membership.userId ?? winner.userId,
+      userId: winner.userId ?? membership.userId,
       githubLogin: membership.githubLogin,
     });
   }
@@ -155,20 +171,6 @@ async function upsertMembershipById(
         payload: sql`excluded.payload`,
       },
     });
-}
-
-function isUniqueViolation(error: unknown): boolean {
-  // postgres.js throws raw errors with `.code`; the drizzle query builder
-  // wraps them (code moves to `.cause`), so check both shapes.
-  if (typeof error !== "object" || error === null) return false;
-  if ("code" in error && error.code === "23505") return true;
-  const cause = "cause" in error ? error.cause : undefined;
-  return (
-    typeof cause === "object" &&
-    cause !== null &&
-    "code" in cause &&
-    cause.code === "23505"
-  );
 }
 
 async function findMembershipByOrgLogin(
@@ -249,13 +251,13 @@ export async function claimMembershipsForLogin(
     .where(sql`lower(${memberships.githubLogin}) = ${login}`);
   let changed = false;
   for (const row of rows) {
-    if (
-      row.payload.githubLogin.toLowerCase() === login &&
-      row.userId !== userId
-    ) {
+    // Only unclaimed rows may be bound to this user. A row already claimed by
+    // someone else is never rebound: GitHub recycles logins, so the next
+    // holder of a released login must not inherit the previous owner's org.
+    if (row.payload.githubLogin.toLowerCase() === login && row.userId == null) {
       // Stale unclaimed invites never resolve: prune instead of granting a
-      // months-old role. Claimed rows (userId set) are never pruned here.
-      if (!row.userId && isUnclaimedInviteExpired(row.payload, Date.now())) {
+      // months-old role.
+      if (isUnclaimedInviteExpired(row.payload, Date.now())) {
         await deleteMembership(tx, row.payload.id);
         changed = true;
         continue;

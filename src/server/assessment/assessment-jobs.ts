@@ -19,6 +19,7 @@ import {
   type AssessmentJobStatus,
   type AssessmentJobTrigger,
 } from "@complyloop/analysis-core/contract/assessment-jobs";
+import { isUniqueViolation } from "@complyloop/db/pg-errors";
 import { type DrizzleDb, getDrizzle } from "@complyloop/db/postgres";
 import { assessmentJobs } from "@complyloop/db/schema";
 
@@ -59,15 +60,6 @@ const RETRY_BASE_MS = 30_000;
  * double-executed by `recoverExpiredLeases`.
  */
 export const ASSESSMENT_JOB_HEARTBEAT_MS = 5 * 60_000;
-
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "23505"
-  );
-}
 
 function parseJobStatus(value: string): AssessmentJobStatus {
   if (!(ASSESSMENT_JOB_STATUSES as ReadonlyArray<string>).includes(value)) {
@@ -163,8 +155,9 @@ function newAssessmentJobRow(
  */
 export async function enqueueAssessmentJob(
   input: EnqueueAssessmentJobInput,
+  db?: DrizzleDb,
 ): Promise<AssessmentJob> {
-  const drizzle = await getDrizzle();
+  const drizzle = db ?? (await getDrizzle());
   if (input.idempotencyKey) {
     const [existing] = await drizzle
       .select()
@@ -333,8 +326,15 @@ async function recoverExpiredLeases(tx: DrizzleDb, now: string): Promise<void> {
  * re-dispatch until the 15-minute schedule happens to claim. Live leases are
  * untouched — only rows whose `leaseExpiresAt` already passed move.
  */
-export async function recoverExpiredAssessmentLeases(): Promise<void> {
-  const drizzle = await getDrizzle();
+export async function recoverExpiredAssessmentLeases(
+  db?: DrizzleDb,
+): Promise<void> {
+  const drizzle = db ?? (await getDrizzle());
+  // An already-open transaction must not nest: run the recovery inline on it.
+  if (db) {
+    await recoverExpiredLeases(db, new Date().toISOString());
+    return;
+  }
   await drizzle.transaction(async (tx) => {
     await recoverExpiredLeases(tx, new Date().toISOString());
   });
@@ -602,8 +602,9 @@ export async function latestWebhookJobRef(
  */
 export async function activeAssessmentJobForProject(
   projectId: string,
+  db?: DrizzleDb,
 ): Promise<AssessmentJob | null> {
-  const drizzle = await getDrizzle();
+  const drizzle = db ?? (await getDrizzle());
   const rows = await drizzle
     .select()
     .from(assessmentJobs)

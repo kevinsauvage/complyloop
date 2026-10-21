@@ -489,6 +489,49 @@ describe("shouldResolveOpenFinding", () => {
     ).toBe(false);
   });
 
+  it("never resolves a finding on a route the runtime scan failed", () => {
+    // Partial run: `/` rendered, `/checkout` timed out. The failed page proves
+    // nothing about the finding it used to report.
+    expect(
+      shouldResolveOpenFinding({
+        finding: testFinding({
+          location: {
+            kind: "dom",
+            url: "https://preview.example/checkout",
+            selector: "button",
+            snippet: "<button></button>",
+          },
+        }),
+        scopedFileSet: null,
+        runtimeRan: false,
+        runtimeScannedRoutes: new Set(["/"]),
+        runtimeFailedRoutes: new Set(["/checkout"]),
+      }),
+    ).toBe(false);
+    // The page that did render still resolves normally.
+    expect(
+      shouldResolveOpenFinding({
+        finding: domFinding,
+        scopedFileSet: null,
+        runtimeRan: false,
+        runtimeScannedRoutes: new Set(["/"]),
+        runtimeFailedRoutes: new Set(["/checkout"]),
+      }),
+    ).toBe(true);
+  });
+
+  it("never resolves across origins on an untied audit", () => {
+    expect(
+      shouldResolveOpenFinding({
+        finding: domFinding,
+        scopedFileSet: null,
+        runtimeRan: false,
+        runtimeScannedRoutes: new Set(["/"]),
+        untiedRuntimeOrigin: "https://other.example",
+      }),
+    ).toBe(false);
+  });
+
   it("keeps a source finding outside the scoped file set", () => {
     expect(
       shouldResolveOpenFinding({

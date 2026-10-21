@@ -162,7 +162,7 @@ export async function markRequirementExceptionAction(
     async (ctx) => {
       const requirementId = parseEntityId(requirementIdRaw);
       const parsed = parseForm(markExceptionInput, formData);
-      if (ctx.userId) await assertRequirementsRateLimit(ctx.userId);
+      if (ctx.userId) await assertRequirementsRateLimit(ctx.userId, ctx.tx);
       const requirement = await requireRequirement(
         ctx.tx,
         ctx.project.id,
@@ -232,7 +232,7 @@ export async function markRequirementPassedAction(
     async (ctx) => {
       const requirementId = parseEntityId(requirementIdRaw);
       const { note } = parseForm(markPassedInput, formData);
-      if (ctx.userId) await assertRequirementsRateLimit(ctx.userId);
+      if (ctx.userId) await assertRequirementsRateLimit(ctx.userId, ctx.tx);
       const requirement = await requireRequirement(
         ctx.tx,
         ctx.project.id,
@@ -321,7 +321,7 @@ async function clearRequirementOverrideAction(
     "project.remediate",
     async (ctx) => {
       const requirementId = parseEntityId(requirementIdRaw);
-      if (ctx.userId) await assertRequirementsRateLimit(ctx.userId);
+      if (ctx.userId) await assertRequirementsRateLimit(ctx.userId, ctx.tx);
       await clearRequirementOverride(ctx, requirementId, field);
     },
     message,

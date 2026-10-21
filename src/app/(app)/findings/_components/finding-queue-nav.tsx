@@ -24,6 +24,20 @@ function isEditableTarget(target: EventTarget | null): boolean {
   );
 }
 
+/**
+ * Modal surfaces own the keyboard while open: j/k must not navigate the page
+ * behind a dialog, sheet, menu or listbox (WCAG 2.1.4 — single-key shortcuts
+ * need to be scoped and escapable).
+ */
+function isInsideModalSurface(target: EventTarget | null): boolean {
+  return (
+    target instanceof Element &&
+    target.closest(
+      '[role="dialog"],[role="alertdialog"],[role="menu"],[role="listbox"],[aria-modal="true"]',
+    ) !== null
+  );
+}
+
 export function FindingQueueNav({
   listParams,
   prevId,
@@ -53,7 +67,10 @@ export function FindingQueueNav({
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
+      // Holding the key must not fire a burst of navigations.
+      if (event.repeat) return;
       if (isEditableTarget(event.target)) return;
+      if (isInsideModalSurface(event.target)) return;
       if (event.key === "j" && nextId) {
         event.preventDefault();
         setLiveMessage(`Moving to finding ${index + 2} of ${total}`);

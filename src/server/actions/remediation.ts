@@ -174,7 +174,7 @@ export async function approveRemediationAction(
     "project.remediate",
     async (ctx) => {
       if (ctx.userId) {
-        await assertRemediationRateLimit(ctx.userId);
+        await assertRemediationRateLimit(ctx.userId, ctx.tx);
       }
       const remediation = await loadRemediation(ctx.tx, ctx.finding.id);
       await approveInTx(ctx, ctx.finding, remediation, {
@@ -197,7 +197,7 @@ export async function bulkApproveRemediationsAction(
     const projectId = await resolveActiveProjectId();
     await withProjectTx(projectId, "project.remediate", async (ctx) => {
       if (ctx.userId) {
-        await assertRemediationRateLimit(ctx.userId);
+        await assertRemediationRateLimit(ctx.userId, ctx.tx);
       }
       for (const findingId of findingIds) {
         const finding = await getFindingById(ctx.tx, findingId);
@@ -243,7 +243,7 @@ export async function dismissFindingAction(
     "project.remediate",
     async (ctx) => {
       if (ctx.userId) {
-        await assertRemediationRateLimit(ctx.userId);
+        await assertRemediationRateLimit(ctx.userId, ctx.tx);
       }
       const { reason, note } = parseForm(dismissFindingInput, formData);
       await dismissInTx(
@@ -273,7 +273,7 @@ export async function bulkDismissFindingsAction(
     const projectId = await resolveActiveProjectId();
     await withProjectTx(projectId, "project.remediate", async (ctx) => {
       if (ctx.userId) {
-        await assertRemediationRateLimit(ctx.userId);
+        await assertRemediationRateLimit(ctx.userId, ctx.tx);
       }
       const controlIds = new Set<string>();
       for (const findingId of findingIds) {

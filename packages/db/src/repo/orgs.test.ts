@@ -71,6 +71,9 @@ describe("listOrgIdsForUser", () => {
     expect(bound).toContain("alicedev");
     expect(bound).not.toContain("AliceDev");
     expect(parts.toLowerCase()).toContain("lower(");
+    // Only unclaimed rows are discoverable by login: a row already bound to
+    // another user must never surface for a recycled GitHub login.
+    expect(parts.toLowerCase()).toContain("is null");
   });
 
   it("returns empty when neither userId nor login is usable", async () => {
@@ -114,6 +117,35 @@ describe("isUnclaimedInviteExpired", () => {
 });
 
 describe("claimMembershipsForLogin", () => {
+  it("never rebinds a membership already claimed by another user", async () => {
+    const claimedElsewhere = { ...invitePayload("2026-09-01T00:00:00.000Z") };
+    const upserted: string[] = [];
+    const tx = {
+      select: () => ({
+        from: () => ({
+          where: async () => [
+            { payload: claimedElsewhere, userId: "user-other" },
+          ],
+        }),
+      }),
+      insert: () => ({
+        values: (row: { id: string }) => ({
+          onConflictDoUpdate: async () => {
+            upserted.push(row.id);
+          },
+        }),
+      }),
+      delete: () => ({
+        where: async () => {},
+      }),
+    } as unknown as DrizzleDb;
+
+    // A recycled GitHub login must not inherit the previous holder's org.
+    const changed = await claimMembershipsForLogin(tx, "user-new", "bob");
+    expect(changed).toBe(false);
+    expect(upserted).toEqual([]);
+  });
+
   it("prunes expired unclaimed invites instead of granting them", async () => {
     const stale = invitePayload("2026-01-01T00:00:00.000Z");
     const fresh = {

@@ -20,12 +20,14 @@ import {
  * Bounded at the AI output boundary: `attributeValue` flows into
  * `finding.fix.value` and later a source edit, so cap the length and reject
  * characters that cannot land in an HTML/JSX attribute value (`<`, `>`,
- * control chars). Quotes stay allowed for values like `l'image`.
+ * `"`, backtick, braces, control chars) — they could break out of the
+ * `attr="…"` insertion and inject code. Single quotes stay allowed for values
+ * like `l'image`.
  */
 const attributeValueSchema = z
   .string()
   .max(256, { error: "Attribute value is too long." })
-  .refine((value) => !/[<>\u0000-\u001f]/.test(value), {
+  .refine((value) => !/[<>"`{}\u0000-\u001f]/.test(value), {
     error: "Attribute value contains characters that are unsafe in source.",
   });
 

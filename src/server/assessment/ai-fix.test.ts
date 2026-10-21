@@ -540,6 +540,33 @@ describe("persistPatchCandidate", () => {
     expect(mocks.writtenEvidence).toHaveLength(0);
   });
 
+  it("refuses to store a patch that contains credential-shaped text", async () => {
+    reportWarningMock.mockClear();
+    mocks.evidence = [];
+    mocks.remediation = remediation;
+
+    await expect(
+      persistPatchCandidate(
+        tx,
+        patchFinding,
+        {
+          ...candidate,
+          edits: [
+            {
+              path: "Hero.tsx",
+              oldText: "<img />",
+              newText: '<img alt="Hero" data-key="secret: abc123def" />',
+            },
+          ],
+        },
+        "alice",
+      ),
+    ).rejects.toThrow(/looks like a credential/);
+    // Nothing was written: a redacted copy would be committed as-is later.
+    expect(mocks.writtenEvidence).toHaveLength(0);
+    expect(mocks.writtenRemediations).toHaveLength(0);
+  });
+
   it("throws without a remediation row for the finding", async () => {
     mocks.evidence = [];
     mocks.remediation = undefined;

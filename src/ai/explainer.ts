@@ -56,7 +56,6 @@ export async function generateAiExplanation(
     prompt: [
       "You explain accessibility compliance findings to web developers.",
       ...findingPromptContext(finding, control),
-      `Automated check result: ${finding.reason}`,
       "Write whyItFailed, impact (who is affected and how), and howToFix (concrete code-level guidance for this exact snippet).",
       "Set confidence to high/medium/low for how sure you are about this explanation.",
       "Be concise and practical; no legal language.",

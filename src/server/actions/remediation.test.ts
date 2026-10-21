@@ -275,11 +275,14 @@ describe("runAssessmentAction", () => {
       message:
         "Assessment queued — the worker picks it up shortly. Track progress in the Pipeline below; you can leave this page.",
     });
-    expect(enqueueAssessmentJob).toHaveBeenCalledWith({
-      projectId: "p1",
-      trigger: "manual",
-      requestedByUserId: "user-1",
-    });
+    expect(enqueueAssessmentJob).toHaveBeenCalledWith(
+      {
+        projectId: "p1",
+        trigger: "manual",
+        requestedByUserId: "user-1",
+      },
+      expect.anything(),
+    );
     // The scan never runs inside the action: the drain is deferred past the
     // response so the click resolves fast.
     expect(scheduleAssessmentDrain).not.toHaveBeenCalled();

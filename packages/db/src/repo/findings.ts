@@ -359,6 +359,14 @@ export async function upsertFindings(
           controlId: sql`excluded.control_id`,
           assessmentId: sql`excluded.assessment_id`,
           status: sql`excluded.status`,
+          // Projections must follow the payload on every write: a re-detected
+          // finding that was downgraded (or changed kind/engine/detection
+          // date) would otherwise keep stale filter, ordering and portfolio
+          // values while its JSONB says otherwise.
+          kind: sql`excluded.kind`,
+          severityRank: sql`excluded.severity_rank`,
+          engine: sql`excluded.engine`,
+          detectedAt: sql`excluded.detected_at`,
           payload: sql`excluded.payload`,
         },
       });

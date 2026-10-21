@@ -6,33 +6,7 @@ Source: full audit run via `docs/prompts/master.md` (2026-10-21). Findings were 
 
 ## P0 — blocking
 
-- [ ] **`S`** **Account takeover via login reuse** — `packages/db/src/repo/orgs.ts:239-266` (also `:60`, `:36`): `claimMembershipsForLogin` rebinds already-claimed rows. Claim only `user_id IS NULL`; same predicate in `isPersonalOrgProvisioned`; add test with a row claimed by another user. _Why:_ a new owner of a released GitHub login inherits the old owner's org and projects. Needs independent review (auth).
-
-- [ ] **`S`** **`upsertFindings` stale columns** — `packages/db/src/repo/findings.ts:347-366`: add `kind`, `severity_rank`, `engine`, `detected_at` to `set` via `excluded.*`; add DB test. _Why:_ a downgraded finding keeps its old severity/kind in filters, ordering and portfolio counts.
-
-- [ ] **`M`** **Runtime `pageFailures` discarded** — `src/server/assessment/assessment.ts:534-537`, `packages/analysis-core/src/runtime/scan.ts:475-641`: a failed route must not resolve findings or pass runtime-only requirements (`unable_to_verify`). _Why:_ one timed-out page can silently mark its findings fixed and requirements passed.
-
-- [ ] **`M`** **Finding auto-`verified` without a fix** — `assessment.ts:182-312`, `merge-findings.ts:47-66`: skip auto-verify when the runtime has taken over the check id. _Why:_ a remediation can reach `verified` with no real fix, an unverified compliance claim.
-
-- [ ] **`M`** **Verify ignores theme conditions** — `src/server/assessment/remediation-verify-worker.ts:144-147`: re-audit under the finding's original conditions or fail closed. _Why:_ dark-mode-only findings "verify" because the default theme is clean.
-
-- [ ] **`M`** **Pool starvation** — `packages/db/src/postgres.ts:201` (`POOL_MAX=3`), `src/server/actions/remediation.ts:177,200,246`: move rate-limit and queue calls out of `withProjectTx` (or onto `ctx.tx`). _Why:_ three concurrent actions can each hold a connection waiting for a fourth and hang. Plausible, not reproduced.
-
-- [ ] **`S`** **`isUniqueViolation` ignores `.cause`** — `src/server/assessment/assessment-jobs.ts:63`: one shared helper in `packages/db`, reuse in `orgs.ts:160`. _Why:_ drizzle wraps pg errors, so the job-claim race and duplicate idempotency keys throw instead of being handled.
-
-- [ ] **`S`** **Read-only collaborator write access via App** — `src/server/actions/connect.ts:126`, `github-app.ts:113-180`: require `permissions.push`/`admin` at connect and before `commitFixBranch`. _Why:_ the installation token can open branches/PRs on repos the user can only read.
-
-- [ ] **`M`** **Source files stored in evidence / sent to AI unredacted** — `src/server/assessment/ai-fix.ts:76,100-110,187-218`, `src/ai/patch.ts:124`: store bounded diff, `redactSecrets` before storing and before the gateway call. _Why:_ evidence is append-only, so a secret in a stored file can't be removed.
-
-- [ ] **`M`** **Prompt injection hardening** — `src/ai/ai-call.ts:92`, `explainer.ts:57`, `remediation.ts:25`, `packages/analysis-core/src/fixes.ts:12`: wrap repo-derived fields as untrusted; reject `"`, `{`, `}`, backtick in `attributeValue`; hostile-output tests. _Why:_ only `patch.ts` treats repo content as untrusted; AI output reaches the UI and PR bodies.
-
-- [ ] **`L`** **Chromium with prod secrets in env** — `packages/analysis-core/src/runtime/scan.ts:167,286`: minimal `env`, `chromiumSandbox`, ideally split browser step from DB/App-key job. _Why:_ a renderer exploit on a customer page could reach the prod DB and App key. Exploitability unverified.
-
-- [ ] **`S`** **WCAG 2.1.4 `j`/`k` shortcuts** — `src/app/(app)/findings/_components/finding-queue-nav.tsx:57,61`: opt-out or modifier; ignore `[role=dialog]` and `event.repeat`. _Why:_ single-key shortcuts with no off switch fire inside open dialogs.
-
-- [ ] **`M`** **5,000-row loads** — `dashboard-view.ts:91`, `requirements-view.ts:80`, `settings-view.ts:39`: load only what is shown (SQL `ORDER BY … LIMIT 6`, requirements only, unread alerts only). _Why:_ the dashboard loads up to 5,000 findings to show 6.
-
-- [ ] **`S`** **`findingStatuses: []` semantics** — `packages/db/src/repo/remediations.ts:42`: return `[]` for an empty list; add test. _Why:_ `[]` means "none" for findings but "no filter" for remediations, so settings loads the full history.
+- [ ] **`L`** **Chromium with prod secrets in env** — `packages/analysis-core/src/runtime/scan.ts:167,286`: minimal `env`, `chromiumSandbox`, ideally split browser step from DB/App-key job. _Why:_ a renderer exploit on a customer page could reach the prod DB and App key. Exploitability unverified. **Deferred** — needs a design decision on the worker topology (browser step split from the DB/App-key job) and can break production rendering; not a drive-by fix.
 
 ## P1 — should fix
 

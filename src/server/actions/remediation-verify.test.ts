@@ -205,6 +205,7 @@ describe("verifyRemediationAction", () => {
         trigger: "verify_remediation",
         payload: { findingId: "f1" },
       }),
+      expect.anything(),
     );
     expect(result.ok ? result.message : null).toMatch(/verified|queued/i);
     expect(recordedWrites()?.evidence?.[0]?.kind).toBe("assessment_job");

@@ -14,6 +14,7 @@ import {
   runtimeViolationStillPresent,
   scanRuntime,
 } from "@complyloop/analysis-core/runtime/scan";
+import { DEFAULT_THEME_CONDITIONS } from "@complyloop/analysis-core/runtime/theme-conditions";
 import { getDrizzle } from "@complyloop/db/postgres";
 import {
   insertEvidence,
@@ -93,6 +94,7 @@ async function scanSiteFindingForVerify(input: {
       scanRuntime({
         runtimeBaseUrl: input.runtimeBaseUrl,
         runtimeRoutes: routes,
+        browserConditions: DEFAULT_THEME_CONDITIONS,
       }),
       new Promise<never>((_, reject) => {
         timer = setTimeout(
@@ -141,10 +143,16 @@ async function computeVerifyVerdict(
         "Source findings are verified by merging the draft pull request and re-assessing.",
       );
     case "dom": {
-      const present = await runtimeViolationStillPresent({
-        checkId: finding.checkId as CheckId,
-        location,
-      });
+      const present = await runtimeViolationStillPresent(
+        {
+          checkId: finding.checkId as CheckId,
+          location,
+        },
+        undefined,
+        // Same conditions as the assessment that detected it: without them a
+        // dark-mode-only defect re-audits clean on the default theme.
+        { browserConditions: DEFAULT_THEME_CONDITIONS },
+      );
       return {
         present,
         engine: "runtime",

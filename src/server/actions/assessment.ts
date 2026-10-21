@@ -96,22 +96,28 @@ export async function runAssessmentAction(
     const activeProjectId = await resolveActiveProjectId();
     await withProjectTx(activeProjectId, "project.assess", async (ctx) => {
       context.projectId = ctx.project.id;
-      if (ctx.userId) await assertAssessRateLimit(ctx.userId);
+      if (ctx.userId) await assertAssessRateLimit(ctx.userId, ctx.tx);
       // Reclaim crashed-worker leases before reading the active job: an
       // expired-`running` row must not block re-dispatch until the 15-minute
       // schedule happens to claim (recovery requeues while attempts remain,
       // terminal-fails poison jobs — either way the row below is current).
-      await recoverExpiredAssessmentLeases();
-      const active = await activeAssessmentJobForProject(ctx.project.id);
+      await recoverExpiredAssessmentLeases(ctx.tx);
+      const active = await activeAssessmentJobForProject(
+        ctx.project.id,
+        ctx.tx,
+      );
       if (active) {
         context.alreadyActive = active;
         return;
       }
-      const job = await enqueueAssessmentJob({
-        projectId: ctx.project.id,
-        trigger: "manual",
-        requestedByUserId: ctx.userId,
-      });
+      const job = await enqueueAssessmentJob(
+        {
+          projectId: ctx.project.id,
+          trigger: "manual",
+          requestedByUserId: ctx.userId,
+        },
+        ctx.tx,
+      );
       context.job = job;
       await insertEvidence(ctx.tx, {
         kind: "assessment_job",

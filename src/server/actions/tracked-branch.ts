@@ -64,7 +64,7 @@ export async function updateTrackedBranchAction(
     const projectId = await resolveActiveProjectId();
     await withProjectTx(projectId, "project.connect", async (ctx) => {
       if (ctx.userId) {
-        await assertRuntimeAuditRateLimit(ctx.userId);
+        await assertRuntimeAuditRateLimit(ctx.userId, ctx.tx);
       }
       if (!ctx.project.github) {
         throw new PublicError(

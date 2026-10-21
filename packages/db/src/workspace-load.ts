@@ -1,3 +1,4 @@
+import type { Remediation } from "@complyloop/analysis-core/contract/entities";
 import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
 
 import type { DrizzleDb } from "./postgres.ts";
@@ -44,6 +45,11 @@ export interface LoadProjectRuntimeOptions {
    * stale-write guards and assessment payloads.
    */
   findingsLimit?: number;
+  /**
+   * Skip the remediation rows entirely for pages that never render them
+   * (dashboard, requirements, settings). Default true for every other reader.
+   */
+  includeRemediations?: boolean;
 }
 
 export async function loadProjectRuntime(
@@ -68,9 +74,11 @@ export async function loadProjectRuntime(
       statuses: options.findingStatuses,
       limit: options.findingsLimit,
     }),
-    listRemediationsForProject(drizzle, projectId, {
-      findingStatuses: options.findingStatuses,
-    }),
+    options.includeRemediations === false
+      ? Promise.resolve<Remediation[]>([])
+      : listRemediationsForProject(drizzle, projectId, {
+          findingStatuses: options.findingStatuses,
+        }),
     listAlertsForProject(drizzle, projectId),
     // Latest only — the app consumes latestAssessmentFor + "has any".
     listLatestAssessmentForProject(drizzle, projectId),
@@ -80,7 +88,7 @@ export async function loadProjectRuntime(
     requirements: requirementsList,
     assessments: assessmentsList,
     findings: findingsList,
-    remediations: remediationsList,
+    remediations: options.includeRemediations === false ? [] : remediationsList,
     alerts: alertsList,
   };
 }

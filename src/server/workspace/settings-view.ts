@@ -37,7 +37,10 @@ export async function loadSettingsView(): Promise<SettingsView> {
   if (!project) return { project: null };
 
   const runtime = await getProjectRuntime(project.id, {
+    // Settings renders assessment/engine metadata only — no finding,
+    // remediation or alert rows.
     findingStatuses: [],
+    includeRemediations: false,
   });
   const latestAssessment = latestAssessmentFor(runtime.assessments, project.id);
   const runtimeError = latestAssessment?.engines?.runtimeError ?? null;
