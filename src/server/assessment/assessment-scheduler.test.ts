@@ -64,4 +64,33 @@ describe("runAssessmentJobBatch", () => {
     await expect(runAssessmentJobBatch(1)).resolves.toHaveLength(1);
     expect(processNextAssessmentJob).toHaveBeenCalled();
   });
+
+  it("skips the prunes when the drain asks for it", async () => {
+    processNextAssessmentJob.mockResolvedValue({ kind: "idle" });
+
+    await runAssessmentJobBatch({ limit: 1, prune: false });
+
+    expect(pruneRateLimitBuckets).not.toHaveBeenCalled();
+  });
+
+  it("claims nothing once the drain deadline has passed", async () => {
+    processNextAssessmentJob.mockResolvedValue({
+      kind: "succeeded",
+      jobId: "j",
+    });
+
+    const sequential = await runAssessmentJobBatch({
+      limit: 5,
+      deadlineAt: Date.now() - 1,
+    });
+    const pooled = await runAssessmentJobBatch({
+      limit: 5,
+      concurrency: 2,
+      deadlineAt: Date.now() - 1,
+    });
+
+    expect(sequential).toEqual([]);
+    expect(pooled).toEqual([]);
+    expect(processNextAssessmentJob).not.toHaveBeenCalled();
+  });
 });

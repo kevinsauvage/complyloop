@@ -17,6 +17,12 @@ export type { AssessmentWorkerResult };
 export const ASSESSMENT_DRAIN_DEFAULTS = {
   limit: 10,
   concurrency: 2,
+  /**
+   * Wall-clock budget for one drain invocation. The GH workflow gives the
+   * drain step 25 minutes; stopping at 20 leaves room to tear down the
+   * browser and DB pool cleanly instead of being killed mid-scan.
+   */
+  maxMs: 20 * 60_000,
 } as const;
 
 export interface AssessmentJobBatchOptions {
@@ -27,6 +33,18 @@ export interface AssessmentJobBatchOptions {
    * each assessment clones a repo and may drive a browser.
    */
   concurrency?: number;
+  /**
+   * Wall-clock stop (`Date.now()` value) for the batch: a claim is only made
+   * while there is budget left, so a long job cannot overrun the drain's
+   * deadline and get the runner SIGKILLed mid-scan.
+   */
+  deadlineAt?: number;
+  /**
+   * Run the per-tick prunes (rate-limit buckets, webhook deliveries, pipeline
+   * retention). A drain that loops batches sets `prune: false` after the
+   * first, so one drain prunes once.
+   */
+  prune?: boolean;
 }
 
 /**
@@ -44,9 +62,11 @@ export interface AssessmentJobBatchOptions {
 async function runSequential(
   runNext: () => Promise<AssessmentWorkerResult>,
   limit: number,
+  deadlineAt: number | undefined,
 ): Promise<AssessmentWorkerResult[]> {
   const results: AssessmentWorkerResult[] = [];
   for (let index = 0; index < limit; index += 1) {
+    if (deadlineAt !== undefined && Date.now() >= deadlineAt) break;
     const result = await runNext();
     results.push(result);
     if (result.kind === "idle") break;
@@ -71,30 +91,43 @@ async function runSequential(
 export async function runAssessmentJobBatch(
   optionsOrLimit: number | AssessmentJobBatchOptions,
 ): Promise<AssessmentWorkerResult[]> {
-  try {
-    await pruneRateLimitBuckets();
-    // Webhook delivery idempotency keys accumulate forever otherwise: keep
-    // the last 10k (far beyond any redelivery window) via dynamic import so
-    // this module's static graph stays dispatch + harness + rate-limit +
-    // observability (see the boundary contract above).
-    const { pruneWebhookDeliveryRows } =
-      await import("@complyloop/db/repo/webhook-deliveries");
-    const { getDrizzle } = await import("@complyloop/db/postgres");
-    await pruneWebhookDeliveryRows(await getDrizzle(), 10_000);
-  } catch (error) {
-    reportWarning("Batch prune failed.", {
-      code: "batch_prune_failed",
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-  const { processNextAssessmentJob } = await import("./assessment-worker");
   const options =
     typeof optionsOrLimit === "number"
       ? { limit: optionsOrLimit }
       : optionsOrLimit;
   const limit = Math.max(1, options.limit);
   const concurrency = Math.max(1, Math.min(options.concurrency ?? 1, limit));
-  if (concurrency === 1) return runSequential(processNextAssessmentJob, limit);
+  const deadlineAt = options.deadlineAt;
+
+  if (options.prune !== false) {
+    try {
+      await pruneRateLimitBuckets();
+      // Webhook delivery idempotency keys accumulate forever otherwise: keep
+      // the last 10k (far beyond any redelivery window) via dynamic import so
+      // this module's static graph stays dispatch + harness + rate-limit +
+      // observability (see the boundary contract above).
+      const { pruneWebhookDeliveryRows } =
+        await import("@complyloop/db/repo/webhook-deliveries");
+      // Same treatment for the pipeline's own tables: terminal jobs, old
+      // assessments and (by FK cascade) their snapshots.
+      const { prunePipelineRetention } =
+        await import("@complyloop/db/repo/retention");
+      const { getDrizzle } = await import("@complyloop/db/postgres");
+      const drizzle = await getDrizzle();
+      await pruneWebhookDeliveryRows(drizzle, 10_000);
+      await prunePipelineRetention(drizzle);
+    } catch (error) {
+      reportWarning("Batch prune failed.", {
+        code: "batch_prune_failed",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  const { processNextAssessmentJob } = await import("./assessment-worker");
+  if (concurrency === 1) {
+    return runSequential(processNextAssessmentJob, limit, deadlineAt);
+  }
 
   const results: AssessmentWorkerResult[] = [];
   let claimBudget = limit;
@@ -102,6 +135,9 @@ export async function runAssessmentJobBatch(
 
   async function worker(): Promise<void> {
     while (!queueIdle && claimBudget > 0) {
+      // Budget is checked before claiming: a claim starts a scan that cannot
+      // be preempted, so the last one must still fit the drain deadline.
+      if (deadlineAt !== undefined && Date.now() >= deadlineAt) return;
       claimBudget -= 1;
       const result = await processNextAssessmentJob();
       results.push(result);

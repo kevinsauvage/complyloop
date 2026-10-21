@@ -35,8 +35,15 @@ export function findingsFromCustomViolations(
 ): RawFinding[] {
   const findings: RawFinding[] = [];
   for (const violation of violations) {
-    const downgrade =
-      isHeuristicCheck(violation.id) || isAdvisoryCheck(violation.id)
+    // An advisory is the probe reporting its own coverage, not a defect: it
+    // must never fail a requirement, and it must never count as a pass either.
+    const downgrade = violation.advisory
+      ? {
+          kind: "warning" as const,
+          severity: "minor" as const,
+          confidence: "high" as const,
+        }
+      : isHeuristicCheck(violation.id) || isAdvisoryCheck(violation.id)
         ? HEURISTIC_RUNTIME_DOWNGRADE
         : undefined;
     for (const node of violation.nodes) {

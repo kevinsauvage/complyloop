@@ -59,13 +59,14 @@ describe.skipIf(!enabled)("tenant database constraints", () => {
     await expect(
       unwrapDbError(
         drizzle.execute(sql`
-        INSERT INTO findings (id, project_id, control_id, assessment_id, status, severity_rank, engine, payload)
+        INSERT INTO findings (id, project_id, control_id, assessment_id, status, kind, severity_rank, engine, payload)
         VALUES (
           ${`finding-orphan-${suffix}`},
           'missing-project',
           ${ids.controlId},
           ${ids.assessmentId},
           'open',
+          'violation',
           1,
           'ast',
           '{}'::jsonb
@@ -226,8 +227,8 @@ async function insertFixtureGraph(
     VALUES (${ids.assessmentId}, ${ids.projectId}, '{}'::jsonb)
   `);
   await drizzle.execute(sql`
-    INSERT INTO findings (id, project_id, control_id, assessment_id, status, severity_rank, engine, payload)
-    VALUES (${ids.findingId}, ${ids.projectId}, ${ids.controlId}, ${ids.assessmentId}, 'open', 1, 'ast', '{}'::jsonb)
+    INSERT INTO findings (id, project_id, control_id, assessment_id, status, kind, severity_rank, engine, payload)
+    VALUES (${ids.findingId}, ${ids.projectId}, ${ids.controlId}, ${ids.assessmentId}, 'open', 'violation', 1, 'ast', '{}'::jsonb)
   `);
   await drizzle.execute(sql`
     INSERT INTO remediations (id, finding_id, status, payload)

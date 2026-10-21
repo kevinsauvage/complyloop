@@ -15,6 +15,12 @@ export interface CustomViolation {
   description: string;
   help: string;
   nodes: CustomViolationNode[];
+  /**
+   * A coverage note, not a defect: the probe proved something about its own
+   * confidence (e.g. the focus walk was truncated), so the finding must land
+   * as `warning`/`needs_review` instead of a pass or a hard failure.
+   */
+  advisory?: boolean;
 }
 
 export const CUSTOM_PROBE_CHECK_IDS = [

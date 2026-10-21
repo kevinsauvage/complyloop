@@ -1,7 +1,9 @@
 #!/usr/bin/env tsx
 /**
- * GitHub Actions executor: claim + run queued assessment jobs until the
- * queue is idle or `limit` jobs have been attempted.
+ * GitHub Actions executor: claim + run queued assessment jobs in batches
+ * until the queue is idle or the wall-clock budget (`ASSESSMENT_WORKER_MAX_MS`,
+ * default 20 min) runs out. `ASSESSMENT_WORKER_LIMIT` is the per-batch claim
+ * size, not a total.
  *
  * Run with `npm run worker:drain` (builds the esbuild bundle, then plain
  * Node — see `scripts/build-worker.mjs` for why tsx cannot drive it).
@@ -19,6 +21,7 @@ import path from "node:path";
 import { releaseInFlightAssessmentJobs } from "../src/server/assessment/assessment-jobs";
 import {
   ASSESSMENT_DRAIN_DEFAULTS,
+  type AssessmentWorkerResult,
   runAssessmentJobBatch,
 } from "../src/server/assessment/assessment-scheduler";
 import { closeAssessmentWorker } from "../src/server/assessment/assessment-worker";
@@ -52,9 +55,39 @@ export async function main(): Promise<void> {
     "ASSESSMENT_WORKER_CONCURRENCY",
     ASSESSMENT_DRAIN_DEFAULTS.concurrency,
   );
+  const maxMs = numeric(
+    "ASSESSMENT_WORKER_MAX_MS",
+    ASSESSMENT_DRAIN_DEFAULTS.maxMs,
+  );
 
+  // `limit` bounds one batch (claim size + in-process pool width). The queue is
+  // drained batch after batch until it goes idle or the wall-clock budget runs
+  // out, so a backlog larger than `limit` no longer waits for the next tick —
+  // the previous behaviour left jobs queued behind a 15-minute schedule.
   const startedAt = Date.now();
-  const results = await runAssessmentJobBatch({ limit, concurrency });
+  const deadline = startedAt + maxMs;
+  const results: AssessmentWorkerResult[] = [];
+  let batches = 0;
+  let budgetExhausted = false;
+  for (;;) {
+    const batch = await runAssessmentJobBatch({
+      limit,
+      concurrency,
+      deadlineAt: deadline,
+      // One drain prunes once, not once per batch.
+      prune: batches === 0,
+    });
+    batches += 1;
+    results.push(...batch);
+    // The batch stops claiming at the deadline; distinguish "queue empty"
+    // from "budget spent" so the log says whether work is still waiting.
+    if (Date.now() >= deadline) {
+      budgetExhausted = true;
+      break;
+    }
+    if (batch.length === 0 || batch.some((r) => r.kind === "idle")) break;
+  }
+
   const byKind: Record<string, number> = {};
   for (const result of results) {
     byKind[result.kind] = (byKind[result.kind] ?? 0) + 1;
@@ -64,6 +97,9 @@ export async function main(): Promise<void> {
       status: "worker batch finished",
       limit,
       concurrency,
+      maxMs,
+      batches,
+      budgetExhausted,
       ...byKind,
       ms: Date.now() - startedAt,
       at: new Date().toISOString(),

@@ -1,157 +1,81 @@
 # ComplyLoop — Global TODO
 
-> Audit of the codebase as of 2026-09-26 (graph built with Graft, flows traced through the code).
-> Direction, phasing and open decisions: [`docs/ai/platform-direction.md`](./docs/ai/platform-direction.md) — do not add multi-domain work here until its Phase 0.
-> `CRITICAL-TODOS.md` was deleted on 2026-10-20: its items were either fixed in code or duplicated here.
-> Work top to bottom. Each item stands on its own unless it says otherwise.
-
----
-
-## P0 — Critical
-
-None open.
-
-## P1 — High
-
-### [x] Add a cross-project portfolio overview
-
-**Done 2026-10-20.** New `/projects` route (nav entry after Dashboard) backed by
-`loadPortfolioView` + `listPortfolioForProjects`: one grouped query per metric
-(requirement verdicts, open violations, unread regressions, newest completed
-assessment, newest job) over the org's visible projects — no per-project
-runtime load. Columns you can scan: verdict counts per status, open violations,
-unread regressions, last assessment ("Never assessed"), pipeline state. Each
-row opens that project's dashboard (the row switches the active project, then
-redirects).
-
-- `findings.kind` is now a typed column (`drizzle/0007_findings_kind.sql` +
-  `findings_project_status_kind_idx`) so "open violations" is an indexed
-  aggregate instead of a `payload->>'kind'` filter.
-- Sorted by what needs attention (failed + needs_review), then open violations,
-  unread regressions, staleness, name.
-- Timestamps are normalised to ISO-8601 UTC in the repo layer: `timestamptz` in
-  string mode comes back as the server's own text form, which would have broken
-  string sorting and date rendering.
-
-### [x] Move repository clones out of server actions
-
-**Done 2026-10-20.** Neither request path clones any more: "Generate patch"
-reads only the Finding's file through the contents API, and "Create PR" writes
-through the GitHub Git Data API from the verified `candidate.edits`.
-
-- **PRs:** `preparePullRequest` (`src/server/github/pr.ts`) → `commitFixBranch`
-  (`src/server/github/fix-branch.ts`): blob → tree → commit → ref, parented on
-  the tracked branch (falling back to the repo default when that branch is
-  gone). Each edit's `oldText` is re-checked against the base commit, so a patch
-  generated from an older revision fails closed instead of overwriting
-  concurrent work. A retry force-updates the existing branch, same net effect
-  as the old force-push; the PR still opens as a draft and reuses an open PR
-  only when it targets the same base (which is recorded in the evidence detail).
-- Committed files keep their executable bit: modes come from the base tree, with
-  a per-directory walk when GitHub truncates a large recursive listing.
-- **Patch generation:** `generatePatchCandidateForFinding` → `withProjectFileWorkspace`
-  (`src/server/assessment/single-file-source.ts`) fetches the one file and
-  materialises it in a temp dir (the ComplyLoop gate already scanned only that
-  file).
-- `withProjectCheckout` is worker-only now. `withFixtureCheckout` moved to
-  `fixture-checkout.ts` so request paths don't pull isomorphic-git into their
-  bundles.
-- Tests cover the API path against an in-memory repository (drifted file,
-  ambiguous edit, no-op patch, missing file, existing branch, PR reuse, base
-  fallback); the drift re-location assertion moved to
-  `assessment-findings.test.ts`.
-
----
-
 ## P2 — Medium
 
-### [ ] Make the worker cheaper and faster to start
+### [x] Make the worker cheaper and faster to start
 
-**Why:** Every 15-minute backstop runs `npm ci` _before_ the queue-depth gate (about 96 full installs a day while idle), and each manual run pays a cold runner, `npm ci` and Chromium install before scanning starts. That's minutes of latency on the most important button, and Actions minutes that grow with no traffic.
+**Done 2026-10-21.**
 
-**Where:** `.github/workflows/assessment-worker.yml`, `scripts/queue-depth.ts`, `scripts/assessment-worker-drain.ts`, `src/server/assessment/assessment-scheduler.ts`.
+- The queue gate now runs **before** checkout/`npm ci`, via a `psql` one-liner
+  (`ubuntu-latest` ships the client) against `DATABASE_URL`. An idle 15-minute
+  tick costs seconds; `scripts/queue-depth.ts` was deleted (it existed only to
+  serve the old post-install gate).
+- `node_modules` is cached alongside the Playwright browsers, and `npm ci` only
+  runs on a cache miss.
+- The drain loops batches until the queue is idle or `ASSESSMENT_WORKER_MAX_MS`
+  (default 20 min) elapses; `ASSESSMENT_WORKER_LIMIT` is now the per-batch claim
+  size, not a total.
+- The dashboard Pipeline card shows the expected start delay on queued jobs.
 
-**Change:** Gate the queue before `npm ci`, using a `psql` one-liner or a `curl` to an authenticated queue-depth endpoint. Cache `node_modules` along with the browsers. Have the drain loop until the queue is empty rather than stopping at `limit`. Show the expected start delay in the Pipeline UI.
+### [x] Add retention for jobs, assessments and snapshots
 
-**Impact:** Medium
+**Done 2026-10-21.** No migration: `findings.assessment_id` stays
+`ON DELETE CASCADE`, and `repo/retention.ts` only deletes assessments **no
+finding references** (the TODO's second option), so provenance and remediation
+history survive.
 
-### [ ] Add retention for jobs, assessments and snapshots
+- `prunePipelineRetention` runs on the worker tick (`runAssessmentJobBatch`):
+  terminal jobs older than 30 days, then the oldest assessments beyond the
+  newest 30 per project, batched (`batchSize`/`maxBatches`). Snapshots cascade.
+- `ops:check` reports `assessment_jobs` / `assessments` /
+  `assessment_snapshots` sizes and fails above `OPS_MAX_PIPELINE_TABLE_MB`
+  (default 512 MiB).
+- DB integration test: `packages/db/src/repo/retention.test.ts` (in `test:db`).
 
-**Why:** Only `webhook_deliveries` and `rate_limit_buckets` are pruned. `assessment_jobs`, `assessments` and `assessment_snapshots` grow forever. Note that `findings.assessment_id` has `ON DELETE CASCADE`, so naive assessment pruning would delete findings.
+### [x] Remove experimental and prerelease production dependencies
 
-**Where:** `src/server/assessment/assessment-scheduler.ts:72-90`, `packages/db/src/schema.ts` (FKs), `src/server/ops-thresholds.ts`.
+**Done 2026-10-21.**
 
-**Change:**
+- `experimental.turbopackRustReactCompiler` removed. `reactCompiler: true` stays
+  (stable in Next 16) on the stable path, backed by
+  `babel-plugin-react-compiler` (devDependency); build is green.
+- `next-auth` is already pinned to `5.0.0-beta.32`, which **is** the latest v5 —
+  Auth.js has no stable v5 upstream (`dist-tags.latest` is v4). Migrating to
+  Better Auth is a deliberate auth/RBAC migration, not drift; rationale recorded
+  in `docs/ai/architecture.md` (§ Dependency notes).
 
-- Make `findings.assessment_id` `ON DELETE SET NULL`, or keep assessments that findings still reference.
-- Prune terminal jobs older than 30 days, and keep the last N assessments and snapshots per project, in batched deletes on the scheduler tick.
-- Add table-size signals to `ops:check`.
+### [x] Delete dead code and stale docs, and keep them out
 
-**Impact:** Medium
+**Done 2026-10-21.**
 
-### [ ] Localize the product and reports in French
-
-**Why:** The target customers are French agencies delivering RGAA work to French clients, but the UI, finding copy and exported reports are English only (`<html lang="en">`, no i18n). This is a real adoption blocker for the stated audience.
-
-**Where:** `src/app/layout.tsx`, `src/core/display/`, `src/server/reporting/`, `packages/analysis-core/src/catalog/rgaa/guidance.ts`.
-
-**Change:** Adopt `next-intl` with `fr` as the default and `en` as secondary. Start with the exported audit/engineering reports and the finding explanation copy (the text clients actually read), then move on to app chrome.
-
-**Impact:** Medium
-
-### [ ] Remove experimental and prerelease production dependencies
-
-**Why:** Auth runs on `next-auth@5.0.0-beta.32`, and production builds enable `reactCompiler` plus `experimental.turbopackRustReactCompiler`. Both add upgrade-breakage risk for no product gain.
-
-**Where:** `package.json`, `next.config.ts:111-118`, `src/auth.ts`.
-
-**Change:** Drop the experimental Rust compiler flag, and keep `reactCompiler` only if the build and e2e stay green without it being experimental. Either pin next-auth to its latest release and track stable v5, or migrate to Better Auth (GitHub OAuth only is simple to move).
-
-**Impact:** Low
-
-### [ ] Delete dead code and stale docs, and keep them out
-
-**Why:** The code was AI-generated and has drifted. knip finds 21 unused exports and 46 unused exported types, and barrels duplicate modules (`src/core/display.ts` vs `src/core/display/*`, `src/core/filter-params.ts` vs `filter-params/*`).
-
-**Where:** `src/core/display.ts`, `src/core/filter-params.ts`, knip output, `docs/ai/architecture.md` (update after the P0/P1 changes above).
-
-**Change:**
-
-- ~~Delete `CRITICAL-TODOS.md`.~~ Done 2026-10-20 (stale: most items were already fixed).
-- Remove the unused exports and the duplicate barrels.
-- Add `knip` (with a config that ignores `e2e/fixtures`) to the CI `quality` job.
-- Rewrite the write-model and assessment sections of `architecture.md` once the items above land.
-
-**Impact:** Low
+- `knip` added (`knip.json`, `npm run knip`) and wired into the CI `quality`
+  job; `ignoreExportsUsedInFile` + explicit entry globs keep the signal real.
+- Removed: unused `project-description.ts`, `FilterChipList`, `fakeTx`, and the
+  never-consumed `SheetClose`/`SheetFooter`/`SheetDescription` /
+  `TableFooter`/`TableCaption` primitives.
+- **The duplicate-barrel claim was stale:** `src/core/display.ts` and
+  `src/core/filter-params.ts` are the documented canonical entry points
+  (~20 consumers each), not duplicates of `display/*` / `filter-params/*`. Kept
+  deliberately; knip is clean, so they are not dead code.
+- `docs/ai/architecture.md` updated: new dependency-notes section, retention
+  documented, worker drain behaviour recorded.
 
 ### [ ] Close the known gaps in the runtime checks
 
-**Why:** The flaky probes were retired and the remaining ones were hardened (full tab-order walk, in-page write guard, no CSS injection), but three limits remain and users can hit them.
+**Code half done 2026-10-21; one operator check remains.**
 
-**Where:** `packages/analysis-core/src/runtime/custom-checks/focus.ts` (`MAX_TAB_STEPS`), `packages/analysis-core/src/runtime/incomplete-resolver.ts`.
-
-**Change:**
-
-- The focus walk stops at 80 stops, so very long tab orders are only partly checked. Raise the cap, or report "walk truncated" instead of a clean pass.
-- Gradient-clip text (`bg-clip-text text-transparent`) and translucent pills cannot be measured, so they stay `needs_review` contrast warnings. Teach the resolver to sample the rendered pixels for them, or document them as manual-review cases.
-- After the next deploy, check that `/findings/<id>` loads in production (the `axe-core*` trace-exclusion 500 fix) and re-run Oruva once its `globals.css` shadow fix reaches `develop`.
+- Focus walk budget is now `MAX_FOCUS_TAB_STEPS = 200`. A longer tab order emits
+  an `advisory` warning on each focus check (`focus-visible`, `keyboard-trap`,
+  `focus-not-obscured`), which lands as `warning`/`needs_review` — a truncated
+  walk can no longer read as a clean pass.
+- Gradient-clip text and translucent pills are documented as manual-review
+  cases (`incomplete-resolver.ts` + `packages/analysis-core/README.md`); they
+  already stay `needs_review`.
+- **Remaining (operator, needs a deploy):** after the next deploy, confirm
+  `/findings/<id>` loads in production (the `axe-core*` trace-exclusion 500 fix
+  is already in `next.config.ts`) and re-run Oruva once its `globals.css`
+  shadow fix reaches `develop`.
 
 **Impact:** Low
 
 ---
-
-## Biggest Wins
-
-1. **Replace the load-everything write model with targeted writes.** It simplifies every action and removes cost that grows with project age.
-2. **Add a portfolio overview.** It makes the product usable for its real customer, an agency with many clients.
-3. **Ship retention.** Jobs, assessments and snapshots grow forever today, and `findings.assessment_id` cascades — pruning needs a migration first.
-
-## Target State
-
-- Pull requests get a ComplyLoop check that lists new violations before merge. The default branch keeps the authoritative project state. (**Blocked:** a recorded Sep 2026 decision forbids per-PR Check Runs until **D-CI** is recorded — see `platform-direction.md`.)
-- Mutations are plain transactions with a per-project lock and explicit row writes, with no whole-project loads, snapshots or diffs.
-- Queried fields are typed, indexed columns. JSONB holds only detail payloads.
-- Request handlers never clone repositories. Heavy work runs on the worker, and GitHub writes go through the API.
-- AI is opt-in, uses a zero-retention model with structured output, and stays advisory.
-- Agency leads see every client project's compliance state on one page, in French.
-- Tables have retention, the worker is cheap when idle and quick to start, and CI rejects dead code.

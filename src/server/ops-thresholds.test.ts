@@ -100,4 +100,34 @@ describe("evaluateOpsStatus", () => {
     });
     expect(result.failures).toHaveLength(3);
   });
+
+  it("fails when a pipeline table outgrows retention", () => {
+    const result = evaluateOpsStatus(
+      {
+        ...healthy,
+        pipelineTableBytes: {
+          assessment_snapshots: evidenceBytesFromMb(600),
+        },
+      },
+      {
+        ...DEFAULT_OPS_THRESHOLDS,
+        maxPipelineTableBytes: evidenceBytesFromMb(512),
+      },
+    );
+    expect(result.ok).toBe(false);
+    expect(result.failures.join(" ")).toMatch(
+      /assessment_snapshots size 600\.0 MiB exceeds max 512\.0 MiB/,
+    );
+  });
+
+  it("fails closed on unusable pipeline table sizes", () => {
+    const result = evaluateOpsStatus({
+      ...healthy,
+      pipelineTableBytes: { assessments: Number.NaN },
+    });
+    expect(result.ok).toBe(false);
+    expect(result.failures.join(" ")).toMatch(
+      /assessments size is not a usable count/,
+    );
+  });
 });

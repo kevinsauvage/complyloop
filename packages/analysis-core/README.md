@@ -47,3 +47,17 @@ stages and imports only their entries — never engine internals:
 - Adding a check id: `CHECK_IDS` → registry or jsx-a11y map → authority
   list → runtime map if needed → catalog `checkId` → `guidance.ts`.
   Tests: `check-authority.test.ts`, `catalog-coverage.test.ts`.
+
+## Known limits (documented, not bugs)
+
+- **Focus walk budget** — one shared Tab traversal inspects at most
+  `MAX_FOCUS_TAB_STEPS` (200) stops per page. A longer tab order emits an
+  `advisory` finding on each focus check (`focus-visible`, `keyboard-trap`,
+  `focus-not-obscured`) so the requirement reads `needs_review`, never a
+  silent `passed`. Advisories are warnings, never failures.
+- **Contrast `incomplete` resolution** — axe nodes the pixel sampler can
+  decide (gradient/overlapping/image backgrounds) are resolved by
+  `runtime/incomplete-resolver.ts`. Gradient-clip text
+  (`bg-clip-text text-transparent`) and translucent pills stay
+  `needs_review`: their effective color depends on per-glyph gradient pixels
+  or the compositing stack, so they are manual-review cases by design.

@@ -121,7 +121,13 @@ export function isSuspectedKeyboardTrap(
   return unique.size <= maxUniqueFocusables;
 }
 
-const MAX_TAB_STEPS = 80;
+/**
+ * Tab-walk budget per page. Long enough for real-world tab orders (a dense
+ * marketing page is ~150 focusables) while bounding the sequential
+ * Tab + evaluate round trips a single page can cost. A walk that exceeds it
+ * is reported as truncated (see `focusWalkAdvisories`), never as a clean pass.
+ */
+export const MAX_FOCUS_TAB_STEPS = 200;
 const SNAPSHOT_FOCUS_STYLES_SOURCE = snapshotFocusStyles.toString();
 const HAS_VISIBLE_FOCUS_INDICATOR_SOURCE = hasVisibleFocusIndicator.toString();
 const FOCUSABLE_SELECTOR =
@@ -138,10 +144,14 @@ const FOCUSABLE_SELECTOR =
  */
 export async function focusCustomViolations(
   page: Page,
+  options: { maxStops?: number } = {},
 ): Promise<CustomViolation[]> {
   const violations: CustomViolation[] = [];
 
-  const collected = await collectFocusWalkViolations(page);
+  const collected = await collectFocusWalkViolations(
+    page,
+    options.maxStops ?? MAX_FOCUS_TAB_STEPS,
+  );
   if (collected.visible.length > 0) {
     violations.push({
       id: "focus-visible",
@@ -175,7 +185,54 @@ export async function focusCustomViolations(
     });
   }
 
+  if (collected.truncated) {
+    violations.push(...focusWalkAdvisories(collected.truncated));
+  }
+
   return violations;
+}
+
+/**
+ * Every focus check derives from the same walk, so a truncated walk leaves
+ * all three unverified — for the checks that found no violation, the honest
+ * verdict is `needs_review`, not a silent pass.
+ */
+function focusWalkAdvisories(truncated: {
+  walkedStops: number;
+  focusableCount: number;
+}): CustomViolation[] {
+  const context = `Focus walk stopped after ${truncated.walkedStops} Tab stops; the page has ${truncated.focusableCount} focusable elements.`;
+  const node: CustomViolationNode = {
+    html: "<body>",
+    target: ["body"],
+    failureSummary: context,
+  };
+  return [
+    {
+      id: "focus-visible",
+      advisory: true,
+      impact: "minor",
+      description: context,
+      help: "The tab order is longer than the runtime walk budget, so focus indicators beyond the walked stops were not checked. Review the remaining controls manually.",
+      nodes: [node],
+    },
+    {
+      id: "keyboard-trap",
+      advisory: true,
+      impact: "minor",
+      description: context,
+      help: "Keyboard traps past the walked stops were not checked. Review the remaining controls manually.",
+      nodes: [node],
+    },
+    {
+      id: "focus-not-obscured",
+      advisory: true,
+      impact: "minor",
+      description: context,
+      help: "Focused controls past the walked stops were not checked for being covered. Review the remaining controls manually.",
+      nodes: [node],
+    },
+  ];
 }
 
 function toViolationNode(capture: CapturedHit): CustomViolationNode {
@@ -215,10 +272,15 @@ function takeFocusHit(
  * element and the trap-analysis sequence key. Predicates are verbatim copies
  * of the former per-collector bodies — only the traversal is shared.
  */
-async function collectFocusWalkViolations(page: Page): Promise<{
+async function collectFocusWalkViolations(
+  page: Page,
+  maxTabStops: number,
+): Promise<{
   visible: CustomViolationNode[];
   trap: CustomViolationNode | null;
   obscured: CustomViolationNode[];
+  /** Set when the tab order is longer than the walk budget. */
+  truncated: { walkedStops: number; focusableCount: number } | null;
 }> {
   const visible: CustomViolationNode[] = [];
   const obscured: CustomViolationNode[] = [];
@@ -254,7 +316,7 @@ async function collectFocusWalkViolations(page: Page): Promise<{
   // after the first quiet stop meant everything past the first ~10 stops was
   // never inspected. Short pages stop once they have cycled, but never before
   // the 12-stop tail the trap detector needs.
-  const maxStops = Math.min(MAX_TAB_STEPS, Math.max(focusableCount + 2, 14));
+  const maxStops = Math.min(maxTabStops, Math.max(focusableCount + 2, 14));
   for (let stop = 0; stop < maxStops; stop++) {
     await page.keyboard.press("Tab");
     const result: FocusStopResult = await pageEvaluateWithHitCapture(
@@ -407,5 +469,15 @@ async function collectFocusWalkViolations(page: Page): Promise<{
     trap = trapHit ? toViolationNode(trapHit) : null;
   }
 
-  return { visible, trap, obscured };
+  return {
+    visible,
+    trap,
+    obscured,
+    // `focusableCount + 2` would need more stops than the budget allows: part
+    // of the tab order was never rendered or inspected.
+    truncated:
+      focusableCount + 2 > maxStops
+        ? { walkedStops: maxStops, focusableCount }
+        : null,
+  };
 }

@@ -195,4 +195,36 @@ describe("focusCustomViolations", () => {
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "reports a truncated walk as an advisory instead of a clean pass",
+    async () => {
+      await withProbePage(
+        `
+        <!doctype html><html lang="fr"><head><style>
+          button:focus-visible { outline: 3px solid #005fcc; }
+        </style></head><body>
+          <button id="a">One</button>
+          <button id="b">Two</button>
+          <button id="c">Three</button>
+        </body></html>
+      `,
+        async (page) => {
+          // A 4-stop budget against 3 focusables walks 4 stops; a 3-stop
+          // budget leaves the last controls uninspected.
+          const violations = await focusCustomViolations(page, { maxStops: 3 });
+          const advisories = violations.filter((v) => v.advisory);
+          expect(advisories.map((v) => v.id)).toEqual([
+            "focus-visible",
+            "keyboard-trap",
+            "focus-not-obscured",
+          ]);
+          expect(advisories[0]!.nodes[0]!.failureSummary).toContain(
+            "Focus walk stopped after 3 Tab stops",
+          );
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
 });

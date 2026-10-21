@@ -292,11 +292,18 @@ async function verdictForContrastNode(
     }
     return "unsure";
   }
-  // Fully transparent text (gradient clip text) has no color to measure.
+  // Fully transparent text has no color to measure. Two real cases land here
+  // and both stay `needs_review` on purpose:
+  //  - gradient-clip text (`bg-clip-text text-transparent`): the glyphs are
+  //    painted by a background gradient clipped to the text, so "the" text
+  //    color depends on which pixel of the gradient each glyph covers;
+  //  - translucent pills/badges whose effective contrast also depends on the
+  //    compositing stack (backdrop blur, opacity groups).
+  // Documented as manual-review cases instead of guessing a verdict.
   if (prepared.color.alpha === 0) {
     if (debug) {
       console.info(
-        `[resolver] ${selector.slice(0, 60)}: not measurable (transparent text color)`,
+        `[resolver] ${selector.slice(0, 60)}: manual review (transparent/gradient-clip text color)`,
       );
     }
     return "unsure";

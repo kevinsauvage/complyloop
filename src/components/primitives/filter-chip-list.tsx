@@ -1,7 +1,3 @@
-import type { Route } from "next";
-import Link from "next/link";
-import type { ReactNode } from "react";
-
 import { cn } from "@/lib/utils";
 
 export function filterChipClass(selected: boolean): string {
@@ -11,66 +7,6 @@ export function filterChipClass(selected: boolean): string {
     selected
       ? "border-signal/40 bg-signal/10 font-semibold ring-1 ring-signal/30"
       : "hover:border-signal/25",
-  );
-}
-
-export function FilterChipList({
-  "aria-label": ariaLabel,
-  allHref,
-  showAll,
-  allSelected,
-  allCount,
-  items,
-}: {
-  "aria-label": string;
-  allHref: Route;
-  /** When false, hide the All chip (requirements page when nothing selected). */
-  showAll: boolean;
-  allSelected: boolean;
-  allCount?: number;
-  items: Array<{
-    key: string;
-    href: Route;
-    selected: boolean;
-    label: ReactNode;
-    count: number;
-  }>;
-}) {
-  return (
-    <nav aria-label={ariaLabel}>
-      <ul className="mb-6 flex flex-wrap gap-2">
-        {showAll ? (
-          <li>
-            <Link
-              href={allHref}
-              aria-current={allSelected ? "page" : undefined}
-              className={filterChipClass(allSelected)}
-            >
-              <span className="text-xs font-medium">All</span>
-              {typeof allCount === "number" ? (
-                <span className="font-mono text-sm font-semibold tabular-nums">
-                  {allCount}
-                </span>
-              ) : null}
-            </Link>
-          </li>
-        ) : null}
-        {items.map((item) => (
-          <li key={item.key}>
-            <Link
-              href={item.href}
-              aria-current={item.selected ? "page" : undefined}
-              className={filterChipClass(item.selected)}
-            >
-              {item.label}
-              <span className="font-mono text-sm font-semibold tabular-nums">
-                {item.count}
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </nav>
   );
 }
 

@@ -9,8 +9,10 @@ vi.mock("@/server/actions/assessment", () => ({
 import type { AssessmentJob } from "@/core/assessment/assessment-jobs";
 import { renderWithUiProviders } from "@/test-fixtures/render-ui";
 
-import { AssessmentJobStatus } from "./assessment-job-status";
-
+import {
+  AssessmentJobStatus,
+  EXPECTED_START_COPY,
+} from "./assessment-job-status";
 afterEach(() => {
   cleanup();
 });
@@ -64,6 +66,16 @@ describe("AssessmentJobStatus worker-stall warning", () => {
 
     expect(screen.queryByRole("status")).toBeNull();
     expect(screen.getAllByText(/queued/i).length).toBeGreaterThan(0);
+  });
+
+  it("shows the expected start delay on a queued job", () => {
+    renderWithUiProviders(
+      <AssessmentJobStatus
+        jobs={[jobOf({ id: "j1", availableAt: minutesAgo(1) })]}
+      />,
+    );
+
+    expect(screen.getByText(EXPECTED_START_COPY)).toBeInTheDocument();
   });
 
   it("ignores scheduled retries whose availableAt is in the future", () => {

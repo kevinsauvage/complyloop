@@ -1,5 +1,14 @@
 /** Pure ops-threshold checks for `npm run ops:check`; dependency-free so `scripts/operations-check.ts` and tests share it. */
 
+/** Pipeline bookkeeping tables pruned on the worker tick (`repo/retention.ts`). */
+export const PIPELINE_TABLES = [
+  "assessment_jobs",
+  "assessments",
+  "assessment_snapshots",
+] as const;
+
+export type PipelineTable = (typeof PIPELINE_TABLES)[number];
+
 export interface OpsSignals {
   /** Jobs in `queued`/`running` (same count `/api/health` reports). */
   queuedJobs: number;
@@ -9,6 +18,8 @@ export interface OpsSignals {
   evidenceBytes: number;
   /** `pg_class.reltuples` estimate for `evidence` (no seq scan). */
   evidenceRowsEstimate: number;
+  /** Bytes per pipeline table; absent tables are not measured. */
+  pipelineTableBytes?: Partial<Record<PipelineTable, number>>;
 }
 
 export interface OpsThresholds {
@@ -16,6 +27,8 @@ export interface OpsThresholds {
   /** Fail when the oldest queued job is older than this (stalled-drain alarm). */
   maxQueuedJobAgeMs: number;
   maxEvidenceBytes: number;
+  /** Per-table ceiling for the pipeline tables retention keeps bounded. */
+  maxPipelineTableBytes: number;
 }
 
 export interface OpsEvaluation {
@@ -28,6 +41,9 @@ export const DEFAULT_OPS_THRESHOLDS: OpsThresholds = {
   // 20 min: past the 15-min schedule backstop, so a normal dispatch delay never trips it but a stalled drain does.
   maxQueuedJobAgeMs: 20 * 60 * 1000,
   maxEvidenceBytes: 1024 * 1024 * 1024,
+  // Retention keeps these at "last 30 assessments per project + 30 days of
+  // jobs"; 512 MiB means retention stopped running, not that the app is busy.
+  maxPipelineTableBytes: 512 * 1024 * 1024,
 };
 
 /** MB shorthand for the `OPS_MAX_EVIDENCE_MB` env override. */
@@ -92,8 +108,22 @@ export function evaluateOpsStatus(
       `evidence size ${formatBytes(signals.evidenceBytes)} ` +
         `(${signals.evidenceRowsEstimate} rows est.) exceeds max ` +
         `${formatBytes(thresholds.maxEvidenceBytes)} — ` +
-        "review retention (docs/vercel.md §6) before the table degrades the database.",
+        "review retention (docs/vercel.md §5) before the table degrades the database.",
     );
+  }
+
+  for (const table of PIPELINE_TABLES) {
+    const bytes = signals.pipelineTableBytes?.[table];
+    if (bytes === undefined) continue;
+    if (!Number.isSafeInteger(bytes) || bytes < 0) {
+      failures.push(`${table} size is not a usable count: ${bytes}.`);
+    } else if (bytes > thresholds.maxPipelineTableBytes) {
+      failures.push(
+        `${table} size ${formatBytes(bytes)} exceeds max ` +
+          `${formatBytes(thresholds.maxPipelineTableBytes)} — ` +
+          "pipeline retention (repo/retention.ts) is not keeping the table bounded.",
+      );
+    }
   }
 
   return { ok: failures.length === 0, failures };

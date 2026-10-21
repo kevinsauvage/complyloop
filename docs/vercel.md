@@ -64,9 +64,9 @@ ever appears in the output. Workspace-external native deps
 (`playwright-core`, `typescript`, `@sentry/*`, `isomorphic-git`) resolve from
 `node_modules` (they depend on `__dirname`/self-`require()` at runtime).
 
-Runtime behavior: claims and runs queued jobs until idle or
-`ASSESSMENT_WORKER_LIMIT` attempts (`ASSESSMENT_WORKER_CONCURRENCY` bounds
-the in-process pool; per-project claims serialize concurrent jobs). It exits
+Runtime behavior: claims and runs queued jobs in batches until idle or
+`ASSESSMENT_WORKER_MAX_MS` (default 20 min) elapses; `ASSESSMENT_WORKER_CONCURRENCY`
+bounds the in-process pool and per-project claims serialize concurrent jobs. It exits
 non-zero only when the batch itself crashes (DB down, missing env) —
 per-job failures and retries are recorded in Postgres, so the workflow run
 reflects infra health, not assessment outcomes.
@@ -76,7 +76,8 @@ Triggers (`assessment-worker.yml`):
 - `repository_dispatch` (`assessment-drain`, fired from the app in `after()`
   on every enqueue so scans start immediately),
 - schedule every 15 min (orphan/expired-lease backstop),
-- `workflow_dispatch` (operator drain button, with `limit`/`concurrency` inputs).
+- `workflow_dispatch` (operator drain button, with `limit` / `concurrency` /
+  `max-minutes` inputs).
 
 One runner drains the whole batch; `concurrency: group: assessment-worker,
 cancel-in-progress: false` keeps ticks serial. Job `timeout-minutes: 60`
@@ -102,9 +103,14 @@ The old curl sweep (`assessment-sweep.yml`, retired) hit a Vercel worker
 route every 5 min; it stays retired — the GH executor is the only drain
 path. There is no Vercel Cron — Hobby plans only allow daily schedules.
 
-The GH worker drains with `limit=10&concurrency=2` (inputs on
-`workflow_dispatch`) to clear backlogs in a few ticks. Expired rate-limit
-buckets prune once per batch (`runAssessmentJobBatch`).
+The drain loops batch after batch until the queue is idle or its wall-clock
+budget (`ASSESSMENT_WORKER_MAX_MS`, default 20 min) runs out;
+`ASSESSMENT_WORKER_LIMIT` is the per-batch claim size, not a total. A scheduled
+tick checks the queue with `psql` **before** checkout/`npm ci`, so an idle
+15-minute tick costs seconds instead of an install. Live runs restore cached
+`node_modules` and Playwright browsers instead of paying a cold install.
+Expired rate-limit buckets prune once per batch (`runAssessmentJobBatch`), and
+so does pipeline retention (`repo/retention.ts`, §5).
 
 **Queue growing?** Both the dispatch and the 15-min schedule stopped firing
 or started failing. Alert on `assessmentJobs` queue depth (see `ops:check`
@@ -184,6 +190,33 @@ it is a superuser-level migration, not app code: keep decision records
 dismissals) forever; only noise kinds (`assessment_completed`,
 `assessment_job`, `monitoring_changes_detected`) are candidates. Exports take
 the newest 5000 rows and mark `truncated` — that bounds downloads, not the table.
+
+Pipeline bookkeeping is bounded automatically on every worker batch
+(`packages/db/src/repo/retention.ts`):
+
+| Table                  | Retention                                                                    |
+| ---------------------- | ---------------------------------------------------------------------------- |
+| `assessment_jobs`      | terminal (`succeeded`/`failed`/`cancelled`) older than 30 days               |
+| `assessments`          | newest 30 **per project**, never one referenced by a finding                 |
+| `assessments` (stale)  | never-completed rows older than 30 days (abandoned runs), same finding guard |
+| `assessment_snapshots` | cascades with its assessment (`ON DELETE CASCADE`)                           |
+
+Two extra guards keep the audit trail usable: the newest **full** file-hash
+snapshot per project is never pruned (consecutive unchanged runs store marker
+rows and change detection falls back to that full map), and assessments are
+ranked per project — a global ranking would delete a low-volume project's newest
+runs whenever another project was busier.
+
+Evidence is append-only and keeps the `assessmentId` of a run that retention may
+later prune: evidence is the long-lived record, assessments are bookkeeping, and
+nothing dereferences the id (the UI falls back to the dashboard). Do not "fix"
+that by guarding retention on evidence — every completed run writes an
+`assessment_job` evidence row, so that guard would disable assessment retention
+entirely.
+
+`ops:check` reports each table's size and fails above
+`OPS_MAX_PIPELINE_TABLE_MB` (default 512 MiB), which means retention stopped
+running rather than that the queue is busy.
 
 ### What "delete" keeps
 

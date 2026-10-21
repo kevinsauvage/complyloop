@@ -44,6 +44,15 @@ const stageCopy: Record<AssessmentJobStage, string> = {
  */
 export const WORKER_STALL_MS = 10 * 60_000;
 
+/**
+ * What a queued job should expect. The dispatch fires from the enqueueing
+ * request, so a healthy run starts in about a minute (cold runner + install);
+ * the workflow's 15-minute schedule is only the backstop, so say both instead
+ * of implying a fixed wait.
+ */
+export const EXPECTED_START_COPY =
+  "Starts within about a minute; if the dispatch is delayed, the 15-minute schedule picks it up.";
+
 /** Age of the oldest ready-but-unclaimed queued job, or null when healthy. */
 export function stalledQueueAgeMs(
   jobs: ReadonlyArray<AssessmentJob>,
@@ -200,6 +209,11 @@ export function AssessmentJobStatus({
             {job.error ? (
               <p className="basis-full pl-5 text-xs text-destructive">
                 {job.error}
+              </p>
+            ) : null}
+            {job.status === "queued" ? (
+              <p className="basis-full pl-5 text-xs text-muted-foreground">
+                {EXPECTED_START_COPY}
               </p>
             ) : null}
             {job.status === "running" && job.startedAt ? (

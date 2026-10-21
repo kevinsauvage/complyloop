@@ -29,11 +29,14 @@ on:
   workflow_dispatch:
     inputs:
       limit:
-        description: Max jobs to attempt in this batch
+        description: Max jobs per batch (the drain loops until idle)
         default: "10"
       concurrency:
         description: Max jobs to run concurrently in this process
         default: "2"
+      max-minutes:
+        description: Wall-clock budget for the whole drain
+        default: "20"
 
 concurrency:
   group: assessment-worker
@@ -42,31 +45,49 @@ concurrency:
 jobs:
   drain:
     runs-on: ubuntu-latest
-    # A full batch (10 scans incl. browser work) must never hang a runner
-    # into the 6h default and burn the free-minutes budget.
+    # A full drain incl. browser work must never hang a runner into the 6h
+    # default and burn the free-minutes budget.
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: "22"
-          cache: npm
-      - run: npm ci
       - name: Check queue depth
         id: gate
-        # Scheduled ticks are the backstop: skip the browser cache/install
-        # and the drain entirely when nothing is queued or running. Explicit
-        # drains (repository_dispatch, workflow_dispatch) always run.
+        # Deliberately before checkout/npm ci: an idle scheduled tick must cost
+        # seconds, not a full install + browser download (~96 installs a day
+        # otherwise). `psql` ships on ubuntu-latest; the query mirrors
+        # `queuedAssessmentJobCount()` (queued + running — running is included
+        # so an expired lease gets recovered). Explicit drains
+        # (repository_dispatch, workflow_dispatch) always run.
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          depth=$(npx tsx --conditions=react-server scripts/queue-depth.ts | tail -n 1)
+          depth=$(psql "$DATABASE_URL" -tAc \
+            "SELECT count(*) FROM assessment_jobs WHERE status IN ('queued','running')")
           echo "depth=$depth" >> "$GITHUB_OUTPUT"
           if [ "$depth" = "0" ] && [ "${{ github.event_name }}" = "schedule" ]; then
             echo "empty=true" >> "$GITHUB_OUTPUT"
           else
             echo "empty=false" >> "$GITHUB_OUTPUT"
           fi
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        if: steps.gate.outputs.empty != 'true'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        if: steps.gate.outputs.empty != 'true'
+        with:
+          node-version: "22"
+          # ~/.npm tarballs: makes a node_modules cache miss cheaper too.
+          cache: npm
+      # Cached install: a live run then starts at runner + browser, not at a
+      # cold `npm ci` (minutes). Keyed on the lockfile + workspace manifests;
+      # the browser cache below is separate (same idea, different artefact).
+      - name: Cache node_modules
+        id: modules
+        if: steps.gate.outputs.empty != 'true'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json', 'package.json', 'packages/*/package.json') }}
+      - run: npm ci
+        if: steps.gate.outputs.empty != 'true' && steps.modules.outputs.cache-hit != 'true'
       - name: Cache Playwright browsers
         if: steps.gate.outputs.empty != 'true'
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
@@ -79,10 +100,13 @@ jobs:
         if: steps.gate.outputs.empty != 'true'
       - name: Drain assessment queue
         if: steps.gate.outputs.empty != 'true'
-        # A healthy batch takes minutes; a hung browser/teardown must fail
-        # fast instead of burning to the job timeout (lease recovery
-        # requeues whatever was claimed).
-        timeout-minutes: 25
+        # The drain loops until the queue is idle or ASSESSMENT_WORKER_MAX_MS
+        # (default 20 min) elapses; the step gets that budget + 5 min for
+        # teardown, so an operator-raised `max-minutes` cannot be SIGKILLed
+        # mid-scan (which would leave a phantom `running` job until lease
+        # expiry). A hung browser/teardown still fails fast: lease recovery
+        # requeues whatever was claimed.
+        timeout-minutes: ${{ (inputs['max-minutes'] || '20') * 1 + 5 }}
         run: npm run worker:drain
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -90,6 +114,7 @@ jobs:
           GITHUB_APP_PRIVATE_KEY: ${{ secrets.COMPLYLOOP_APP_PRIVATE_KEY }}
           ASSESSMENT_WORKER_LIMIT: ${{ inputs.limit || '10' }}
           ASSESSMENT_WORKER_CONCURRENCY: ${{ inputs.concurrency || '2' }}
+          ASSESSMENT_WORKER_MAX_MS: ${{ (inputs['max-minutes'] || '20') * 60000 }}
       - name: Notify on failure
         # Optional: set repository secret SLACK_WEBHOOK_URL to post failures.
         # No-op when unset — stock Actions notifications still apply.

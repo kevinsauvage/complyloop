@@ -118,5 +118,3 @@ export const actionAuthMocks = {
   signIn: vi.fn(),
   signOut: vi.fn(),
 };
-
-export { tx as fakeTx };

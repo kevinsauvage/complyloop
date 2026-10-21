@@ -16,6 +16,8 @@ import {
   DEFAULT_OPS_THRESHOLDS,
   evaluateOpsStatus,
   evidenceBytesFromMb,
+  PIPELINE_TABLES,
+  type PipelineTable,
 } from "../src/server/ops-thresholds";
 import { loadLocalEnv } from "./env";
 
@@ -115,15 +117,36 @@ async function main(): Promise<void> {
   const oldestQueuedJobAgeMs = await oldestQueuedAssessmentJobAgeMs();
 
   // Fast, lock-free size signals: exact byte size + planner row estimate
-  // (no COUNT(*) seq scan on an ever-growing append-only table).
-  const [stats] = (await drizzle.execute(sql`
-    SELECT pg_total_relation_size('evidence')::text AS bytes,
+  // (no COUNT(*) seq scan on an ever-growing append-only table). Pipeline
+  // tables are measured in the same query so ops:check also proves retention
+  // is running (docs/vercel.md §5); a table that is missing from the current
+  // schema still gets an entry (NaN) so it fails closed instead of passing.
+  const sizeRows = (await drizzle.execute(sql`
+    SELECT relname,
+           pg_total_relation_size(oid)::text AS bytes,
            reltuples::bigint::text AS rows_estimate
       FROM pg_class
-     WHERE relname = 'evidence'
-  `)) as Array<{ bytes: unknown; rows_estimate: unknown }>;
-  const evidenceBytes = toNumber(stats?.bytes);
-  const evidenceRowsEstimate = toNumber(stats?.rows_estimate);
+     WHERE relnamespace = current_schema()::regnamespace
+       AND relname IN (
+         'evidence', 'assessment_jobs', 'assessments', 'assessment_snapshots'
+       )
+  `)) as Array<{
+    relname: unknown;
+    bytes: unknown;
+    rows_estimate: unknown;
+  }>;
+  const sizes = new Map(
+    sizeRows.map((row) => [
+      String(row.relname),
+      { bytes: toNumber(row.bytes), rows: toNumber(row.rows_estimate) },
+    ]),
+  );
+  const evidenceBytes = sizes.get("evidence")?.bytes ?? NaN;
+  const evidenceRowsEstimate = sizes.get("evidence")?.rows ?? NaN;
+  const pipelineTableBytes: Partial<Record<PipelineTable, number>> = {};
+  for (const table of PIPELINE_TABLES) {
+    pipelineTableBytes[table] = sizes.get(table)?.bytes ?? NaN;
+  }
 
   const thresholds = {
     maxQueuedJobs: positiveInt(
@@ -141,9 +164,21 @@ async function main(): Promise<void> {
         DEFAULT_OPS_THRESHOLDS.maxEvidenceBytes / 1024 / 1024,
       ),
     ),
+    maxPipelineTableBytes: evidenceBytesFromMb(
+      positiveInt(
+        process.env.OPS_MAX_PIPELINE_TABLE_MB,
+        DEFAULT_OPS_THRESHOLDS.maxPipelineTableBytes / 1024 / 1024,
+      ),
+    ),
   };
   const evaluation = evaluateOpsStatus(
-    { queuedJobs, oldestQueuedJobAgeMs, evidenceBytes, evidenceRowsEstimate },
+    {
+      queuedJobs,
+      oldestQueuedJobAgeMs,
+      evidenceBytes,
+      evidenceRowsEstimate,
+      pipelineTableBytes,
+    },
     thresholds,
   );
 
@@ -157,6 +192,7 @@ async function main(): Promise<void> {
       oldestQueuedJobAgeMs,
       evidenceBytes,
       evidenceRowsEstimate,
+      pipelineTableBytes,
       thresholds,
       envFailures,
       envWarnings,

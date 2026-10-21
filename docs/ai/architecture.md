@@ -73,6 +73,18 @@ Webhook (enqueue + after() dispatch) → assessment-worker (GH); 15-min schedule
                            isomorphic-git checkout (ephemeral, no git CLI)
 ```
 
+## Dependency notes
+
+- **Auth — `next-auth@5.0.0-beta.32` (exact pin).** Auth.js v5 has no stable
+  release upstream (`dist-tags.latest` is still v4; `beta` is the v5 line), so
+  the pin _is_ the latest v5. Re-evaluate when v5 ships stable; a move to
+  Better Auth is a deliberate auth/RBAC migration, not routine maintenance.
+- **`reactCompiler: true`** is a stable Next 16 option, backed by the stable
+  `babel-plugin-react-compiler` devDependency. The
+  `experimental.turbopackRustReactCompiler` flag was removed: the Rust
+  implementation is a build-speed experiment with upgrade risk, and the stable
+  path keeps the build green.
+
 ## Domains and standards
 
 **Direction, not current behavior.** The code implements Accessibility only.
@@ -240,6 +252,20 @@ deleteMembershipIds, deleteOrgIds }` — explicit rows, no in-memory slice diff.
   exception: org deletion erases tenant evidence via `deleteEvidenceForOrg`
   (transaction-scoped `complyloop.allow_evidence_erase` flag). Project
   disconnect keeps retention.
+  - Pipeline bookkeeping is pruned on the worker tick by
+    `repo/retention.ts` (`prunePipelineRetention`): terminal
+    (`succeeded`/`failed`/`cancelled`) `assessment_jobs` older than 30 days,
+    then the oldest `assessments` beyond the newest 30 per project (ranked per
+    project, not globally), plus abandoned never-completed rows. Snapshots
+    cascade with their assessment. An assessment still referenced by a finding
+    is never deleted (`findings.assessment_id` is `ON DELETE CASCADE`, so
+    pruning it would erase the finding and its remediation history), and the
+    newest full file-hash snapshot per project is kept so change detection
+    never loses its fallback map — the FK stays `CASCADE` and retention simply
+    keeps those rows.
+  - `ops:check` measures `assessment_jobs`/`assessments`/
+    `assessment_snapshots` (`OPS_MAX_PIPELINE_TABLE_MB`, default 512 MiB) so a
+    stopped retention pass fails the check instead of growing silently.
   - Snapshots dedup identical hash maps (`hashes_unchanged`, reader fallback).
   - `webhook_deliveries` prunes to 10k per batch tick.
   - Patch evidence keeps full edit texts — they are load-bearing for
