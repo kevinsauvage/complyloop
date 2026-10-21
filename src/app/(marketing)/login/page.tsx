@@ -39,7 +39,7 @@ export default async function LoginPage({
     params.callbackUrl.startsWith("/") &&
     !params.callbackUrl.startsWith("//")
       ? params.callbackUrl
-      : "/dashboard";
+      : "/projects";
   const authErrorCopyText = authErrorCopy(
     typeof params.error === "string" ? params.error : null,
   );

@@ -1,10 +1,12 @@
 import { expect, test } from "@playwright/test";
 
+import { projectPath } from "./constants";
+
 test.describe("viewer authorization", () => {
   test("viewer cannot run assessment", async ({ page }) => {
-    await page.goto("/dashboard");
+    await page.goto(projectPath("dashboard"));
     await expect(
-      page.getByRole("heading", { name: /sample-app|Welcome to ComplyLoop/i }),
+      page.getByRole("heading", { name: "Dashboard" }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Run assessment" }),
@@ -12,7 +14,7 @@ test.describe("viewer authorization", () => {
   });
 
   test("viewer sees view-only notice on a finding", async ({ page }) => {
-    await page.goto("/findings");
+    await page.goto(projectPath("findings"));
     // Open whichever finding is listed first: earlier specs run assessments
     // against the fixture, so the seeded img-alt finding is not guaranteed to
     // be on page 1 of the (severity-sorted, paginated) list.
@@ -27,7 +29,7 @@ test.describe("viewer authorization", () => {
   });
 
   test("viewer cannot configure runtime audit", async ({ page }) => {
-    await page.goto("/settings");
+    await page.goto(projectPath("settings"));
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
     await expect(
       page.getByRole("button", { name: /Save preview URL/i }),

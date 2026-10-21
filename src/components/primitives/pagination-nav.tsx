@@ -1,7 +1,7 @@
-import type { Route } from "next";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import type { AppHref } from "@/core/routes";
 
 export function PaginationNav({
   page,
@@ -15,21 +15,21 @@ export function PaginationNav({
   page: number;
   totalPages: number;
   total: number;
-  basePath: Route;
+  basePath: AppHref;
   label?: string;
   /** Extra query params preserved on page links (e.g. `{ tab: "resolved" }`). */
   query?: Record<string, string>;
   /** Items per page — used for the "Showing A–B of N" label. */
   pageSize?: number;
 }) {
-  const hrefFor = (target: number): Route => {
+  const hrefFor = (target: number): AppHref => {
     const params: Record<string, string> = { ...(query ?? {}) };
     if (target > 1) params.page = String(target);
     else delete params.page;
     const qs = new URLSearchParams(params).toString();
     return qs ? `${basePath}?${qs}` : basePath;
   };
-  /* basePath is a validated route literal; the search suffix is allowed by Route. */
+  /* basePath is a validated route (static or project-scoped); the search suffix is allowed by Route. */
 
   // Numbered window: first … current±1 … last (max 5 numbers + ellipses).
   const windowPages: (number | "gap-start" | "gap-end")[] = [];

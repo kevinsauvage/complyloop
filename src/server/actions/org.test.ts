@@ -33,8 +33,6 @@ const exportOrgData = vi.hoisted(() => vi.fn());
 const deleteOrganization = vi.hoisted(() => vi.fn());
 const resolveActiveOrgId = vi.hoisted(() => vi.fn());
 const writeActiveOrgCookie = vi.hoisted(() => vi.fn());
-const writeActiveProjectCookie = vi.hoisted(() => vi.fn());
-const clearActiveProjectCookie = vi.hoisted(() => vi.fn());
 const readActiveOrgCookie = vi.hoisted(() => vi.fn());
 const assertOrgCreateRateLimit = vi.hoisted(() => vi.fn());
 const assertOrgInviteRateLimit = vi.hoisted(() => vi.fn());
@@ -59,6 +57,15 @@ const listRemediationsForFindings = vi.hoisted(() => vi.fn());
 const listRequirementsForProjects = vi.hoisted(() => vi.fn());
 const listAlertsForProjects = vi.hoisted(() => vi.fn());
 const lookupGitHubUser = vi.hoisted(() => vi.fn());
+const redirect = vi.hoisted(() => vi.fn());
+
+vi.mock("next/navigation", () => ({
+  redirect: (...args: unknown[]) => {
+    redirect(...args);
+    // Mirror Next: the real `redirect` throws to unwind the action.
+    throw new Error(`NEXT_REDIRECT:${String(args[0])}`);
+  },
+}));
 
 vi.mock("../workspace/orgs", async () => {
   const actual =
@@ -84,12 +91,7 @@ vi.mock("../workspace/org-queries", async () => {
 
 vi.mock("../workspace/active-cookies", () => ({
   writeActiveOrgCookie: (...args: unknown[]) => writeActiveOrgCookie(...args),
-  writeActiveProjectCookie: (...args: unknown[]) =>
-    writeActiveProjectCookie(...args),
-  clearActiveProjectCookie: (...args: unknown[]) =>
-    clearActiveProjectCookie(...args),
   readActiveOrgCookie: (...args: unknown[]) => readActiveOrgCookie(...args),
-  readActiveProjectCookie: vi.fn(),
 }));
 
 vi.mock("./shared", async () => {
@@ -211,8 +213,6 @@ beforeEach(() => {
   deleteOrganization.mockReset();
   resolveActiveOrgId.mockReset();
   writeActiveOrgCookie.mockReset();
-  writeActiveProjectCookie.mockReset();
-  clearActiveProjectCookie.mockReset();
   refresh.mockReset();
   listFindingsForExportForProjects.mockReset();
   listFindingsForExportForProjects.mockResolvedValue({
@@ -408,13 +408,13 @@ describe("org lifecycle actions", () => {
 });
 
 describe("switchOrgAction", () => {
-  it("switches org and activates a project in that org", async () => {
+  it("switches org and returns to the portfolio", async () => {
     const form = new FormData();
     form.set("orgId", "org-1");
-    await switchOrgAction(form);
+    await expect(switchOrgAction(form)).rejects.toThrow(/NEXT_REDIRECT/);
     expect(writeActiveOrgCookie).toHaveBeenCalledWith("org-1");
-    expect(writeActiveProjectCookie).toHaveBeenCalledWith("p1");
     expect(refresh).toHaveBeenCalled();
+    expect(redirect).toHaveBeenCalledWith("/projects");
   });
 
   it("rejects when unsigned", async () => {
@@ -430,7 +430,7 @@ describe("switchOrgAction", () => {
     await expect(switchOrgAction(form)).rejects.toThrow(/not a member/);
   });
 
-  it("clears the project cookie when the target org has no projects", async () => {
+  it("switches to an org with no projects and still returns to the portfolio", async () => {
     const emptyOrg: Organization = {
       id: "org-empty",
       name: "Empty",
@@ -452,10 +452,8 @@ describe("switchOrgAction", () => {
     getWorkspace.mockResolvedValue(fixtureWorkspace(db));
     const form = new FormData();
     form.set("orgId", "org-empty");
-    await switchOrgAction(form);
+    await expect(switchOrgAction(form)).rejects.toThrow(/NEXT_REDIRECT/);
     expect(writeActiveOrgCookie).toHaveBeenCalledWith("org-empty");
-    expect(writeActiveProjectCookie).not.toHaveBeenCalled();
-    expect(clearActiveProjectCookie).toHaveBeenCalled();
   });
 });
 
@@ -679,10 +677,9 @@ describe("org member management actions", () => {
     form.set("orgId", "org-1");
     const result = await leaveOrgMemberAction(initialActionState, form);
     expect(result.message).toBe("You left the organization.");
-    expect(clearActiveProjectCookie).not.toHaveBeenCalled();
   });
 
-  it("clears the project cookie when leaving the active org", async () => {
+  it("leaves the active org", async () => {
     const bob = testMembership("member", {
       id: "m-bob",
       userId: "user-2",
@@ -709,7 +706,6 @@ describe("org member management actions", () => {
     form.set("orgId", "org-1");
     const result = await leaveOrgMemberAction(initialActionState, form);
     expect(result.message).toBe("You left the organization.");
-    expect(clearActiveProjectCookie).toHaveBeenCalled();
   });
 
   it("blocks the last owner and the last member from leaving", async () => {

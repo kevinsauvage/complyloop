@@ -166,7 +166,7 @@ describe("remediation action authz", () => {
     mockProjectTx(workspaceFor("viewer"));
     const result = await runAssessmentAction(
       initialActionState,
-      new FormData(),
+      assessmentForm(),
     );
     expect(result.ok ? null : result.message).toMatch(/Not allowed/);
   });
@@ -254,7 +254,9 @@ describe("bulkApproveRemediationsAction", () => {
       /No selected findings had guidance/,
     );
   });
-  it("rejects a finding from another project", async () => {
+  it("rejects a mixed list spanning two projects", async () => {
+    // The project is resolved from the first id, so a list that also carries a
+    // finding from another project must be refused wholesale.
     const workspace = workspaceFor("member");
     workspace.db.findings.push(
       testFinding({ id: "f-foreign", projectId: "p2" }),
@@ -273,6 +275,7 @@ describe("bulkApproveRemediationsAction", () => {
     mockProjectTx(workspace);
 
     const form = new FormData();
+    form.append("findingIds", "f1");
     form.append("findingIds", "f-foreign");
 
     const result = await bulkApproveRemediationsAction(
@@ -313,6 +316,14 @@ describe("bulkApproveRemediationsAction", () => {
   });
 });
 
+/** Assessment forms carry the project id; the URL names it, the form repeats it. */
+function assessmentForm(projectId = "p1", extra: Record<string, string> = {}) {
+  const form = new FormData();
+  form.set("projectId", projectId);
+  for (const [key, value] of Object.entries(extra)) form.set(key, value);
+  return form;
+}
+
 describe("runAssessmentAction", () => {
   it("enqueues and kicks the worker via after(), resolving with queued copy", async () => {
     const workspace = workspaceFor("member");
@@ -324,7 +335,7 @@ describe("runAssessmentAction", () => {
 
     const result = await runAssessmentAction(
       initialActionState,
-      new FormData(),
+      assessmentForm(),
     );
 
     expect(result).toEqual({
@@ -360,7 +371,7 @@ describe("runAssessmentAction", () => {
 
     const result = await runAssessmentAction(
       initialActionState,
-      new FormData(),
+      assessmentForm(),
     );
 
     expect(result).toEqual({ ok: true, message: "Assessment complete." });
@@ -379,7 +390,7 @@ describe("runAssessmentAction", () => {
 
     const result = await runAssessmentAction(
       initialActionState,
-      new FormData(),
+      assessmentForm(),
     );
 
     expect(result).toEqual({
@@ -403,7 +414,7 @@ describe("runAssessmentAction", () => {
 
     const result = await runAssessmentAction(
       initialActionState,
-      new FormData(),
+      assessmentForm(),
     );
 
     expect(result).toEqual({
@@ -428,7 +439,7 @@ describe("runAssessmentAction", () => {
 
     const result = await runAssessmentAction(
       initialActionState,
-      new FormData(),
+      assessmentForm(),
     );
 
     expect(result).toEqual({
@@ -454,7 +465,7 @@ describe("runAssessmentAction", () => {
 
     const result = await runAssessmentAction(
       initialActionState,
-      new FormData(),
+      assessmentForm(),
     );
 
     expect(result).toEqual({
@@ -473,7 +484,7 @@ describe("runAssessmentAction", () => {
 
     const result = await runAssessmentAction(
       initialActionState,
-      new FormData(),
+      assessmentForm(),
     );
 
     expect(result.ok ? null : result.message).toMatch(/Too many requests/);
@@ -486,8 +497,7 @@ describe("cancelAssessmentJobAction", () => {
     const workspace = workspaceFor("member");
     mockProjectTx(workspace);
     cancelAssessmentJob.mockResolvedValue({ id: "job-1", trigger: "manual" });
-    const form = new FormData();
-    form.set("jobId", "job-1");
+    const form = assessmentForm("p1", { jobId: "job-1" });
 
     const result = await cancelAssessmentJobAction(initialActionState, form);
 
@@ -510,8 +520,7 @@ describe("cancelAssessmentJobAction", () => {
     const workspace = workspaceFor("member");
     mockProjectTx(workspace);
     cancelAssessmentJob.mockResolvedValue(null);
-    const form = new FormData();
-    form.set("jobId", "job-done");
+    const form = assessmentForm("p1", { jobId: "job-done" });
 
     const result = await cancelAssessmentJobAction(initialActionState, form);
 
@@ -527,8 +536,7 @@ describe("cancelAssessmentJobAction", () => {
     expect(invalid.ok).toBe(false);
 
     mockProjectTx(workspaceFor("viewer"));
-    const deniedForm = new FormData();
-    deniedForm.set("jobId", "job-1");
+    const deniedForm = assessmentForm("p1", { jobId: "job-1" });
     const denied = await cancelAssessmentJobAction(
       initialActionState,
       deniedForm,

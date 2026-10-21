@@ -1,4 +1,4 @@
-/** Finding detail view loader — data-shaping for the `(app)/findings/[id]` route (no JSX here). */
+/** Finding detail view loader — data-shaping for the finding route (no JSX here). */
 import "server-only";
 
 import { shippedCatalog } from "@complyloop/analysis-core/catalog/catalog";
@@ -31,15 +31,13 @@ import { buildDeveloperHandoff } from "@/server/assessment/handoff";
 import { listEvidenceForFindingScoped } from "@/server/reporting/evidence-queries";
 import { displayControl } from "@/server/reporting/report";
 import type { ProjectCapabilities } from "@/server/workspace/project-capabilities";
-import { projectCapabilities } from "@/server/workspace/project-capabilities";
+import { loadProjectPage } from "@/server/workspace/project-page";
 import { getProjectRuntime } from "@/server/workspace/project-runtime";
 import {
   findingsInScope,
   scopedControlIds,
 } from "@/server/workspace/project-scope";
-import { isProjectVisible } from "@/server/workspace/project-visibility";
 import {
-  getWorkspace,
   requireFinding,
   requireRemediationForFinding,
 } from "@/server/workspace/workspace";
@@ -71,37 +69,36 @@ export type FindingDetailView =
     };
 
 /**
- * Everything the finding detail page renders. Returns `{ finding: null }`
- * when the row is missing or invisible so the page can `notFound()`.
+ * Everything the finding detail page renders. Returns `{ finding: null }` when
+ * the row is missing, has no remediation, or belongs to another project than the
+ * URL names — the page then `notFound()`s.
  */
 export async function loadFindingDetailView(
-  id: string,
+  projectId: string,
+  findingId: string,
   rawParams: Record<string, string | string[] | undefined>,
 ): Promise<FindingDetailView> {
   const listParams = parseFindingListParams(rawParams);
 
-  // Three independent lookups: the tenancy load, the finding row, and its
+  // Three independent lookups: the project page, the finding row, and its
   // remediation (keyed by the route param, not by the finding). Loading them
   // in one wave removes two serial round trips from the drill-down page.
-  const [workspace, finding, remediation] = await Promise.all([
-    getWorkspace(),
-    requireFinding(id).catch(() => null),
-    requireRemediationForFinding(id).catch((error: unknown) => {
+  const [page, finding, remediation] = await Promise.all([
+    loadProjectPage(projectId),
+    requireFinding(findingId).catch(() => null),
+    requireRemediationForFinding(findingId).catch((error: unknown) => {
       if (error instanceof PublicError) return null;
       throw error;
     }),
   ]);
-  if (!finding || !remediation) return { finding: null };
-
-  const { access, projects } = workspace;
-  const project = projects.find(
-    (candidate) => candidate.id === finding.projectId,
-  );
-  if (!project || !isProjectVisible(project, access)) {
+  // Finding ids are global: only the row recorded against the project in the
+  // URL may render, so a mismatched pair 404s instead of leaking another
+  // project's finding.
+  if (!finding || finding.projectId !== projectId || !remediation) {
     return { finding: null };
   }
 
-  const caps = projectCapabilities(project, access, project.orgId);
+  const { project, caps } = page;
 
   const control = displayControl(finding.controlId, project);
   const [evidence, queueIds] = await Promise.all([

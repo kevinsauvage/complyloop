@@ -97,7 +97,7 @@ export async function ConnectProjectPanel({
   const signedIn = Boolean(session?.user);
   const userId = session?.user?.id ?? null;
   const caps = projectCapabilities(
-    workspace.project,
+    null,
     workspace.access,
     workspace.activeOrgId,
   );

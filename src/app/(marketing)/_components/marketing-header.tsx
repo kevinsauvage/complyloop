@@ -52,7 +52,7 @@ export function MarketingHeader({ isSignedIn }: { isSignedIn: boolean }) {
           <ThemeToggle compact />
           {isSignedIn ? (
             <Button asChild size="sm">
-              <Link href="/dashboard">Open dashboard</Link>
+              <Link href="/projects">Open dashboard</Link>
             </Button>
           ) : (
             <Button asChild size="sm">

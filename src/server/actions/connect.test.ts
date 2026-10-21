@@ -15,15 +15,9 @@ import { testProject } from "@/test-fixtures/project";
 import { testWorkspace } from "@/test-fixtures/workspace";
 
 import type { ConnectWriteContext } from "../workspace/workspace-write";
-import {
-  connectGitHubRepoAction,
-  disconnectGitHubRepoAction,
-  openProjectAction,
-} from "./connect";
+import { connectGitHubRepoAction, disconnectGitHubRepoAction } from "./connect";
 
-const { getWorkspace, withConnectWrite } = actionWorkspaceMocks;
-const writeActiveProjectCookie = vi.hoisted(() => vi.fn());
-const setActiveProject = vi.hoisted(() => vi.fn());
+const { withConnectWrite } = actionWorkspaceMocks;
 const connectGitHubRepo = vi.hoisted(() => vi.fn());
 const disconnectGitHubRepo = vi.hoisted(() => vi.fn());
 const findConnectedGitHubProject = vi.hoisted(() => vi.fn());
@@ -38,20 +32,8 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("../workspace/active-cookies", () => ({
-  writeActiveProjectCookie: (...args: unknown[]) =>
-    writeActiveProjectCookie(...args),
   readActiveOrgCookie: async () => "org-1",
 }));
-
-vi.mock("../workspace/project-visibility", async () => {
-  const actual = await vi.importActual<
-    typeof import("../workspace/project-visibility")
-  >("../workspace/project-visibility");
-  return {
-    ...actual,
-    setActiveProject: (...args: unknown[]) => setActiveProject(...args),
-  };
-});
 
 vi.mock("../workspace/connect-github", () => ({
   assertGitHubRepoAssessable: async () => undefined,
@@ -131,7 +113,6 @@ function workspaceFor(membership: OrgMembership) {
 function stubConnectWrite(membership: OrgMembership) {
   withConnectWrite.mockImplementation(
     async (
-      _options: { activeProjectId: string | null },
       fn: (
         ctx: ConnectWriteContext,
       ) => Promise<{ result: unknown }> | { result: unknown },
@@ -149,29 +130,6 @@ function stubConnectWrite(membership: OrgMembership) {
 
 afterEach(() => {
   vi.clearAllMocks();
-});
-
-describe("openProjectAction", () => {
-  it("sets the active project and refreshes", async () => {
-    const workspace = workspaceFor(ownerMembership);
-    getWorkspace.mockResolvedValue(workspace);
-    const form = new FormData();
-    form.set("projectId", "p1");
-
-    await openProjectAction(form);
-
-    expect(setActiveProject).toHaveBeenCalledWith(
-      {
-        projects: workspace.projects,
-        organizations: workspace.organizations,
-        memberships: workspace.access.memberships,
-      },
-      "p1",
-      "user-1",
-    );
-    expect(writeActiveProjectCookie).toHaveBeenCalledWith("p1");
-    expect(refresh).toHaveBeenCalled();
-  });
 });
 
 describe("connectGitHubRepoAction", () => {
@@ -294,6 +252,7 @@ describe("connectGitHubRepoAction", () => {
     expect(result).toEqual({
       ok: true,
       message: "Connected acme/shop.",
+      redirectTo: "/projects/p-new/dashboard",
     });
     expect(resolveUserInstallationForRepo).toHaveBeenCalledWith({
       userAccessToken: "gho_token",
@@ -304,7 +263,6 @@ describe("connectGitHubRepoAction", () => {
     // installation token (which reports the App's permissions).
     expect(fetchGitHubRepo).toHaveBeenCalledWith("gho_token", "acme/shop");
     expect(connectGitHubRepo).toHaveBeenCalled();
-    expect(writeActiveProjectCookie).toHaveBeenCalledWith("p-new");
     expect(refresh).toHaveBeenCalled();
   });
 
@@ -370,12 +328,11 @@ describe("disconnectGitHubRepoAction", () => {
     expect(result.ok ? null : result.message).toMatch(/Sign in with GitHub/);
   });
 
-  it("disconnects and updates the active project cookie", async () => {
+  it("disconnects the project in the form", async () => {
     actionAuthMocks.auth.mockResolvedValue({ user: { id: "user-1" } });
     disconnectGitHubRepo.mockReturnValue({
       deleteProjectId: "p1",
       evidence: { kind: "project_disconnected" },
-      nextProjectId: "p-next",
     });
     stubConnectWrite(ownerMembership);
     const form = new FormData();
@@ -387,7 +344,6 @@ describe("disconnectGitHubRepoAction", () => {
       ok: true,
       message: "Disconnected acme/shop.",
     });
-    expect(writeActiveProjectCookie).toHaveBeenCalledWith("p-next");
     expect(refresh).toHaveBeenCalled();
   });
 

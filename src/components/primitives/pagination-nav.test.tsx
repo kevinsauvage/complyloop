@@ -14,7 +14,7 @@ describe("PaginationNav", () => {
         page={2}
         totalPages={4}
         total={100}
-        basePath="/evidence"
+        basePath="/projects/p1/evidence"
       />,
     );
     expect(
@@ -22,11 +22,11 @@ describe("PaginationNav", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Previous" })).toHaveAttribute(
       "href",
-      "/evidence",
+      "/projects/p1/evidence",
     );
     expect(screen.getByRole("link", { name: "Next" })).toHaveAttribute(
       "href",
-      "/evidence?page=3",
+      "/projects/p1/evidence?page=3",
     );
   });
 
@@ -36,7 +36,7 @@ describe("PaginationNav", () => {
         page={2}
         totalPages={4}
         total={100}
-        basePath="/evidence"
+        basePath="/projects/p1/evidence"
         pageSize={25}
       />,
     );
@@ -45,14 +45,19 @@ describe("PaginationNav", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Page 1" })).toHaveAttribute(
       "href",
-      "/evidence",
+      "/projects/p1/evidence",
     );
     expect(screen.getByText(/26–50 of 100/)).toBeInTheDocument();
   });
 
   it("keeps a stable (hidden) slot on a single page", () => {
     const { container } = render(
-      <PaginationNav page={1} totalPages={1} total={3} basePath="/evidence" />,
+      <PaginationNav
+        page={1}
+        totalPages={1}
+        total={3}
+        basePath="/projects/p1/evidence"
+      />,
     );
     const nav = container.querySelector("nav");
     expect(nav).not.toBeNull();

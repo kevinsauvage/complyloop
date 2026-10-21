@@ -5,6 +5,12 @@ import type {
 } from "@complyloop/analysis-core/contract/entities";
 import { isOneOf } from "@complyloop/analysis-core/contract/literal-sets";
 
+import {
+  projectEvidenceReportPath,
+  projectFindingPath,
+  type ProjectHref,
+  projectPath,
+} from "../routes";
 import { href } from "./href";
 import { firstParam, trimmedQuery } from "./params";
 import { requirementsStatusHref } from "./requirements";
@@ -69,11 +75,12 @@ export interface EvidencePageFilters {
 }
 
 export function evidenceKindHref(
+  projectId: string,
   kind?: EvidenceKind,
   page?: number,
   filters?: EvidencePageFilters,
-): "/evidence" | `/evidence?${string}` {
-  return href("/evidence", {
+): ProjectHref {
+  return href(projectPath(projectId, "evidence"), {
     kind,
     q: filters?.q,
     from: filters?.from,
@@ -95,24 +102,21 @@ export function parseReportViewParam(
 export type ReportFormat = "markdown" | "html";
 
 export function reportHref(
+  projectId: string,
   view: ReportView,
   format: ReportFormat,
-):
-  | "/evidence/report"
-  | "/evidence/report/html"
-  | `/evidence/report?${string}`
-  | `/evidence/report/html?${string}` {
-  const base = format === "html" ? "/evidence/report/html" : "/evidence/report";
-  return href(base, { view });
+): ProjectHref {
+  return href(projectEvidenceReportPath(projectId, format), { view });
 }
 
 /** Primary navigation target for an evidence row in the compliance loop. */
 export function evidenceRecordHref(
+  projectId: string,
   record: EvidenceRecord,
   requirements: readonly Requirement[],
-): `/findings/${string}` | `/requirements${string}` | "/dashboard" | undefined {
+): ProjectHref | undefined {
   if (record.findingId) {
-    return `/findings/${record.findingId}`;
+    return projectFindingPath(projectId, record.findingId);
   }
   if (record.controlId) {
     const requirement = requirements.find(
@@ -121,11 +125,11 @@ export function evidenceRecordHref(
     // Preserve the requirement anchor so the link lands on the card, not
     // just the filtered list.
     const anchor = `requirement-${record.controlId}`;
-    const target = requirementsStatusHref(requirement?.status);
+    const target = requirementsStatusHref(projectId, requirement?.status);
     return `${target}#${anchor}`;
   }
   if (record.assessmentId) {
-    return "/dashboard";
+    return projectPath(projectId, "dashboard");
   }
   return undefined;
 }

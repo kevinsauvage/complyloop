@@ -20,40 +20,39 @@ import {
   parsePageParam,
 } from "@/core/filter-params/pagination";
 import { loadEvidencePage } from "@/server/reporting/evidence-queries";
-import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
+import { loadProjectPage } from "@/server/workspace/project-page";
 
-export type EvidenceView =
-  | { project: null }
-  | {
-      project: Project;
-      kindFilter: ReturnType<typeof parseEvidenceKindParam>;
-      query: string | undefined;
-      from: string | undefined;
-      to: string | undefined;
-      actor: string | undefined;
-      filters: {
-        q: string | undefined;
-        from: string | undefined;
-        to: string | undefined;
-        actor: string | undefined;
-      };
-      page: number;
-      requirements: Requirement[];
-      kindCounts: Map<EvidenceKind, number>;
-      items: EvidenceRecord[];
-      filteredTotal: number | null;
-      totalUnfiltered: number;
-      total: number;
-      slice: PageSlice<EvidenceRecord>;
-      paginationQuery: Record<string, string>;
-      filtersActive: boolean;
-    };
+export interface EvidenceView {
+  project: Project;
+  kindFilter: ReturnType<typeof parseEvidenceKindParam>;
+  query: string | undefined;
+  from: string | undefined;
+  to: string | undefined;
+  actor: string | undefined;
+  filters: {
+    q: string | undefined;
+    from: string | undefined;
+    to: string | undefined;
+    actor: string | undefined;
+  };
+  page: number;
+  requirements: Requirement[];
+  kindCounts: Map<EvidenceKind, number>;
+  items: EvidenceRecord[];
+  filteredTotal: number | null;
+  totalUnfiltered: number;
+  total: number;
+  slice: PageSlice<EvidenceRecord>;
+  paginationQuery: Record<string, string>;
+  filtersActive: boolean;
+}
 
 /**
  * Everything the evidence page renders: parsed filters, the evidence window
  * query, and totals derived without extra `count(*)` scans.
  */
 export async function loadEvidenceView(
+  projectId: string,
   rawParams: Record<string, string | string[] | undefined>,
 ): Promise<EvidenceView> {
   const {
@@ -64,8 +63,7 @@ export async function loadEvidenceView(
     to: toRaw,
     actor: actorRaw,
   } = rawParams;
-  const { project } = await loadActiveProjectPage();
-  if (!project) return { project: null };
+  const { project } = await loadProjectPage(projectId);
 
   const kindFilter = parseEvidenceKindParam(kindRaw);
   const query = parseEvidenceQueryParam(qRaw);

@@ -54,6 +54,7 @@ function workspaceFor(role: "viewer" | "member" | "admin" | "owner") {
 
 function formWith(branch: string): FormData {
   const form = new FormData();
+  form.set("projectId", project.id);
   form.set("trackedBranch", branch);
   return form;
 }
@@ -132,7 +133,7 @@ describe("updateTrackedBranchAction", () => {
 
   it("clears the tracked branch when the field is empty", async () => {
     const workspace = workspaceFor("owner");
-    workspace.project!.github!.trackedBranch = "develop";
+    workspace.projects[0]!.github!.trackedBranch = "develop";
     mockProjectTx(workspace);
 
     const result = await updateTrackedBranchAction(

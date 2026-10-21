@@ -19,9 +19,10 @@ import { testWorkspace } from "@/test-fixtures/workspace";
 
 import { setDefaultPresetAction } from "./project-preset";
 
-function formWith(presetId: string): FormData {
+function formWith(target: Project, presetId?: string): FormData {
   const form = new FormData();
-  form.set("presetId", presetId);
+  form.set("projectId", target.id);
+  if (presetId !== undefined) form.set("presetId", presetId);
   return form;
 }
 
@@ -43,20 +44,25 @@ afterEach(() => {
 
 describe("setDefaultPresetAction", () => {
   it("requires a preset id", async () => {
+    const project = testProject({ orgId: "org-1" });
+    mockWrite(project);
+
     const result = await setDefaultPresetAction(
       initialActionState,
-      new FormData(),
+      formWith(project),
     );
+
     expect(result.ok ? null : result.message).toMatch(
       /framework preset is required/,
     );
   });
 
   it("denies viewers", async () => {
-    mockWrite(testProject({ orgId: "org-1" }), "viewer");
+    const project = testProject({ orgId: "org-1" });
+    mockWrite(project, "viewer");
     const result = await setDefaultPresetAction(
       initialActionState,
-      formWith("preset-wcag-aa"),
+      formWith(project, "preset-wcag-aa"),
     );
     expect(result.ok ? null : result.message).toMatch(/Not allowed/);
   });
@@ -67,7 +73,7 @@ describe("setDefaultPresetAction", () => {
 
     const result = await setDefaultPresetAction(
       initialActionState,
-      formWith("preset-wcag-aa"),
+      formWith(project, "preset-wcag-aa"),
     );
 
     expect(result.message).toBe("Default assessment preset saved");
@@ -76,10 +82,11 @@ describe("setDefaultPresetAction", () => {
   });
 
   it("records evidence when the default changes", async () => {
-    mockWrite(testProject({ orgId: "org-1" }));
+    const project = testProject({ orgId: "org-1" });
+    mockWrite(project);
     await setDefaultPresetAction(
       initialActionState,
-      formWith("preset-wcag-aa"),
+      formWith(project, "preset-wcag-aa"),
     );
     expect(
       recordedWrites()?.evidence?.some(
@@ -99,7 +106,7 @@ describe("setDefaultPresetAction", () => {
 
     const result = await setDefaultPresetAction(
       initialActionState,
-      formWith("preset-wcag-aa"),
+      formWith(project, "preset-wcag-aa"),
     );
 
     expect(result.message).toBe("This is already the default preset.");
@@ -107,10 +114,11 @@ describe("setDefaultPresetAction", () => {
   });
 
   it("rejects an unknown preset", async () => {
-    mockWrite(testProject({ orgId: "org-1" }));
+    const project = testProject({ orgId: "org-1" });
+    mockWrite(project);
     const result = await setDefaultPresetAction(
       initialActionState,
-      formWith("nope"),
+      formWith(project, "nope"),
     );
     expect(result.ok ? null : result.message).toMatch(
       /Unknown framework preset/,

@@ -1,14 +1,16 @@
 import { expect, test } from "@playwright/test";
 
+import { projectFindingPath, projectPath } from "./constants";
+
 /**
  * Additional compliance loops beyond assess → remediate → verify
  * (covered in core-loop.spec.ts).
  */
 test.describe("compliance loops", () => {
   test("assess → record requirement exception → evidence", async ({ page }) => {
-    await page.goto("/dashboard");
+    await page.goto(projectPath("dashboard"));
     await expect(
-      page.getByRole("heading", { name: /sample-app|Welcome to ComplyLoop/i }),
+      page.getByRole("heading", { name: "Dashboard" }),
     ).toBeVisible();
 
     await page.getByRole("button", { name: "Run assessment" }).click();
@@ -19,7 +21,7 @@ test.describe("compliance loops", () => {
     ).toBeVisible({ timeout: 60_000 });
 
     await page
-      .getByRole("navigation", { name: "Main" })
+      .getByRole("navigation", { name: "Project" })
       .getByRole("link", { name: /Requirements/ })
       .first()
       .click();
@@ -59,7 +61,7 @@ test.describe("compliance loops", () => {
     ).toBeVisible();
 
     await page
-      .getByRole("navigation", { name: "Main" })
+      .getByRole("navigation", { name: "Project" })
       .getByRole("link", { name: /Evidence/ })
       .first()
       .click();
@@ -74,7 +76,7 @@ test.describe("compliance loops", () => {
   });
 
   test("dismiss finding → evidence trail retains reason", async ({ page }) => {
-    await page.goto("/findings/e2e-finding-img-alt");
+    await page.goto(projectFindingPath("e2e-finding-img-alt"));
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
     await page.getByRole("button", { name: /Dismiss…/ }).click();
@@ -93,7 +95,7 @@ test.describe("compliance loops", () => {
     });
 
     await page
-      .getByRole("navigation", { name: "Main" })
+      .getByRole("navigation", { name: "Project" })
       .getByRole("link", { name: /Evidence/ })
       .first()
       .click();
@@ -110,7 +112,7 @@ test.describe("compliance loops", () => {
   test("HTML compliance report is structured and printable", async ({
     page,
   }) => {
-    const response = await page.goto("/evidence/report/html");
+    const response = await page.goto(`${projectPath("evidence")}/report/html`);
     expect(response?.ok()).toBeTruthy();
     await expect(
       page.getByRole("heading", { name: /Audit report/i }),

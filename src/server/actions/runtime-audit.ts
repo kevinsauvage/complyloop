@@ -8,15 +8,12 @@ import { assertSafeRuntimeUrl } from "@complyloop/analysis-core/runtime/url-safe
 import { updateProject } from "@complyloop/db/repo/projects";
 
 import type { ActionState } from "@/core/actions/action-state";
-import { parseForm } from "@/core/actions/validate";
+import { parseForm, requiredField } from "@/core/actions/validate";
 
 import { runAction } from "../action-state";
 import { assertRuntimeAuditRateLimit } from "../rate-limit";
 import { requireProjectAccess } from "../workspace/workspace";
-import {
-  resolveActiveProjectId,
-  withProjectTx,
-} from "../workspace/workspace-write";
+import { withProjectTx } from "../workspace/workspace-write";
 import { refresh } from "./shared";
 
 const ABSOLUTE_ROUTE_MESSAGE =
@@ -39,6 +36,7 @@ function parseRoutes(raw: string | undefined): string[] {
 }
 
 const updateRuntimeAuditInput = z.object({
+  projectId: requiredField("Unknown project."),
   runtimeBaseUrl: z.string().max(2048).optional(),
   runtimeRoutes: z.string().max(4000).optional(),
 });
@@ -48,13 +46,15 @@ export async function updateRuntimeAuditAction(
   formData: FormData,
 ): Promise<ActionState> {
   return runAction(async () => {
-    const parsed = parseForm(updateRuntimeAuditInput, formData);
-    const base = parsed.runtimeBaseUrl?.trim() ?? "";
-    const routes = parseRoutes(parsed.runtimeRoutes);
+    const { projectId, runtimeBaseUrl, runtimeRoutes } = parseForm(
+      updateRuntimeAuditInput,
+      formData,
+    );
+    const base = runtimeBaseUrl?.trim() ?? "";
+    const routes = parseRoutes(runtimeRoutes);
 
     // Authorize before any network work: the DNS probe is an outbound request
     // an unauthorized caller must not be able to trigger.
-    const projectId = await resolveActiveProjectId();
     await requireProjectAccess(projectId, "project.connect");
 
     // DNS check outside the write transaction so a slow lookup does not block
@@ -79,7 +79,11 @@ export async function updateRuntimeAuditAction(
       }
       await updateProject(ctx.tx, next);
     });
-    refresh("/settings", "/dashboard", "/requirements");
+    refresh(
+      "/projects/[projectId]/settings",
+      "/projects/[projectId]/dashboard",
+      "/projects/[projectId]/requirements",
+    );
     return "Runtime audit settings saved. Run assessment to audit the pages.";
   });
 }

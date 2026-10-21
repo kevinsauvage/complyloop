@@ -1,5 +1,6 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import Link from "next/link";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // Static import: the module transform must not run inside a test body, where
@@ -7,11 +8,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppShell } from "./app-shell";
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/dashboard",
+  usePathname: () => "/projects/p1/dashboard",
 }));
 
 vi.mock("./nav-links", () => ({
-  NavLinks: () => <a href="/projects">Projects</a>,
+  NavLinks: () => <Link href="/projects">Projects</Link>,
 }));
 
 afterEach(() => {
@@ -22,10 +23,7 @@ describe("AppShell", () => {
   it("exposes a skip link to main content and a mobile menu control", async () => {
     const user = userEvent.setup();
     render(
-      <AppShell
-        workspaceContext={<div>Context</div>}
-        authControls={<div>Auth</div>}
-      >
+      <AppShell authControls={<div>Auth</div>}>
         <h1>Dashboard</h1>
       </AppShell>,
     );
@@ -45,10 +43,7 @@ describe("AppShell", () => {
   it("closes the mobile sheet when a server-rendered nav link is clicked", async () => {
     const user = userEvent.setup();
     render(
-      <AppShell
-        workspaceContext={<div>Context</div>}
-        authControls={<div>Auth</div>}
-      >
+      <AppShell authControls={<div>Auth</div>}>
         <h1>Dashboard</h1>
       </AppShell>,
     );

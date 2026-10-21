@@ -166,11 +166,24 @@ Chain per domain. `exists` = shipped, `evolves` = shipped but domain-blind today
   numeric id (resolved from the login at invite time; `github_user_id`) and
   claimed on sign-in by that id — never by the recyclable login; a login
   already held by another account in the org is refused, not re-targeted.
-  Workspace load is membership-org + active
-  project. RBAC stays in the app kernel — never move the permission matrix
-  into analysis-core.
+  Workspace load is membership-org only: the project a page shows comes from
+  its URL (`/projects/[projectId]/…`), never from a cookie or a "current
+  project" field. RBAC stays in the app kernel — never move the permission
+  matrix into analysis-core.
+- **Project scope in the URL** — every project page is
+  `/projects/[projectId]/<tab>` (`dashboard|requirements|findings|evidence|settings`),
+  so a link names its project and is shareable. `loadProjectPage(projectId)`
+  resolves it against the viewer's memberships and `notFound()`s otherwise —
+  never a fallback to another project. A finding id is global, so
+  `/projects/[projectId]/findings/[findingId]` 404s on a mismatched pair.
+  `/projects/[projectId]` redirects to the dashboard; `/projects` is the
+  portfolio. Links are built with `projectPath` / `projectFindingPath` /
+  `reportHref` (`src/core/routes.ts`), which return template literal types so
+  `typedRoutes` still validates them. Project-scoped forms carry a hidden
+  `projectId`; finding- and requirement-scoped actions resolve the project
+  from the row id they act on. `/org` stays cookie-based.
 - **Reads** — `getWorkspace()` loads **tenancy only** (orgs, memberships,
-  projects, active project). Compliance rows load via
+  projects). Compliance rows load via
   `getProjectRuntime(projectId)` or repo `list*`/`get*` helpers. The compliance
   catalog is compile-time data (`shippedCatalog()`). File hashes live in
   `assessment_snapshots` and load for the assessment scan
@@ -217,7 +230,7 @@ Chain per domain. `exists` = shipped, `evolves` = shipped but domain-blind today
   - Org writes return `{ result, insertOrgs, upsertMemberships,
 deleteMembershipIds, deleteOrgIds }` — explicit rows, no in-memory slice diff.
   - Connect/disconnect uses `withConnectWrite` (tenancy load, org lock, no
-    project lock — there may be no active project yet) and returns
+    project lock — a connect has no project row yet) and returns
     `{ result, insertProjects, deleteProjectIds, evidence }`. The validation
     clone (`assertGitHubRepoAssessable`) runs **before** the write lock: a
     checkout takes minutes and must not pin a pool connection.
@@ -548,7 +561,7 @@ pushes and PR events are ignored. Failures become
   `src/server/actions/*` (`"use server"`) stay unfenced because clients
   invoke them.
 - **Reads** — pages compose two cached reads (`getWorkspace` for tenancy,
-  `getProjectRuntime` for compliance rows; `loadActiveProjectPage` where caps
+  `getProjectRuntime` for compliance rows; `loadProjectPage` where caps
   are needed) plus the reporting loaders (`loadFindingsView`,
   `evidence-queries`, `nav-attention`).
   - Pages never open Drizzle or import `@complyloop/db/repo/*` directly

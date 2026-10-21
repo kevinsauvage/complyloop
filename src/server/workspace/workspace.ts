@@ -7,6 +7,7 @@ import type {
   Alert,
   Finding,
   Remediation,
+  Requirement,
 } from "@complyloop/analysis-core/contract/entities";
 import type {
   Control,
@@ -20,50 +21,36 @@ import { getFindingById } from "@complyloop/db/repo/findings";
 import { listMembershipsForOrgs } from "@complyloop/db/repo/orgs";
 import { getProjectById } from "@complyloop/db/repo/projects";
 import { getRemediationByFindingId } from "@complyloop/db/repo/remediations";
+import { getRequirementById } from "@complyloop/db/repo/requirements";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 import { loadTenancyDb } from "@complyloop/db/workspace-load";
 
 import type { Permission } from "@/core/rbac";
 
 import { getSession } from "../auth-session";
-import { readActiveOrgCookie, readActiveProjectCookie } from "./active-cookies";
+import { readActiveOrgCookie } from "./active-cookies";
 import { orgsForUser, resolveActiveOrgId } from "./org-queries";
 import {
   type AccessContext,
   accessFromStore,
   assertProjectPermission,
-  resolveActiveProject,
-  visibleProjects,
 } from "./project-visibility";
 
 /**
- * Request-scoped tenancy + active project. Compliance rows (findings, etc.)
- * load via {@link getProjectRuntime} or write-time slices — not here.
+ * Request-scoped tenancy. The project a page shows comes from the URL
+ * (`loadProjectPage`), not from this state — compliance rows (findings, etc.)
+ * load via `getProjectRuntime` or write-time slices.
  */
 export interface Workspace {
-  /** Null when the viewer has no connected project yet. */
-  project: Project | null;
   /** Auth.js user id when signed in; null when unsigned. */
   userId: string | null;
   githubLogin: string | null;
   access: AccessContext;
   /** All projects in the viewer's orgs (permission / lookup). */
   projects: Project[];
-  /** Projects the current viewer may switch between (scoped to active org). */
-  visibleProjects: Project[];
   organizations: Organization[];
   /** Selected org for management + new connects; null when unsigned. */
   activeOrgId: string | null;
-}
-
-function projectsForActiveOrg(
-  projects: ReadonlyArray<Project>,
-  access: AccessContext,
-  activeOrgId: string | null,
-): Project[] {
-  const visible = visibleProjects(projects, access);
-  if (!activeOrgId) return [];
-  return visible.filter((project) => project.orgId === activeOrgId);
 }
 
 export function prepareWorkspaceState(
@@ -71,7 +58,6 @@ export function prepareWorkspaceState(
   userId: string | null,
   githubLogin: string | null,
   preferredOrgId: string | null,
-  preferredProjectId: string | null,
 ): Workspace {
   const access = accessFromStore(db, userId, githubLogin);
   const organizations = userId ? orgsForUser(db, userId) : [];
@@ -80,31 +66,21 @@ export function prepareWorkspaceState(
       ? (resolveActiveOrgId(db, userId, preferredOrgId) ?? null)
       : null;
 
-  const scoped = projectsForActiveOrg(db.projects, access, activeOrgId);
-  // When an org is selected, never fall back to other orgs' projects — a
-  // stale project cookie must not leak tenancy context into an empty org.
-  const project = activeOrgId
-    ? (resolveActiveProject(scoped, preferredProjectId, access) ?? null)
-    : null;
-
   return {
-    project,
     userId,
     githubLogin,
     access,
     projects: db.projects,
-    visibleProjects: activeOrgId ? scoped : [],
     organizations,
     activeOrgId,
   };
 }
 
-/** Auth + active org/project cookies — shared by read and write paths. */
+/** Auth + active org cookie — shared by read and write paths. */
 export async function readViewerSession(): Promise<{
   userId: string | null;
   githubLogin: string | null;
   preferredOrgId: string | null;
-  preferredProjectId: string | null;
 }> {
   const session = await getSession();
   const userId = session?.user?.id ?? null;
@@ -113,34 +89,25 @@ export async function readViewerSession(): Promise<{
     userId,
     githubLogin,
     preferredOrgId: userId ? await readActiveOrgCookie() : null,
-    preferredProjectId: await readActiveProjectCookie(),
   };
 }
 
 async function loadViewerWorkspaceState(): Promise<Workspace> {
-  const { userId, githubLogin, preferredOrgId, preferredProjectId } =
-    await readViewerSession();
+  const { userId, githubLogin, preferredOrgId } = await readViewerSession();
 
   const db = await loadTenancyDb(await getDrizzle(), {
     userId,
     githubLogin,
-    activeProjectId: preferredProjectId,
   });
-  return prepareWorkspaceState(
-    db,
-    userId,
-    githubLogin,
-    preferredOrgId,
-    preferredProjectId,
-  );
+  return prepareWorkspaceState(db, userId, githubLogin, preferredOrgId);
 }
 
 /**
- * Tenancy + active project for app pages and layout. Memoized per React request.
+ * Tenancy for app pages and layout. Memoized per React request.
  *
  * Read-entry rule (see docs/ai/architecture.md): pages compose exactly two
  * cached reads — {@link getWorkspace} (tenancy only) and `getProjectRuntime`
- * (compliance rows) — plus `loadActiveProjectPage` where caps are needed.
+ * (compliance rows) — plus `loadProjectPage` where caps are needed.
  * Single-row guards (`requireProjectAccess`, `requireAlertAccess`) and the
  * job loader (`loadProjectDb`) are the only other sanctioned reads.
  * Load findings/requirements/etc. with {@link getProjectRuntime}.
@@ -241,6 +208,21 @@ export const requireFinding = cache(
     const finding = await getFindingById(await getDrizzle(), findingId);
     if (!finding) throw new PublicError("Unknown finding.");
     return finding;
+  },
+);
+
+/**
+ * Request-path requirement load (action previews). Memoized per request.
+ * Requirement decisions resolve their project from this row, never a cookie.
+ */
+export const requireRequirement = cache(
+  async (requirementId: string): Promise<Requirement> => {
+    const requirement = await getRequirementById(
+      await getDrizzle(),
+      requirementId,
+    );
+    if (!requirement) throw new PublicError("Unknown requirement.");
+    return requirement;
   },
 );
 

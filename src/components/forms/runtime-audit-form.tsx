@@ -6,9 +6,11 @@ import { updateRuntimeAuditAction } from "@/server/actions/runtime-audit";
 import { StatefulActionForm } from "./stateful-action-form";
 
 export function RuntimeAuditForm({
+  projectId,
   runtimeBaseUrl,
   runtimeRoutes,
 }: {
+  projectId: string;
   runtimeBaseUrl?: string;
   runtimeRoutes?: string[];
 }) {
@@ -20,6 +22,7 @@ export function RuntimeAuditForm({
       variant="default"
       className="flex flex-col gap-4"
     >
+      <input type="hidden" name="projectId" value={projectId} />
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="runtimeBaseUrl">Preview URL (runtime audit)</Label>
         <Input

@@ -1,5 +1,6 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { ORG_ROLES } from "@complyloop/analysis-core/contract/project-types";
@@ -21,12 +22,7 @@ import {
   assertOrgCreateRateLimit,
   assertOrgInviteRateLimit,
 } from "../rate-limit";
-import {
-  clearActiveProjectCookie,
-  readActiveOrgCookie,
-  writeActiveOrgCookie,
-  writeActiveProjectCookie,
-} from "../workspace/active-cookies";
+import { writeActiveOrgCookie } from "../workspace/active-cookies";
 import {
   changeOrgMemberRole,
   inviteOrgMember,
@@ -89,18 +85,16 @@ export async function switchOrgAction(formData: FormData): Promise<void> {
   const { orgId } = parseForm(switchOrgInput, formData);
   await requireSignedIn("Sign in to switch organizations.");
 
-  const { organizations, projects } = await getWorkspace();
+  const { organizations } = await getWorkspace();
   if (!organizations.some((org) => org.id === orgId)) {
     throw new PublicError("You are not a member of that organization.");
   }
-  const projectInOrg = projects.find((project) => project.orgId === orgId);
   await writeActiveOrgCookie(orgId);
-  if (projectInOrg) {
-    await writeActiveProjectCookie(projectInOrg.id);
-  } else {
-    await clearActiveProjectCookie();
-  }
   refresh();
+  // The org switcher renders on project pages too: send the viewer to the
+  // portfolio, since the project in the current URL may not be in the org they
+  // just switched to.
+  redirect("/projects");
 }
 
 export async function createOrgAction(
@@ -130,7 +124,6 @@ export async function createOrgAction(
       };
     });
     await writeActiveOrgCookie(org.id);
-    await clearActiveProjectCookie();
     refresh();
     return `Created organization "${org.name}".`;
   });
@@ -223,10 +216,9 @@ export async function removeOrgMemberAction(
 
 /**
  * Self-leave: any member may remove their own membership (no membershipId —
- * the target is always the caller, so there is nothing to forge). Active
- * cookies self-heal via `resolveActiveOrgId`/`resolveActiveProject`, but the
- * project cookie is cleared when leaving the active org so no page keeps
- * rendering a project the user can no longer see.
+ * the target is always the caller, so there is nothing to forge). The active
+ * org cookie self-heals via `resolveActiveOrgId`, and project pages resolve
+ * their project from the URL, so nothing else needs clearing.
  */
 export async function leaveOrgMemberAction(
   _previous: ActionState,
@@ -248,9 +240,6 @@ export async function leaveOrgMemberAction(
         deleteMembershipIds: [left.removedMembershipId],
       };
     });
-    if ((await readActiveOrgCookie()) === orgId) {
-      await clearActiveProjectCookie();
-    }
     refresh();
     return "You left the organization.";
   });

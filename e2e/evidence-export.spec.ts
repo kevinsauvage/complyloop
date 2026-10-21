@@ -2,9 +2,11 @@ import fs from "node:fs/promises";
 
 import { expect, test } from "@playwright/test";
 
+import { projectPath } from "./constants";
+
 test.describe("evidence export", () => {
   test("downloads evidence JSON from the export menu", async ({ page }) => {
-    await page.goto("/evidence");
+    await page.goto(projectPath("evidence"));
     await expect(
       page.getByRole("heading", { name: "Evidence", exact: true }),
     ).toBeVisible();
@@ -26,7 +28,9 @@ test.describe("evidence export", () => {
   });
 
   test("serves a Markdown compliance report", async ({ page }) => {
-    const response = await page.request.get("/evidence/report");
+    const response = await page.request.get(
+      `${projectPath("evidence")}/report`,
+    );
     expect(response.ok()).toBeTruthy();
     const contentType = response.headers()["content-type"] ?? "";
     expect(contentType).toMatch(/markdown|text\/plain|octet-stream/i);

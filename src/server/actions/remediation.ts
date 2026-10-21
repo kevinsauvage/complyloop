@@ -47,11 +47,8 @@ import {
 } from "../assessment/remediation-evidence";
 import { assertRemediationRateLimit } from "../rate-limit";
 import { stampEvidenceActor } from "../workspace/project-rows";
-import {
-  resolveActiveProjectId,
-  withProjectTx,
-} from "../workspace/workspace-write";
-import { runFindingAction } from "./define-action";
+import { withProjectTx } from "../workspace/workspace-write";
+import { projectIdForFinding, runFindingAction } from "./define-action";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 import { refresh } from "./shared";
 
@@ -215,7 +212,7 @@ export async function bulkApproveRemediationsAction(
     const { findingIds } = parseForm(bulkApproveInput, formData);
     let approved = 0;
 
-    const projectId = await resolveActiveProjectId();
+    const projectId = await projectIdForFinding(findingIds[0]);
     await withProjectTx(projectId, "project.remediate", async (ctx) => {
       if (ctx.userId) {
         await assertRemediationRateLimit(ctx.userId, ctx.tx);
@@ -308,7 +305,7 @@ export async function bulkDismissFindingsAction(
     const at = new Date().toISOString();
     let dismissed = 0;
 
-    const projectId = await resolveActiveProjectId();
+    const projectId = await projectIdForFinding(findingIds[0]);
     await withProjectTx(projectId, "project.remediate", async (ctx) => {
       if (ctx.userId) {
         await assertRemediationRateLimit(ctx.userId, ctx.tx);

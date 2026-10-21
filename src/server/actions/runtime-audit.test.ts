@@ -64,6 +64,7 @@ describe("updateRuntimeAuditAction", () => {
     mockProjectTx(workspaceFor("member"));
     assertSafeRuntimeUrl.mockResolvedValue("https://app.example/");
     const form = new FormData();
+    form.set("projectId", project.id);
     form.set("runtimeBaseUrl", "https://app.example");
 
     const result = await updateRuntimeAuditAction(initialActionState, form);
@@ -74,6 +75,7 @@ describe("updateRuntimeAuditAction", () => {
     const workspace = workspaceFor("owner");
     mockProjectTx(workspace);
     const form = new FormData();
+    form.set("projectId", project.id);
     form.set("runtimeBaseUrl", "  ");
 
     const result = await updateRuntimeAuditAction(initialActionState, form);
@@ -90,6 +92,7 @@ describe("updateRuntimeAuditAction", () => {
     mockProjectTx(workspace);
     assertSafeRuntimeUrl.mockResolvedValue("https://app.example/path");
     const form = new FormData();
+    form.set("projectId", project.id);
     form.set("runtimeBaseUrl", "https://app.example/path");
     form.set("runtimeRoutes", "home, /about\ncontact");
 
@@ -111,6 +114,7 @@ describe("updateRuntimeAuditAction", () => {
       new PublicError("URL is not allowed for runtime audit."),
     );
     const form = new FormData();
+    form.set("projectId", project.id);
     form.set("runtimeBaseUrl", "http://127.0.0.1");
 
     const result = await updateRuntimeAuditAction(initialActionState, form);
@@ -123,6 +127,7 @@ describe("updateRuntimeAuditAction", () => {
   it("rejects absolute http(s) routes", async () => {
     assertSafeRuntimeUrl.mockResolvedValue("https://app.example/");
     const form = new FormData();
+    form.set("projectId", project.id);
     form.set("runtimeBaseUrl", "https://app.example");
     form.set("runtimeRoutes", "/ok\nhttp://127.0.0.1/admin");
 
@@ -139,12 +144,14 @@ describe("updateRuntimeAuditAction", () => {
     assertSafeRuntimeUrl.mockResolvedValue("https://app.example/");
 
     const commaForm = new FormData();
+    commaForm.set("projectId", project.id);
     commaForm.set("runtimeBaseUrl", "https://app.example");
     commaForm.set("runtimeRoutes", "a,b");
     await updateRuntimeAuditAction(initialActionState, commaForm);
     expect(recordedWrites()?.project?.runtimeRoutes).toEqual(["/a", "/b"]);
 
     const paddedForm = new FormData();
+    paddedForm.set("projectId", project.id);
     paddedForm.set("runtimeBaseUrl", "https://app.example");
     paddedForm.set("runtimeRoutes", " /x ");
     await updateRuntimeAuditAction(initialActionState, paddedForm);
@@ -156,6 +163,7 @@ describe("updateRuntimeAuditAction", () => {
     mockProjectTx(workspace);
     assertSafeRuntimeUrl.mockResolvedValue("https://app.example/");
     const form = new FormData();
+    form.set("projectId", project.id);
     form.set("runtimeBaseUrl", "https://app.example");
     form.set("runtimeRoutes", "   ");
 

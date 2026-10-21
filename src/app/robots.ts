@@ -11,16 +11,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: ["/", "/login", "/legal/"],
-        disallow: [
-          "/api/",
-          "/dashboard",
-          "/findings",
-          "/evidence/",
-          "/evidence",
-          "/requirements",
-          "/org",
-          "/settings",
-        ],
+        disallow: ["/api/", "/projects", "/org"],
       },
     ],
   };

@@ -24,7 +24,7 @@ afterEach(() => {
 });
 
 describe("app error and not-found pages", () => {
-  it("renders an in-app error with retry and dashboard recovery", async () => {
+  it("renders an in-app error with retry and overview recovery", async () => {
     const user = userEvent.setup();
     const retry = vi.fn();
     render(
@@ -46,21 +46,21 @@ describe("app error and not-found pages", () => {
       "Not allowed: missing permission.",
     );
     expect(
-      screen.getByRole("link", { name: "Back to dashboard" }),
-    ).toHaveAttribute("href", "/dashboard");
+      screen.getByRole("link", { name: "Back to overview" }),
+    ).toHaveAttribute("href", "/projects");
 
     await user.click(screen.getByRole("button", { name: "Try again" }));
     expect(retry).toHaveBeenCalledOnce();
     await vi.waitFor(() => expect(Sentry.captureException).toHaveBeenCalled());
   });
 
-  it("renders not-found with a path back to the dashboard", async () => {
+  it("renders not-found with a path back to the overview", async () => {
     render(await NotFound());
     expect(
       screen.getByRole("heading", { name: "Page not found" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Back to dashboard" }),
-    ).toHaveAttribute("href", "/dashboard");
+      screen.getByRole("link", { name: "Back to overview" }),
+    ).toHaveAttribute("href", "/projects");
   });
 });

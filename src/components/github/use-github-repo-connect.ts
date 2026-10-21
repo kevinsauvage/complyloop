@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef } from "react";
 
@@ -28,16 +29,18 @@ export function useGitHubRepoConnect() {
   );
   useActionToast(connectState, connectPending);
 
-  // Connecting creates a project and makes it the active one, so the next step
-  // (first assessment) is on its dashboard — take the user there rather than
-  // leaving them on the list they came from.
+  // Connecting creates a project: the next step (first assessment) is on that
+  // project's dashboard, so follow the destination the action returned rather
+  // than leaving the user on the list they came from.
   const router = useRouter();
   const wasConnecting = useRef(false);
   useEffect(() => {
     const finished = wasConnecting.current && !connectPending;
     wasConnecting.current = connectPending;
-    if (finished && connectState.ok) router.push("/dashboard");
-  }, [connectPending, connectState.ok, router]);
+    if (finished && connectState.ok && connectState.redirectTo) {
+      router.push(connectState.redirectTo as Route);
+    }
+  }, [connectPending, connectState.ok, connectState.redirectTo, router]);
   useActionToast(disconnectState, disconnectPending);
 
   return {

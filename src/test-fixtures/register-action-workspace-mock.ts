@@ -79,6 +79,15 @@ vi.mock("@/server/workspace/workspace", async () => {
         throw new PublicError("No remediation for that finding.");
       return remediation;
     },
+    requireRequirement: async (requirementId: string) => {
+      const store = await readSource();
+      if (!store) return actual.requireRequirement(requirementId);
+      const requirement = store.db.requirements.find(
+        (row) => row.id === requirementId,
+      );
+      if (!requirement) throw new PublicError("Unknown requirement.");
+      return requirement;
+    },
     requireProjectAccess: async (projectId: string, permission: Permission) => {
       // Write-model tests get the in-memory store; lighter tests (alerts,
       // polling) provide a workspace through `getWorkspace`.
@@ -103,13 +112,10 @@ vi.mock("@/server/workspace/workspace-write", async () => {
       permission: Permission,
       fn: (ctx: unknown) => Promise<unknown>,
     ) => actionWorkspaceMocks.withProjectTx(projectId, permission, fn),
-    resolveActiveProjectId: () => actionWorkspaceMocks.resolveActiveProjectId(),
     withOrgWrite: (fn: Parameters<typeof actual.withOrgWrite>[0]) =>
       actionWorkspaceMocks.withOrgWrite(fn),
-    withConnectWrite: (
-      options: Parameters<typeof actual.withConnectWrite>[0],
-      fn: Parameters<typeof actual.withConnectWrite>[1],
-    ) => actionWorkspaceMocks.withConnectWrite(options, fn),
+    withConnectWrite: (fn: Parameters<typeof actual.withConnectWrite>[0]) =>
+      actionWorkspaceMocks.withConnectWrite(fn),
   };
 });
 

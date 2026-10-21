@@ -6,7 +6,7 @@ vi.mock("next/navigation", () => ({
   usePathname: () => pathname.current,
 }));
 
-import { isProjectScopedPath, NavLinks } from "./nav-links";
+import { NavLinks } from "./nav-links";
 
 afterEach(() => {
   cleanup();
@@ -28,7 +28,7 @@ describe("NavLinks", () => {
   });
 
   it("keeps Overview current while inside a project", () => {
-    pathname.current = "/findings/f1";
+    pathname.current = "/projects/p1/findings/f1";
     render(<NavLinks />);
 
     expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute(
@@ -48,15 +48,5 @@ describe("NavLinks", () => {
       "aria-current",
       "page",
     );
-  });
-});
-
-describe("isProjectScopedPath", () => {
-  it("matches project pages and their children only", () => {
-    expect(isProjectScopedPath("/dashboard")).toBe(true);
-    expect(isProjectScopedPath("/findings/abc")).toBe(true);
-    expect(isProjectScopedPath("/settings")).toBe(true);
-    expect(isProjectScopedPath("/projects")).toBe(false);
-    expect(isProjectScopedPath("/org")).toBe(false);
   });
 });

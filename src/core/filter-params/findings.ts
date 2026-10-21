@@ -20,6 +20,7 @@ import {
   compareFindingsBySeverity,
   SEVERITY_ORDER,
 } from "../findings/finding-priority";
+import { projectFindingPath, type ProjectHref, projectPath } from "../routes";
 import { parsePageParam } from "./pagination";
 import { firstParam } from "./params";
 
@@ -82,11 +83,13 @@ export function hasActiveFindingFilters(params: FindingListFilters): boolean {
 }
 
 export function findingsListHref(
+  projectId: string,
   params?: Partial<FindingListParams>,
-): "/findings" | `/findings?${string}` {
+): ProjectHref {
   const merged: FindingListParams = { tab: "open", page: 1, ...params };
   const qs = new URLSearchParams(findingListQueryWithPage(merged)).toString();
-  return qs ? `/findings?${qs}` : "/findings";
+  const base = projectPath(projectId, "findings");
+  return qs ? `${base}?${qs}` : base;
 }
 
 /** Query params preserved on pagination links (excludes `page`). */
@@ -113,11 +116,12 @@ function findingListQueryWithPage(
 }
 
 export function findingDetailHref(
+  projectId: string,
   findingId: string,
   params: FindingListParams,
-): `/findings/${string}` {
+): ProjectHref {
   const qs = new URLSearchParams(findingListQueryWithPage(params)).toString();
-  const base = `/findings/${findingId}` as const;
+  const base = projectFindingPath(projectId, findingId);
   return qs ? `${base}?${qs}` : base;
 }
 

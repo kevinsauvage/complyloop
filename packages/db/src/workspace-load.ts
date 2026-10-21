@@ -103,17 +103,15 @@ export async function loadProjectRuntime(
 interface WorkspaceLoadInput {
   userId: string | null;
   githubLogin: string | null;
-  activeProjectId: string | null;
 }
 
 async function loadWorkspaceTenancy(
   drizzle: DrizzleDb,
-  input: Pick<WorkspaceLoadInput, "userId" | "githubLogin" | "activeProjectId">,
+  input: WorkspaceLoadInput,
 ): Promise<{
   organizations: WorkspaceSlice["organizations"];
   memberships: WorkspaceSlice["memberships"];
   projects: WorkspaceSlice["projects"];
-  activeProjectId: string | null;
 }> {
   // Steady-state claim: signed-in reloads attach pending invites (userId) so
   // RBAC works without re-auth. provisionPersonalOrg early-returns when already
@@ -128,24 +126,17 @@ async function loadWorkspaceTenancy(
     listProjectsForOrgs(drizzle, orgIds),
   ]);
 
-  const activeProjectId =
-    input.activeProjectId &&
-    projects.some((project) => project.id === input.activeProjectId)
-      ? input.activeProjectId
-      : (projects[0]?.id ?? null);
-
   return {
     organizations,
     memberships,
     projects,
-    activeProjectId,
   };
 }
 
 /** Orgs, memberships, and projects only — no runtime rows or evidence window. */
 export async function loadTenancyDb(
   drizzle: DrizzleDb,
-  input: Pick<WorkspaceLoadInput, "userId" | "githubLogin" | "activeProjectId">,
+  input: WorkspaceLoadInput,
 ): Promise<WorkspaceSlice> {
   const { organizations, memberships, projects } = await loadWorkspaceTenancy(
     drizzle,

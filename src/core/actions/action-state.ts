@@ -11,6 +11,12 @@
 export type ActionState = {
   ok: boolean;
   message: string | null;
+  /**
+   * Where the client should navigate on success. Set when the action creates or
+   * removes the thing the current URL names (connecting a repository creates a
+   * project, so the next step lives on that project's dashboard).
+   */
+  redirectTo?: string;
 };
 
 export const initialActionState: ActionState = {
