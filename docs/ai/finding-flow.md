@@ -1,6 +1,6 @@
 # Finding page flow
 
-UX contract for `/findings/[id]`. Domain:
+UX contract for `/projects/[projectId]/findings/[findingId]`. Domain:
 [`.cursor/rules/domain-model.mdc`](../../.cursor/rules/domain-model.mdc).
 
 Opening a finding answers: **what failed**, **what do I do now** (one
@@ -19,27 +19,11 @@ stays. Everything else is secondary.
 Dismiss lives in a `<details>` inside Act. Runtime "Generate guidance"
 links to `#copy-handoff`.
 
-```
-Source, no patch     → Generate patch
-Source, patch ready  → Review → Create PR
-Source, PR open      → Open draft PR (wait for merge + re-assess)
-Source, done         → Verified
-Runtime, no fix      → Generate guidance
-Runtime, suggested   → Approve
-Runtime, approved    → Mark implemented
-Runtime, done        → Verify (audit / note)
-Dismissed            → Exception on record
-```
+## Act panel (`findingAct`)
 
-**Source:** never show Create draft PR or Generate patch for
-`location.kind === "dom"`. Path is driven by `patchReady` / `prUrl`, not
-intermediate remediation statuses. Code: `actions/ai-fix.ts`, `ai-fix.ts`,
-`verified-fix.ts`, `patch.ts`, `pr.ts`, `assessment.ts`.
-
-**Runtime:** Generate guidance → Approve → Mark implemented → Verify.
-Code: `generateAiRemediationAction`, `FindingNextStepPanel`.
-
-### Act panel (`findingAct`)
+One primary action per state. Source path is driven by `patchReady` /
+`prUrl`, not intermediate remediation statuses — never show Create draft PR
+or Generate patch for `location.kind === "dom"`.
 
 | Source state   | Primary action                                                    |
 | -------------- | ----------------------------------------------------------------- |
@@ -54,6 +38,34 @@ Code: `generateAiRemediationAction`, `FindingNextStepPanel`.
 | Suggested     | Approve           |
 | Approved      | Mark implemented  |
 | Implemented   | Verify            |
+
+Short form:
+
+```
+Source, no patch     → Generate patch
+Source, patch ready  → Review → Create PR
+Source, PR open      → Open draft PR (wait for merge + re-assess)
+Source, done         → Verified
+Runtime, no fix      → Generate guidance
+Runtime, suggested   → Approve
+Runtime, approved    → Mark implemented
+Runtime, done        → Verify (audit / note)
+Dismissed            → Exception on record
+```
+
+**Dismissal on re-assessment:** a `false_positive` or `not_applicable`
+dismissal holds while the same instance is still detected (the row follows the
+instance as code moves). An `accepted_risk` dismissal re-opens on the next
+assessment, keeping its first `detectedAt` so it cannot revoke a requirement
+decision taken after it was first seen; accept a risk durably with a
+requirement exception. Code: `reconcileControlFindings`
+(`src/server/assessment/assessment-findings.ts`).
+
+**Source** code: `actions/ai-fix.ts`, `ai-fix.ts`, `verified-fix.ts`,
+`patch.ts`, `pr.ts`, `assessment.ts`.
+
+**Runtime** path: Generate guidance → Approve → Mark implemented → Verify.
+Code: `generateAiRemediationAction`, `FindingNextStepPanel`.
 
 - `showHandoff` — no PR yet, finding open, suggestion or `finding.fix` exists.
 - `showDismiss` — open finding, can remediate, not verified.

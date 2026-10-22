@@ -7,11 +7,12 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  /* Literal font names — @theme inline cannot resolve runtime Next.js font vars */
   --font-sans:
     "Plus Jakarta Sans", "Plus Jakarta Sans Fallback", ui-sans-serif, system-ui,
     sans-serif;
-  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+  --font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
   --font-heading:
     "Plus Jakarta Sans", "Plus Jakarta Sans Fallback", ui-sans-serif, system-ui,
     sans-serif;
@@ -47,6 +48,7 @@
   --color-signal: var(--signal);
   --color-signal-foreground: var(--signal-foreground);
   --color-status-passed: var(--status-passed);
+  --color-status-passed-foreground: var(--status-passed-foreground);
   --color-status-failed: var(--status-failed);
   --color-status-review: var(--status-review);
   --color-status-na: var(--status-na);
@@ -61,9 +63,6 @@
 }
 
 :root {
-  /* Trust-blue SaaS look per design-system/complyloop/MASTER.md (Option A).
-     Hexes are MASTER values; oklch approximations verified ≥4.5:1 for every
-     *-foreground pair (see report). Status + chart tokens untouched. */
   --background: oklch(0.984 0.003 248);
   --foreground: oklch(0.28 0.04 260);
   --card: oklch(1 0 0);
@@ -85,6 +84,7 @@
   --signal: oklch(0.47 0.15 42);
   --signal-foreground: oklch(0.99 0.01 40);
   --status-passed: oklch(0.42 0.13 155);
+  --status-passed-foreground: oklch(1 0 0);
   --status-failed: oklch(0.45 0.2 25);
   --status-review: oklch(0.44 0.12 75);
   --status-na: oklch(0.46 0.02 240);
@@ -107,8 +107,6 @@
 }
 
 .dark {
-  /* Dark complements of the MASTER palette: lighter trust-blue + warm
-     orange so tints, badges, and text stay ≥4.5:1 on dark cards. */
   --background: oklch(0.16 0.02 240);
   --foreground: oklch(0.96 0.01 220);
   --card: oklch(0.2 0.022 240);
@@ -127,10 +125,10 @@
   --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 16%);
   --ring: oklch(0.71 0.14 260);
-  /* Brighter, higher-chroma accents so /15–/25 tints and text stay readable on dark cards */
   --signal: oklch(0.75 0.15 55);
   --signal-foreground: oklch(0.18 0.02 45);
   --status-passed: oklch(0.8 0.16 155);
+  --status-passed-foreground: oklch(0.2 0.03 155);
   --status-failed: oklch(0.78 0.18 25);
   --status-review: oklch(0.86 0.14 85);
   --status-na: oklch(0.76 0.03 240);
@@ -168,7 +166,6 @@
     @apply bg-background text-foreground antialiased;
     text-rendering: optimizeLegibility;
   }
-  /* Subtle grid backdrop — desktop only, so dense content stays readable. */
   @media (min-width: 1024px) {
     body {
       background-image:
@@ -195,7 +192,6 @@
     outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
-  /* Subtle slim scrollbars that match the theme in both modes */
   * {
     scrollbar-width: thin;
     scrollbar-color: color-mix(in oklch, var(--foreground) 18%, transparent)
@@ -206,7 +202,6 @@
   }
 }
 
-/* Calm all motion (skeleton pulses, hovers, toasts) for reduced-motion users. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -218,21 +213,17 @@
 }
 
 @layer utilities {
-  /* Frosted panel: used by the sidebar and sticky headers over the grid */
   .panel-frost {
     background: color-mix(in oklch, var(--card) 80%, transparent);
     backdrop-filter: blur(12px) saturate(1.4);
   }
 
-  /* Bordered surface panel — near-opaque so the grid never shows through
-     dense content. Translucency stays reserved for sidebar/sticky headers. */
   .surface-panel {
     border-radius: var(--radius-xl);
     border: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
     background: color-mix(in oklch, var(--card) 96%, transparent);
   }
 
-  /* Subtle top-edge highlight clipped to border-radius (replaces inset box-shadow) */
   .card-sheen {
     position: relative;
     isolation: isolate;
@@ -249,5 +240,62 @@
       color-mix(in oklch, var(--foreground) 7%, transparent) 0%,
       transparent 40%
     );
+  }
+
+  .loading-shimmer {
+    position: relative;
+    overflow: hidden;
+    background: color-mix(in oklch, var(--muted) 55%, transparent);
+  }
+  .loading-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    animation: loading-shimmer-sweep 1.8s ease-in-out infinite;
+    background: linear-gradient(
+      100deg,
+      transparent 20%,
+      color-mix(in oklch, var(--card) 65%, transparent) 50%,
+      transparent 80%
+    );
+  }
+
+  .loading-bar {
+    position: relative;
+    background: color-mix(in oklch, var(--muted) 55%, transparent);
+  }
+  .loading-bar::after {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    width: 40%;
+    border-radius: inherit;
+    animation: loading-bar-slide 1.4s ease-in-out infinite;
+    background: color-mix(in oklch, var(--signal) 75%, transparent);
+  }
+}
+
+@keyframes loading-shimmer-sweep {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes loading-fade-swap {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes loading-bar-slide {
+  0% {
+    left: -40%;
+  }
+  100% {
+    left: 100%;
   }
 }

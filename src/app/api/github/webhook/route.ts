@@ -1,7 +1,7 @@
 import { after } from "next/server";
 import { z } from "zod";
 
-import { scheduleAssessmentDrain } from "@/server/assessment/assessment-job-inline";
+import { scheduleAssessmentDrain } from "@/server/assessment/assessment-scheduler";
 import {
   handleGitHubWebhookEvent,
   isWebhookConfigured,
@@ -9,8 +9,6 @@ import {
 } from "@/server/github/webhook";
 import { claimWebhookDelivery } from "@/server/github/webhook-deliveries";
 import { reportError } from "@/server/observability";
-
-export const runtime = "nodejs";
 
 const githubWebhookHeadersSchema = z.object({
   deliveryId: z
@@ -24,10 +22,47 @@ const githubWebhookPayloadSchema = z.record(z.string(), z.unknown());
 
 /**
  * Hard cap on webhook bodies. The `content-length` fast path below is
- * advisory (absent under chunked transfer encoding), so the buffered body is
- * measured again after `request.text()`.
+ * advisory (absent under chunked transfer encoding), so the stream is also
+ * read with a hard byte counter.
  */
 const MAX_WEBHOOK_BODY_BYTES = 5 * 1024 * 1024;
+
+function payloadTooLarge(): Response {
+  return Response.json(
+    { error: "Webhook payload exceeds the 5 MB size limit." },
+    { status: 413 },
+  );
+}
+
+/**
+ * Reads the body with a hard byte cap, aborting mid-stream once the cap is
+ * exceeded. `request.text()` buffers the entire stream first, so a chunked
+ * request (no `content-length`) could be read into memory unbounded before
+ * signature verification. Returns null when oversized.
+ */
+async function readBoundedBody(request: Request): Promise<string | null> {
+  const body = request.body;
+  if (!body) return "";
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      total += value.byteLength;
+      if (total > MAX_WEBHOOK_BODY_BYTES) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
 
 export async function POST(request: Request): Promise<Response> {
   if (!isWebhookConfigured()) {
@@ -39,19 +74,11 @@ export async function POST(request: Request): Promise<Response> {
 
   const contentLength = Number(request.headers.get("content-length") ?? "0");
   if (contentLength > MAX_WEBHOOK_BODY_BYTES) {
-    return Response.json(
-      { error: "Webhook payload exceeds the 5 MB size limit." },
-      { status: 413 },
-    );
+    return payloadTooLarge();
   }
 
-  const rawBody = await request.text();
-  if (Buffer.byteLength(rawBody, "utf8") > MAX_WEBHOOK_BODY_BYTES) {
-    return Response.json(
-      { error: "Webhook payload exceeds the 5 MB size limit." },
-      { status: 413 },
-    );
-  }
+  const rawBody = await readBoundedBody(request);
+  if (rawBody === null) return payloadTooLarge();
   const signature = request.headers.get("x-hub-signature-256");
   if (!(await verifyGitHubSignature(rawBody, signature))) {
     return Response.json({ error: "Invalid signature." }, { status: 401 });
@@ -114,13 +141,13 @@ export async function POST(request: Request): Promise<Response> {
       { status: 503 },
     );
   }
-  // Every handled delivery schedules a drain of the single-scan worker
-  // route in `after()`: dev/e2e drains the queue inline, production
-  // self-fetches `POST /api/internal/jobs/run?limit=1` so pushes start
-  // scanning immediately. Each invocation claims one job
-  // (serial-per-project); the scheduled sweep is the backstop for failed
-  // fetches, killed tasks, and expired leases. Manual runs share this queued
-  // path — the dashboard action enqueues and drains the same way.
+  // Every handled delivery schedules a drain in `after()`: dev/e2e drains
+  // the queue inline, production kicks the GitHub Actions executor so pushes
+  // start scanning immediately. Each invocation claims one job
+  // (serial-per-project); the executor's 15-minute schedule is the backstop
+  // for failed dispatches, killed tasks, and expired leases. Manual runs
+  // share this queued path — the dashboard action enqueues and drains the
+  // same way.
   if (result.handled) {
     after(() => scheduleAssessmentDrain());
   }

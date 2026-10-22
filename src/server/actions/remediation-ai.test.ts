@@ -1,21 +1,23 @@
 import "@/test-fixtures/register-action-workspace-mock";
+import "@/test-fixtures/register-repo-mock";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Remediation } from "@complyloop/analysis-core/contract/entities";
 import type { OrgMembership } from "@complyloop/analysis-core/contract/project-types";
 
+import { initialActionState } from "@/core/actions/action-state";
 import {
-  clearProjectWritePayloads,
-  mockProjectWrite,
-  projectWritePayload,
+  actionWorkspaceMocks,
+  clearRecordedWrites,
+  mockProjectTx,
+  recordedWrites,
 } from "@/test-fixtures/action-workspace-mocks";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
 import { testWorkspace } from "@/test-fixtures/workspace";
 
-import { initialActionState } from "../action-state";
 import {
   generateAiExplanationAction,
   generateAiRemediationAction,
@@ -42,8 +44,6 @@ vi.mock("../rate-limit", () => ({
 vi.mock("../observability", () => ({
   reportError: vi.fn(),
   reportWarning: (...args: unknown[]) => reportWarning(...args),
-  reportDebug: vi.fn(),
-  reportInfo: vi.fn(),
   reportAppError: vi.fn(),
 }));
 
@@ -78,7 +78,7 @@ function workspaceFor(
 }
 
 afterEach(() => {
-  clearProjectWritePayloads();
+  clearRecordedWrites();
   vi.clearAllMocks();
 });
 
@@ -86,7 +86,8 @@ describe("generateAiExplanationAction", () => {
   it("denies when the caller cannot view the project", async () => {
     const workspace = workspaceFor("viewer");
     workspace.access.memberships = [];
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
+    actionWorkspaceMocks.getWorkspace.mockResolvedValue(workspace);
     assertAiRateLimit.mockResolvedValue(undefined);
 
     const result = await generateAiExplanationAction(
@@ -95,11 +96,31 @@ describe("generateAiExplanationAction", () => {
       new FormData(),
     );
     expect(result.ok ? null : result.message).toMatch(/Not allowed/);
+    // Denied in the preview: no AI call, no write.
+    expect(generateAiExplanation).not.toHaveBeenCalled();
+    expect(actionWorkspaceMocks.withProjectTx).not.toHaveBeenCalled();
+  });
+
+  it("denies viewers with membership: explaining writes the finding row", async () => {
+    const workspace = workspaceFor("viewer");
+    mockProjectTx(workspace);
+    actionWorkspaceMocks.getWorkspace.mockResolvedValue(workspace);
+    assertAiRateLimit.mockResolvedValue(undefined);
+
+    const result = await generateAiExplanationAction(
+      "f1",
+      initialActionState,
+      new FormData(),
+    );
+    expect(result.ok ? null : result.message).toMatch(/Not allowed/);
+    expect(generateAiExplanation).not.toHaveBeenCalled();
+    expect(actionWorkspaceMocks.withProjectTx).not.toHaveBeenCalled();
   });
 
   it("adds an explanation when the model returns one", async () => {
     const workspace = workspaceFor("member");
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
+    actionWorkspaceMocks.getWorkspace.mockResolvedValue(workspace);
     assertAiRateLimit.mockResolvedValue(undefined);
     generateAiExplanation.mockResolvedValue({
       whyItFailed: "Missing alt attribute",
@@ -118,12 +139,63 @@ describe("generateAiExplanationAction", () => {
     );
 
     expect(result.message).toBe("AI explanation added.");
-    expect(projectWritePayload()?.findings?.[0]?.explanations).toHaveLength(1);
+    expect(recordedWrites()?.findings?.[0]?.explanations).toHaveLength(1);
+  });
+
+  it("caps explanations at baseline plus latest AI additions", async () => {
+    const baseline = {
+      whyItFailed: "base",
+      impact: "base",
+      howToFix: "base",
+      provenance: "deterministic" as const,
+      generatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const olds = Array.from({ length: 6 }, (_, index) => ({
+      ...baseline,
+      provenance: "ai" as const,
+      whyItFailed: `old-${index}`,
+    }));
+    const workspace = testWorkspace({
+      role: "member",
+      project,
+      findings: [
+        { ...finding, explanations: [baseline, ...olds], fix: finding.fix },
+      ],
+      remediations: [
+        testRemediation({ status: "detected", suggestion: null, history: [] }),
+      ],
+      db: {},
+    });
+    mockProjectTx(workspace);
+    actionWorkspaceMocks.getWorkspace.mockResolvedValue(workspace);
+    assertAiRateLimit.mockResolvedValue(undefined);
+    generateAiExplanation.mockResolvedValue({
+      whyItFailed: "fresh",
+      impact: "fresh",
+      howToFix: "fresh",
+      provenance: "ai",
+      model: "test-model",
+      confidence: "medium",
+      generatedAt: "2026-01-01T00:00:00.000Z",
+    });
+
+    const result = await generateAiExplanationAction(
+      "f1",
+      initialActionState,
+      new FormData(),
+    );
+
+    expect(result.message).toBe("AI explanation added.");
+    const explanations = recordedWrites()?.findings?.[0]?.explanations;
+    expect(explanations).toHaveLength(6);
+    expect(explanations?.[0]?.whyItFailed).toBe("base");
+    expect(explanations?.[5]?.whyItFailed).toBe("fresh");
   });
 
   it("errors when AI explanation is unavailable", async () => {
     const workspace = workspaceFor("member");
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
+    actionWorkspaceMocks.getWorkspace.mockResolvedValue(workspace);
     assertAiRateLimit.mockResolvedValue(undefined);
     generateAiExplanation.mockResolvedValue(null);
 
@@ -145,7 +217,8 @@ describe("generateAiRemediationAction", () => {
     const openFinding = workspace.db.findings[0];
     if (!openFinding) throw new Error("expected finding");
     openFinding.status = "resolved";
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
+    actionWorkspaceMocks.getWorkspace.mockResolvedValue(workspace);
     assertAiRateLimit.mockResolvedValue(undefined);
 
     const result = await generateAiRemediationAction(
@@ -160,7 +233,8 @@ describe("generateAiRemediationAction", () => {
 
   it("rejects remediations past the suggestion stage", async () => {
     const workspace = workspaceFor("member", "approved");
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
+    actionWorkspaceMocks.getWorkspace.mockResolvedValue(workspace);
     assertAiRateLimit.mockResolvedValue(undefined);
 
     const result = await generateAiRemediationAction(
@@ -182,7 +256,8 @@ describe("generateAiRemediationAction", () => {
       editable: true,
       span: { start: 0, end: 16 },
     };
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
+    actionWorkspaceMocks.getWorkspace.mockResolvedValue(workspace);
     assertAiRateLimit.mockResolvedValue(undefined);
     generateAiRemediation.mockResolvedValue({
       suggestion: {
@@ -202,20 +277,24 @@ describe("generateAiRemediationAction", () => {
     );
 
     expect(result.message).toBe("AI remediation suggestion saved.");
-    expect(projectWritePayload()?.remediations?.[0]?.status).toBe("suggested");
-    expect(projectWritePayload()?.findings?.[0]?.fix).toMatchObject({
+    expect(recordedWrites()?.remediations?.[0]?.status).toBe("suggested");
+    expect(recordedWrites()?.findings?.[0]?.fix).toMatchObject({
       value: "Cart icon",
     });
-    expect(
-      projectWritePayload()?.evidence?.some(
-        (row) => row.kind === "ai_remediation_suggested",
-      ),
-    ).toBe(true);
+    const suggestionEvidence = recordedWrites()?.evidence?.find(
+      (row) => row.kind === "ai_remediation_suggested",
+    );
+    expect(suggestionEvidence).toBeDefined();
+    // Staleness anchor for the finding page.
+    expect(suggestionEvidence?.detail).toMatchObject({
+      locationRef: expect.any(String),
+    });
   });
 
   it("refreshes an existing suggested remediation", async () => {
     const workspace = workspaceFor("member", "suggested");
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
+    actionWorkspaceMocks.getWorkspace.mockResolvedValue(workspace);
     assertAiRateLimit.mockResolvedValue(undefined);
     generateAiRemediation.mockResolvedValue({
       suggestion: {
@@ -234,15 +313,19 @@ describe("generateAiRemediationAction", () => {
     );
 
     expect(result.message).toBe("AI remediation suggestion saved.");
-    expect(projectWritePayload()?.remediations?.[0]?.status).toBe("suggested");
+    expect(recordedWrites()?.remediations?.[0]?.status).toBe("suggested");
+    // The refresh note lives on the evidence row now, not in history[].
     expect(
-      projectWritePayload()?.remediations?.[0]?.history.at(-1)?.note,
-    ).toMatch(/AI suggestion refreshed/);
+      recordedWrites()?.evidence?.find(
+        (row) => row.kind === "ai_remediation_suggested",
+      )?.detail,
+    ).toMatchObject({ description: "Refined alt" });
   });
 
   it("errors when AI remediation is unavailable", async () => {
     const workspace = workspaceFor("member", "detected");
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
+    actionWorkspaceMocks.getWorkspace.mockResolvedValue(workspace);
     assertAiRateLimit.mockResolvedValue(undefined);
     generateAiRemediation.mockResolvedValue(null);
 
@@ -254,5 +337,47 @@ describe("generateAiRemediationAction", () => {
     expect(result.ok ? null : result.message).toMatch(
       /AI remediation unavailable/,
     );
+  });
+
+  it("never opens a write when the AI call fails", async () => {
+    const workspace = workspaceFor("member", "detected");
+    mockProjectTx(workspace);
+    actionWorkspaceMocks.getWorkspace.mockResolvedValue(workspace);
+    assertAiRateLimit.mockResolvedValue(undefined);
+    generateAiRemediation.mockResolvedValue(null);
+
+    const result = await generateAiRemediationAction(
+      "f1",
+      initialActionState,
+      new FormData(),
+    );
+
+    expect(result.ok ? null : result.message).toMatch(
+      /AI remediation unavailable/,
+    );
+    // The AI call runs before the project write lock is taken, so a failed
+    // AI call must not open a write at all.
+    expect(actionWorkspaceMocks.withProjectTx).not.toHaveBeenCalled();
+    expect(recordedWrites().findings).toHaveLength(0);
+  });
+
+  it("never opens a write when the AI explanation fails", async () => {
+    const workspace = workspaceFor("member");
+    mockProjectTx(workspace);
+    actionWorkspaceMocks.getWorkspace.mockResolvedValue(workspace);
+    assertAiRateLimit.mockResolvedValue(undefined);
+    generateAiExplanation.mockResolvedValue(null);
+
+    const result = await generateAiExplanationAction(
+      "f1",
+      initialActionState,
+      new FormData(),
+    );
+
+    expect(result.ok ? null : result.message).toMatch(
+      /AI explanation unavailable/,
+    );
+    expect(actionWorkspaceMocks.withProjectTx).not.toHaveBeenCalled();
+    expect(recordedWrites().findings).toHaveLength(0);
   });
 });

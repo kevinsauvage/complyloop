@@ -3,7 +3,7 @@ import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
 import { ANON_STATE, OWNER_STATE, VIEWER_STATE } from "./e2e/auth";
-import { resolveE2EAuthSecret } from "./e2e/env";
+import { resolveE2EAuthSecret, resolveE2EDatabaseUrl } from "./e2e/env";
 
 const port = Number(process.env.E2E_PORT ?? 3000);
 const baseURL = process.env.E2E_BASE_URL ?? `http://localhost:${port}`;
@@ -26,14 +26,10 @@ const e2eEnv: Record<string, string> = {
   // GitHub webhook HMAC secret — the spec signs deliveries with the same value.
   GITHUB_WEBHOOK_SECRET:
     process.env.GITHUB_WEBHOOK_SECRET ?? "e2e-webhook-secret",
-  // Point Octokit at a local fixture so PR Check Run posting is exercised end-to-end.
-  GITHUB_API_BASE_URL:
-    process.env.GITHUB_API_BASE_URL ??
-    `http://127.0.0.1:${process.env.E2E_MOCK_GITHUB_PORT ?? "4109"}`,
-  DATABASE_URL:
-    process.env.E2E_DATABASE_URL ??
-    process.env.DATABASE_URL ??
-    "postgres://complyloop:complyloop@localhost:5433/complyloop",
+  // The webServer runs `db:migrate && e2e:seed` (destructive). Resolve the DB
+  // through the guarded resolver so an unset `E2E_DATABASE_URL` can never point
+  // the truncate/reseed at a real `DATABASE_URL`.
+  DATABASE_URL: resolveE2EDatabaseUrl(),
 };
 
 export default defineConfig({
@@ -63,8 +59,8 @@ export default defineConfig({
     },
     {
       name: "owner",
-      testMatch:
-        /routes\.spec\.ts|core-loop\.spec\.ts|compliance-loops\.spec\.ts|a11y\.spec\.ts|org-account\.spec\.ts|settings\.spec\.ts|evidence-export\.spec\.ts|webhook\.spec\.ts/,
+      testMatch: "**/*.spec.ts",
+      testIgnore: [/public\.spec\.ts/, /authz\.spec\.ts/],
       use: {
         ...devices["Desktop Chrome"],
         storageState: OWNER_STATE,

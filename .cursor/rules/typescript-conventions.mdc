@@ -6,7 +6,7 @@ alwaysApply: false
 
 # TypeScript & React Conventions
 
-- Strict mode; no `any` unless justified with a comment explaining why. No `as` casts to silence the compiler.
+- Strict mode plus `noUncheckedIndexedAccess`; no `any` unless justified with a comment explaining why. No `as` casts to silence the compiler. Narrow an index access (`const [first] = list; if (!first) …`) instead of asserting it in production code; tests may use `list[0]!`.
 - Imports at the top of the module — no inline imports.
 - Exhaustive `switch` over discriminated unions/enums with a `never` check in `default`:
 

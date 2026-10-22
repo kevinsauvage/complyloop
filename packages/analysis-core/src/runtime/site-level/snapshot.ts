@@ -57,8 +57,26 @@ export async function capturePageSnapshot(
       return null;
     }
 
+    // Primary navigation = the navigation landmark(s) inside the page banner.
+    // Breadcrumbs, pagination, footer link lists and facet filters are also
+    // `<nav>` but legitimately differ per page; only when there is no banner
+    // navigation do all navigation landmarks count.
+    const bannerNavs = Array.from(
+      document.querySelectorAll(
+        "header nav, [role='banner'] nav, header [role='navigation'], [role='banner'] [role='navigation']",
+      ),
+    ).filter(
+      (nav) =>
+        !/breadcrumb|pagination|filter/i.test(
+          nav.getAttribute("aria-label") ?? "",
+        ),
+    );
+    const navLandmarks =
+      bannerNavs.length > 0
+        ? bannerNavs
+        : Array.from(document.querySelectorAll("nav, [role='navigation']"));
     const navLinks: string[] = [];
-    for (const nav of document.querySelectorAll("nav, [role='navigation']")) {
+    for (const nav of navLandmarks) {
       for (const anchor of nav.querySelectorAll("a[href]")) {
         const href = anchor.getAttribute("href");
         if (!href) continue;
@@ -94,12 +112,37 @@ export async function capturePageSnapshot(
       }
     }
 
+    // A search entry point that is a link or button to a search page counts as
+    // a search mechanism even though no <input type="search"> is on this page.
+    const searchEntries: string[] = [];
+    for (const control of document.querySelectorAll("a[href], button")) {
+      const label = (
+        control.getAttribute("aria-label") ??
+        control.textContent ??
+        ""
+      ).trim();
+      const href = control.getAttribute("href") ?? "";
+      if (
+        /^(?:search|rechercher|recherche|buscar|suche)$/i.test(label) ||
+        /\/(?:search|recherche|buscar|suche)(?:[/?#]|$)/i.test(href)
+      ) {
+        searchEntries.push(label || href);
+      }
+    }
+
     const sitemapLinks: string[] = [];
     let sitemapHref: string | undefined;
     let sitemapPosition: string | undefined;
     for (const anchor of document.querySelectorAll("a[href]")) {
       const href = anchor.getAttribute("href");
-      if (!href || !/sitemap/i.test(href)) continue;
+      // `/sitemap`, `/site-map`, `/site_map`, `/plan-du-site`, or a link
+      // that is literally named "Site map" / "Plan du site".
+      const isSitemap =
+        /site[-_ ]?map|plan[-_ ]du[-_ ]site/i.test(href ?? "") ||
+        /^\s*(?:site[-_ ]?map|plan du site)\s*$/i.test(
+          anchor.textContent ?? "",
+        );
+      if (!href || !isSitemap) continue;
       sitemapLinks.push(href);
       if (!sitemapHref) {
         sitemapHref = href;
@@ -173,6 +216,7 @@ export async function capturePageSnapshot(
       navLinks,
       helpLinks,
       searchInputs,
+      searchEntries,
       sitemapLinks,
       formFields,
       sitemapHref,

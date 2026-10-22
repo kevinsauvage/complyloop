@@ -5,19 +5,29 @@ on:
   push:
     branches: [main, master]
 
+# Least privilege: CI only reads the repo — never grant the default write token.
+permissions:
+  contents: read
+
 jobs:
   quality:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22"
           cache: npm
       - run: npm ci
+      - run: npm run format:check
       - run: npm run lint
       - run: npm run typecheck
+      # Dead code + dependency drift (drizzle.config.ts is skipped by the
+      # knip config, so this needs no DATABASE_URL).
+      - run: npm run knip
+      - run: npx playwright install chromium --with-deps
       - run: npm run test:coverage
+      - run: npm run worker:build
       - run: npm run build
 
   # Static bundle report (.next/diagnostics/analyze) — Next 16 Turbopack
@@ -25,14 +35,14 @@ jobs:
   bundle-analysis:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22"
           cache: npm
       - run: npm ci
       - run: npm run analyze
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: bundle-analysis
           path: .next/diagnostics/analyze/
@@ -57,13 +67,14 @@ jobs:
     env:
       DATABASE_URL: postgres://complyloop:complyloop@localhost:5432/complyloop
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22"
           cache: npm
       - run: npm ci
       - run: npm run db:migrate
+      - run: npx drizzle-kit check
       - run: npm run test:db
 
   e2e:
@@ -84,6 +95,7 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgres://complyloop:complyloop@localhost:5432/complyloop
+      E2E_DATABASE_URL: postgres://complyloop:complyloop@localhost:5432/complyloop
       AUTH_SECRET: e2e-secret
       AUTH_GITHUB_ID: e2e
       AUTH_GITHUB_SECRET: e2e
@@ -92,16 +104,23 @@ jobs:
       E2E_FIXTURE_ROOT: ${{ github.workspace }}/e2e/fixtures/sample-app
       CI: "true"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22"
           cache: npm
       - run: npm ci
       - run: npm run db:migrate
       - run: npx playwright install chromium --with-deps
+      - name: Allow the Chromium sandbox
+        # Inline e2e assessments launch the scan browser with its sandbox on
+        # (`scan.ts`); Ubuntu 24.04 blocks unprivileged user namespaces.
+        run: |
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
       - run: npm run test:e2e
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: failure()
         with:
           name: playwright-report

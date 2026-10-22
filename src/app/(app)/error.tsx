@@ -1,6 +1,6 @@
 "use client";
 
-import { ReportedError } from "@/components/reported-error";
+import { AppErrorCard } from "@/components/shell/app-error-card";
 
 export default function AppGroupError({
   error,
@@ -10,11 +10,12 @@ export default function AppGroupError({
   retry: () => void;
 }) {
   return (
-    <ReportedError
+    <AppErrorCard
       error={error}
-      retry={retry}
-      tag="app_group_error_boundary"
-      description="Something went wrong loading this workspace section. Your data is safe — try again or return to the dashboard."
+      onReset={retry}
+      reportTag="app_group_error_boundary"
+      title="This workspace section could not be loaded"
+      description="This workspace section could not be loaded. Your data is safe — try again or return to the overview."
     />
   );
 }

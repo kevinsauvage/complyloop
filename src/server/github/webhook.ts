@@ -2,20 +2,24 @@ import "server-only";
 
 import type { EmitterWebhookEvent } from "@octokit/webhooks";
 import { verify as verifyWebhookSignature } from "@octokit/webhooks-methods";
-import { sql } from "drizzle-orm";
 
 import { type DrizzleDb, getDrizzle } from "@complyloop/db/postgres";
 import {
-  findProjectByGithubFullName,
-  getProjectById,
+  findProjectsByGithubFullName,
+  recordProjectDefaultBranch,
+  recordProjectLastDeployment,
 } from "@complyloop/db/repo/projects";
 
-import { enqueueAssessmentJob } from "../assessment/assessment-jobs";
+import {
+  enqueueAssessmentJob,
+  latestWebhookJobRef,
+} from "../assessment/assessment-jobs";
 import { githubWebhookSecret } from "../env";
 import { assertRateLimit } from "../rate-limit";
 
 type PushPayload = EmitterWebhookEvent<"push">["payload"];
-type PullRequestPayload = EmitterWebhookEvent<"pull_request">["payload"];
+type DeploymentStatusPayload =
+  EmitterWebhookEvent<"deployment_status">["payload"];
 
 type WithInstallation = {
   installation?: {
@@ -24,7 +28,7 @@ type WithInstallation = {
 };
 
 function installationIdFromPayload(
-  payload: PushPayload | PullRequestPayload,
+  payload: PushPayload | DeploymentStatusPayload,
 ): number | undefined {
   const withInstallation = payload as WithInstallation;
   return typeof withInstallation.installation?.id === "number"
@@ -32,11 +36,8 @@ function installationIdFromPayload(
     : undefined;
 }
 
-const HANDLED_PR_ACTIONS = ["opened", "synchronize", "reopened"] as const;
-type HandledPrAction = (typeof HANDLED_PR_ACTIONS)[number];
-
 export function isWebhookConfigured(): boolean {
-  return Boolean(process.env.GITHUB_WEBHOOK_SECRET);
+  return Boolean(githubWebhookSecret());
 }
 
 export async function verifyGitHubSignature(
@@ -52,17 +53,9 @@ export async function verifyGitHubSignature(
   }
 }
 
-function isHandledPrAction(action: string): action is HandledPrAction {
-  return (HANDLED_PR_ACTIONS as readonly string[]).includes(action);
-}
-
 type HandledWebhookEvent =
   | { kind: "push"; payload: PushPayload }
-  | {
-      kind: "pull_request";
-      payload: PullRequestPayload;
-      action: HandledPrAction;
-    };
+  | { kind: "deployment_status"; payload: DeploymentStatusPayload };
 
 function parseHandledWebhookEvent(
   eventName: string,
@@ -77,20 +70,12 @@ function parseHandledWebhookEvent(
       event: { kind: "push", payload: payload as PushPayload },
     };
   }
-  if (eventName === "pull_request") {
-    const prPayload = payload as PullRequestPayload;
-    if (
-      typeof prPayload.action !== "string" ||
-      !isHandledPrAction(prPayload.action)
-    ) {
-      return { ok: false, message: `Ignored event ${eventName}` };
-    }
+  if (eventName === "deployment_status") {
     return {
       ok: true,
       event: {
-        kind: "pull_request",
-        payload: prPayload,
-        action: prPayload.action,
+        kind: "deployment_status",
+        payload: payload as DeploymentStatusPayload,
       },
     };
   }
@@ -118,59 +103,209 @@ async function persistDefaultBranchIfChanged(
   storedBranch: string | undefined,
 ): Promise<string | undefined> {
   if (liveBranch === storedBranch) return storedBranch ?? liveBranch;
-  // Atomic compare-and-set: concurrent deliveries race here, so the check and
-  // the write must happen in one UPDATE. IS DISTINCT FROM also covers a NULL
-  // stored branch. Checkout-ref validation stays at checkoutRef() (40-hex).
-  await drizzle.execute(sql`
-    UPDATE projects
-    SET payload = jsonb_set(payload, '{github,defaultBranch}', to_jsonb(${liveBranch}::text), true)
-    WHERE id = ${projectId}
-      AND (payload->'github'->>'defaultBranch' IS DISTINCT FROM ${liveBranch})
-  `);
   // Decide authority on the post-write row so concurrent renames converge
-  // instead of each delivery acting on its own stale view.
-  const fresh = await getProjectById(drizzle, projectId);
-  return fresh?.github?.defaultBranch ?? liveBranch;
+  // instead of each delivery acting on its own stale view. Checkout-ref
+  // validation stays at checkoutRef() (40-hex).
+  return (
+    (await recordProjectDefaultBranch(drizzle, projectId, liveBranch)) ??
+    liveBranch
+  );
 }
 
+const SHA_PATTERN = /^[0-9a-f]{40}$/i;
+
+const ZERO_SHA = "0000000000000000000000000000000000000000";
+
 function checkoutRef(event: HandledWebhookEvent): string | undefined {
-  if (event.kind === "push") {
-    const after = event.payload.after;
-    return typeof after === "string" && /^[0-9a-f]{40}$/i.test(after)
-      ? after
-      : undefined;
-  }
-  const sha = event.payload.pull_request?.head?.sha;
-  return typeof sha === "string" && /^[0-9a-f]{40}$/i.test(sha)
-    ? sha
-    : undefined;
+  // A branch deletion arrives as a push with `deleted: true` and an all-zero
+  // `after`: there is no commit to check out, and scanning the previous tree
+  // would resolve findings for a ref that no longer exists.
+  if (event.kind === "push" && event.payload.deleted === true) return undefined;
+  const sha =
+    event.kind === "push" ? event.payload.after : event.payload.deployment?.sha;
+  if (typeof sha !== "string" || sha === ZERO_SHA) return undefined;
+  return SHA_PATTERN.test(sha) ? sha : undefined;
 }
 
 /**
- * Only pushes to the project's default branch are authoritative for the
- * project's compliance state. Scans of feature branches must not resolve
- * findings or auto-verify remediations, so we do not enqueue them here.
+ * A successful deployment of the tracked branch, with the origin it is served
+ * from. Hosts differ on the deployment `ref`: some send the branch name (or a
+ * full ref), Vercel sends the commit SHA itself. A SHA ref proves nothing
+ * about the branch, so the caller must still match the SHA against the newest
+ * tracked-branch push (`latestWebhookJobRef`) — preview deployments of other
+ * commits are not authoritative and are ignored there. The URL is
+ * `environment_url` or, failing that, `target_url`.
  */
-function isDefaultBranchPush(
+function trackedBranchDeploymentOrigin(
+  payload: DeploymentStatusPayload,
+  trackedBranch: string | undefined,
+): string | undefined {
+  if (payload.deployment_status?.state !== "success") return undefined;
+  const ref = payload.deployment?.ref;
+  const sha = payload.deployment?.sha;
+  const onDefaultBranch =
+    trackedBranch !== undefined &&
+    (ref === trackedBranch || ref === `refs/heads/${trackedBranch}`);
+  const refIsCommit =
+    typeof ref === "string" &&
+    typeof sha === "string" &&
+    ref.toLowerCase() === sha.toLowerCase();
+  if (!onDefaultBranch && !refIsCommit) return undefined;
+  const raw =
+    payload.deployment_status.environment_url ||
+    payload.deployment_status.target_url;
+  if (!raw) return undefined;
+  try {
+    const url = new URL(raw);
+    // SSRF screening (private ranges, DNS) happens at scan time in
+    // `scanRuntime`; here we only refuse anything that is not plain https.
+    return url.protocol === "https:" ? url.origin : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Only pushes to the project's tracked branch (its default branch unless one
+ * is set) are authoritative for the project's compliance state. Scans of other
+ * branches must not resolve findings or auto-verify remediations, so we do not
+ * enqueue them here.
+ */
+function isTrackedBranchPush(
   payload: PushPayload,
-  defaultBranch: string | undefined,
+  trackedBranch: string | undefined,
 ): boolean {
   return (
     typeof payload.ref === "string" &&
-    typeof defaultBranch === "string" &&
-    payload.ref === `refs/heads/${defaultBranch}`
+    typeof trackedBranch === "string" &&
+    payload.ref === `refs/heads/${trackedBranch}`
   );
 }
 
 export interface WebhookHandleResult {
   handled: boolean;
   message: string;
-  jobId?: string;
+  /** One job per project the delivery was routed to. */
+  jobIds?: string[];
+}
+
+type WebhookProject = Awaited<
+  ReturnType<typeof findProjectsByGithubFullName>
+>[number];
+
+/**
+ * The projects a delivery is for. The same repo may be connected in several
+ * orgs, and orgs of one GitHub account share its installation, so a pinned
+ * delivery goes to every project bound to that installation — never to an
+ * unbound or foreign-installation row. An installation-less delivery is only
+ * accepted for a single unbound project.
+ */
+function deliveryProjects(
+  candidates: readonly WebhookProject[],
+  payloadInstallationId: number | undefined,
+  fullName: string,
+): { ok: true; projects: WebhookProject[] } | { ok: false; message: string } {
+  if (payloadInstallationId !== undefined) {
+    const pinned = candidates.filter(
+      (candidate) => candidate.installationId === payloadInstallationId,
+    );
+    return pinned.length > 0
+      ? { ok: true, projects: pinned }
+      : { ok: false, message: `Installation id mismatch for ${fullName}.` };
+  }
+  if (candidates.length > 1) {
+    return {
+      ok: false,
+      message: `Ambiguous project for ${fullName}: connected in ${candidates.length} organizations without a delivery installation id.`,
+    };
+  }
+  const [only] = candidates;
+  if (!only || only.installationId !== undefined) {
+    return { ok: false, message: `Installation id mismatch for ${fullName}.` };
+  }
+  return { ok: true, projects: [only] };
+}
+
+async function handleProjectDelivery(
+  drizzle: DrizzleDb,
+  event: HandledWebhookEvent,
+  project: WebhookProject,
+  fullName: string,
+  deliveryId: string | undefined,
+): Promise<{ message: string; jobId?: string }> {
+  const payloadDefaultBranch = repositoryDefaultBranch(event);
+  let liveDefaultBranch = payloadDefaultBranch ?? project.defaultBranch;
+  if (payloadDefaultBranch) {
+    const freshBranch = await persistDefaultBranchIfChanged(
+      drizzle,
+      project.id,
+      payloadDefaultBranch,
+      project.defaultBranch,
+    );
+    if (freshBranch) liveDefaultBranch = freshBranch;
+  }
+
+  // The project's truth is its tracked branch when one is set (a `develop`
+  // preview), otherwise the live default branch.
+  const trackedBranch = project.trackedBranch ?? liveDefaultBranch;
+
+  if (
+    event.kind === "push" &&
+    !isTrackedBranchPush(event.payload, trackedBranch)
+  ) {
+    // Other branches are not authoritative; scanning them could resolve
+    // findings / auto-verify remediations off the project's real state.
+    return {
+      message: `Ignored push to a branch other than the tracked branch (${trackedBranch ?? "unknown"}) for ${fullName}.`,
+    };
+  }
+
+  await assertRateLimit(`webhook:${project.id}`, 60, 60_000);
+  const ref = checkoutRef(event);
+  if (!ref) {
+    return {
+      message: `Ignored ${event.kind} without a valid checkout SHA for ${fullName}.`,
+    };
+  }
+
+  let runtimeTarget: { url: string; sha: string } | undefined;
+  if (event.kind === "deployment_status") {
+    const origin = trackedBranchDeploymentOrigin(event.payload, trackedBranch);
+    if (!origin) {
+      return {
+        message: `Ignored deployment status for ${fullName}: not a successful tracked-branch https deployment.`,
+      };
+    }
+    // The push webhook always precedes its deployment, so the newest webhook
+    // job names the newest commit. A deployment of any other commit was
+    // replaced while it built; auditing it would re-derive state from stale
+    // code.
+    if ((await latestWebhookJobRef(project.id)) !== ref) {
+      return {
+        message: `Ignored deployment of ${ref.slice(0, 7)} for ${fullName}: it is not the latest pushed commit.`,
+      };
+    }
+    runtimeTarget = { url: origin, sha: ref };
+    await recordProjectLastDeployment(drizzle, project.id, runtimeTarget);
+  }
+
+  const job = await enqueueAssessmentJob({
+    projectId: project.id,
+    trigger: "webhook",
+    // Per project: one delivery may fan out, and the key is globally unique.
+    idempotencyKey: deliveryId ? `${deliveryId}:${project.id}` : undefined,
+    payload: {
+      ref,
+      eventName: event.kind,
+      ...(runtimeTarget ? { runtimeTarget } : {}),
+    },
+  });
+  return { message: `Queued re-assessment of ${fullName}.`, jobId: job.id };
 }
 
 /**
  * Validated webhook delivery boundary. It never clones or scans in the request
- * path: it only resolves the project and creates an idempotent durable job.
+ * path: it only resolves the projects and creates idempotent durable jobs.
  */
 export async function handleGitHubWebhookEvent(
   eventName: string,
@@ -184,69 +319,35 @@ export async function handleGitHubWebhookEvent(
   if (!fullName) return { handled: false, message: "No repository in payload" };
 
   const drizzle = await getDrizzle();
-  const project = await findProjectByGithubFullName(drizzle, fullName);
-  if (!project) {
+  const candidates = await findProjectsByGithubFullName(drizzle, fullName);
+  if (candidates.length === 0) {
     return { handled: false, message: `No connected project for ${fullName}` };
   }
+  const routed = deliveryProjects(
+    candidates,
+    installationIdFromPayload(parsed.event.payload),
+    fullName,
+  );
+  if (!routed.ok) return { handled: false, message: routed.message };
 
-  const payloadInstallationId = installationIdFromPayload(parsed.event.payload);
-  if (
-    project.installationId &&
-    payloadInstallationId !== project.installationId
-  ) {
-    return {
-      handled: false,
-      message: `Installation id mismatch for ${fullName}.`,
-    };
-  }
-
-  const payloadDefaultBranch = repositoryDefaultBranch(parsed.event);
-  let liveDefaultBranch = payloadDefaultBranch ?? project.defaultBranch;
-  if (payloadDefaultBranch) {
-    const freshBranch = await persistDefaultBranchIfChanged(
-      drizzle,
-      project.id,
-      payloadDefaultBranch,
-      project.defaultBranch,
+  const outcomes = [];
+  for (const project of routed.projects) {
+    outcomes.push(
+      await handleProjectDelivery(
+        drizzle,
+        parsed.event,
+        project,
+        fullName,
+        deliveryId,
+      ),
     );
-    if (freshBranch) liveDefaultBranch = freshBranch;
   }
-
-  if (
-    parsed.event.kind === "push" &&
-    !isDefaultBranchPush(parsed.event.payload, liveDefaultBranch)
-  ) {
-    // Feature-branch pushes are not authoritative; scanning them could resolve
-    // findings / auto-verify remediations off the project's real state.
-    return {
-      handled: false,
-      message: `Ignored push to a non-default branch for ${fullName}.`,
-    };
-  }
-
-  await assertRateLimit(`webhook:${project.id}`, 60, 60_000);
-  const ref = checkoutRef(parsed.event);
-  if (!ref) {
-    return {
-      handled: false,
-      message: `Ignored ${parsed.event.kind} without a valid checkout SHA for ${fullName}.`,
-    };
-  }
-  const pullRequestHeadSha =
-    parsed.event.kind === "pull_request" ? ref : undefined;
-  const job = await enqueueAssessmentJob({
-    projectId: project.id,
-    trigger: "webhook",
-    idempotencyKey: deliveryId,
-    payload: {
-      ref,
-      eventName: parsed.event.kind,
-      pullRequestHeadSha,
-    },
-  });
+  const jobIds = outcomes.flatMap((outcome) =>
+    outcome.jobId ? [outcome.jobId] : [],
+  );
   return {
-    handled: true,
-    message: `Queued re-assessment of ${fullName}.`,
-    jobId: job.id,
+    handled: jobIds.length > 0,
+    message: [...new Set(outcomes.map((outcome) => outcome.message))].join(" "),
+    ...(jobIds.length > 0 ? { jobIds } : {}),
   };
 }

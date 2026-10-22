@@ -15,27 +15,26 @@ export interface CustomViolation {
   description: string;
   help: string;
   nodes: CustomViolationNode[];
+  /**
+   * A coverage note, not a defect: the probe proved something about its own
+   * confidence (e.g. the focus walk was truncated), so the finding must land
+   * as `warning`/`needs_review` instead of a pass or a hard failure.
+   */
+  advisory?: boolean;
 }
 
-/** Catalog ids Playwright custom probes can emit. */
 export const CUSTOM_PROBE_CHECK_IDS = [
   "accessible-auth-enhanced",
   "captcha-alternative",
-  "css-disabled-content",
-  "css-hover-keyboard",
   "css-off-understandable",
   "dialog-keyboard",
   "disclosure-keyboard",
   "error-prevention",
-  "focus-appearance",
   "focus-not-obscured",
-  "focus-not-obscured-enhanced",
   "focus-visible",
-  "forced-colors",
   "form-error-association",
   "hover-content",
   "keyboard-trap",
-  "label-adjacent",
   "layout-table-linearization",
   "live-region-updates",
   "media-identification",
@@ -44,7 +43,6 @@ export const CUSTOM_PROBE_CHECK_IDS = [
   "non-text-contrast",
   "reduced-motion",
   "reflow",
-  "resize-text",
   "supplementary-content-keyboard",
   "tabs-keyboard",
   "target-size-enhanced",

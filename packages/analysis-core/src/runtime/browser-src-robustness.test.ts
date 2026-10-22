@@ -27,7 +27,6 @@ import {
   LOAD_HIT_CAPTURE_SRC,
   loadHitCapture,
 } from "./custom-checks/hit-capture";
-import { gapBetweenRects } from "./custom-checks/label-adjacent";
 import {
   IS_LAYOUT_TABLE_SRC,
   isLayoutTable,
@@ -37,9 +36,7 @@ import {
   parseRgb,
   relativeLuminance,
 } from "./custom-checks/non-text-contrast";
-import {
-  selectorRef,
-} from "./custom-checks/widget-keyboard-utils";
+import { selectorRef } from "./custom-checks/widget-keyboard-utils";
 import { htmlSnippet } from "./dom-location";
 
 type AnyFn = (...args: never[]) => unknown;
@@ -113,9 +110,9 @@ describe("browser source survives bundler anonymization", () => {
   it("productionShape() models production (non-vacuous simulation)", () => {
     // If helpers ever stop carrying names in dev, the simulation is vacuous
     // and the tests below would pass without proving anything.
-    expect(productionShape(BROWSER_HIT_CAPTURE_SRC, HIT_CAPTURE_HELPERS)).not.toBe(
-      BROWSER_HIT_CAPTURE_SRC,
-    );
+    expect(
+      productionShape(BROWSER_HIT_CAPTURE_SRC, HIT_CAPTURE_HELPERS),
+    ).not.toBe(BROWSER_HIT_CAPTURE_SRC);
     expect(
       productionShape(RUNTIME_MATCHES_SRC, [foldAccents, matchesMultilingual]),
     ).not.toBe(RUNTIME_MATCHES_SRC);
@@ -133,10 +130,11 @@ describe("browser source survives bundler anonymization", () => {
   });
 
   it("captcha sources reconstitute as expressions", () => {
-    expectExpressionSource(BROWSER_CAPTCHA_MATCH_SRC, "BROWSER_CAPTCHA_MATCH_SRC", [
-      captchaCandidateMatchText,
-      elementLooksLikeCaptcha,
-    ]);
+    expectExpressionSource(
+      BROWSER_CAPTCHA_MATCH_SRC,
+      "BROWSER_CAPTCHA_MATCH_SRC",
+      [captchaCandidateMatchText, elementLooksLikeCaptcha],
+    );
     expectExpressionSource(
       BROWSER_OBJECT_RECOGNITION_CAPTCHA_SRC,
       "BROWSER_OBJECT_RECOGNITION_CAPTCHA_SRC",
@@ -170,8 +168,7 @@ describe("browser source survives bundler anonymization", () => {
 
   it("contrast math bodies parse as function bodies", () => {
     // Mirrors the `new Function` bodies in non-text-contrast.ts.
-    const parseBody =
-      `const parseRgb = (${anonymizeHelper(parseRgb.toString())}); return parseRgb(value);`;
+    const parseBody = `const parseRgb = (${anonymizeHelper(parseRgb.toString())}); return parseRgb(value);`;
     const ratioBody =
       `const relativeLuminance = (${anonymizeHelper(relativeLuminance.toString())}); ` +
       `const contrastRatio = (${anonymizeHelper(contrastRatio.toString())}); return contrastRatio(a, b);`;
@@ -180,23 +177,14 @@ describe("browser source survives bundler anonymization", () => {
   });
 
   it("css color parser body parses as a function body", () => {
-    // Mirrors the `new Function` bodies in non-text-contrast.ts and
-    // forced-colors.ts. The parser nests all helpers so the serialized
+    // Mirrors the `new Function` bodies in non-text-contrast.ts. The parser nests all helpers so the serialized
     // source is complete (no module-scope dangling references).
-    const body =
-      `const parseCssColor = (${anonymizeHelper(parseCssColor.toString())}); return parseCssColor(value);`;
+    const body = `const parseCssColor = (${anonymizeHelper(parseCssColor.toString())}); return parseCssColor(value);`;
     expect(() => new Function("value", body)).not.toThrow();
     // Self-containment: the serialized source must not reference imports.
     expect(anonymizeHelper(parseCssColor.toString())).not.toMatch(
       /__vite_ssr_import__|__vite_ssr_dynamic_import__|require\(/,
     );
-  });
-
-  it("label gap body parses as a function body", () => {
-    // Mirrors the `new Function` body in label-adjacent.ts.
-    const body =
-      `const gapBetweenRects = (${anonymizeHelper(gapBetweenRects.toString())}); return gapBetweenRects(a, b);`;
-    expect(() => new Function("a", "b", body)).not.toThrow();
   });
 
   it("leaf helpers stay self-contained (no cross-closure references)", () => {

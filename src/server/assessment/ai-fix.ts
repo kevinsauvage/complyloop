@@ -15,13 +15,21 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { applyFix, describeFix } from "@complyloop/analysis-core/fixes";
 import { scanChangedFiles } from "@complyloop/analysis-core/scan";
 import { resolveInside } from "@complyloop/analysis-core/workspace-path";
-import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import type { WorkspaceSlice } from "@complyloop/db/types";
+import type { DrizzleDb } from "@complyloop/db/postgres";
+import {
+  insertEvidence,
+  listEvidenceForFinding,
+} from "@complyloop/db/repo/evidence";
+import {
+  getRemediationByFindingId,
+  upsertRemediations,
+} from "@complyloop/db/repo/remediations";
 
 import { AI_PATCH_UNAVAILABLE_MESSAGE, type AiCallOnError } from "@/ai/ai-call";
 import { proposeFixEdits } from "@/ai/patch";
 import {
   assertSourceLocatedFinding,
+  boundFileEdit,
   generatePatchCandidate,
   type GeneratePatchCandidateOptions,
   type PatchCandidate,
@@ -32,12 +40,12 @@ import {
 import {
   hasSafeDeterministicFix,
   refreshSuggestion,
-} from "@/core/remediation-lifecycle";
+} from "@/core/requirements/remediation-lifecycle";
 
 import { reportError, reportWarning } from "../observability";
-import { appendEvidence } from "../workspace/project-rows";
+import { redactSecrets } from "../redact";
 import { locateViolationInProject, mergeFix } from "./assessment-findings";
-import { withProjectCheckout } from "./repo-checkout";
+import { withProjectFileWorkspace } from "./single-file-source";
 
 export type PatchUiState =
   { status: "idle" } | { status: "ready"; candidate: PatchCandidate };
@@ -64,10 +72,13 @@ function deterministicProposal(
   if (!fix || match?.location.kind !== "source") return null;
   const path = match.location.filePath;
   const original = fs.readFileSync(resolveInside(rootPath, path), "utf8");
+  const updated = applyFix(original, fix);
   return {
     description: describeFix(fix),
     provenance: "deterministic",
-    edits: [{ path, oldText: original, newText: applyFix(original, fix) }],
+    // Only the changed window, never the whole file: this candidate lands in
+    // append-only evidence.
+    edits: [boundFileEdit(path, original, updated)],
   };
 }
 
@@ -96,9 +107,8 @@ export async function runAiFixOnCheckout(
             control,
             onError,
             fileContents: {
-              [filePath]: fs.readFileSync(
-                resolveInside(rootPath, filePath),
-                "utf8",
+              [filePath]: redactSecrets(
+                fs.readFileSync(resolveInside(rootPath, filePath), "utf8"),
               ),
             },
           })));
@@ -118,21 +128,25 @@ export async function runAiFixOnCheckout(
 }
 
 /**
- * Checkout + patch composition for the action layer: runs
- * `runAiFixOnCheckout` on an ephemeral checkout of the finding's project.
- * Actions call this (never `withProjectCheckout` + `runAiFixOnCheckout`
- * separately) so checkout wiring stays in one module.
+ * Single-file workspace composition for the action layer: fetches the
+ * Finding's file at the tracked branch through the contents API (no clone),
+ * then runs `runAiFixOnCheckout` against it. Actions call this (never the
+ * workspace helper directly) so wiring stays in one module.
  */
-export async function generatePatchCandidateOnCheckout(
+export async function generatePatchCandidateForFinding(
   project: Project,
   finding: Finding,
   control: Control,
   options: { aiAvailable: boolean },
 ): Promise<PatchCandidate> {
-  return withProjectCheckout(project, (rootPath) =>
-    runAiFixOnCheckout(rootPath, finding, control, {
-      aiAvailable: options.aiAvailable,
-    }),
+  assertSourceLocatedFinding(finding);
+  return withProjectFileWorkspace(
+    project,
+    finding.location.filePath,
+    (rootPath) =>
+      runAiFixOnCheckout(rootPath, finding, control, {
+        aiAvailable: options.aiAvailable,
+      }),
   );
 }
 
@@ -174,30 +188,69 @@ function snippetFromCandidate(candidate: PatchCandidate): string {
   return (candidate.edits[0]?.newText ?? candidate.description).slice(0, 500);
 }
 
-export function persistPatchCandidate(
-  db: WorkspaceSlice,
+export async function persistPatchCandidate(
+  tx: DrizzleDb,
   finding: Finding,
   candidate: PatchCandidate,
-  payload: ProjectWritePayload,
-): void {
+  actor: string | undefined,
+): Promise<void> {
   const location = formatLocationRef(finding.location);
-  appendEvidence(payload, {
-    kind: "ai_patch_ready",
-    summary: `Patch ready for ${finding.checkId} at ${location} (ComplyLoop passed).`,
-    projectId: finding.projectId,
-    controlId: finding.controlId,
-    findingId: finding.id,
-    detail: patchCandidateToDetail(candidate),
-  });
-  const remediation = db.remediations.find(
-    (row) => row.findingId === finding.id,
+  // Evidence is append-only, so a credential-shaped string inside the stored
+  // diff can never be removed. Redacting it would silently corrupt the patch
+  // the PR flow replays from this row (a changed `newText` would be committed,
+  // a changed `oldText` would never apply), so refuse instead of storing.
+  const storedCandidate: PatchCandidate = {
+    ...candidate,
+    edits: candidate.edits.map((edit) => {
+      const oldText = redactSecrets(edit.oldText);
+      const newText = redactSecrets(edit.newText);
+      if (oldText !== edit.oldText || newText !== edit.newText) {
+        reportWarning("Refusing to store a patch containing credential text", {
+          code: "ai_patch_secret_refused",
+          projectId: finding.projectId,
+          findingId: finding.id,
+          path: edit.path,
+        });
+        throw new PublicError(
+          "The suggested patch touches text that looks like a credential, so it was not stored. Apply the fix manually from the developer handoff.",
+        );
+      }
+      return { path: edit.path, oldText, newText };
+    }),
+  };
+  const detail = {
+    ...patchCandidateToDetail(storedCandidate),
+    // Staleness anchor (see remediation-ai.ts): suggestion-time location.
+    locationRef: location,
+  };
+  // Evidence is append-only: repeated clicks with an identical candidate
+  // would stack byte-identical full-file rows forever. Skip the append when
+  // the finding already carries this exact patch evidence.
+  const existingEvidence = await listEvidenceForFinding(tx, finding.id);
+  const duplicate = existingEvidence.some(
+    (row) =>
+      row.kind === "ai_patch_ready" &&
+      row.findingId === finding.id &&
+      JSON.stringify(row.detail) === JSON.stringify(detail),
   );
+  if (!duplicate) {
+    await insertEvidence(tx, {
+      kind: "ai_patch_ready",
+      summary: `Patch ready for ${finding.checkId} at ${location} (deterministic check passed).`,
+      projectId: finding.projectId,
+      controlId: finding.controlId,
+      findingId: finding.id,
+      detail,
+      actor,
+    });
+  }
+  const remediation = await getRemediationByFindingId(tx, finding.id);
   if (!remediation) {
     throw new PublicError("No remediation for that finding.");
   }
   const suggestion = {
     description: candidate.description,
-    proposedSnippet: snippetFromCandidate(candidate),
+    proposedSnippet: snippetFromCandidate(storedCandidate),
     provenance: candidate.provenance,
     ...(candidate.provenance === "ai"
       ? {
@@ -221,14 +274,5 @@ export function persistPatchCandidate(
     );
     return;
   }
-  payload.remediations = [
-    ...(payload.remediations ?? []),
-    refreshSuggestion(
-      remediation,
-      suggestion,
-      remediation.status === "detected"
-        ? `Patch ready: ${candidate.description}`
-        : `Patch refreshed: ${candidate.description}`,
-    ),
-  ];
+  await upsertRemediations(tx, [refreshSuggestion(remediation, suggestion)]);
 }

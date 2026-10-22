@@ -1,6 +1,6 @@
 "use client";
 
-import { ReportedError } from "@/components/reported-error";
+import { AppErrorCard } from "@/components/shell/app-error-card";
 
 export default function AppError({
   error,
@@ -10,10 +10,11 @@ export default function AppError({
   retry: () => void;
 }) {
   return (
-    <ReportedError
+    <AppErrorCard
       error={error}
-      retry={retry}
-      tag="app_error_boundary"
+      onReset={retry}
+      reportTag="app_error_boundary"
+      title="This page could not be loaded"
       description="An unexpected error occurred while handling your request."
     />
   );

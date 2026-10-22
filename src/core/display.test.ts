@@ -16,23 +16,28 @@ import {
 } from "@complyloop/analysis-core/contract/statuses";
 
 import {
-  confidenceDisplay,
-  determinationDisplay,
-  engineDisplay,
   EVIDENCE_TONE_BADGE,
   EVIDENCE_TONE_DOT,
   evidenceDisplay,
+} from "@/core/display/evidence";
+import {
+  type ReportColorPair,
+  STATUS_TONE_BADGE,
+  STATUS_TONE_REPORT,
+} from "@/core/display/report-tones";
+import {
+  confidenceDisplay,
+  determinationDisplay,
+  engineDisplay,
   findingStatusDisplay,
   provenanceDisplay,
   remediationStatusDisplay,
-  type ReportColorPair,
   requirementStatusDisplay,
   roleTone,
   severityDisplay,
-  STATUS_TONE_BADGE,
-  STATUS_TONE_REPORT,
-} from "./display";
-import { severityRank } from "./finding-priority";
+} from "@/core/display/status";
+
+import { severityRank } from "./findings/finding-priority";
 
 const SEVERITIES: Severity[] = ["critical", "serious", "moderate", "minor"];
 
@@ -140,6 +145,8 @@ describe("evidenceDisplay", () => {
       "remediation_implemented",
       "remediation_verified",
       "remediation_manually_verified",
+      "remediation_suggested",
+      "remediation_verification_failed",
       "ai_remediation_suggested",
       "ai_patch_ready",
       "requirement_status_changed",
@@ -376,7 +383,7 @@ function readRootBlock(): string {
   const css = readFileSync(join(here, "..", "app", "globals.css"), "utf8");
   const root = css.match(/:root\s*{([^}]*)}/);
   if (!root) throw new Error("globals.css has no :root block");
-  return root[1];
+  return root[1]!;
 }
 
 function parseOklch(block: string, name: string): [number, number, number] {
@@ -469,7 +476,7 @@ function hexLuminance(hex: string): number {
     const v = Number.parseInt(hex.slice(i, i + 2), 16) / 255;
     return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
   });
-  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+  return 0.2126 * channels[0]! + 0.7152 * channels[1]! + 0.0722 * channels[2]!;
 }
 
 function hexContrast(a: string, b: string): number {

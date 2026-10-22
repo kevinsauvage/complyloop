@@ -4,9 +4,9 @@ import { mediaKeyboardViolation } from "./media-keyboard";
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
-  registerPlaywrightBrowserTeardown,
   withProbePage,
 } from "./playwright-page";
+import { registerPlaywrightBrowserTeardown } from "./playwright-test-teardown";
 
 const TINY_WAV =
   "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==";

@@ -24,7 +24,7 @@ describe("heading-order", () => {
       ),
     );
     expect(findings).toHaveLength(1);
-    expect(findings[0].checkId).toBe("heading-order");
+    expect(findings[0]!.checkId).toBe("heading-order");
   });
 });
 
@@ -47,13 +47,13 @@ describe("list-structure", () => {
     ).toHaveLength(1);
   });
 
-  it("flags list items with no enclosing JSX parent", () => {
-    const findings = listStructureCheck.run(
-      parseSource("test.tsx", `const item = <li>x</li>;`),
-    );
-    expect(findings).toHaveLength(1);
-    expect(findings[0]?.confidence).toBe("medium");
-    expect(findings[0]?.reason).toContain("no list parent");
+  it("does not judge a list item that is the root a component returns", () => {
+    // Its <ul> lives in whoever renders it; the rendered DOM decides.
+    expect(
+      listStructureCheck.run(
+        parseSource("test.tsx", `const Item = () => <li className="x">x</li>;`),
+      ),
+    ).toHaveLength(0);
   });
 
   it("flags self-closing non-li children inside lists", () => {
@@ -373,7 +373,7 @@ describe("duplicate-id", () => {
       ),
     );
     expect(findings).toHaveLength(1);
-    expect(findings[0].reason).toContain('id="x"');
+    expect(findings[0]!.reason).toContain('id="x"');
   });
 
   it("reports each occurrence after the first", () => {

@@ -9,7 +9,7 @@ import type {
 import type { WorkspaceSlice } from "@complyloop/db/types";
 import { emptyWorkspaceSlice } from "@complyloop/db/types";
 
-import type { ProjectWriteWorkspace } from "@/server/workspace/workspace";
+import type { Workspace } from "@/server/workspace/workspace";
 
 import { testFinding } from "./finding";
 import { testMembership } from "./membership";
@@ -17,10 +17,14 @@ import { testProject } from "./project";
 import { testRemediation } from "./remediation";
 
 /**
- * Full write-capable workspace fixture. Production `getWorkspace()` returns
- * tenancy only (no `db`); action tests that invoke `withProjectWrite` need the
- * slice, so fixtures keep `db`.
+ * In-memory slice backing the mocked repo + transaction helpers in action
+ * tests. Reads and writes go through `register-action-workspace-mock`, which
+ * makes this the fake database the actions' targeted repo calls hit.
  */
+export interface TestWorkspace extends Workspace {
+  db: WorkspaceSlice;
+}
+
 export function testWorkspace(
   options: {
     role?: OrgMembership["role"];
@@ -31,7 +35,7 @@ export function testWorkspace(
     remediations?: Remediation[];
     db?: Partial<WorkspaceSlice>;
   } = {},
-): ProjectWriteWorkspace {
+): TestWorkspace {
   const userId = options.userId ?? "user-1";
   const orgId = options.orgId ?? "org-1";
   const role = options.role ?? "member";
@@ -54,7 +58,6 @@ export function testWorkspace(
   } as WorkspaceSlice;
 
   return {
-    project,
     userId,
     githubLogin: userId,
     access: {
@@ -64,7 +67,6 @@ export function testWorkspace(
       memberships: db.memberships,
     },
     projects: db.projects,
-    visibleProjects: [project],
     organizations: db.organizations,
     activeOrgId: orgId,
     db,

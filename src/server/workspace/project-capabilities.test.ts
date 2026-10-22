@@ -32,24 +32,27 @@ describe("projectCapabilities", () => {
       canView: true,
       canAssess: false,
       canRemediate: false,
+      canDecide: false,
       canConnect: false,
     });
   });
 
-  it("lets members assess and remediate but not connect", () => {
+  it("lets members assess and remediate but not decide or connect", () => {
     expect(projectCapabilities(project, access("member"))).toEqual({
       canView: true,
       canAssess: true,
       canRemediate: true,
+      canDecide: false,
       canConnect: false,
     });
   });
 
-  it("lets owners connect on a project", () => {
+  it("lets owners decide and connect on a project", () => {
     expect(projectCapabilities(project, access("owner"))).toEqual({
       canView: true,
       canAssess: true,
       canRemediate: true,
+      canDecide: true,
       canConnect: true,
     });
   });
@@ -66,6 +69,7 @@ describe("projectCapabilities", () => {
       canView: false,
       canAssess: false,
       canRemediate: false,
+      canDecide: false,
       canConnect: true,
     });
   });
@@ -75,6 +79,7 @@ describe("projectCapabilities", () => {
       canView: false,
       canAssess: false,
       canRemediate: false,
+      canDecide: false,
       canConnect: true,
     });
   });
@@ -84,6 +89,7 @@ describe("projectCapabilities", () => {
       canView: false,
       canAssess: false,
       canRemediate: false,
+      canDecide: false,
       canConnect: false,
     });
   });

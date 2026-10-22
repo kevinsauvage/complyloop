@@ -48,7 +48,7 @@ describe("report model composers", () => {
   it("falls back when a finding has no catalog control or remediation", () => {
     const input = sampleReportInput();
     input.findings[0] = {
-      ...input.findings[0],
+      ...input.findings[0]!,
       controlId: "ctl-unknown",
     };
     input.controls = [];
@@ -72,6 +72,119 @@ describe("report model composers", () => {
     expect(model.findings[0]?.requirementLine).toBeUndefined();
     expect(model.findings[0]?.engine).toBe("ast");
     expect(model.findings[0]?.suggestion?.provenance).toBe("ai");
+  });
+
+  it("hints fenced-code languages from the finding location", () => {
+    const input = sampleReportInput();
+    const base = input.findings[0]!;
+    const locations = [
+      [
+        {
+          kind: "source",
+          filePath: "a.jsx",
+          line: 1,
+          column: 1,
+          snippet: "x",
+          span: { start: 0, end: 1 },
+        },
+        "jsx",
+      ],
+      [
+        {
+          kind: "source",
+          filePath: "a.ts",
+          line: 1,
+          column: 1,
+          snippet: "x",
+          span: { start: 0, end: 1 },
+        },
+        "ts",
+      ],
+      [
+        {
+          kind: "source",
+          filePath: "a.js",
+          line: 1,
+          column: 1,
+          snippet: "x",
+          span: { start: 0, end: 1 },
+        },
+        "js",
+      ],
+      [
+        {
+          kind: "source",
+          filePath: "a.html",
+          line: 1,
+          column: 1,
+          snippet: "x",
+          span: { start: 0, end: 1 },
+        },
+        "html",
+      ],
+      [
+        {
+          kind: "source",
+          filePath: "a.vue",
+          line: 1,
+          column: 1,
+          snippet: "x",
+          span: { start: 0, end: 1 },
+        },
+        "vue",
+      ],
+      [
+        {
+          kind: "source",
+          filePath: "a.svelte",
+          line: 1,
+          column: 1,
+          snippet: "x",
+          span: { start: 0, end: 1 },
+        },
+        "svelte",
+      ],
+      [
+        {
+          kind: "source",
+          filePath: "a.css",
+          line: 1,
+          column: 1,
+          snippet: "x",
+          span: { start: 0, end: 1 },
+        },
+        "css",
+      ],
+      [
+        {
+          kind: "source",
+          filePath: "a.md",
+          line: 1,
+          column: 1,
+          snippet: "x",
+          span: { start: 0, end: 1 },
+        },
+        "",
+      ],
+      [
+        {
+          kind: "dom",
+          url: "https://app.example/",
+          selector: "button",
+          snippet: "<button>",
+        },
+        "html",
+      ],
+    ] as const;
+    input.findings = locations.map(([location], index) => ({
+      ...base,
+      id: `f-lang-${index}`,
+      location: location as typeof base.location,
+    }));
+    const model = composeEngineeringReport(input);
+    expect(model.findings.map((card) => card.language)).toEqual(
+      locations.map(([, language]) => language),
+    );
   });
 
   it("excludes project-less evidence and includes github metadata on the header", () => {
@@ -120,7 +233,7 @@ describe("report model composers", () => {
     const input = sampleReportInput();
     input.controls = [
       {
-        ...input.controls[0],
+        ...input.controls[0]!,
         secondaryCode: "ISO 40500",
       },
     ];

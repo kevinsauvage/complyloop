@@ -8,7 +8,11 @@ import {
 } from "node:crypto";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { getDrizzle } from "@complyloop/db/postgres";
+import {
+  type DrizzleDb,
+  getDrizzle,
+  withNamedPostgresAdvisoryLock,
+} from "@complyloop/db/postgres";
 import {
   deleteGithubTokenRowByUserId,
   findGithubTokenRowByUserId,
@@ -77,12 +81,13 @@ export async function storeUserGitHubToken(
   accessToken: string,
   refreshToken?: string,
   expiresAt?: string,
+  db?: DrizzleDb,
 ): Promise<void> {
   if (!userId || !accessToken) return;
   // encryptToken throws a clear error when AUTH_SECRET is missing — fail loud
   // rather than silently dropping the token and breaking every later clone.
   const entry = encryptToken(accessToken);
-  const drizzle = await getDrizzle();
+  const drizzle = db ?? (await getDrizzle());
 
   let refreshEntry: EncryptedTokenEntry | null = null;
   if (refreshToken) {
@@ -109,17 +114,14 @@ export interface StoredGitHubToken {
   expiresAt?: string;
 }
 
-export async function getStoredGitHubToken(
-  userId: string,
-): Promise<string | null> {
-  const stored = await getStoredGitHubTokenWithExpiry(userId);
-  return stored?.accessToken ?? null;
-}
-
 export async function getStoredGitHubTokenWithExpiry(
   userId: string,
+  db?: DrizzleDb,
 ): Promise<StoredGitHubToken | null> {
-  const row = await findGithubTokenRowByUserId(await getDrizzle(), userId);
+  const row = await findGithubTokenRowByUserId(
+    db ?? (await getDrizzle()),
+    userId,
+  );
   if (!row) return null;
   try {
     const accessToken = decryptToken({
@@ -172,15 +174,69 @@ export interface RefreshGitHubTokenResult {
   expiresAt: string;
 }
 
-export async function refreshGitHubToken({
-  userId,
-  refreshToken,
-}: RefreshGitHubTokenInput): Promise<RefreshGitHubTokenResult> {
+/**
+ * Why a refresh failed. `revoked` (HTTP 400 + `invalid_grant`: user revoked
+ * the grant or the refresh token expired) means reconnect; `transient`
+ * (network/5xx/malformed) means keep the stored row and retry later.
+ */
+export type TokenRefreshFailureReason = "revoked" | "transient";
+
+export class TokenRefreshError extends Error {
+  readonly reason: TokenRefreshFailureReason;
+
+  constructor(reason: TokenRefreshFailureReason, message: string) {
+    super(message);
+    this.name = "TokenRefreshError";
+    this.reason = reason;
+  }
+}
+
+export function isTokenRefreshError(
+  error: unknown,
+): error is TokenRefreshError {
+  return error instanceof TokenRefreshError;
+}
+
+export async function refreshGitHubToken(
+  input: RefreshGitHubTokenInput,
+): Promise<RefreshGitHubTokenResult> {
   const clientId = process.env.AUTH_GITHUB_ID;
   const clientSecret = process.env.AUTH_GITHUB_SECRET;
   if (!clientId || !clientSecret) {
     throw new Error(
       "AUTH_GITHUB_ID and AUTH_GITHUB_SECRET are required to refresh GitHub tokens.",
+    );
+  }
+
+  // GitHub rotates the refresh token, so concurrent refreshes make the loser
+  // read as revoked (and can delete the winner's token). Serialize the whole
+  // refresh per user: the lock is held across the network call on purpose.
+  const drizzle = await getDrizzle();
+  return withNamedPostgresAdvisoryLock(
+    drizzle,
+    `github-token-refresh:${input.userId}`,
+    (tx) => refreshGitHubTokenLocked(tx, input, clientId, clientSecret),
+  );
+}
+
+async function refreshGitHubTokenLocked(
+  db: DrizzleDb,
+  input: RefreshGitHubTokenInput,
+  clientId: string,
+  clientSecret: string,
+): Promise<RefreshGitHubTokenResult> {
+  const stored = await getStoredGitHubTokenWithExpiry(input.userId, db);
+  if (
+    stored?.expiresAt &&
+    new Date(stored.expiresAt).getTime() > Date.now() + 60_000
+  ) {
+    return { accessToken: stored.accessToken, expiresAt: stored.expiresAt };
+  }
+  const refreshToken = stored?.refreshToken ?? input.refreshToken;
+  if (!refreshToken) {
+    throw new TokenRefreshError(
+      "transient",
+      "No refresh token is stored for this user; sign in again to reconnect GitHub.",
     );
   }
 
@@ -196,10 +252,22 @@ export async function refreshGitHubToken({
       grant_type: "refresh_token",
       refresh_token: refreshToken,
     }),
+    // Bound the refresh: a stalled GitHub must not hang the request handler.
+    signal: AbortSignal.timeout(15_000),
   });
 
   if (!response.ok) {
-    throw new Error(
+    let failure: TokenRefreshFailureReason = "transient";
+    try {
+      const body = (await response.clone().json()) as { error?: unknown };
+      if (response.status === 400 && body.error === "invalid_grant") {
+        failure = "revoked";
+      }
+    } catch {
+      // Non-JSON error body — stays transient.
+    }
+    throw new TokenRefreshError(
+      failure,
       `GitHub token refresh failed with status ${response.status}`,
     );
   }
@@ -208,26 +276,42 @@ export async function refreshGitHubToken({
     access_token?: string;
     expires_in?: number;
     refresh_token?: string;
+    /** GitHub reports a dead refresh token with HTTP 200 + an `error` body. */
+    error?: string;
   };
 
-  if (!data.access_token) {
-    throw new Error("GitHub token refresh returned no access_token.");
+  if (data.error) {
+    const revoked =
+      data.error === "bad_refresh_token" || data.error === "invalid_grant";
+    throw new TokenRefreshError(
+      revoked ? "revoked" : "transient",
+      `GitHub token refresh failed: ${data.error}`,
+    );
   }
 
+  if (!data.access_token) {
+    throw new TokenRefreshError(
+      "transient",
+      "GitHub token refresh returned no access_token.",
+    );
+  }
+
+  const accessToken = data.access_token;
   const now = new Date();
   const expiresAt = data.expires_in
     ? new Date(now.getTime() + data.expires_in * 1000).toISOString()
     : new Date(now.getTime() + 8 * 60 * 60 * 1000).toISOString();
 
   await storeUserGitHubToken(
-    userId,
-    data.access_token,
+    input.userId,
+    accessToken,
     data.refresh_token ?? refreshToken,
     expiresAt,
+    db,
   );
 
   return {
-    accessToken: data.access_token,
+    accessToken,
     expiresAt,
   };
 }

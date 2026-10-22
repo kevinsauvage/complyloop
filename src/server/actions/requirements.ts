@@ -7,24 +7,35 @@ import {
   REQUIREMENT_EXCEPTION_REASONS,
   TEMPORARY_EXCEPTION_REASON,
 } from "@complyloop/analysis-core/contract/entities";
-import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import type { WorkspaceSlice } from "@complyloop/db/types";
+import type { DrizzleDb } from "@complyloop/db/postgres";
+import {
+  insertEvidence,
+  insertEvidenceRecords,
+} from "@complyloop/db/repo/evidence";
+import {
+  getRequirementById,
+  upsertRequirements,
+} from "@complyloop/db/repo/requirements";
 
+import type { ActionState } from "@/core/actions/action-state";
+import {
+  parseEntityId,
+  parseForm,
+  requiredField,
+} from "@/core/actions/validate";
 import {
   clearRequirementHumanDetermination,
   normalizeExpiryInstant,
   setRequirementHumanDetermination,
-} from "@/core/requirement-human-determination";
-import { parseEntityId, parseForm, requiredField } from "@/core/validate";
+} from "@/core/requirements/requirement-human-determination";
 
-import type { ActionState } from "../action-state";
-import { applyRequirementStatusRefresh } from "../assessment/assessment-status";
-import { appendEvidence, cloneProjectRows } from "../workspace/project-rows";
+import { refreshRequirementsForControls } from "../assessment/assessment-status";
+import { assertRequirementsRateLimit } from "../rate-limit";
+import { stampEvidenceActor } from "../workspace/project-rows";
 import { controlById } from "../workspace/workspace";
-import { runProjectAction } from "./define-action";
-import { requireOnActive } from "./shared";
+import type { ProjectTx } from "../workspace/workspace-write";
+import { projectIdForRequirement, runProjectAction } from "./define-action";
 
 const markExceptionInput = z
   .object({
@@ -73,76 +84,72 @@ const markPassedInput = z.object({
   ),
 });
 
-function requireRequirement(
-  db: WorkspaceSlice,
+async function requireRequirement(
+  tx: DrizzleDb,
   projectId: string,
   requirementId: string,
-): Requirement {
-  const requirement = db.requirements.find(
-    (candidate) => candidate.id === requirementId,
-  );
+): Promise<Requirement> {
+  const requirement = await getRequirementById(tx, requirementId);
   if (!requirement || requirement.projectId !== projectId) {
     throw new PublicError("Unknown requirement.");
   }
   return requirement;
 }
 
-function clearRequirementOverride(
-  db: WorkspaceSlice,
-  project: Project,
-  requirement: Requirement,
+/**
+ * Clear one human override and re-derive the control's status from the rows
+ * that remain. The cleared row is written first: the refresh reads the control's
+ * requirement and open findings inside the same transaction, so a cleared
+ * (non-sticky) requirement re-derives from its findings.
+ */
+async function clearRequirementOverride(
+  ctx: ProjectTx,
+  requirementId: string,
   field: "humanPass" | "exception",
-): ProjectWritePayload {
-  const control = controlById(requirement.controlId);
-  const rows = cloneProjectRows(
-    db.findings,
-    db.remediations,
-    db.requirements,
-    project.id,
+): Promise<void> {
+  const requirement = await requireRequirement(
+    ctx.tx,
+    ctx.project.id,
+    requirementId,
   );
+  const control = controlById(requirement.controlId);
 
   if (field === "humanPass") {
     if (!requirement.humanPass) {
       throw new PublicError("This requirement has no human pass to clear.");
     }
-    const previousPass = requirement.humanPass;
-    appendEvidence(rows, {
+    await insertEvidence(ctx.tx, {
       kind: "requirement_human_pass_cleared",
       summary: `${control.code} human pass cleared`,
-      projectId: project.id,
+      projectId: ctx.project.id,
       controlId: requirement.controlId,
-      detail: { previousPass },
+      detail: { previousPass: requirement.humanPass },
+      actor: ctx.actor,
     });
   } else {
     if (!requirement.exception) {
       throw new PublicError("This requirement has no exception to clear.");
     }
-    const previousException = requirement.exception;
-    appendEvidence(rows, {
+    await insertEvidence(ctx.tx, {
       kind: "requirement_exception_cleared",
-      summary: `${control.code} exception cleared (was ${previousException.reason})`,
-      projectId: project.id,
+      summary: `${control.code} exception cleared (was ${requirement.exception.reason})`,
+      projectId: ctx.project.id,
       controlId: requirement.controlId,
-      detail: { previousException },
+      detail: { previousException: requirement.exception },
+      actor: ctx.actor,
     });
   }
 
-  const updated = clearRequirementHumanDetermination(requirement, field);
-  const index = rows.requirements.findIndex(
-    (candidate) => candidate.id === requirement.id,
-  );
-  if (index >= 0) {
-    rows.requirements[index] = updated;
-  } else {
-    rows.requirements.push(updated);
-  }
-  applyRequirementStatusRefresh(rows, project, {
-    controlIds: [requirement.controlId],
-  });
-  return {
-    requirements: rows.requirements,
-    evidence: rows.evidence,
-  };
+  await upsertRequirements(ctx.tx, [
+    clearRequirementHumanDetermination(requirement, field),
+  ]);
+
+  const refreshed = await refreshRequirementsForControls(ctx.tx, ctx.project, [
+    requirement.controlId,
+  ]);
+  await upsertRequirements(ctx.tx, refreshed.requirements);
+  stampEvidenceActor(refreshed.evidence, ctx.actor);
+  await insertEvidenceRecords(ctx.tx, refreshed.evidence);
 }
 
 export async function markRequirementExceptionAction(
@@ -150,61 +157,70 @@ export async function markRequirementExceptionAction(
   _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  return runProjectAction(async (workspace) => {
-    const requirementId = parseEntityId(requirementIdRaw);
-    const parsed = parseForm(markExceptionInput, formData);
-    requireOnActive(workspace, "project.remediate");
-    const { db, project } = workspace;
-    const requirement = requireRequirement(db, project.id, requirementId);
+  return runProjectAction(
+    () => projectIdForRequirement(parseEntityId(requirementIdRaw)),
+    "project.decide",
+    async (ctx) => {
+      const requirementId = parseEntityId(requirementIdRaw);
+      const parsed = parseForm(markExceptionInput, formData);
+      if (ctx.userId) await assertRequirementsRateLimit(ctx.userId, ctx.tx);
+      const requirement = await requireRequirement(
+        ctx.tx,
+        ctx.project.id,
+        requirementId,
+      );
 
-    const { reason, note } = parsed;
-    const expiresRaw = parsed.expiresAt;
-    const expiresAt =
-      reason === TEMPORARY_EXCEPTION_REASON && typeof expiresRaw === "string"
-        ? (normalizeExpiryInstant(expiresRaw) ?? undefined)
-        : undefined;
+      const { reason, note } = parsed;
+      const expiresRaw = parsed.expiresAt;
+      const expiresAt =
+        reason === TEMPORARY_EXCEPTION_REASON && typeof expiresRaw === "string"
+          ? (normalizeExpiryInstant(expiresRaw) ?? undefined)
+          : undefined;
 
-    const { updated, previous } = setRequirementHumanDetermination(
-      requirement,
-      {
-        kind: "exception",
-        exception: {
+      const { updated, previous } = setRequirementHumanDetermination(
+        requirement,
+        {
+          kind: "exception",
+          exception: {
+            reason,
+            note,
+            at: new Date().toISOString(),
+            expiresAt,
+          },
+          nextStatus:
+            reason === "not_applicable" ? "not_applicable" : undefined,
+        },
+      );
+
+      const control = controlById(requirement.controlId);
+      await insertEvidence(ctx.tx, {
+        kind: "requirement_exception_set",
+        summary: `${control.code} exception (${reason}): ${note}${expiresAt ? ` (expires ${expiresAt})` : ""}`,
+        projectId: ctx.project.id,
+        controlId: requirement.controlId,
+        detail: {
           reason,
           note,
-          at: new Date().toISOString(),
           expiresAt,
+          from: previous,
+          to: updated.status,
         },
-        nextStatus: reason === "not_applicable" ? "not_applicable" : undefined,
-      },
-    );
-
-    const payload: ProjectWritePayload = {};
-    const control = controlById(requirement.controlId);
-    appendEvidence(payload, {
-      kind: "requirement_exception_set",
-      summary: `${control.code} exception (${reason}): ${note}${expiresAt ? ` (expires ${expiresAt})` : ""}`,
-      projectId: project.id,
-      controlId: requirement.controlId,
-      detail: {
-        reason,
-        note,
-        expiresAt,
-        from: previous,
-        to: updated.status,
-      },
-    });
-    if (previous !== updated.status) {
-      appendEvidence(payload, {
-        kind: "requirement_status_changed",
-        summary: `${control.code} (${control.title}): ${previous} → ${updated.status} — human exception`,
-        projectId: project.id,
-        controlId: requirement.controlId,
-        detail: { from: previous, to: updated.status, regression: false },
+        actor: ctx.actor,
       });
-    }
-    payload.requirements = [updated];
-    return payload;
-  }, "Exception recorded.");
+      if (previous !== updated.status) {
+        await insertEvidence(ctx.tx, {
+          kind: "requirement_status_changed",
+          summary: `${control.code} (${control.title}): ${previous} → ${updated.status} — human exception`,
+          projectId: ctx.project.id,
+          controlId: requirement.controlId,
+          detail: { from: previous, to: updated.status, regression: false },
+          actor: ctx.actor,
+        });
+      }
+      await upsertRequirements(ctx.tx, [updated]);
+    },
+    "Exception recorded.",
+  );
 }
 
 export async function markRequirementPassedAction(
@@ -212,56 +228,64 @@ export async function markRequirementPassedAction(
   _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  return runProjectAction(async (workspace) => {
-    const requirementId = parseEntityId(requirementIdRaw);
-    const { note } = parseForm(markPassedInput, formData);
-    requireOnActive(workspace, "project.remediate");
-    const { db, project } = workspace;
-    const requirement = requireRequirement(db, project.id, requirementId);
-
-    const control = controlById(requirement.controlId);
-    if (control.checkId !== null) {
-      throw new PublicError(
-        "Only manual controls (no automated check) can be marked passed by human review.",
+  return runProjectAction(
+    () => projectIdForRequirement(parseEntityId(requirementIdRaw)),
+    "project.decide",
+    async (ctx) => {
+      const requirementId = parseEntityId(requirementIdRaw);
+      const { note } = parseForm(markPassedInput, formData);
+      if (ctx.userId) await assertRequirementsRateLimit(ctx.userId, ctx.tx);
+      const requirement = await requireRequirement(
+        ctx.tx,
+        ctx.project.id,
+        requirementId,
       );
-    }
 
-    const { updated, previous } = setRequirementHumanDetermination(
-      requirement,
-      {
-        kind: "humanPass",
-        humanPass: {
-          note,
-          at: new Date().toISOString(),
+      const control = controlById(requirement.controlId);
+      if (control.checkId !== null) {
+        throw new PublicError(
+          "Only manual controls (no automated check) can be marked passed by human review.",
+        );
+      }
+
+      const { updated, previous } = setRequirementHumanDetermination(
+        requirement,
+        {
+          kind: "humanPass",
+          humanPass: {
+            note,
+            at: new Date().toISOString(),
+          },
         },
-      },
-    );
+      );
 
-    const payload: ProjectWritePayload = {};
-    appendEvidence(payload, {
-      kind: "requirement_human_passed",
-      summary: `${control.code} marked passed (human review): ${note}`,
-      projectId: project.id,
-      controlId: requirement.controlId,
-      detail: { note, from: previous, to: "passed" },
-    });
-    if (previous !== "passed") {
-      appendEvidence(payload, {
-        kind: "requirement_status_changed",
-        summary: `${control.code} (${control.title}): ${previous} → passed — human review`,
-        projectId: project.id,
+      await insertEvidence(ctx.tx, {
+        kind: "requirement_human_passed",
+        summary: `${control.code} marked passed (human review): ${note}`,
+        projectId: ctx.project.id,
         controlId: requirement.controlId,
-        detail: {
-          from: previous,
-          to: "passed",
-          regression: false,
-          humanPass: true,
-        },
+        detail: { note, from: previous, to: "passed" },
+        actor: ctx.actor,
       });
-    }
-    payload.requirements = [updated];
-    return payload;
-  }, "Human pass recorded.");
+      if (previous !== "passed") {
+        await insertEvidence(ctx.tx, {
+          kind: "requirement_status_changed",
+          summary: `${control.code} (${control.title}): ${previous} → passed — human review`,
+          projectId: ctx.project.id,
+          controlId: requirement.controlId,
+          detail: {
+            from: previous,
+            to: "passed",
+            regression: false,
+            humanPass: true,
+          },
+          actor: ctx.actor,
+        });
+      }
+      await upsertRequirements(ctx.tx, [updated]);
+    },
+    "Human pass recorded.",
+  );
 }
 
 export async function clearRequirementHumanPassAction(
@@ -295,11 +319,14 @@ async function clearRequirementOverrideAction(
   field: "humanPass" | "exception",
   message: string,
 ): Promise<ActionState> {
-  return runProjectAction(async (workspace) => {
-    const requirementId = parseEntityId(requirementIdRaw);
-    requireOnActive(workspace, "project.remediate");
-    const { db, project } = workspace;
-    const requirement = requireRequirement(db, project.id, requirementId);
-    return clearRequirementOverride(db, project, requirement, field);
-  }, message);
+  return runProjectAction(
+    () => projectIdForRequirement(parseEntityId(requirementIdRaw)),
+    "project.decide",
+    async (ctx) => {
+      const requirementId = parseEntityId(requirementIdRaw);
+      if (ctx.userId) await assertRequirementsRateLimit(ctx.userId, ctx.tx);
+      await clearRequirementOverride(ctx, requirementId, field);
+    },
+    message,
+  );
 }

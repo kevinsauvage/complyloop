@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   Alert,
   Assessment,
+  AssessmentSnapshot,
   EvidenceRecord,
   Finding,
   Remediation,
@@ -16,23 +17,18 @@ const upsertRequirements = vi.hoisted(() => vi.fn());
 const upsertFindings = vi.hoisted(() => vi.fn());
 const upsertRemediations = vi.hoisted(() => vi.fn());
 
-const updateProject = vi.hoisted(() => vi.fn());
-
 vi.mock("./requirements.ts", () => ({ upsertRequirements }));
 vi.mock("./findings.ts", () => ({ upsertFindings }));
 vi.mock("./remediations.ts", () => ({ upsertRemediations }));
 vi.mock("./alerts.ts", () => ({ upsertAlerts }));
 vi.mock("./evidence.ts", () => ({ insertEvidenceRecords }));
 vi.mock("./assessments.ts", () => ({ insertAssessment }));
-vi.mock("./projects.ts", () => ({ updateProject }));
 
 import type { DrizzleDb } from "../postgres.ts";
 import {
   applyAssessmentPayload,
-  buildAssessmentApplyPayload,
-  persistProjectRows,
-  snapshotProjectSlice,
-  updatedAtById,
+  projectScopedSlice,
+  type ProjectSlice,
 } from "./apply.ts";
 
 const projectId = "p1";
@@ -82,305 +78,113 @@ const alert: Alert = {
   at: "2026-01-01T00:00:00.000Z",
   read: false,
 };
+const assessment: Assessment = {
+  id: "a2",
+  projectId,
+  startedAt: "2026-01-02T00:00:00.000Z",
+  completedAt: "2026-01-02T00:01:00.000Z",
+  filesScanned: 3,
+  summary: {
+    passed: 0,
+    failed: 1,
+    needs_review: 0,
+    not_applicable: 0,
+    unable_to_verify: 0,
+  },
+};
+const snapshot: AssessmentSnapshot = { fileHashes: { "App.tsx": "h1" } };
+const evidence: EvidenceRecord = {
+  id: "e1",
+  at: "2026-01-02T00:01:00.000Z",
+  kind: "assessment_completed",
+  summary: "done",
+  projectId,
+};
 
-describe("updatedAtById", () => {
-  it("keeps only entities that already have updatedAt", () => {
-    expect(
-      updatedAtById([
-        { id: "a", updatedAt: "2026-01-01T00:00:00.000Z" },
-        { id: "b" },
-      ]),
-    ).toEqual(new Map([["a", "2026-01-01T00:00:00.000Z"]]));
-  });
+const tx = { kind: "tx" } as unknown as DrizzleDb;
+
+beforeEach(() => {
+  vi.clearAllMocks();
 });
 
-describe("snapshotProjectSlice", () => {
-  it("scopes runtime rows to the active project and linked remediations", () => {
-    const otherFinding: Finding = {
-      ...finding,
-      id: "f-other",
-      projectId: "p2",
-    };
-    const slice = snapshotProjectSlice(
-      [requirement, { ...requirement, id: "req-2", projectId: "p2" }],
-      [finding, otherFinding],
-      [remediation, { ...remediation, id: "r-other", findingId: "f-other" }],
-      [alert, { ...alert, id: "alert-2", projectId: "p2" }],
+describe("projectScopedSlice", () => {
+  it("scopes runtime rows to the project and its findings' remediations", () => {
+    const slice = projectScopedSlice(
+      {
+        findings: [finding, { ...finding, id: "f-other", projectId: "p2" }],
+        remediations: [
+          remediation,
+          { ...remediation, id: "r-other", findingId: "f-other" },
+        ],
+        requirements: [
+          requirement,
+          { ...requirement, id: "req-2", projectId: "p2" },
+        ],
+        alerts: [alert, { ...alert, id: "alert-2", projectId: "p2" }],
+      },
       projectId,
     );
 
-    expect(slice.requirements).toEqual([requirement]);
     expect(slice.findings).toEqual([finding]);
     expect(slice.remediations).toEqual([remediation]);
+    expect(slice.requirements).toEqual([requirement]);
     expect(slice.alerts).toEqual([alert]);
-  });
-
-  // P0 regression: the worker snapshots the loaded slice for stale-write guards,
-  // then runAssessment mutates the SAME object references in place.
-  it("captures pre-scan updatedAt values even when source rows are mutated in place afterwards", async () => {
-    const liveRequirement: Requirement = structuredClone(requirement);
-    const liveFinding: Finding = structuredClone(finding);
-    const liveRemediation: Remediation = structuredClone(remediation);
-
-    const loadedSlice = snapshotProjectSlice(
-      [liveRequirement],
-      [liveFinding],
-      [liveRemediation],
-      [],
-      projectId,
-    );
-
-    liveRequirement.status = "passed";
-    liveRequirement.updatedAt = "2026-01-02T00:00:00.000Z";
-    liveFinding.status = "resolved";
-    liveFinding.assessmentId = "a2";
-
-    const tx = { kind: "tx" } as unknown as DrizzleDb;
-    upsertRequirements.mockResolvedValue(undefined);
-    upsertFindings.mockResolvedValue(undefined);
-    upsertRemediations.mockResolvedValue(undefined);
-    upsertAlerts.mockResolvedValue(undefined);
-    insertEvidenceRecords.mockResolvedValue(undefined);
-
-    await persistProjectRows(
-      tx,
-      {
-        requirements: [liveRequirement],
-        findings: [liveFinding],
-        remediations: [liveRemediation],
-        alerts: [],
-      },
-      { loadedSlice },
-    );
-
-    expect(upsertRequirements).toHaveBeenCalledWith(tx, [liveRequirement], {
-      loadedUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
-    });
-    expect(upsertFindings).toHaveBeenCalledWith(tx, [liveFinding], {
-      loadedUpdatedAtById: new Map(),
-    });
-  });
-});
-
-describe("buildAssessmentApplyPayload", () => {
-  it("filters findings, remediations, requirements, and alerts to the assessment project", () => {
-    const assessment: Assessment = {
-      id: "a1",
-      projectId,
-      startedAt: "2026-01-01T00:00:00.000Z",
-      completedAt: "2026-01-01T00:00:00.000Z",
-      filesScanned: 1,
-      summary: {
-        passed: 0,
-        failed: 1,
-        needs_review: 0,
-        not_applicable: 0,
-        unable_to_verify: 0,
-      },
-      snapshot: { fileHashes: {} },
-    };
-    const payload = buildAssessmentApplyPayload({
-      assessment,
-      snapshot: assessment.snapshot!,
-      evidence: [],
-      findings: [finding, { ...finding, id: "f2", projectId: "p2" }],
-      remediations: [remediation],
-      requirements: [requirement],
-      alerts: [alert],
-    });
-
-    expect(payload.findings).toEqual([finding]);
-    expect(payload.remediations).toEqual([remediation]);
-    expect(payload.requirements).toEqual([requirement]);
-    expect(payload.alerts).toEqual([alert]);
   });
 });
 
 describe("applyAssessmentPayload", () => {
-  const tx = { kind: "tx" } as unknown as DrizzleDb;
-  const loadedSlice = {
-    requirements: [requirement],
-    findings: [finding],
-    remediations: [remediation],
-    alerts: [alert],
+  const baseline: ProjectSlice = {
+    findings: [structuredClone(finding)],
+    remediations: [structuredClone(remediation)],
+    requirements: [structuredClone(requirement)],
+    alerts: [],
   };
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    insertAssessment.mockResolvedValue(undefined);
-    upsertFindings.mockResolvedValue(undefined);
-    upsertRemediations.mockResolvedValue(undefined);
-    upsertRequirements.mockResolvedValue(undefined);
-    upsertAlerts.mockResolvedValue(undefined);
-    insertEvidenceRecords.mockResolvedValue(undefined);
-  });
-
-  it("writes assessment rows and upserts the project slice with stale guards", async () => {
-    const assessment: Assessment = {
-      id: "a1",
-      projectId,
-      startedAt: "2026-01-01T00:00:00.000Z",
-      completedAt: "2026-01-01T00:00:00.000Z",
-      filesScanned: 1,
-      summary: {
-        passed: 0,
-        failed: 1,
-        needs_review: 0,
-        not_applicable: 0,
-        unable_to_verify: 0,
-      },
-      snapshot: { fileHashes: {} },
-    };
-    const evidence: EvidenceRecord[] = [
-      {
-        id: "ev-1",
-        at: "2026-01-01T00:00:00.000Z",
-        kind: "assessment_completed",
-        summary: "done",
-        projectId,
-      },
-    ];
-    const updatedFinding = { ...finding, status: "dismissed" as const };
-    const updatedRemediation = { ...remediation, status: "approved" as const };
-    const updatedRequirement = { ...requirement, status: "passed" as const };
+  it("inserts the assessment and rewrites only rows that changed", async () => {
+    const nextFinding: Finding = { ...finding, status: "resolved" };
 
     await applyAssessmentPayload(
       tx,
       {
         assessment,
-        snapshot: assessment.snapshot!,
-        evidence,
-        findings: [updatedFinding],
-        remediations: [updatedRemediation],
-        requirements: [updatedRequirement],
-        alerts: [],
-      },
-      { loadedSlice },
-    );
-
-    expect(insertAssessment).toHaveBeenCalledWith(
-      tx,
-      assessment,
-      assessment.snapshot,
-    );
-    expect(upsertFindings).toHaveBeenCalledWith(tx, [updatedFinding], {
-      loadedUpdatedAtById: new Map(),
-    });
-    expect(upsertRemediations).toHaveBeenCalledWith(tx, [updatedRemediation], {
-      loadedUpdatedAtById: new Map(),
-    });
-    expect(upsertRequirements).toHaveBeenCalledWith(tx, [updatedRequirement], {
-      loadedUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
-    });
-    expect(upsertAlerts).toHaveBeenCalledWith(tx, []);
-    expect(insertEvidenceRecords).toHaveBeenCalledWith(tx, evidence);
-  });
-
-  it("skips unchanged rows when re-persisting the loaded slice", async () => {
-    const assessment: Assessment = {
-      id: "a2",
-      projectId,
-      startedAt: "2026-01-01T00:00:00.000Z",
-      completedAt: "2026-01-01T00:00:00.000Z",
-      filesScanned: 0,
-      summary: {
-        passed: 0,
-        failed: 0,
-        needs_review: 0,
-        not_applicable: 0,
-        unable_to_verify: 0,
-      },
-      snapshot: { fileHashes: {} },
-    };
-
-    await applyAssessmentPayload(
-      tx,
-      {
-        assessment,
-        snapshot: assessment.snapshot!,
-        evidence: [],
-        findings: loadedSlice.findings,
-        remediations: loadedSlice.remediations,
-        requirements: loadedSlice.requirements,
-        alerts: [],
-      },
-      { loadedSlice },
-    );
-
-    expect(upsertRequirements).toHaveBeenCalledWith(tx, [], {
-      loadedUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
-    });
-    expect(upsertFindings).toHaveBeenCalledWith(tx, [], {
-      loadedUpdatedAtById: new Map(),
-    });
-    expect(upsertRemediations).toHaveBeenCalledWith(tx, [], {
-      loadedUpdatedAtById: new Map(),
-    });
-    expect(upsertAlerts).toHaveBeenCalledWith(tx, []);
-  });
-});
-
-describe("persistProjectRows", () => {
-  const tx = { kind: "tx" } as unknown as DrizzleDb;
-  const evidence: EvidenceRecord[] = [
-    {
-      id: "ev-1",
-      at: "2026-01-02T00:00:00.000Z",
-      kind: "finding",
-      summary: "dismissed",
-      projectId,
-      findingId: finding.id,
-    },
-  ];
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    upsertRequirements.mockResolvedValue(undefined);
-    upsertFindings.mockResolvedValue(undefined);
-    upsertRemediations.mockResolvedValue(undefined);
-    upsertAlerts.mockResolvedValue(undefined);
-    insertEvidenceRecords.mockResolvedValue(undefined);
-    updateProject.mockResolvedValue(undefined);
-  });
-
-  it("upserts only provided rows and forwards stale guards", async () => {
-    const changedFinding = { ...finding, status: "resolved" as const };
-    const changedRemediation = { ...remediation, status: "approved" as const };
-    const changedRequirement = { ...requirement, status: "passed" as const };
-    await persistProjectRows(
-      tx,
-      {
-        findings: [changedFinding],
-        remediations: [changedRemediation],
-        requirements: [changedRequirement],
+        snapshot,
+        evidence: [evidence],
+        findings: [nextFinding],
+        remediations: [remediation],
+        requirements: [requirement],
         alerts: [alert],
-        evidence,
       },
-      {
-        loadedSlice: {
-          findings: [{ ...finding, updatedAt: "2026-01-01" }],
-          remediations: [{ ...remediation, updatedAt: "2026-01-01" }],
-          requirements: [requirement],
-        },
-      },
+      { baseline },
     );
-    expect(upsertFindings).toHaveBeenCalledWith(tx, [changedFinding], {
-      loadedUpdatedAtById: new Map([[finding.id, "2026-01-01"]]),
-    });
-    expect(upsertRemediations).toHaveBeenCalledWith(tx, [changedRemediation], {
-      loadedUpdatedAtById: new Map([["r1", "2026-01-01"]]),
-    });
-    expect(upsertRequirements).toHaveBeenCalledWith(tx, [changedRequirement], {
-      loadedUpdatedAtById: new Map([[requirement.id, requirement.updatedAt]]),
-    });
-    expect(updateProject).not.toHaveBeenCalled();
+
+    expect(insertAssessment).toHaveBeenCalledWith(tx, assessment, snapshot);
+    expect(upsertFindings).toHaveBeenCalledWith(tx, [nextFinding]);
+    expect(upsertRemediations).toHaveBeenCalledWith(tx, []);
+    expect(upsertRequirements).toHaveBeenCalledWith(tx, []);
+    expect(upsertAlerts).toHaveBeenCalledWith(tx, [alert]);
+    expect(insertEvidenceRecords).toHaveBeenCalledWith(tx, [evidence]);
   });
 
-  it("no-ops when the payload is empty", async () => {
-    await persistProjectRows(tx, {});
-    expect(upsertFindings).toHaveBeenCalledWith(tx, [], {
-      loadedUpdatedAtById: undefined,
-    });
-    expect(updateProject).not.toHaveBeenCalled();
+  it("ignores updatedAt when deciding a row is unchanged", async () => {
+    const restamped: Requirement = {
+      ...requirement,
+      updatedAt: "2026-02-01T00:00:00.000Z",
+    };
+
+    await applyAssessmentPayload(
+      tx,
+      {
+        assessment,
+        snapshot,
+        evidence: [],
+        findings: [finding],
+        remediations: [remediation],
+        requirements: [restamped],
+        alerts: [],
+      },
+      { baseline },
+    );
+
+    expect(upsertRequirements).toHaveBeenCalledWith(tx, []);
   });
 });

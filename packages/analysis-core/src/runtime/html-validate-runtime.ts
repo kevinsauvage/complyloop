@@ -18,7 +18,7 @@ import type { Page } from "playwright-core";
 import { htmlValidatePackageVersion } from "../analyzer-versions.ts";
 import { offsetAt as offsetForLineColumn } from "../parse.ts";
 import type { RawFinding } from "../types.ts";
-import { htmlSnippet } from "./dom-location.ts";
+import { describeAxeElement, htmlSnippet } from "./dom-location.ts";
 import {
   checkIdForHtmlValidateRule,
   HTML_VALIDATE_TO_CHECK_RULE_IDS,
@@ -179,7 +179,6 @@ export function serializeDocument(voidTags: string[]): SerializeDocumentResult {
   return out;
 }
 
-/** Captures the serialized document (with node→offset map) from a live page. */
 async function captureSerializedDom(
   page: Page,
 ): Promise<SerializeDocumentResult> {
@@ -289,7 +288,7 @@ export async function htmlValidateFindingsFromSerialized(
         url,
         selector: el?.selector ?? "(document)",
         snippet: htmlSnippet(el?.html ?? "(whole document)"),
-        elementLabel: el ? `element (${el.selector})` : undefined,
+        elementLabel: el ? describeAxeElement(el.html, el.selector) : undefined,
         context: msg.message,
         analyzerId: "html-validate",
         analyzerRuleId: msg.ruleId,
@@ -304,7 +303,6 @@ export async function htmlValidateFindingsFromSerialized(
   return findings;
 }
 
-/** Rendered pass (Pass B): validate a page's DOM and return runtime findings. */
 export async function htmlValidateFindingsForPage(
   page: Page,
   url: string,

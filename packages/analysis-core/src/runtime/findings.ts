@@ -9,7 +9,11 @@ import { dedupeRuntimeFindings } from "../merge-findings.ts";
 import type { RawFinding } from "../types.ts";
 import type { ApplicabilityObservation } from "./applicability.ts";
 import { checkIdForAxeRule } from "./axe-map.ts";
-import { htmlSnippet, selectorFromTarget } from "./dom-location.ts";
+import {
+  describeAxeElement,
+  htmlSnippet,
+  selectorFromTarget,
+} from "./dom-location.ts";
 import { rawFindingFromDom } from "./raw-finding-from-dom.ts";
 import { normalizeRoutes } from "./routes.ts";
 import { runSiteLevelChecks } from "./site-level/checks.ts";
@@ -44,11 +48,8 @@ export interface RuntimeScanPageResult {
   /** axe incomplete nodes — emitted as `warning` findings (`needs_review`). */
   incomplete?: AxeViolationLike[];
   snapshot?: RuntimePageSnapshot;
-  /** Playwright custom-probe findings for this page. */
   customFindings?: RawFinding[];
-  /** html-validate rendered findings for this page. */
   htmlValidateFindings?: RawFinding[];
-  /** html-validate rendered pass succeeded on this page. */
   htmlValidateRan?: boolean;
   /** Deterministic absence probes for applicability-gated checks. */
   applicabilityObservations?: ApplicabilityObservation[];
@@ -59,6 +60,13 @@ export interface RuntimeScanPageResult {
 export interface RuntimeScanResult {
   findings: RawFinding[];
   pagesScanned: number;
+  /**
+   * Pathnames of the pages the audit actually rendered (`["/", "/about"]`).
+   * `pagesScanned` alone cannot scope runtime authority to the routes that
+   * were covered — a page with zero findings still counts as covered, and a
+   * failed page must not. `merge-findings.ts` maps these back to source files.
+   */
+  scannedRoutes?: string[];
   siteLevelChecksRan?: boolean;
   /** Whether html-validate's rendered pass ran on any page. */
   htmlValidateRan?: boolean;
@@ -68,7 +76,18 @@ export interface RuntimeScanResult {
   applicabilityFacts?: ReadonlyMap<CheckId, string>;
   /** Unique custom-probe ids that threw on at least one page (P2-5). */
   probeFailures?: string[];
+  /**
+   * Per-page scan failures contained by the page loop (axe crash, navigation
+   * failure, …). Sibling pages' findings are kept; a total outage (zero
+   * pages, non-empty here) still surfaces as `error` above.
+   */
+  pageFailures?: RuntimePageFailure[];
   error?: string;
+}
+
+export interface RuntimePageFailure {
+  url: string;
+  error: string;
 }
 
 function severityFromImpact(impact: string | null | undefined): Severity {
@@ -86,6 +105,17 @@ function severityFromImpact(impact: string | null | undefined): Severity {
   }
 }
 
+/**
+ * axe `incomplete` means "could not decide" (background gradient, overlapping
+ * element), not "failed": nothing is confirmed broken, so it never outranks a
+ * confirmed defect. Impact on an incomplete node is axe's potential impact.
+ */
+function reviewSeverity(severity: Severity): Severity {
+  return severity === "critical" || severity === "serious"
+    ? "moderate"
+    : severity;
+}
+
 function findingsFromAxeHits(
   page: RuntimeScanPageResult,
   hits: ReadonlyArray<AxeViolationLike>,
@@ -100,19 +130,26 @@ function findingsFromAxeHits(
     const asReview =
       kind === "warning" || violation.id === "frame-tested" || heuristic;
     for (const node of violation.nodes) {
+      // Derive from the full node HTML before truncation: class-heavy
+      // markup (Tailwind) pushes the visible text past the 200-char
+      // snippet limit, so deriving after would lose the identity.
+      const selector = selectorFromTarget(node.target);
       findings.push(
         rawFindingFromDom({
           checkId,
           kind: asReview ? "warning" : "violation",
           severity: heuristic
             ? HEURISTIC_RUNTIME_DOWNGRADE.severity
-            : severityFromImpact(violation.impact),
+            : kind === "warning"
+              ? reviewSeverity(severityFromImpact(violation.impact))
+              : severityFromImpact(violation.impact),
           confidence: asReview ? "medium" : confidence,
           reason: `${violation.help} ${violation.description}`.trim(),
           url: page.url,
-          selector: selectorFromTarget(node.target),
+          selector,
           snippet: htmlSnippet(node.html),
-          elementLabel: node.elementLabel,
+          elementLabel:
+            node.elementLabel ?? describeAxeElement(node.html, selector),
           context: node.failureSummary,
           analyzerId: "axe",
           analyzerRuleId: violation.id,

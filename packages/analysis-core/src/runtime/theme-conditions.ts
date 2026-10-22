@@ -16,7 +16,6 @@ import type { AxeViolationLike } from "./findings.ts";
  * and would only add noise.
  */
 
-/** Browser conditions a scan can re-audit theme-sensitive checks under. */
 export type BrowserCondition = "dark" | "light" | "more-contrast";
 
 /** Default product assessment pass — dark and light scheme re-audits. */
@@ -69,7 +68,6 @@ export const RESET_EMULATION: { colorScheme: null; contrast: null } = {
   contrast: null,
 };
 
-/** axe rules whose outcome can change with the active color scheme. */
 export const THEME_SENSITIVE_AXE_RULES: ReadonlySet<string> = new Set([
   "color-contrast",
   "color-contrast-enhanced",

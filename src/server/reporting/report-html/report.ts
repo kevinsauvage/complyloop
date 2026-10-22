@@ -6,7 +6,7 @@ import {
 } from "@complyloop/analysis-core/contract/statuses";
 
 import { formatDateTimeWithZone } from "@/core/datetime";
-import { requirementStatusDisplay } from "@/core/display";
+import { requirementStatusDisplay } from "@/core/display/status";
 
 import {
   type AuditEvidenceRow,
@@ -25,7 +25,10 @@ import {
   summaryStat,
 } from "./primitives";
 
-export function buildAuditReportHtml(input: ReportInput): string {
+export function buildAuditReportHtml(
+  input: ReportInput,
+  scriptNonce?: string,
+): string {
   const model = composeAuditReport(input);
   const { statusCounts, totalRequirements, passRate, findingCounts } = model;
 
@@ -61,10 +64,13 @@ ${renderSummaryRows(statusCounts)}
     ),
   ].join("\n");
 
-  return reportShell(model.header, body);
+  return reportShell(model.header, body, scriptNonce);
 }
 
-export function buildEngineeringReportHtml(input: ReportInput): string {
+export function buildEngineeringReportHtml(
+  input: ReportInput,
+  scriptNonce?: string,
+): string {
   const model = composeEngineeringReport(input);
 
   const sections = [
@@ -72,17 +78,10 @@ export function buildEngineeringReportHtml(input: ReportInput): string {
       "summary",
       "Summary",
       `<div class="summary-grid">
-        ${summaryStat("Open findings", model.findings.length)}
-        ${summaryStat("Shared root causes", model.clusters.length)}
+        ${summaryStat("Open findings", model.openFindingsTotal)}
       </div>`,
     ),
   ];
-
-  if (model.clusters.length > 0) {
-    sections.push(
-      reportSection("clusters", "Shared root causes", renderClusters(model)),
-    );
-  }
 
   sections.push(
     reportSection(
@@ -92,7 +91,7 @@ export function buildEngineeringReportHtml(input: ReportInput): string {
     ),
   );
 
-  return reportShell(model.header, sections.join("\n"));
+  return reportShell(model.header, sections.join("\n"), scriptNonce);
 }
 
 function renderEngineeringFindings(model: EngineeringReportModel): string {
@@ -100,16 +99,22 @@ function renderEngineeringFindings(model: EngineeringReportModel): string {
     return emptyParagraph("No open findings.");
   }
 
-  return model.findings
-    .map((finding) => {
-      const snippet = finding.snippet
-        ? `<pre class="snippet">${escapeHtml(finding.snippet)}</pre>`
-        : "";
-      const remediationLine = finding.remediationStatus
-        ? `<p class="meta"><strong>Remediation:</strong> ${escapeHtml(finding.remediationStatus)}</p>`
-        : "";
+  const truncationNote =
+    model.findings.length < model.openFindingsTotal
+      ? `<p class="note">Showing the ${model.findings.length} most severe of ${model.openFindingsTotal} open findings.</p>\n`
+      : "";
+  return (
+    truncationNote +
+    model.findings
+      .map((finding) => {
+        const snippet = finding.snippet
+          ? `<pre class="snippet">${escapeHtml(finding.snippet)}</pre>`
+          : "";
+        const remediationLine = finding.remediationStatus
+          ? `<p class="meta"><strong>Remediation:</strong> ${escapeHtml(finding.remediationStatus)}</p>`
+          : "";
 
-      return `<article class="finding-card">
+        return `<article class="finding-card">
   <header>
     <span class="badge severity-${finding.severityClass}">${escapeHtml(finding.severity)}</span>
     <code class="control-id">${escapeHtml(finding.code)}</code>
@@ -119,21 +124,9 @@ function renderEngineeringFindings(model: EngineeringReportModel): string {
   ${remediationLine}
   ${snippet}
 </article>`;
-    })
-    .join("\n");
-}
-
-function renderClusters(model: EngineeringReportModel): string {
-  if (model.clusters.length === 0) {
-    return emptyParagraph("No shared root causes detected.");
-  }
-  const items = model.clusters
-    .map(
-      (cluster) =>
-        `<li><strong>${escapeHtml(cluster.label)}</strong> — ${cluster.findingCount} open finding(s)</li>`,
-    )
-    .join("\n");
-  return `<ul class="cluster-list">${items}</ul>`;
+      })
+      .join("\n")
+  );
 }
 
 function renderEvidence(

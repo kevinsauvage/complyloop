@@ -1,6 +1,7 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+import prettier from "eslint-config-prettier";
 import jsxA11y from "eslint-plugin-jsx-a11y";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 
@@ -35,6 +36,12 @@ const eslintConfig = defineConfig([
     files: ["**/*.{jsx,tsx}"],
     rules: {
       ...jsxA11y.flatConfigs.strict.rules,
+      // Scrollable code blocks are a legitimate focus target (WCAG 2.1.1);
+      // the rule's default role list only covers tabpanels.
+      "jsx-a11y/no-noninteractive-tabindex": [
+        "error",
+        { tags: [], roles: ["tabpanel", "region"] },
+      ],
     },
   },
   {
@@ -253,6 +260,7 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
+    "dist/**",
     "coverage/**",
     "next-env.d.ts",
     "packages/analysis-core/dist/**",
@@ -260,6 +268,9 @@ const eslintConfig = defineConfig([
     "e2e/fixtures/**",
     ".data/**",
   ]),
+  // Prettier owns formatting: disable any stylistic rules from the presets
+  // above that would conflict with `npm run format`. Must stay last.
+  prettier,
 ]);
 
 export default eslintConfig;

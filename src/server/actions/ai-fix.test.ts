@@ -1,21 +1,23 @@
 import "@/test-fixtures/register-action-workspace-mock";
+import "@/test-fixtures/register-repo-mock";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { initialActionState } from "@/core/actions/action-state";
 import {
+  actionAuthMocks,
   actionWorkspaceMocks,
-  mockProjectWrite,
+  mockProjectTx,
 } from "@/test-fixtures/action-workspace-mocks";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
 import { testWorkspace } from "@/test-fixtures/workspace";
 
-import { initialActionState } from "../action-state";
 import { generateAiFixAction } from "./ai-fix";
 
 const { getWorkspace } = actionWorkspaceMocks;
-const generatePatchCandidateOnCheckout = vi.hoisted(() => vi.fn());
+const generatePatchCandidateForFinding = vi.hoisted(() => vi.fn());
 const persistPatchCandidate = vi.hoisted(() => vi.fn());
 const assertAiRateLimit = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
@@ -24,8 +26,8 @@ vi.mock("../assessment/ai-fix", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../assessment/ai-fix")>();
   return {
     ...actual,
-    generatePatchCandidateOnCheckout: (...args: unknown[]) =>
-      generatePatchCandidateOnCheckout(...args),
+    generatePatchCandidateForFinding: (...args: unknown[]) =>
+      generatePatchCandidateForFinding(...args),
     persistPatchCandidate: (...args: unknown[]) =>
       persistPatchCandidate(...args),
   };
@@ -77,13 +79,14 @@ function workspace() {
 
 afterEach(() => {
   vi.clearAllMocks();
+  actionAuthMocks.auth.mockReset();
 });
 
 describe("generateAiFixAction", () => {
   it("generates and persists a verified patch in the request", async () => {
     const current = workspace();
     getWorkspace.mockResolvedValue(current);
-    mockProjectWrite(current);
+    mockProjectTx(current);
     const candidate = {
       description: "Add alt",
       provenance: "ai",
@@ -96,8 +99,12 @@ describe("generateAiFixAction", () => {
       ],
       complyLoop: { passed: true, remaining: [] },
     };
-    generatePatchCandidateOnCheckout.mockResolvedValue(candidate);
+    generatePatchCandidateForFinding.mockResolvedValue(candidate);
     assertAiRateLimit.mockResolvedValue(undefined);
+    // Session-backed rate-limit identity (replaces the old workspace userId).
+    actionAuthMocks.auth.mockResolvedValue({
+      user: { id: "user-1", login: "user-1" },
+    });
 
     const result = await generateAiFixAction(
       "f1",
@@ -107,17 +114,17 @@ describe("generateAiFixAction", () => {
 
     expect(result.ok ? null : result.message).toBeNull();
     expect(result.message).toMatch(/ready for review/i);
-    expect(generatePatchCandidateOnCheckout).toHaveBeenCalledWith(
+    expect(generatePatchCandidateForFinding).toHaveBeenCalledWith(
       project,
       finding,
       expect.objectContaining({ id: "ctl-img-alt" }),
       expect.objectContaining({ aiAvailable: expect.any(Boolean) }),
     );
     expect(persistPatchCandidate).toHaveBeenCalledWith(
-      current.db,
+      expect.anything(),
       finding,
       candidate,
-      expect.any(Object),
+      "user-1",
     );
     expect(assertAiRateLimit).toHaveBeenCalledWith("user-1");
     expect(refresh).toHaveBeenCalled();
@@ -142,10 +149,10 @@ describe("generateAiFixAction", () => {
       new FormData(),
     );
     expect(result.ok ? null : result.message).toMatch(/source findings/);
-    expect(generatePatchCandidateOnCheckout).not.toHaveBeenCalled();
+    expect(generatePatchCandidateForFinding).not.toHaveBeenCalled();
   });
 
-  it("does not consume the AI rate limit for a safe deterministic fix", async () => {
+  it("consumes the AI rate limit even for a safe deterministic fix (checkout still runs)", async () => {
     const current = workspace();
     current.db.findings[0] = {
       ...finding,
@@ -156,8 +163,12 @@ describe("generateAiFixAction", () => {
       },
     };
     getWorkspace.mockResolvedValue(current);
-    mockProjectWrite(current);
-    generatePatchCandidateOnCheckout.mockResolvedValue({
+    mockProjectTx(current);
+    actionAuthMocks.auth.mockResolvedValue({
+      user: { id: "user-1", login: "user-1" },
+    });
+    assertAiRateLimit.mockResolvedValue(undefined);
+    generatePatchCandidateForFinding.mockResolvedValue({
       description: "Remove autoFocus",
       provenance: "deterministic",
       edits: [{ path: "Hero.tsx", oldText: " autoFocus", newText: "" }],
@@ -171,7 +182,9 @@ describe("generateAiFixAction", () => {
     );
 
     expect(result.ok ? null : result.message).toBeNull();
-    expect(assertAiRateLimit).not.toHaveBeenCalled();
+    // The checkout + scan runs regardless of a deterministic fix, so it must
+    // always be throttled.
+    expect(assertAiRateLimit).toHaveBeenCalledWith("user-1");
   });
 
   it("rejects when the project has no GitHub repo", async () => {
@@ -185,6 +198,6 @@ describe("generateAiFixAction", () => {
       new FormData(),
     );
     expect(result.ok ? null : result.message).toMatch(/GitHub repository/);
-    expect(generatePatchCandidateOnCheckout).not.toHaveBeenCalled();
+    expect(generatePatchCandidateForFinding).not.toHaveBeenCalled();
   });
 });

@@ -4,9 +4,9 @@ import { liveRegionUpdatesViolation } from "./live-region-updates";
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
-  registerPlaywrightBrowserTeardown,
   withProbePage,
 } from "./playwright-page";
+import { registerPlaywrightBrowserTeardown } from "./playwright-test-teardown";
 
 registerPlaywrightBrowserTeardown();
 

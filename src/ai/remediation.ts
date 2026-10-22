@@ -6,19 +6,36 @@ import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type { Confidence } from "@complyloop/analysis-core/contract/statuses";
 
 import {
-  AI_MODEL,
+  AI_SNIPPET_MAX_CHARS,
+  AI_TEXT_MAX_CHARS,
   aiAvailable,
   aiCall,
   type AiCallOnError,
   confidenceSchema,
   findingPromptContext,
+  resolveAiModel,
 } from "./ai-call";
 
-const remediationSchema = z.object({
-  description: z.string(),
-  proposedSnippet: z.string(),
+/**
+ * Bounded at the AI output boundary: `attributeValue` flows into
+ * `finding.fix.value` and later a source edit, so cap the length and reject
+ * characters that cannot land in an HTML/JSX attribute value (`<`, `>`,
+ * `"`, backtick, braces, control chars) — they could break out of the
+ * `attr="…"` insertion and inject code. Single quotes stay allowed for values
+ * like `l'image`.
+ */
+const attributeValueSchema = z
+  .string()
+  .max(256, { error: "Attribute value is too long." })
+  .refine((value) => !/[<>"`{}\u0000-\u001f]/.test(value), {
+    error: "Attribute value contains characters that are unsafe in source.",
+  });
+
+export const remediationSchema = z.object({
+  description: z.string().max(AI_TEXT_MAX_CHARS),
+  proposedSnippet: z.string().max(AI_SNIPPET_MAX_CHARS),
   /** Suggested attribute value when the fix inserts/edits an attribute. */
-  attributeValue: z.string().optional(),
+  attributeValue: attributeValueSchema.optional(),
   confidence: confidenceSchema,
 });
 
@@ -64,7 +81,7 @@ export async function generateAiRemediation(
       proposedSnippet: object.proposedSnippet,
       provenance: "ai",
       confidence,
-      model: AI_MODEL,
+      model: resolveAiModel(),
       generatedAt: new Date().toISOString(),
     },
     attributeValue: object.attributeValue?.trim() || undefined,

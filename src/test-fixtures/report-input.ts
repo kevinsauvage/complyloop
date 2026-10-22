@@ -7,7 +7,9 @@ import type {
   Remediation,
   Requirement,
 } from "@complyloop/analysis-core/contract/entities";
+import { FINDING_STATUSES } from "@complyloop/analysis-core/contract/statuses";
 
+import { countByStatus } from "@/core/assessment/assessment-helpers";
 import type { ReportInput } from "@/server/reporting/report-model";
 
 import { testProject } from "./project";
@@ -26,8 +28,10 @@ export function sampleReportInput(): ReportInput {
     determination: "automated",
     updatedAt: "2026-01-02T00:00:00.000Z",
   }));
+  const [firstRequirement] = requirements;
+  if (!firstRequirement) throw new Error("RGAA catalog has no controls.");
   requirements[0] = {
-    ...requirements[0],
+    ...firstRequirement,
     status: "not_applicable",
     determination: "human_review",
     exception: {
@@ -79,6 +83,7 @@ export function sampleReportInput(): ReportInput {
     controls: rgaaControls,
     requirements,
     findings,
+    findingCounts: countByStatus(findings, FINDING_STATUSES),
     remediations,
     evidence: [
       {

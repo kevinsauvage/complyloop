@@ -1,30 +1,36 @@
 "use server";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
+import { insertEvidence } from "@complyloop/db/repo/evidence";
+import {
+  getRemediationByFindingId,
+  upsertRemediations,
+} from "@complyloop/db/repo/remediations";
 
-import { advanceRemediation } from "@/core/remediation-lifecycle";
-import { parseEntityId } from "@/core/validate";
+import type { ActionState } from "@/core/actions/action-state";
+import { parseEntityId } from "@/core/actions/validate";
+import { advanceRemediation } from "@/core/requirements/remediation-lifecycle";
 
-import { type ActionState, runAction } from "../action-state";
+import { runAction } from "../action-state";
 import { patchCandidateFromEvidence } from "../assessment/ai-fix";
 import {
   remediationEvidenceDetail,
   remediationEvidenceSummary,
 } from "../assessment/remediation-evidence";
+import { getSession } from "../auth-session";
 import { createProjectPullRequest } from "../github/github-connector";
+import { reportError } from "../observability";
+import { assertPrRateLimit } from "../rate-limit";
 import { listEvidenceForFindingScoped } from "../reporting/evidence-queries";
-import { appendEvidence } from "../workspace/project-rows";
 import {
   controlById,
-  getWorkspace,
-  remediationForFinding,
   requireFinding,
+  requireProjectAccess,
   requireRemediationForFinding,
 } from "../workspace/workspace";
-import { withFindingWrite } from "../workspace/workspace-write";
+import { withProjectTx } from "../workspace/workspace-write";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
-import { refresh, replaceRemediation, requireFindingContext } from "./shared";
+import { refresh } from "./shared";
 
 export type CreatePrFormState = ActionState & {
   prUrl: string | null;
@@ -40,18 +46,19 @@ export async function createPullRequestAction(
   let prUrl: string | null = null;
   const state = await runAction(async () => {
     const findingId = parseEntityId(findingIdRaw);
-    const preview = await getWorkspace();
+    // Light preview reads (single finding/remediation rows + project guard)
+    // instead of the full tenancy load: PR creation runs outside the write.
     const finding = await requireFinding(findingId);
-    const { project } = requireFindingContext(
-      preview,
-      finding,
+    const project = await requireProjectAccess(
+      finding.projectId,
       "project.remediate",
     );
     const control = controlById(finding.controlId);
     const remediation = await requireRemediationForFinding(findingId);
-    if (!project) {
-      throw new PublicError("Unknown project.");
-    }
+    // Force-pushes + pull request API calls are irreversible and expensive:
+    // throttle per user before any GitHub I/O.
+    const sessionUserId = (await getSession())?.user?.id;
+    if (sessionUserId) await assertPrRateLimit(sessionUserId);
     if (!project.github?.fullName) {
       throw new PublicError(
         "Connect a GitHub repository before creating a draft pull request.",
@@ -77,53 +84,64 @@ export async function createPullRequestAction(
     }
     prUrl = result.prUrl;
     try {
-      await withFindingWrite(
-        findingId,
+      await withProjectTx(
+        finding.projectId,
         "project.remediate",
-        async ({ db, finding: liveFinding }) => {
-          const liveRemediation = remediationForFinding(db, findingId);
-          const payload: ProjectWritePayload = {};
+        async (ctx) => {
+          const liveRemediation = await getRemediationByFindingId(
+            ctx.tx,
+            findingId,
+          );
+          if (!liveRemediation) {
+            throw new PublicError("No remediation for that finding.");
+          }
           if (liveRemediation.status === "suggested") {
-            replaceRemediation(payload, {
-              ...advanceRemediation(
-                liveRemediation,
-                "approved",
-                "Approved by creating a draft pull request",
-              ),
-              approvalAction: "create_draft_pull_request",
-            });
-            appendEvidence(payload, {
+            await upsertRemediations(ctx.tx, [
+              {
+                ...advanceRemediation(liveRemediation, "approved"),
+                approvalAction: "create_draft_pull_request",
+              },
+            ]);
+            await insertEvidence(ctx.tx, {
               kind: "remediation_approved",
-              summary: remediationEvidenceSummary("approved", liveFinding),
+              summary: remediationEvidenceSummary("approved", finding),
               projectId: project.id,
-              controlId: liveFinding.controlId,
-              findingId: liveFinding.id,
+              controlId: finding.controlId,
+              findingId: finding.id,
               detail: remediationEvidenceDetail({
                 approvalAction: "create_draft_pull_request",
+                note: "Approved by creating a draft pull request",
               }),
+              actor: ctx.actor,
             });
           }
-          appendEvidence(payload, {
+          await insertEvidence(ctx.tx, {
             kind: "pull_request_prepared",
-            summary: `Pull request prepared for ${liveFinding.checkId}: ${result.prUrl}`,
+            summary: `Pull request prepared for ${finding.checkId}: ${result.prUrl}`,
             projectId: project.id,
-            controlId: liveFinding.controlId,
-            findingId: liveFinding.id,
+            controlId: finding.controlId,
+            findingId: finding.id,
             detail: {
               branch: result.branch,
+              base: result.base,
               prUrl: result.prUrl,
               title: result.title,
             },
+            actor: ctx.actor,
           });
-          return payload;
         },
       );
     } catch (error) {
       // The draft PR already exists on GitHub. Surface the URL so the write
       // can be retried — prepare force-pushes to the same branch and reuses
-      // the open PR instead of opening a second one.
+      // the open PR instead of opening a second one. The raw DB error goes to
+      // telemetry only, never into user-facing copy.
+      reportError(error, {
+        code: "pull_request_evidence_write_failed",
+        findingId,
+      });
       throw new PublicError(
-        `Draft pull request ${result.prUrl} was created on branch \`${result.branch}\` but the database write failed (${error instanceof Error ? error.message : "unknown error"}). Retry — the existing branch and PR will be reused.`,
+        `Draft pull request ${result.prUrl} was created on branch \`${result.branch}\` but the database write failed. Retry — the existing branch and PR will be reused.`,
       );
     }
     refresh(...COMPLIANCE_LOOP_ROUTES);

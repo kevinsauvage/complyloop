@@ -75,12 +75,17 @@ export const memberships = pgTable(
       .references(() => organizations.id, { onDelete: "cascade" }),
     userId: text("user_id"),
     githubLogin: text("github_login").notNull(),
+    /** GitHub numeric account id a pending invite is bound to. */
+    githubUserId: text("github_user_id"),
     role: text("role").notNull(),
     payload: jsonb("payload").$type<OrgMembership>().notNull(),
   },
   (table) => [
     index("memberships_org_id_idx").on(table.orgId),
     index("memberships_user_id_idx").on(table.userId),
+    index("memberships_github_user_id_unclaimed_idx")
+      .on(table.githubUserId)
+      .where(sql`${table.userId} IS NULL`),
     index("memberships_github_login_idx").on(table.githubLogin),
     // Login lookup without an org (`lower(github_login) = $1`) cannot use the
     // composite (org_id, lower(...)) unique index.
@@ -157,15 +162,22 @@ export const assessments = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
+    /** Denormalized `payload.startedAt` — assessments always sort on it. */
+    startedAt: timestamp("started_at", { withTimezone: true, mode: "string" }),
+    /** Denormalized `payload.completedAt` — assessments always sort on it. */
+    completedAt: timestamp("completed_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
     payload: jsonb("payload").$type<AssessmentPayload>().notNull(),
   },
   (table) => [
     index("assessments_project_id_idx").on(table.projectId),
-    // Latest-per-project ordering; the app always sorts by completedAt/startedAt.
-    index("assessments_project_completed_idx").on(
+    // Latest-per-project ordering on real columns (see 0006).
+    index("assessments_project_completed_at_idx").on(
       table.projectId,
-      sql`(${table.payload}->>'completedAt') DESC`,
-      sql`(${table.payload}->>'startedAt') DESC`,
+      table.completedAt.desc(),
+      table.startedAt.desc(),
     ),
   ],
 );
@@ -176,6 +188,10 @@ export const assessmentSnapshots = pgTable("assessment_snapshots", {
     .primaryKey()
     .references(() => assessments.id, { onDelete: "cascade" }),
   snapshot: jsonb("snapshot").$type<AssessmentSnapshot>().notNull(),
+  // Dedup marker: when a run's file hashes are byte-identical to the previous
+  // stored map, the row keeps gitHead/scope but stores an empty fileHashes
+  // map. Readers fall back to the latest row with hashesUnchanged = false.
+  hashesUnchanged: boolean("hashes_unchanged").notNull().default(false),
 });
 
 export const findings = pgTable(
@@ -190,6 +206,35 @@ export const findings = pgTable(
       .notNull()
       .references(() => assessments.id, { onDelete: "cascade" }),
     status: text("status").notNull(),
+    /**
+     * Denormalized `payload.kind` (`violation` = hard fail that blocks a
+     * requirement, `warning` = review signal). The org portfolio groups open
+     * violations per project, so it must not be a JSON path.
+     */
+    kind: text("kind").notNull(),
+    /**
+     * Denormalized engine bucket (`ast`/`runtime`, derived from `analyzerId`
+     * via `engineFor` at write time) so list filters run in SQL. Synced from
+     * the payload by the repo mappers — the only writers.
+     */
+    engine: text("engine").notNull(),
+    /**
+     * Denormalized `SEVERITY_RANK` (contract/statuses): lower sorts first.
+     * Lets list loads order + cap in SQL (`ORDER BY severity_rank, id`) with
+     * the same order as the JS fallback sort. Synced from the payload by the
+     * repo mappers — the only writers.
+     */
+    severityRank: integer("severity_rank").notNull(),
+    /**
+     * Denormalized `payload.detectedAt` as a real timestamp: a sticky human
+     * decision is re-armed by violations detected after it, which compared ISO
+     * strings as text before. Nullable — a legacy row with no parseable value
+     * reads as "unknown", never "long ago".
+     */
+    detectedAt: timestamp("detected_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
     payload: jsonb("payload").$type<Finding>().notNull(),
   },
   (table) => [
@@ -198,9 +243,36 @@ export const findings = pgTable(
       table.projectId,
       table.assessmentId,
     ),
+    // Severity-first list loads: status-scoped, ordered, capped.
+    index("findings_project_status_severity_idx").on(
+      table.projectId,
+      table.status,
+      table.severityRank,
+      table.id,
+    ),
+    // Control-scoped list filter + open-count group-by.
+    index("findings_project_control_idx").on(table.projectId, table.controlId),
+    // Sticky-decision re-arm: open findings per control detected after a date.
+    index("findings_open_detected_idx")
+      .on(table.projectId, table.controlId, table.detectedAt)
+      .where(sql`${table.status} = 'open'`),
+    // Open-violation counts per project (portfolio table).
+    index("findings_project_status_kind_idx").on(
+      table.projectId,
+      table.status,
+      table.kind,
+    ),
     check(
       "findings_status_check",
       sqlIn(sql`${table.status}`, FINDING_STATUSES),
+    ),
+    check(
+      "findings_kind_check",
+      sqlIn(sql`${table.kind}`, ["violation", "warning"]),
+    ),
+    check(
+      "findings_engine_check",
+      sqlIn(sql`${table.engine}`, ["ast", "runtime"]),
     ),
   ],
 );
@@ -262,7 +334,7 @@ export const evidence = pgTable(
   (table) => [
     index("evidence_at_idx").on(table.at),
     index("evidence_project_at_idx").on(table.projectId, table.at),
-    index("evidence_finding_at_idx").on(table.findingId, table.at),
+    index("evidence_finding_at_idx").on(table.findingId, table.at.desc()),
     index("evidence_project_kind_at_idx").on(
       table.projectId,
       table.kind,
@@ -346,6 +418,12 @@ export const assessmentJobs = pgTable(
     // recoverExpiredLeases scans running jobs by lease expiry on every claim tick.
     index("assessment_jobs_running_lease_idx")
       .on(table.leaseExpiresAt)
+      .where(sql`${table.status} = 'running'`),
+    // Serial-per-project backstop (drizzle/0000_init): the claim-time NOT EXISTS
+    // guard cannot see a concurrent uncommitted `running` row under READ
+    // COMMITTED, so the database rejects a second concurrent claim (23505).
+    uniqueIndex("assessment_jobs_running_project_uidx")
+      .on(table.projectId)
       .where(sql`${table.status} = 'running'`),
     uniqueIndex("assessment_jobs_idempotency_uidx")
       .on(table.idempotencyKey)

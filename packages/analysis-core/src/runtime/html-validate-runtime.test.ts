@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
-  registerPlaywrightBrowserTeardown,
   withPlaywrightPage,
 } from "./custom-checks/playwright-page";
+import { registerPlaywrightBrowserTeardown } from "./custom-checks/playwright-test-teardown";
 import {
   HTML_VALIDATE_INPUT_KIND,
   HTML_VALIDATE_RENDERED_RULE_IDS,

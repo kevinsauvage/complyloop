@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { projectPath } from "./constants";
+
 test.describe("public pages", () => {
   test("landing page renders hero and primary CTA", async ({ page }) => {
     await page.goto("/");
@@ -27,10 +29,10 @@ test.describe("public pages", () => {
     ).toBeVisible();
   });
 
-  test("unsigned user is redirected from dashboard to login", async ({
+  test("unsigned user is redirected from a project page to login", async ({
     page,
   }) => {
-    await page.goto("/dashboard");
+    await page.goto(projectPath("dashboard"));
     await expect(page).toHaveURL(/\/login/);
     await expect(
       page.getByRole("heading", { name: "Sign in to ComplyLoop" }),

@@ -380,7 +380,8 @@ export const rgaaControls: Control[] = [
     title: "Text remains readable at 200% resize",
     description:
       "Content stays readable when text is enlarged to 200% without clipping or horizontal scrolling.",
-    checkId: "resize-text",
+    // Runtime probe retired (unreliable signal); reviewed manually.
+    checkId: null,
     complianceWeight: 1.3,
   },
   {
@@ -941,7 +942,8 @@ export const rgaaControls: Control[] = [
     title: "No part of the focused control is hidden",
     description:
       "Sticky headers, banners, and overlays must not cover any portion of the focused control.",
-    checkId: "focus-not-obscured-enhanced",
+    // Runtime probe retired (unreliable signal); reviewed manually.
+    checkId: null,
     complianceWeight: 1.2,
   },
   {
@@ -952,7 +954,8 @@ export const rgaaControls: Control[] = [
     title: "Focus indicator meets minimum size",
     description:
       "The focus indicator is large enough to be visible when keyboard navigating.",
-    checkId: "focus-appearance",
+    // Runtime probe retired (unreliable signal); reviewed manually.
+    checkId: null,
     complianceWeight: 1.2,
   },
   {
@@ -1073,7 +1076,8 @@ export const rgaaControls: Control[] = [
     title: "Controls remain visible in forced-colors mode",
     description:
       "Interactive controls keep a visible boundary or filled background when forced-colors is active (Windows High Contrast).",
-    checkId: "forced-colors",
+    // Runtime probe retired (unreliable signal); reviewed manually.
+    checkId: null,
     complianceWeight: 1.3,
   },
   {
@@ -1117,7 +1121,8 @@ export const rgaaControls: Control[] = [
     title: "Labels are visually adjacent to fields",
     description:
       "Programmatic labels appear next to the controls they name, not far away on the page.",
-    checkId: "label-adjacent",
+    // Runtime probe retired (unreliable signal); reviewed manually.
+    checkId: null,
     complianceWeight: 1.2,
   },
   {
@@ -1128,7 +1133,9 @@ export const rgaaControls: Control[] = [
     title: "Foreground and background colors are paired",
     description:
       "Text containers set both color and background-color so user stylesheets do not break contrast.",
-    checkId: "both-colors",
+    // Automated inline-style inference removed (too many false positives);
+    // reviewed manually until a reliable signal exists.
+    checkId: null,
     complianceWeight: 1.2,
   },
   {
@@ -1150,7 +1157,8 @@ export const rgaaControls: Control[] = [
     title: "Essential content is not CSS-only",
     description:
       "Information is available when author stylesheets are disabled; text is not conveyed only through CSS content or background images.",
-    checkId: "css-disabled-content",
+    // Runtime probe retired (unreliable signal); reviewed manually.
+    checkId: null,
     complianceWeight: 1.1,
   },
   {
@@ -1700,7 +1708,8 @@ export const rgaaControls: Control[] = [
     title: "CSS-only extra content is available from the keyboard",
     description:
       "Content shown only via :hover or :focus CSS can also be revealed with keyboard focus.",
-    checkId: "css-hover-keyboard",
+    // Runtime probe retired (unreliable signal); reviewed manually.
+    checkId: null,
     complianceWeight: 1.2,
   },
   {

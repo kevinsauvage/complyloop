@@ -35,6 +35,49 @@ export function contrastRatio(
   return (lighter + 0.05) / (darker + 0.05);
 }
 
+/**
+ * WCAG 1.4.11 only asks for a 3:1 boundary when the boundary is what
+ * identifies the control. A button whose visible text or icon already
+ * contrasts 3:1 against its background is identified without its border, so
+ * a quiet outline is a design choice, not a failure. Runs in the page
+ * (stringified), so it must stay self-contained.
+ */
+export function contentIdentifiesControl(
+  el: Element,
+  background: [number, number, number],
+  parseColor: (value: string) => { rgb: [number, number, number] } | null,
+  contrast: (
+    a: [number, number, number],
+    b: [number, number, number],
+  ) => number,
+): boolean {
+  let hasContent = false;
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (!(node.textContent ?? "").trim()) continue;
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const rect = range.getBoundingClientRect();
+    // Visually-hidden (sr-only) text is 1px: it does not identify anything.
+    if (rect.width > 2 && rect.height > 2) {
+      hasContent = true;
+      break;
+    }
+  }
+  if (!hasContent) {
+    for (const graphic of Array.from(el.querySelectorAll("svg,img"))) {
+      const rect = graphic.getBoundingClientRect();
+      if (rect.width >= 8 && rect.height >= 8) {
+        hasContent = true;
+        break;
+      }
+    }
+  }
+  if (!hasContent) return false;
+  const color = parseColor(getComputedStyle(el).color);
+  return color !== null && contrast(color.rgb, background) >= 3;
+}
+
 const MAX_HOVER = 12;
 const MAX_NODES = 5;
 
@@ -47,6 +90,7 @@ const MATH_PAYLOAD = {
   parseColorSrc: parseCssColor.toString(),
   luminanceSrc: relativeLuminance.toString(),
   contrastSrc: contrastRatio.toString(),
+  identitySrc: contentIdentifiesControl.toString(),
 };
 
 export async function nonTextContrastViolation(
@@ -124,7 +168,13 @@ async function collectCurrentHits(page: Page): Promise<{
     page,
     (
       captureHit,
-      { parseColorSrc, luminanceSrc, contrastSrc, controlSelector },
+      {
+        parseColorSrc,
+        luminanceSrc,
+        contrastSrc,
+        identitySrc,
+        controlSelector,
+      },
     ) => {
       const parseColor = new Function(
         "value",
@@ -135,20 +185,62 @@ async function collectCurrentHits(page: Page): Promise<{
         "b",
         `const relativeLuminance = (${luminanceSrc}); const contrastRatio = (${contrastSrc}); return contrastRatio(a, b);`,
       ) as (a: [number, number, number], b: [number, number, number]) => number;
+      const identifiedByContent = new Function(
+        "el",
+        "bg",
+        "parseColor",
+        "contrast",
+        `return (${identitySrc})(el, bg, parseColor, contrast);`,
+      ) as (
+        el: Element,
+        bg: [number, number, number],
+        parseColor: typeof parseCssColor,
+        contrast: (
+          a: [number, number, number],
+          b: [number, number, number],
+        ) => number,
+      ) => boolean;
 
+      // Composites translucent layers (`bg-background/60`, `dark:bg-input/30`)
+      // over what is behind them up to the first opaque ancestor. Taking the
+      // first non-transparent layer's rgb alone would measure a 30% tint as if
+      // it were solid.
       function backgroundRgb(el: Element): [number, number, number] | null {
+        const layers: Array<{ rgb: [number, number, number]; alpha: number }> =
+          [];
         let current: Element | null = el;
         while (current) {
-          const parsed = parseColor(
-            getComputedStyle(current).backgroundColor,
-          );
-          if (parsed && parsed.alpha > 0) return parsed.rgb;
+          const parsed = parseColor(getComputedStyle(current).backgroundColor);
+          if (parsed && parsed.alpha > 0) {
+            layers.push(parsed);
+            if (parsed.alpha >= 1) break;
+          }
           current = current.parentElement;
         }
-        const bodyParsed = parseColor(
-          getComputedStyle(document.body).backgroundColor,
-        );
-        return bodyParsed && bodyParsed.alpha > 0 ? bodyParsed.rgb : null;
+        // Nothing opaque behind the layers: the canvas default is white.
+        const base: [number, number, number] =
+          layers.length > 0 && (layers[layers.length - 1]?.alpha ?? 0) >= 1
+            ? ([...(layers[layers.length - 1]?.rgb ?? [255, 255, 255])] as [
+                number,
+                number,
+                number,
+              ])
+            : [255, 255, 255];
+        const start =
+          layers.length > 0 && (layers[layers.length - 1]?.alpha ?? 0) >= 1
+            ? layers.length - 2
+            : layers.length - 1;
+        let color = base;
+        for (let index = start; index >= 0; index -= 1) {
+          const layer = layers[index];
+          if (!layer) continue;
+          color = [
+            layer.rgb[0] * layer.alpha + color[0] * (1 - layer.alpha),
+            layer.rgb[1] * layer.alpha + color[1] * (1 - layer.alpha),
+            layer.rgb[2] * layer.alpha + color[2] * (1 - layer.alpha),
+          ];
+        }
+        return color;
       }
 
       function isDisabled(el: Element): boolean {
@@ -182,7 +274,11 @@ async function collectCurrentHits(page: Page): Promise<{
       for (const el of controls) {
         if (!(el instanceof HTMLElement)) continue;
         if (isDisabled(el)) continue;
+        // Not rendered at this viewport (`lg:hidden`, `display: none`): no
+        // boundary exists to measure.
+        if (el.getClientRects().length === 0) continue;
         const style = getComputedStyle(el);
+        if (style.visibility === "hidden") continue;
         const borderWidth = parseFloat(style.borderTopWidth);
         if (borderWidth <= 0) continue;
         const parsedBorder = parseColor(style.borderTopColor);
@@ -193,6 +289,7 @@ async function collectCurrentHits(page: Page): Promise<{
         const border = parsedBorder.rgb;
         const bg = backgroundRgb(el);
         if (!bg) continue;
+        if (identifiedByContent(el, bg, parseColor, contrast)) continue;
         const ratio = contrast(border, bg);
         if (ratio >= 3) continue;
 
@@ -213,7 +310,11 @@ async function collectCurrentHits(page: Page): Promise<{
 async function collectHoverHit(locator: Locator): Promise<ContrastHit | null> {
   return locatorEvaluateWithHitCapture(
     locator,
-    (captureHit, el, { parseColorSrc, luminanceSrc, contrastSrc }) => {
+    (
+      captureHit,
+      el,
+      { parseColorSrc, luminanceSrc, contrastSrc, identitySrc },
+    ) => {
       const parseColor = new Function(
         "value",
         `const parseCssColor = (${parseColorSrc}); return parseCssColor(value);`,
@@ -223,20 +324,62 @@ async function collectHoverHit(locator: Locator): Promise<ContrastHit | null> {
         "b",
         `const relativeLuminance = (${luminanceSrc}); const contrastRatio = (${contrastSrc}); return contrastRatio(a, b);`,
       ) as (a: [number, number, number], b: [number, number, number]) => number;
+      const identifiedByContent = new Function(
+        "el",
+        "bg",
+        "parseColor",
+        "contrast",
+        `return (${identitySrc})(el, bg, parseColor, contrast);`,
+      ) as (
+        el: Element,
+        bg: [number, number, number],
+        parseColor: typeof parseCssColor,
+        contrast: (
+          a: [number, number, number],
+          b: [number, number, number],
+        ) => number,
+      ) => boolean;
 
+      // Composites translucent layers (`bg-background/60`, `dark:bg-input/30`)
+      // over what is behind them up to the first opaque ancestor. Taking the
+      // first non-transparent layer's rgb alone would measure a 30% tint as if
+      // it were solid.
       function backgroundRgb(node: Element): [number, number, number] | null {
+        const layers: Array<{ rgb: [number, number, number]; alpha: number }> =
+          [];
         let current: Element | null = node;
         while (current) {
-          const parsed = parseColor(
-            getComputedStyle(current).backgroundColor,
-          );
-          if (parsed && parsed.alpha > 0) return parsed.rgb;
+          const parsed = parseColor(getComputedStyle(current).backgroundColor);
+          if (parsed && parsed.alpha > 0) {
+            layers.push(parsed);
+            if (parsed.alpha >= 1) break;
+          }
           current = current.parentElement;
         }
-        const bodyParsed = parseColor(
-          getComputedStyle(document.body).backgroundColor,
-        );
-        return bodyParsed && bodyParsed.alpha > 0 ? bodyParsed.rgb : null;
+        // Nothing opaque behind the layers: the canvas default is white.
+        const base: [number, number, number] =
+          layers.length > 0 && (layers[layers.length - 1]?.alpha ?? 0) >= 1
+            ? ([...(layers[layers.length - 1]?.rgb ?? [255, 255, 255])] as [
+                number,
+                number,
+                number,
+              ])
+            : [255, 255, 255];
+        const start =
+          layers.length > 0 && (layers[layers.length - 1]?.alpha ?? 0) >= 1
+            ? layers.length - 2
+            : layers.length - 1;
+        let color = base;
+        for (let index = start; index >= 0; index -= 1) {
+          const layer = layers[index];
+          if (!layer) continue;
+          color = [
+            layer.rgb[0] * layer.alpha + color[0] * (1 - layer.alpha),
+            layer.rgb[1] * layer.alpha + color[1] * (1 - layer.alpha),
+            layer.rgb[2] * layer.alpha + color[2] * (1 - layer.alpha),
+          ];
+        }
+        return color;
       }
 
       const style = getComputedStyle(el);
@@ -247,6 +390,7 @@ async function collectHoverHit(locator: Locator): Promise<ContrastHit | null> {
       const border = parsedBorder.rgb;
       const bg = backgroundRgb(el);
       if (!bg) return null;
+      if (identifiedByContent(el, bg, parseColor, contrast)) return null;
       const ratio = contrast(border, bg);
       if (ratio >= 3) return null;
       const captured = captureHit(el);

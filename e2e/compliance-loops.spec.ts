@@ -1,14 +1,16 @@
 import { expect, test } from "@playwright/test";
 
+import { projectFindingPath, projectPath } from "./constants";
+
 /**
  * Additional compliance loops beyond assess → remediate → verify
  * (covered in core-loop.spec.ts).
  */
 test.describe("compliance loops", () => {
   test("assess → record requirement exception → evidence", async ({ page }) => {
-    await page.goto("/dashboard");
+    await page.goto(projectPath("dashboard"));
     await expect(
-      page.getByRole("heading", { name: /sample-app|Welcome to ComplyLoop/i }),
+      page.getByRole("heading", { name: "Dashboard" }),
     ).toBeVisible();
 
     await page.getByRole("button", { name: "Run assessment" }).click();
@@ -19,17 +21,21 @@ test.describe("compliance loops", () => {
     ).toBeVisible({ timeout: 60_000 });
 
     await page
-      .getByRole("navigation", { name: "Main" })
+      .getByRole("navigation", { name: "Project" })
       .getByRole("link", { name: /Requirements/ })
       .first()
       .click();
     await expect(
-      page.getByRole("heading", { name: "Requirements" }),
+      page.getByRole("heading", { name: "Requirements", exact: true }),
     ).toBeVisible();
 
+    // Exception entry is a collapsible per requirement: the trigger is named
+    // exactly "Record exception" (the old "(N/A…)" suffix is gone; the reason
+    // select inside defaults to "Not applicable").
     const exceptionTrigger = page
       .getByRole("button", {
-        name: /Record exception \(N\/A/i,
+        name: "Record exception",
+        exact: true,
       })
       .first();
     await expect(exceptionTrigger).toBeVisible({ timeout: 15_000 });
@@ -39,9 +45,11 @@ test.describe("compliance loops", () => {
     await expect(note).toBeVisible();
     await note.fill("E2E exception: marketing microsite out of scope.");
 
-    await page
+    // Scope the submit to the opened form: the trigger above shares the
+    // exact accessible name, so an unscoped click would re-collapse it.
+    const exceptionForm = page.locator("form").filter({ has: note }).first();
+    await exceptionForm
       .getByRole("button", { name: "Record exception", exact: true })
-      .first()
       .click();
 
     // Success toast is ephemeral after `refresh()`; assert durable exception UI.
@@ -53,7 +61,7 @@ test.describe("compliance loops", () => {
     ).toBeVisible();
 
     await page
-      .getByRole("navigation", { name: "Main" })
+      .getByRole("navigation", { name: "Project" })
       .getByRole("link", { name: /Evidence/ })
       .first()
       .click();
@@ -68,7 +76,7 @@ test.describe("compliance loops", () => {
   });
 
   test("dismiss finding → evidence trail retains reason", async ({ page }) => {
-    await page.goto("/findings/e2e-finding-img-alt");
+    await page.goto(projectFindingPath("e2e-finding-img-alt"));
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 
     await page.getByRole("button", { name: /Dismiss…/ }).click();
@@ -87,7 +95,7 @@ test.describe("compliance loops", () => {
     });
 
     await page
-      .getByRole("navigation", { name: "Main" })
+      .getByRole("navigation", { name: "Project" })
       .getByRole("link", { name: /Evidence/ })
       .first()
       .click();
@@ -104,7 +112,7 @@ test.describe("compliance loops", () => {
   test("HTML compliance report is structured and printable", async ({
     page,
   }) => {
-    const response = await page.goto("/evidence/report/html");
+    const response = await page.goto(`${projectPath("evidence")}/report/html`);
     expect(response?.ok()).toBeTruthy();
     await expect(
       page.getByRole("heading", { name: /Audit report/i }),
@@ -116,8 +124,23 @@ test.describe("compliance loops", () => {
     await expect(
       page.getByRole("heading", { name: "Evidence trail" }),
     ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: /Print \/ Save as PDF/i }),
-    ).toBeVisible();
+    const printButton = page.getByRole("button", {
+      name: /Print \/ Save as PDF/i,
+    });
+    await expect(printButton).toBeVisible();
+    // The page CSP blocks inline handlers: prove the click really prints.
+    await page.evaluate(() => {
+      const target = window as Window & { printed?: boolean };
+      target.printed = false;
+      target.print = () => {
+        target.printed = true;
+      };
+    });
+    await printButton.click();
+    await expect
+      .poll(() =>
+        page.evaluate(() => (window as Window & { printed?: boolean }).printed),
+      )
+      .toBe(true);
   });
 });

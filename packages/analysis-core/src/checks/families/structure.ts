@@ -24,6 +24,22 @@ import {
 
 const HEADING = /^h([1-6])$/i;
 
+/**
+ * Rendered heading level of a tag. Design-system components (`<H3 as="h2">`)
+ * render the level their `as` prop names, not the one in their name: a literal
+ * `as` wins, and a dynamic `as` is unknown (undefined) rather than guessed.
+ */
+function headingLevelOf(node: JsxTagNode): number | undefined {
+  const tag = tagNameOf(node);
+  const match = HEADING.exec(tag);
+  if (!match) return undefined;
+  const as = getAttribute(node, "as");
+  if (!as) return Number(match[1]);
+  const literal = stringValueOf(as);
+  const target = literal ? HEADING.exec(literal) : null;
+  return target ? Number(target[1]) : undefined;
+}
+
 export const headingOrderCheck: AccessibilityCheck = {
   id: "heading-order",
   run(source) {
@@ -31,9 +47,8 @@ export const headingOrderCheck: AccessibilityCheck = {
     let previousLevel = 0;
 
     visitJsxTags(source.sourceFile, (node) => {
-      const match = HEADING.exec(tagNameOf(node));
-      if (!match) return;
-      const level = Number(match[1]);
+      const level = headingLevelOf(node);
+      if (level === undefined) return;
       if (previousLevel > 0 && level > previousLevel + 1) {
         findings.push({
           checkId: "heading-order",
@@ -84,15 +99,20 @@ export const listStructureCheck: AccessibilityCheck = {
 
       if (tag === "li") {
         const parent = parentListTag(node);
-        if (!parent || !LIST_TAGS.has(parent)) {
+        // A custom component parent (`<SiteMapGroup>`) may render the <ul>
+        // itself: its output is unknowable here, so only host parents count.
+        if (parent && /^[A-Z]/.test(parent)) return;
+        // No JSX parent in this file at all: the <li> is the root a component
+        // returns, and its <ul> lives in whoever renders it. The rendered-DOM
+        // `list`/`listitem` axe rules judge that; this file cannot.
+        if (!parent) return;
+        if (!LIST_TAGS.has(parent)) {
           findings.push({
             checkId: "list-structure",
             kind: "violation",
             severity: "moderate",
-            confidence: parent ? "high" : "medium",
-            reason: parent
-              ? `<li> must be a direct child of <ul>, <ol>, or <menu> (found under <${parent}>).`
-              : "<li> has no list parent in this file; wrap it in <ul>, <ol>, or <menu>.",
+            confidence: "high",
+            reason: `<li> must be a direct child of <ul>, <ol>, or <menu> (found under <${parent}>).`,
             location: locationOf(source, node),
             fix: null,
           });

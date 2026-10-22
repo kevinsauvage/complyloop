@@ -1,0 +1,32 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "ignoreExportsUsedInFile": true,
+  "drizzle": false,
+  "ignoreDependencies": [
+    "axe-core",
+    "postcss",
+    "shadcn",
+    "tailwindcss",
+    "tw-animate-css",
+    "playwright"
+  ],
+  "workspaces": {
+    ".": {
+      "entry": [
+        "src/app/**/{page,layout,route,loading,error,global-error,not-found,template,default}.{ts,tsx}",
+        "src/**/*.test.{ts,tsx}",
+        "scripts/*.ts",
+        "e2e/**/*.spec.ts"
+      ],
+      "project": ["src/**/*.{ts,tsx}", "scripts/**/*.ts", "e2e/**/*.ts"]
+    },
+    "packages/analysis-core": {
+      "entry": ["src/**/*.test.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/db": {
+      "entry": ["src/**/*.test.ts", "src/test-fixtures/**/*.ts"],
+      "project": ["src/**/*.ts"]
+    }
+  }
+}

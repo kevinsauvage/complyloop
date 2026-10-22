@@ -79,7 +79,8 @@ describe("reportShell", () => {
     expect(html).toContain("<!DOCTYPE html>");
     expect(html).toContain("<style>");
     expect(html).toContain("<section>Body</section>");
-    expect(html).not.toContain("<script");
+    // The print hook is the only script.
+    expect(html.match(/<script/g)).toHaveLength(1);
     expect(html).toContain("&lt;project&gt;");
     expect(html).toContain("window.print()");
   });

@@ -49,10 +49,22 @@ export interface Assessment {
   startedAt: string;
   completedAt: string;
   filesScanned: number;
-  /** Whether this run scanned the full tree or only changed JSX files. */
-  scanMode?: "full" | "scoped";
+  /**
+   * Whether this run scanned the full tree, only changed JSX files, or reused
+   * prior findings without scanning (`reused` — same commit + control scope +
+   * engine set). Display/telemetry only: no status logic branches on it.
+   * `filesScanned` still carries the previous count on `reused` runs because
+   * standard-authority derivation requires a real scan behind the findings.
+   */
+  scanMode?: "full" | "scoped" | "reused";
   /** Which engines ran (AST always; runtime when a preview URL is configured). */
   engines?: AssessmentEngines;
+  /**
+   * Point-in-time requirement counts at completion (for the completion
+   * evidence + reports). The dashboard and all live UI derive counts from
+   * current requirements instead — never read this for display, or the two
+   * disagree after any human edit. No live reader exists today by design.
+   */
   summary: Record<RequirementStatus, number>;
   snapshot?: AssessmentSnapshot;
   /** Files that changed since the previous assessment, when detectable. */
@@ -61,15 +73,21 @@ export interface Assessment {
 
 /**
  * A persisted finding: observation fields + persistence envelope
- * (id, project, control, assessment, status, lifecycle). `engine` is not
- * stored — it is derived from `analyzerId` via `engineFor` at the UI/filter
- * boundaries. `checkId` stays a plain string at the persistence boundary;
+ * (id, project, control, assessment, status, lifecycle). `engine` is derived
+ * from `analyzerId` via `engineFor`: the UI/filter boundaries call it
+ * directly, while the persistence boundary projects it onto the
+ * `findings.engine` column at write time (repo mappers) so list filters run
+ * in SQL. `checkId` stays a plain string at the persistence boundary;
  * the strict registry union lives on `RawFinding`.
  */
 export interface Finding {
   id: string;
   projectId: string;
   controlId: string;
+  /** Assessment that created (or re-detected) this finding. Write-once: still
+   * matching in a later run must not bump this id (that would rewrite every
+   * open finding each assessment). Liveness is proven by resolves + per-run
+   * evidence, not by this id. */
   assessmentId: string;
   /** Loose string at the persistence boundary; `RawFinding` keys the strict registry union. */
   checkId: string;
@@ -97,6 +115,12 @@ export interface Finding {
   explanations: Explanation[];
   detectedAt: string;
   /**
+   * The resolved finding this one regresses: the same instance detected
+   * again after it was fixed. A regression is a new finding (a verified
+   * remediation never goes backwards), linked to the trail it reopens.
+   */
+  regressionOf?: string;
+  /**
    * Last-write timestamp for stale-write protection. Set on every upsert by
    * the repo layer; a concurrent write with a newer `updatedAt` wins, so a
    * webhook assessment applying a stale slice cannot revert a human decision.
@@ -119,6 +143,11 @@ export interface Remediation {
   findingId: string;
   status: RemediationStatus;
   suggestion: RemediationSuggestion | null;
+  /**
+   * Legacy write data: new transitions are NOT appended here (the timeline
+   * UI reads finding evidence — see P2-5). Kept so old rows still parse;
+   * new rows persist it empty.
+   */
   history: RemediationHistoryEntry[];
   /** Local to the payload so reassessment can verify without evidence history. */
   approvalAction?: "create_draft_pull_request";
@@ -184,32 +213,37 @@ export interface Requirement {
  * reusing a general kind — `finding`, `assessment_job`, or
  * `requirement_status_changed` — with a `detail` discriminant (e.g.
  * `detail.event`, `detail.phase`), and add its label/tone alongside in
- * `src/core/display.ts`'s `evidenceDisplay`. Evidence-page filter
+ * `src/core/display/evidence.ts`'s `evidenceDisplay`. Evidence-page filter
  * chips are a separate short allow-list (`EVIDENCE_KIND_FILTER_ORDER`), not
  * this type.
  */
-export type EvidenceKind =
-  | "project_connected"
-  | "project_disconnected"
-  | "project_reset"
-  | "assessment_completed"
-  | "assessment_job"
-  | "finding"
-  | "remediation_approved"
-  | "remediation_implemented"
-  | "remediation_verified"
-  | "remediation_manually_verified"
-  | "ai_remediation_suggested"
-  | "ai_patch_ready"
-  | "requirement_status_changed"
-  | "requirement_exception_set"
-  | "requirement_exception_cleared"
-  | "requirement_human_passed"
-  | "requirement_human_pass_cleared"
-  | "requirements_imported"
-  | "pull_request_prepared"
-  | "monitoring_changes_detected"
-  | "webhook_reassessment";
+export const EVIDENCE_KINDS = [
+  "project_connected",
+  "project_disconnected",
+  "project_reset",
+  "assessment_completed",
+  "assessment_job",
+  "finding",
+  "remediation_approved",
+  "remediation_implemented",
+  "remediation_verified",
+  "remediation_manually_verified",
+  "remediation_suggested",
+  "remediation_verification_failed",
+  "ai_remediation_suggested",
+  "ai_patch_ready",
+  "requirement_status_changed",
+  "requirement_exception_set",
+  "requirement_exception_cleared",
+  "requirement_human_passed",
+  "requirement_human_pass_cleared",
+  "requirements_imported",
+  "pull_request_prepared",
+  "monitoring_changes_detected",
+  "webhook_reassessment",
+] as const;
+
+export type EvidenceKind = (typeof EVIDENCE_KINDS)[number];
 
 export interface EvidenceRecord {
   id: string;

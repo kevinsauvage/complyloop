@@ -53,7 +53,13 @@ const CAROUSEL_TAGS = new Set([
   "Flickity",
 ]);
 const NONE_VALUES = new Set(["none", "unset", "initial", "inherit"]);
-const INFINITE_TAILWIND = /\banimate-(?:spin|pulse|bounce|ping)(?:\b|\[|\/)/i;
+/**
+ * Tailwind's built-in looping utilities only. A project's own
+ * `animate-pulse-subtle` / `animate-spin-slow` is defined in CSS this file
+ * cannot read (it may be a 5% opacity shift, or finite), so it is not guessed
+ * to be looping motion.
+ */
+const INFINITE_TAILWIND = /\banimate-(?:spin|pulse|bounce|ping)(?![\w-])/i;
 const ENTRANCE_MOTION =
   /\banimate-(?:in|out)\b|\b(?:fade|slide|zoom)-(?:in|out)\b/i;
 const PAUSE_LABEL = /\b(?:pause|stop|hide)\b/i;
@@ -109,10 +115,60 @@ function styleHasInfiniteAnimation(node: JsxTagNode): boolean {
   return infinite && hasAnimationCue;
 }
 
+/** Variants that only apply once the user hovers, focuses or presses. */
+const USER_TRIGGERED_VARIANT =
+  /^(?:(?:group|peer)(?:\/[\w-]+)?-)?(?:hover|focus|focus-visible|focus-within|active)$/;
+/** `[animation-iteration-count:5]`: the animation stops by itself. */
+const FINITE_ITERATION_COUNT = /\[animation-iteration-count:\d+\]/;
+
 function classNameHasInfiniteMotion(className: string): boolean {
   if (!className) return false;
   if (ENTRANCE_MOTION.test(className)) return false;
-  return INFINITE_TAILWIND.test(className);
+  if (FINITE_ITERATION_COUNT.test(className)) return false;
+  // Only classes that apply on load can move on their own: `group-hover:` or
+  // `focus:` animations need a user gesture first.
+  const autoClasses = className
+    .split(/\s+/)
+    .filter(
+      (token) =>
+        !token
+          .split(":")
+          .slice(0, -1)
+          .some((variant) => USER_TRIGGERED_VARIANT.test(variant)),
+    )
+    .join(" ");
+  return INFINITE_TAILWIND.test(autoClasses);
+}
+
+/**
+ * A loading spinner inside a status region is an essential activity
+ * indicator (WCAG 2.2.2 exempts it), not decorative motion to pause.
+ */
+function insideStatusIndicator(node: JsxTagNode): boolean {
+  // The element is itself a loading indicator: a `Loader2`/`Spinner`
+  // component, or a decorative (aria-hidden) spinning icon. Nothing else
+  // legitimately spins on a timer.
+  if (/loader|spinner|loading/i.test(tagNameOf(node))) return true;
+  const spins = /\banimate-spin\b/.test(classNameTextOf(node));
+  if (spins && getAttribute(node, "aria-hidden") !== undefined) return true;
+  let current: ts.Node | undefined = node.parent;
+  while (current) {
+    if (ts.isJsxElement(current)) {
+      const opening = current.openingElement;
+      const role = getAttribute(opening, "role");
+      const roleValue = role ? stringValueOf(role) : undefined;
+      if (
+        tagNameOf(opening) === "output" ||
+        roleValue === "status" ||
+        roleValue === "progressbar" ||
+        getAttribute(opening, "aria-busy") !== undefined
+      ) {
+        return true;
+      }
+    }
+    current = current.parent;
+  }
+  return false;
 }
 
 function isCarouselHost(node: JsxTagNode): boolean {
@@ -130,9 +186,11 @@ function isCarouselHost(node: JsxTagNode): boolean {
   return /\b(carousel|swiper)\b/i.test(classNameTextOf(node));
 }
 
-function autoplayState(node: JsxTagNode): "true" | "false" | "unknown" {
+function autoplayState(
+  node: JsxTagNode,
+): "true" | "false" | "unknown" | "absent" {
   const attr = getAttribute(node, "autoplay") ?? getAttribute(node, "autoPlay");
-  if (!attr) return "unknown";
+  if (!attr) return "absent";
   const value = booleanAttributeValue(attr);
   if (value === true) return "true";
   if (value === false) return "false";
@@ -220,13 +278,17 @@ function carouselLikelyAutoAdvances(node: JsxTagNode): boolean {
     }
   }
 
+  // No autoplay prop and no interval (`absent`): carousels do not auto-advance
+  // by default (Swiper/Embla need an explicit autoplay module), so a missing
+  // prop is not evidence. A dynamic `autoplay={maybe}` still warns.
   return autoplay === "unknown";
 }
 
 function shouldWarnAboutMotion(node: JsxTagNode): boolean {
   const cssMotion =
-    styleHasInfiniteAnimation(node) ||
-    classNameHasInfiniteMotion(classNameTextOf(node));
+    (styleHasInfiniteAnimation(node) ||
+      classNameHasInfiniteMotion(classNameTextOf(node))) &&
+    !insideStatusIndicator(node);
 
   if (cssMotion && !hasAnimationPauseControl(node)) return true;
   if (carouselLikelyAutoAdvances(node)) return true;

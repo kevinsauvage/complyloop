@@ -59,13 +59,16 @@ describe.skipIf(!enabled)("tenant database constraints", () => {
     await expect(
       unwrapDbError(
         drizzle.execute(sql`
-        INSERT INTO findings (id, project_id, control_id, assessment_id, status, payload)
+        INSERT INTO findings (id, project_id, control_id, assessment_id, status, kind, severity_rank, engine, payload)
         VALUES (
           ${`finding-orphan-${suffix}`},
           'missing-project',
           ${ids.controlId},
           ${ids.assessmentId},
           'open',
+          'violation',
+          1,
+          'ast',
           '{}'::jsonb
         )
       `),
@@ -224,8 +227,8 @@ async function insertFixtureGraph(
     VALUES (${ids.assessmentId}, ${ids.projectId}, '{}'::jsonb)
   `);
   await drizzle.execute(sql`
-    INSERT INTO findings (id, project_id, control_id, assessment_id, status, payload)
-    VALUES (${ids.findingId}, ${ids.projectId}, ${ids.controlId}, ${ids.assessmentId}, 'open', '{}'::jsonb)
+    INSERT INTO findings (id, project_id, control_id, assessment_id, status, kind, severity_rank, engine, payload)
+    VALUES (${ids.findingId}, ${ids.projectId}, ${ids.controlId}, ${ids.assessmentId}, 'open', 'violation', 1, 'ast', '{}'::jsonb)
   `);
   await drizzle.execute(sql`
     INSERT INTO remediations (id, finding_id, status, payload)
@@ -298,6 +301,8 @@ async function expectProjectScopedIndex(
   // Every tenant table has project_id-leading indexes; the planner picks any.
   // JSON.stringify puts each EXPLAIN line in its own array element, so match
   // the distinguishing substrings separately instead of one fragile regex.
-  expect(text, "plan should be an index scan").toContain("Index Scan using");
+  // "Index Only Scan" (covering index) satisfies the intent — match the
+  // shared " Scan using" tail instead of the exact node type.
+  expect(text, "plan should be an index scan").toContain(" Scan using");
   expect(text, "plan should be scoped by project_id").toContain("project_id =");
 }

@@ -4,26 +4,36 @@ import { type Browser, chromium, type Page } from "playwright-core";
 import { afterAll, describe, expect, it, vi } from "vitest";
 
 import type { RawFinding } from "../types";
+import { resolveAxeMinJsPath, runAxeOnPage } from "./axe-page";
+import { browserEnv } from "./browser";
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
-  registerPlaywrightBrowserTeardown,
   withPlaywrightPage,
 } from "./custom-checks/playwright-page";
+import { registerPlaywrightBrowserTeardown } from "./custom-checks/playwright-test-teardown";
 import * as htmlValidateRuntime from "./html-validate-runtime";
 import {
   gotoForRuntimeAudit,
   runtimePageMatchesAuditedUrl,
 } from "./runtime-navigation";
-import {
-  resolveAxeMinJsPath,
-  runAxeOnPage,
-  type RuntimePageScanner,
-  runtimeViolationStillPresent,
-} from "./scan";
+import { type RuntimePageScanner, runtimeViolationVerification } from "./scan";
 import { emulateCoarsePointer } from "./viewport-conditions";
 
 registerPlaywrightBrowserTeardown();
+
+describe("browserEnv", () => {
+  it("passes only the allowlisted variables to Chromium, never worker secrets", () => {
+    const env = browserEnv({
+      PATH: "/usr/bin",
+      HOME: "/home/runner",
+      DATABASE_URL: "postgres://user:secret@db/prod",
+      GITHUB_APP_PRIVATE_KEY: "-----BEGIN RSA PRIVATE KEY-----",
+      AUTH_SECRET: "secret",
+    });
+    expect(env).toEqual({ PATH: "/usr/bin", HOME: "/home/runner" });
+  });
+});
 
 describe("runAxeOnPage", () => {
   let browser: Browser | null = null;
@@ -58,52 +68,47 @@ describe("runAxeOnPage", () => {
     30_000,
   );
 
-  it("continues when injection throws but axe landed (CSP race noise)", async () => {
-    // Models Playwright's `_raceWithCSPError`: a third-party beacon blocked
-    // by the page's own CSP rejects addScriptTag even though the script
-    // appended fine. The presence re-check distinguishes noise from failure.
-    // Present-check calls pass a single arg; the axe.run call passes two.
-    let presentCalls = 0;
-    let injections = 0;
-    const page = {
-      evaluate: async (...args: unknown[]) => {
-        if (args.length === 1) {
-          presentCalls++;
-          return presentCalls >= 2;
-        }
-        return { violations: [], incomplete: [] };
-      },
-      addScriptTag: async () => {
-        injections++;
-        throw new Error(
-          "page.addScriptTag: Connecting to 'https://tracker.example.com/api/send' violates the following Content Security Policy directive: \"connect-src 'self'\". The action has been blocked.",
-        );
-      },
-    } as unknown as Page;
-    const result = await runAxeOnPage(page);
-    expect(result.violations).toEqual([]);
-    expect(injections).toBe(1);
-  });
-
-  it("fails closed with a CSP message when injection never lands", async () => {
-    let injections = 0;
+  it("fails closed when the engine never initializes", async () => {
     const page = {
       evaluate: async (...args: unknown[]) => {
         if (args.length === 1) return false;
         return { violations: [], incomplete: [] };
       },
-      addScriptTag: async () => {
-        injections++;
-        throw new Error(
-          "page.addScriptTag: Refused to execute inline script because it violates the following Content Security Policy directive: \"script-src 'self'\".",
-        );
-      },
     } as unknown as Page;
     await expect(runAxeOnPage(page)).rejects.toThrow(
-      /Content Security Policy/,
+      /Could not initialize the accessibility engine/,
     );
-    expect(injections).toBe(3);
   });
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "loads the engine on a page whose script-src blocks injected <script> elements",
+    async () => {
+      // addScriptTag appends a <script> element, which the page's script-src
+      // governs; page.evaluate goes through the debugger protocol and is not
+      // restricted. This is the strict-CSP preview that previously failed.
+      if (!browser) browser = await chromium.launch({ headless: true });
+      const context = await browser.newContext();
+      try {
+        const page = await context.newPage();
+        await page.route("https://strict-csp.example/**", (route) =>
+          route.fulfill({
+            contentType: "text/html",
+            headers: {
+              "content-security-policy":
+                "default-src 'self'; script-src 'self'",
+            },
+            body: `<!doctype html><html lang="en"><head><title>t</title></head><body><img src="x"></body></html>`,
+          }),
+        );
+        await page.goto("https://strict-csp.example/");
+        const result = await runAxeOnPage(page);
+        expect(result.violations.some((v) => v.id === "image-alt")).toBe(true);
+      } finally {
+        await context.close();
+      }
+    },
+    30_000,
+  );
 
   it.skipIf(!chromiumExecutableAvailable())(
     "survives third-party CSP beacon noise during axe injection",
@@ -283,7 +288,7 @@ describe("runtime engine isolation", () => {
   );
 });
 
-describe("runtimeViolationStillPresent", () => {
+describe("runtimeViolationVerification", () => {
   const domFinding = {
     checkId: "color-contrast" as const,
     location: {
@@ -310,76 +315,88 @@ describe("runtimeViolationStillPresent", () => {
     findings: RawFinding[],
     extras: { loadedCleanly?: boolean; finalUrl?: string; url?: string } = {},
   ): RuntimePageScanner {
-    return async () => [
-      {
-        url: extras.url ?? "https://8.8.8.8/checkout",
-        violations: [],
-        customFindings: findings,
-        loadedCleanly: extras.loadedCleanly,
-        finalUrl: extras.finalUrl,
-      },
-    ];
+    return async () => ({
+      pages: [
+        {
+          url: extras.url ?? "https://8.8.8.8/checkout",
+          violations: [],
+          customFindings: findings,
+          loadedCleanly: extras.loadedCleanly,
+          finalUrl: extras.finalUrl,
+        },
+      ],
+      pageFailures: [],
+    });
   }
 
   it("returns true when the same violation is still present", async () => {
     await expect(
-      runtimeViolationStillPresent(
+      runtimeViolationVerification(
         domFinding,
         pageWith([presentFinding], { loadedCleanly: true }),
       ),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ present: true, conclusive: true });
   });
 
   it("fails closed when a page is returned without proof it loaded cleanly", async () => {
     await expect(
-      runtimeViolationStillPresent(domFinding, pageWith([])),
-    ).resolves.toBe(true);
+      runtimeViolationVerification(domFinding, pageWith([])),
+    ).resolves.toEqual({ present: true, conclusive: false });
   });
 
   it("returns false when the violating node is gone from a cleanly loaded page", async () => {
     await expect(
-      runtimeViolationStillPresent(domFinding, async () => [
-        {
-          url: "https://8.8.8.8/checkout",
-          violations: [],
-          customFindings: [],
-          loadedCleanly: true,
-        },
-      ]),
-    ).resolves.toBe(false);
+      runtimeViolationVerification(domFinding, async () => ({
+        pages: [
+          {
+            url: "https://8.8.8.8/checkout",
+            violations: [],
+            customFindings: [],
+            loadedCleanly: true,
+          },
+        ],
+        pageFailures: [],
+      })),
+    ).resolves.toEqual({ present: false, conclusive: true });
   });
 
   it("fails closed when the loaded URL is not the audited page", async () => {
     await expect(
-      runtimeViolationStillPresent(domFinding, async () => [
-        {
-          url: "https://8.8.8.8/login",
-          violations: [],
-          customFindings: [],
-          loadedCleanly: true,
-          finalUrl: "https://8.8.8.8/login",
-        },
-      ]),
-    ).resolves.toBe(true);
+      runtimeViolationVerification(domFinding, async () => ({
+        pages: [
+          {
+            url: "https://8.8.8.8/login",
+            violations: [],
+            customFindings: [],
+            loadedCleanly: true,
+            finalUrl: "https://8.8.8.8/login",
+          },
+        ],
+        pageFailures: [],
+      })),
+    ).resolves.toEqual({ present: true, conclusive: false });
   });
 
-  it("fails closed (true) when no page is produced", async () => {
+  it("fails closed when no page is produced", async () => {
     await expect(
-      runtimeViolationStillPresent(domFinding, async () => []),
-    ).resolves.toBe(true);
+      runtimeViolationVerification(domFinding, async () => ({
+        pages: [],
+        pageFailures: [],
+      })),
+    ).resolves.toEqual({ present: true, conclusive: false });
   });
 
-  it("fails closed (true) when the scan throws (unreachable preview)", async () => {
+  it("fails closed when the scan throws (unreachable preview)", async () => {
     await expect(
-      runtimeViolationStillPresent(domFinding, async () => {
+      runtimeViolationVerification(domFinding, async () => {
         throw new Error("preview url unreachable");
       }),
-    ).resolves.toBe(true);
+    ).resolves.toEqual({ present: true, conclusive: false });
   });
 
   it("throws for a non-DOM finding instead of under-verifying", async () => {
     await expect(
-      runtimeViolationStillPresent(
+      runtimeViolationVerification(
         {
           checkId: "color-contrast",
           location: {

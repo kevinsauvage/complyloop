@@ -18,15 +18,20 @@ import {
   type StatusTone,
 } from "./report-tones";
 
-// ---------------------------------------------------------------------------
-// Requirement status
-// ---------------------------------------------------------------------------
-
-export interface RequirementStatusDisplay {
+/** Shared shape for every labeled display record (label + helper text). */
+interface LabeledDisplay {
   label: string;
   description: string;
-  tone: Exclude<StatusTone, "signal">;
 }
+
+/** A labeled display whose tone is always set (never `null`). */
+interface TonedDisplay extends LabeledDisplay {
+  tone: StatusTone;
+}
+
+export type RequirementStatusDisplay = TonedDisplay & {
+  tone: Exclude<StatusTone, "signal">;
+};
 
 export function requirementStatusDisplay(
   status: RequirementStatus,
@@ -70,16 +75,10 @@ const REQUIREMENT_STATUS_DISPLAY: Record<
   },
 };
 
-// ---------------------------------------------------------------------------
-// Remediation status
-// ---------------------------------------------------------------------------
-
-export interface RemediationStatusDisplay {
-  label: string;
-  description: string;
+export type RemediationStatusDisplay = LabeledDisplay & {
   tone: StatusTone | null;
   badgeVariant: BadgeVariant;
-}
+};
 
 export function remediationStatusDisplay(
   status: RemediationStatus,
@@ -127,15 +126,7 @@ const REMEDIATION_STATUS_DISPLAY: Record<
   },
 };
 
-// ---------------------------------------------------------------------------
-// Finding status
-// ---------------------------------------------------------------------------
-
-export interface FindingStatusDisplay {
-  label: string;
-  description: string;
-  tone: StatusTone;
-}
+export type FindingStatusDisplay = TonedDisplay;
 
 export function findingStatusDisplay(
   status: FindingStatus,
@@ -163,18 +154,12 @@ const FINDING_STATUS_DISPLAY: Record<FindingStatus, FindingStatusDisplay> = {
   },
 };
 
-// ---------------------------------------------------------------------------
-// Severity
-// ---------------------------------------------------------------------------
-
-export interface SeverityDisplay {
-  label: string;
-  description: string;
+export type SeverityDisplay = LabeledDisplay & {
   tone: StatusTone | null;
   badgeVariant: BadgeVariant;
   /** Print/email hex pair for the standalone report (Tailwind unavailable). */
   report: ReportColorPair;
-}
+};
 
 export function severityDisplay(severity: Severity): SeverityDisplay {
   return mustGet(SEVERITY_DISPLAY, severity, "severity");
@@ -213,15 +198,7 @@ const SEVERITY_DISPLAY: Record<Severity, SeverityDisplay> = {
   },
 };
 
-// ---------------------------------------------------------------------------
-// Determination
-// ---------------------------------------------------------------------------
-
-export interface DeterminationDisplay {
-  label: string;
-  description: string;
-  tone: StatusTone;
-}
+export type DeterminationDisplay = TonedDisplay;
 
 export function determinationDisplay(
   method: DeterminationMethod,
@@ -243,10 +220,6 @@ const DETERMINATION_DISPLAY: Record<DeterminationMethod, DeterminationDisplay> =
       tone: "signal",
     },
   };
-
-// ---------------------------------------------------------------------------
-// Confidence / provenance / engine
-// ---------------------------------------------------------------------------
 
 export interface ConfidenceDisplay {
   description: string;
@@ -270,11 +243,7 @@ const CONFIDENCE_DISPLAY: Record<Confidence, ConfidenceDisplay> = {
   },
 };
 
-export interface ProvenanceDisplay {
-  label: string;
-  description: string;
-  tone: StatusTone;
-}
+export type ProvenanceDisplay = TonedDisplay;
 
 export function provenanceDisplay(
   provenance: ExplanationProvenance,
@@ -297,12 +266,10 @@ const PROVENANCE_DISPLAY: Record<ExplanationProvenance, ProvenanceDisplay> = {
   },
 };
 
-export interface EngineDisplay {
-  label: string;
-  description: string;
+export type EngineDisplay = LabeledDisplay & {
   tone: StatusTone | null;
   badgeVariant: BadgeVariant;
-}
+};
 
 export function engineDisplay(engine: AssessmentEngine): EngineDisplay {
   return mustGet(ENGINE_DISPLAY, engine, "assessment engine");
@@ -324,10 +291,6 @@ const ENGINE_DISPLAY: Record<AssessmentEngine, EngineDisplay> = {
   },
 };
 
-// ---------------------------------------------------------------------------
-// Org role tone
-// ---------------------------------------------------------------------------
-
 export function roleTone(role: OrgRole): StatusTone {
   return mustGet(ROLE_TONE, role, "org role");
 }
@@ -339,7 +302,6 @@ const ROLE_TONE: Record<OrgRole, StatusTone> = {
   viewer: "na",
 };
 
-/** Report CSS class for a requirement status, via its unified tone. */
 export function requirementStatusReportClass(
   status: RequirementStatus,
 ): string {
@@ -348,4 +310,9 @@ export function requirementStatusReportClass(
     requirementStatusDisplay(status).tone,
     "requirement status tone",
   );
+}
+
+/** Human label for an underscore reason slug (exception/dismissal reasons). */
+export function humanizeReasonSlug(reason: string): string {
+  return reason.replace(/_/g, " ");
 }

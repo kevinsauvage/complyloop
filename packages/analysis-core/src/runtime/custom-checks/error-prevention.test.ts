@@ -4,9 +4,9 @@ import { errorPreventionViolation } from "./error-prevention";
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
-  registerPlaywrightBrowserTeardown,
   withProbePage,
 } from "./playwright-page";
+import { registerPlaywrightBrowserTeardown } from "./playwright-test-teardown";
 
 registerPlaywrightBrowserTeardown();
 

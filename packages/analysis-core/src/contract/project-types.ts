@@ -53,16 +53,29 @@ export interface OrgMembership {
   id: string;
   orgId: string;
   role: OrgRole;
-  /** Auth.js user id once claimed. */
+  /** Auth.js user id once claimed (the GitHub numeric account id). */
   userId?: string;
-  /** GitHub login used for invite + claim on sign-in. */
+  /** GitHub login, for display; refreshed on claim (logins can be renamed). */
   githubLogin: string;
+  /**
+   * GitHub numeric account id an invite is bound to, resolved from the login
+   * at invite time. The sign-in claim matches it, never the login: GitHub
+   * recycles logins, so a later holder of the name must not inherit it.
+   */
+  githubUserId?: string;
   createdAt: string;
 }
 
 export interface ProjectGitHubMeta {
   fullName: string;
   defaultBranch: string;
+  /**
+   * Branch ComplyLoop treats as the project's truth: its pushes and deployments
+   * are authoritative and manual runs check it out. Absent → `defaultBranch`.
+   * Set it when the audited site is built from another branch (a `develop`
+   * preview) so the audited deployment can match the scanned commit.
+   */
+  trackedBranch?: string;
   private: boolean;
   /**
    * GitHub App installation that granted access to this repo.
@@ -104,4 +117,11 @@ export interface Project {
    * Defaults to `["/"]` when the base URL is set and this is omitted.
    */
   runtimeRoutes?: string[];
+  /**
+   * Newest successful default-branch deployment reported by the host
+   * (`deployment_status`): the commit it serves and where. Manual runs audit
+   * it instead of the static `runtimeBaseUrl` whenever the checkout is still
+   * that commit, so the audit stays tied to what it scanned.
+   */
+  lastDeployment?: { url: string; sha: string };
 }

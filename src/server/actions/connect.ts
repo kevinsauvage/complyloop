@@ -4,23 +4,22 @@ import { z } from "zod";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
-import { parseForm, requiredField } from "@/core/validate";
-import { getGitHubAccessToken } from "@/server/github/access-token";
+import type { ActionState } from "@/core/actions/action-state";
+import { parseForm, requiredField } from "@/core/actions/validate";
+import { projectPath } from "@/core/routes";
+import { getGitHubAccessTokenState } from "@/server/github/access-token";
 
-import { type ActionState, runAction } from "../action-state";
+import { runAction } from "../action-state";
 import {
   createInstallationAccessToken,
+  fetchRepo,
   resolveUserInstallationForRepo,
-} from "../github/github-app";
-import { fetchRepo } from "../github/github-connector";
+} from "../github/github-connector";
 import { reportEvent } from "../observability";
 import { assertConnectRateLimit } from "../rate-limit";
+import { readActiveOrgCookie } from "../workspace/active-cookies";
 import {
-  clearActiveProjectCookie,
-  readActiveOrgCookie,
-  writeActiveProjectCookie,
-} from "../workspace/active-cookies";
-import {
+  assertGitHubRepoAssessable,
   connectGitHubRepo,
   disconnectGitHubRepo,
   findConnectedGitHubProject,
@@ -28,17 +27,9 @@ import {
 import { resolveActiveOrgId } from "../workspace/org-queries";
 import { ensurePersonalOrgProvisioned } from "../workspace/personal-org";
 import { projectCapabilities } from "../workspace/project-capabilities";
-import {
-  accessFromStore,
-  setActiveProject,
-} from "../workspace/project-visibility";
-import { getWorkspace } from "../workspace/workspace";
+import { accessFromStore } from "../workspace/project-visibility";
 import { withConnectWrite } from "../workspace/workspace-write";
 import { refresh, requireSignedIn } from "./shared";
-
-const switchProjectInput = z.object({
-  projectId: requiredField("A project id is required."),
-});
 
 const connectGitHubRepoInput = z.object({
   fullName: requiredField("Select a GitHub repository.", 256),
@@ -56,22 +47,6 @@ const disconnectGitHubRepoInput = z.object({
   projectId: requiredField("Select a connected project to disconnect."),
 });
 
-export async function switchProjectAction(formData: FormData): Promise<void> {
-  const { projectId } = parseForm(switchProjectInput, formData);
-  const workspace = await getWorkspace();
-  setActiveProject(
-    {
-      projects: workspace.projects,
-      organizations: workspace.organizations,
-      memberships: workspace.access.memberships,
-    },
-    projectId,
-    workspace.userId,
-  );
-  await writeActiveProjectCookie(projectId);
-  refresh();
-}
-
 export async function connectGitHubRepoAction(
   _previous: ActionState,
   formData: FormData,
@@ -86,67 +61,84 @@ export async function connectGitHubRepoAction(
     );
 
     await assertConnectRateLimit(userId);
-    const userAccessToken = await getGitHubAccessToken();
-    if (!userAccessToken) {
+    const tokenState = await getGitHubAccessTokenState();
+    if (tokenState.state === "revoked") {
+      throw new PublicError(
+        "GitHub revoked this app's authorization. Sign out and sign in again to reconnect.",
+      );
+    }
+    if (tokenState.state !== "valid") {
       throw new PublicError(
         "GitHub access token missing. Sign out and sign in again to grant repo access.",
       );
     }
+    const userAccessToken = tokenState.token;
 
     const installationId = await resolveUserInstallationForRepo({
       userAccessToken,
       fullName,
       claimedInstallationId,
     });
+
+    // Permission check runs on the *user's* token, not the installation
+    // token: `repos.get` with an App installation token reports the App's
+    // permissions, which says nothing about what this human may do. Without
+    // this, a read-only collaborator could have the App open branches for them.
+    const repo = await fetchRepo(userAccessToken, fullName);
+    if (!repo.canPush) {
+      throw new PublicError(
+        `You need write access to ${repo.fullName} to connect it: ComplyLoop opens fix branches and pull requests with the App installation token.`,
+        "connect",
+      );
+    }
     const accessToken = await createInstallationAccessToken(installationId);
 
-    const repo = await fetchRepo(accessToken, fullName);
+    // Validate (ephemeral clone) before taking the org write lock: the clone is
+    // the slow part and must not pin a pool connection + advisory lock.
+    await assertGitHubRepoAssessable({ fullName, accessToken });
+
     await ensurePersonalOrgProvisioned(userId, githubLogin ?? "");
     const preferredOrgId = await readActiveOrgCookie();
 
-    const connectedProjectId = await withConnectWrite(
-      { activeProjectId: null },
-      async ({ db }) => {
-        const orgId =
-          resolveActiveOrgId(db, userId, preferredOrgId) ??
-          db.organizations[0]?.id ??
-          null;
-        const access = accessFromStore(db, userId, githubLogin);
-        if (!orgId || !projectCapabilities(null, access, orgId).canConnect) {
-          throw new PublicError(
-            "You need admin or owner access in the active organization to connect a project.",
-            "connect",
-          );
-        }
-        const alreadyConnected = findConnectedGitHubProject(
-          db.projects,
-          fullName,
-          orgId,
+    const connectedProjectId = await withConnectWrite(async ({ db }) => {
+      const orgId =
+        resolveActiveOrgId(db, userId, preferredOrgId) ??
+        db.organizations[0]?.id ??
+        null;
+      const access = accessFromStore(db, userId, githubLogin);
+      if (!orgId || !projectCapabilities(null, access, orgId).canConnect) {
+        throw new PublicError(
+          "You need admin or owner access in the active organization to connect a project.",
+          "connect",
         );
-        if (alreadyConnected) {
-          throw new PublicError(
-            `${fullName} is already connected. Disconnect it first.`,
-            "connect",
-          );
-        }
-        const { project, evidence } = await connectGitHubRepo(db, {
-          fullName: repo.fullName,
-          defaultBranch: repo.defaultBranch,
-          private: repo.private,
-          ownerUserId: userId,
-          orgId,
-          accessToken,
-          installationId,
-        });
-        return {
-          result: project.id,
-          insertProjects: [project],
-          evidence,
-        };
-      },
-    );
+      }
+      const alreadyConnected = findConnectedGitHubProject(
+        db.projects,
+        fullName,
+        orgId,
+      );
+      if (alreadyConnected) {
+        throw new PublicError(
+          `${fullName} is already connected. Disconnect it first.`,
+          "connect",
+        );
+      }
+      const { project, evidence } = await connectGitHubRepo(db, {
+        fullName: repo.fullName,
+        defaultBranch: repo.defaultBranch,
+        private: repo.private,
+        ownerUserId: userId,
+        orgId,
+        accessToken,
+        installationId,
+      });
+      return {
+        result: project.id,
+        insertProjects: [project],
+        evidence,
+      };
+    });
 
-    await writeActiveProjectCookie(connectedProjectId);
     reportEvent("github repository connected", {
       code: "github_repo_connected",
       projectId: connectedProjectId,
@@ -154,7 +146,10 @@ export async function connectGitHubRepoAction(
       userId,
     });
     refresh();
-    return `Connected ${repo.fullName}.`;
+    return {
+      message: `Connected ${repo.fullName}.`,
+      redirectTo: projectPath(connectedProjectId, "dashboard"),
+    };
   });
 }
 
@@ -166,29 +161,26 @@ export async function disconnectGitHubRepoAction(
     const { projectId } = parseForm(disconnectGitHubRepoInput, formData);
     await requireSignedIn("Sign in with GitHub to disconnect a repository.");
 
-    const { nextProjectId, disconnectedName } = await withConnectWrite(
-      { activeProjectId: projectId },
+    const { disconnectedName } = await withConnectWrite(
       async ({ db, userId }) => {
         const project = db.projects.find(
           (candidate) => candidate.id === projectId,
         );
         const disconnectedName =
           project?.github?.fullName ?? project?.name ?? "repository";
-        const { deleteProjectId, evidence, nextProjectId } =
-          disconnectGitHubRepo(db, projectId, userId);
+        const { deleteProjectId, evidence } = disconnectGitHubRepo(
+          db,
+          projectId,
+          userId,
+        );
         return {
-          result: { nextProjectId, disconnectedName },
+          result: { disconnectedName },
           deleteProjectIds: [deleteProjectId],
           evidence: [evidence],
         };
       },
     );
 
-    if (nextProjectId) {
-      await writeActiveProjectCookie(nextProjectId);
-    } else {
-      await clearActiveProjectCookie();
-    }
     refresh();
     return `Disconnected ${disconnectedName}.`;
   });

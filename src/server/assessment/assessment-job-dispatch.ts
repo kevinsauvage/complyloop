@@ -1,5 +1,11 @@
 import "server-only";
 
+import {
+  appRepoFullName,
+  vercelGitRepoOwner,
+  vercelGitRepoSlug,
+  workerDispatchToken,
+} from "../env";
 import { reportWarning } from "../observability";
 
 /** `repository_dispatch` type the `assessment-worker` workflow listens for. */
@@ -13,7 +19,7 @@ export const ASSESSMENT_DRAIN_EVENT_TYPE = "assessment-drain";
 const DISPATCH_TIMEOUT_MS = 15_000;
 
 function appRepo(): { owner: string; repo: string } | null {
-  const full = process.env.APP_REPO_FULL_NAME?.trim();
+  const full = appRepoFullName();
   if (full) {
     const [owner, repo] = full.split("/");
     if (owner?.trim() && repo?.trim()) {
@@ -21,27 +27,20 @@ function appRepo(): { owner: string; repo: string } | null {
     }
   }
   // Vercel sets these automatically for git-connected projects.
-  const owner = process.env.VERCEL_GIT_REPO_OWNER?.trim();
-  const repo = process.env.VERCEL_GIT_REPO_SLUG?.trim();
+  const owner = vercelGitRepoOwner();
+  const repo = vercelGitRepoSlug();
   return owner && repo ? { owner, repo } : null;
-}
-
-export function isWorkerDispatchConfigured(): boolean {
-  return (
-    Boolean(process.env.GH_WORKER_DISPATCH_TOKEN?.trim()) &&
-    appRepo() !== null
-  );
 }
 
 /**
  * Kicks the GitHub Actions executor via `repository_dispatch`. Returns true
  * when GitHub accepted the event, false when unconfigured or rejected.
  * Never throws and never logs the token — a failed dispatch leaves the job
- * queued and the caller falls back to the next drain path.
+ * queued for the executor's 15-minute schedule (lease recovery reclaims it).
  */
 export async function dispatchAssessmentWorker(): Promise<boolean> {
   try {
-    const token = process.env.GH_WORKER_DISPATCH_TOKEN?.trim();
+    const token = workerDispatchToken();
     const repo = appRepo();
     if (!token || !repo) return false;
     const response = await fetch(

@@ -1,4 +1,6 @@
-import { withSentryConfig } from "@sentry/nextjs";
+// `@sentry/nextjs/config` is the non-deprecated entry point; the root export
+// warns and stops working in @sentry/nextjs v11.
+import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 
 /**
@@ -10,36 +12,50 @@ import type { NextConfig } from "next";
 
 function parseAllowedDevOrigins(value: string | undefined): string[] {
   if (!value) return [];
-  const hosts: string[] = [];
-  for (const raw of value.split(",")) {
-    const host = raw
-      .trim()
-      .toLowerCase()
-      .replace(/^https?:\/\//, "")
-      .split("/")[0]
-      ?.trim();
-    if (host) hosts.push(host);
-  }
-  return hosts;
+  return value
+    .split(",")
+    .map((raw) =>
+      raw
+        .trim()
+        .toLowerCase()
+        .replace(/^https?:\/\//, "")
+        .split("/")[0]
+        ?.trim(),
+    )
+    .filter((host): host is string => Boolean(host));
 }
 
 const nextConfig: NextConfig = {
   // Don't leak framework fingerprinting via `X-Powered-By` (production
   // security checklist in node_modules/next/dist/docs).
   poweredByHeader: false,
+  // GitHub avatars are remote, so next/image needs an explicit allowlist.
+  // `images.domains` is deprecated in v16 — use `remotePatterns`
+  // (02-guides/upgrading/version-16.md). No `qualities` override: the default
+  // `[75]` is what we want and we never set a `quality` prop.
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "avatars.githubusercontent.com" },
+    ],
+  },
+  // Dev-only: log full fetch URLs (cache hits/misses) to the terminal.
+  // `experimental.serverComponentsHmrCache` already defaults to true, so no
+  // opt-in is needed there (03-api-reference/.../serverComponentsHmrCache.md).
+  logging: {
+    fetches: { fullUrl: true },
+  },
   // NOTE: `cacheComponents` is intentionally off. Enabling it is not a
   // rename-only change — it requires adopting the Cache Components model
-  // (`use cache` + `<Suspense>` around every uncached/dynamic read). All
-  // authenticated routes here are `force-dynamic` today; see the Caching
-  // guide before opting in.
+  // (`use cache` + `<Suspense>` around every uncached/dynamic read). The
+  // authenticated routes are dynamic from usage (cookies/auth), with no
+  // `force-dynamic` export; see the Caching guide before opting in.
   // Runtime analysis engines use dynamic requires Playwright/Node APIs; keep them
   // out of the Turbopack graph (same rationale as disk-loaded axe.min.js).
-  // `isomorphic-git` and `@sparticuz/chromium` are serverless-safe pure-JS /
-  // external-binary paths — same treatment so bundling never touches them.
+  // `isomorphic-git` is a serverless-safe pure-JS path — same treatment so
+  // bundling never touches it.
   serverExternalPackages: [
     "linkinator",
     "playwright-core",
-    "@sparticuz/chromium",
     "isomorphic-git",
     "axe-core",
     "html-validate",
@@ -48,22 +64,40 @@ const nextConfig: NextConfig = {
   // file tracing only follows JS imports — on Vercel the JSON never made it
   // into the function bundle (`Cannot find module .../browsers.json`, surfaced
   // as generic "Runtime scan failed."). 1 KB, so it goes to every route.
-  // Same for `axe-core/axe.min.js`: the remediation-verify re-checks run
-  // inside finding-page actions (not the worker route), so only a global
-  // include keeps them working in production.
-  // `@sparticuz/chromium` ships its binaries as non-JS `bin/*.br` assets with
-  // the same tracing blind spot (`The input directory
-  // ".../@sparticuz/chromium/bin" does not exist`). 66 MB, so it is included
-  // only where a browser is launched: the worker route (manual + webhook
-  // scans drain through it). No other route launches a browser — the
-  // dashboard action only enqueues. A new route that launches one needs its
-  // own entry here — that is the failure this scoping exists to make loud.
+  // Only `browsers.json` is included here. The old `/*` include of
+  // `axe-core/axe.min.js` was dropped: the runtime audit runs on the GitHub
+  // Actions executor, so no Vercel function loads it, yet the `/*` glob pulled
+  // axe-core into all 24 functions (~17 MB of Deployment Storage per
+  // deployment). The executor resolves it from `node_modules` and ignores this
+  // config entirely.
   outputFileTracingIncludes: {
+    "/*": ["./node_modules/playwright-core/browsers.json"],
+  },
+  // Belt-and-braces guard: no Vercel-reachable module imports the runtime scan
+  // stack anymore (remediation verify moved to the `verify_remediation`
+  // worker job), so chromium/playwright must never be traced into a function.
+  // These excludes keep the ~80 MB out of every function's trace even if a
+  // future import re-introduces reachability — the two small includes above
+  // are unaffected (different paths). The trailing `*` also matches the
+  // hashed external-package staging dirs Turbopack emits
+  // (`node_modules/playwright-core-<hash>`), which a bare `/` path misses.
+  // The GitHub Actions executor resolves both packages from `node_modules`
+  // and ignores this config entirely.
+  // Runtime-audit engines are worker-only (GitHub Actions executor). Nothing
+  // Vercel-reachable imports them at runtime, but they are still traced into
+  // the functions that reach the worker graph, so they are excluded here too.
+  // `axe-core` is deliberately NOT excluded: `eslint-plugin-jsx-a11y` (the AST
+  // scan) requires it at load, and that plugin is bundled into the shared
+  // server chunk via the scheduler's dynamic worker import. Excluding it made
+  // every page on that chunk (findings, settings, evidence) 500 with "Failed to
+  // load external module axe-core-<hash>". Keep it traced (3 MB, not the old
+  // 17 MB `axe.min.js` include) or cut the plugin out of the web graph first.
+  outputFileTracingExcludes: {
     "/*": [
-      "./node_modules/playwright-core/browsers.json",
-      "./node_modules/axe-core/axe.min.js",
+      "./node_modules/playwright-core*",
+      "./node_modules/html-validate*",
+      "./node_modules/linkinator*",
     ],
-    "/api/internal/jobs/run": ["./node_modules/@sparticuz/chromium/bin/**/*"],
   },
   transpilePackages: [
     "@complyloop/analysis-core",
@@ -74,6 +108,13 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  // Statically typed `Link`/`redirect` hrefs (stable in Next 16). Route types
+  // come from the generated `.next/types`; run `next typegen` after moving routes.
+  typedRoutes: true,
+  // Auto-memoize components/hooks. Stable since Next 16, and the stable Babel
+  // implementation (`babel-plugin-react-compiler`, a build-time devDependency)
+  // replaces the removed `experimental.turbopackRustReactCompiler` flag.
+  reactCompiler: true,
   experimental: {
     // The consolidated `radix-ui` barrel is not in Next's default list; rewrite
     // it to per-primitive imports so unused primitives are not bundled.
@@ -85,12 +126,28 @@ const nextConfig: NextConfig = {
   // so full URLs paste safely. Use a wildcard ("*.ngrok-free.dev") — ngrok
   // free subdomains change on every restart.
   allowedDevOrigins: parseAllowedDevOrigins(process.env.ALLOWED_DEV_ORIGINS),
+  // Baseline hardening with zero app-behavior change: framing, MIME sniffing,
+  // TLS, referrer, and device APIs. The Content-Security-Policy is *not* here:
+  // its nonce must be per-request, so it is built in `src/proxy.ts`
+  // (`buildContentSecurityPolicy`) and attached to every page response.
+  async headers() {
+    const securityHeaders = [
+      {
+        key: "Strict-Transport-Security",
+        value: "max-age=63072000; includeSubDomains",
+      },
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      {
+        key: "Permissions-Policy",
+        value: "camera=(), microphone=(), geolocation=()",
+      },
+    ];
+    return [{ source: "/:path*", headers: securityHeaders }];
+  },
 };
 
 export default withSentryConfig(nextConfig, {
-  // For all available options, see:
-  // https://www.npmjs.com/package/@sentry/webpack-plugin#options
-
   org: "kevin-6c",
 
   project: "javascript-nextjs",
@@ -102,10 +159,6 @@ export default withSentryConfig(nextConfig, {
   // Only print logs for uploading source maps in CI
   silent: !process.env.CI,
 
-  // For all available options, see:
-  // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
-
-  // Upload a larger set of source maps for prettier stack traces (increases build time)
   widenClientFileUpload: true,
 
   // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
@@ -115,15 +168,7 @@ export default withSentryConfig(nextConfig, {
   tunnelRoute: "/monitoring",
 
   webpack: {
-    // Enables automatic instrumentation of Vercel Cron Monitors. (Does not yet work with App Router route handlers.)
-    // See the following for more information:
-    // https://docs.sentry.io/product/crons/
-    // https://vercel.com/docs/cron-jobs
-    automaticVercelMonitors: true,
-
-    // Tree-shaking options for reducing bundle size
     treeshake: {
-      // Automatically tree-shake Sentry logger statements to reduce bundle size
       removeDebugLogging: true,
     },
   },

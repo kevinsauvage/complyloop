@@ -70,14 +70,52 @@ describe("proxy basic auth gate", () => {
     expect(response?.headers.get("location")).toContain("/login");
   });
 
+  it("challenges a page navigation but not a background fetch", async () => {
+    baseEnv();
+    getToken.mockResolvedValue(null);
+    const navigation = await proxy(
+      new NextRequest("https://app.example/login", {
+        headers: { "sec-fetch-dest": "document" },
+      }),
+    );
+    expect(navigation?.status).toBe(401);
+    expect(navigation?.headers.get("www-authenticate")).toContain("Basic");
+
+    // A <Link> prefetch of /login from the public landing page must not pop
+    // the browser's password dialog.
+    const prefetch = await proxy(
+      new NextRequest("https://app.example/login?_rsc=abc", {
+        headers: { "sec-fetch-dest": "empty", rsc: "1" },
+      }),
+    );
+    expect(prefetch?.status).toBe(401);
+    expect(prefetch?.headers.get("www-authenticate")).toBeNull();
+  });
+
+  it("keeps the marketing pages outside the gate", async () => {
+    baseEnv();
+    getToken.mockResolvedValue(null);
+    for (const path of ["/", "/legal", "/legal/privacy"]) {
+      const response = await proxy(request(path));
+      expect(response?.status).toBe(200);
+      expect(response?.headers.get("www-authenticate")).toBeNull();
+    }
+  });
+
+  it("still gates the login page and the workspace", async () => {
+    baseEnv();
+    getToken.mockResolvedValue(null);
+    for (const path of ["/login", "/dashboard", "/findings"]) {
+      const response = await proxy(request(path));
+      expect(response?.status).toBe(401);
+    }
+  });
+
   it("leaves API routes untouched (own auth, no browser credential cache)", async () => {
     baseEnv();
     await expect(proxy(request("/api/health"))).resolves.toBeUndefined();
     await expect(
       proxy(request("/api/github/webhook")),
-    ).resolves.toBeUndefined();
-    await expect(
-      proxy(request("/api/internal/jobs/run")),
     ).resolves.toBeUndefined();
   });
 
@@ -85,8 +123,19 @@ describe("proxy basic auth gate", () => {
     baseEnv();
     getToken.mockResolvedValue(null);
     await expect(proxy(request("/monitoring"))).resolves.toBeUndefined();
-    // Even with missing basic-auth credentials the envelope must pass through.
-    await expect(proxy(request("/monitoring", "Bearer token"))).resolves.toBeUndefined();
+  });
+
+  it("strips the cached Basic credential from the Sentry tunnel so ingest accepts the envelope", async () => {
+    baseEnv();
+    getToken.mockResolvedValue(null);
+    // getsentry/sentry-javascript#8341: the rewrite forwards headers to
+    // Sentry ingest, which reads `authorization` as DSN auth and 400s with
+    // `invalid project key`. The tunnel must never be gated — just cleaned.
+    const tunneled = await proxy(
+      request("/monitoring", basicAuthHeader("preview", "s3cret")),
+    );
+    expect(tunneled?.status).toBe(200);
+    expect(tunneled?.headers.get("authorization")).toBeNull();
   });
 
   it("leaves the gate open when credentials are unset (local dev)", async () => {
@@ -94,6 +143,50 @@ describe("proxy basic auth gate", () => {
     vi.stubEnv("BASIC_AUTH_USERNAME", "");
     vi.stubEnv("BASIC_AUTH_PASSWORD", "");
     getToken.mockResolvedValue({ sub: "123" });
-    await expect(proxy(request("/dashboard"))).resolves.toBeUndefined();
+    const response = await proxy(request("/dashboard"));
+    expect(response?.status).toBe(200);
+  });
+
+  it("still gates with Basic auth when GitHub auth is unconfigured", async () => {
+    baseEnv();
+    // Basic auth set, AUTH_* unset: the gate must not fail open on the
+    // GitHub-auth early return.
+    vi.stubEnv("AUTH_SECRET", "");
+    vi.stubEnv("AUTH_GITHUB_ID", "");
+    vi.stubEnv("AUTH_GITHUB_SECRET", "");
+    const response = await proxy(request("/dashboard"));
+    expect(response?.status).toBe(401);
+    expect(response?.headers.get("www-authenticate")).toContain(
+      'Basic realm="ComplyLoop"',
+    );
+  });
+});
+
+describe("proxy content security policy", () => {
+  it("attaches a nonce-based CSP to authorized page responses", async () => {
+    baseEnv();
+    getToken.mockResolvedValue({ sub: "123" });
+    const response = await proxy(
+      request("/dashboard", basicAuthHeader("preview", "s3cret")),
+    );
+    const csp = response?.headers.get("content-security-policy") ?? "";
+    expect(csp).toContain("default-src 'self'");
+    expect(csp).toMatch(/script-src 'self' 'nonce-[^']+' 'strict-dynamic'/);
+    expect(csp).toContain("frame-ancestors 'self'");
+    expect(csp).toContain("https://avatars.githubusercontent.com");
+    // A nonce makes `'unsafe-inline'` meaningless for scripts — it must be absent.
+    expect(csp).not.toMatch(/script-src[^;]*'unsafe-inline'/);
+  });
+
+  it("relaxes script-src and connect-src in development", async () => {
+    baseEnv();
+    vi.stubEnv("NODE_ENV", "development");
+    getToken.mockResolvedValue({ sub: "123" });
+    const response = await proxy(
+      request("/dashboard", basicAuthHeader("preview", "s3cret")),
+    );
+    const csp = response?.headers.get("content-security-policy") ?? "";
+    expect(csp).toContain("'unsafe-eval'");
+    expect(csp).toContain("connect-src 'self' ws: wss:");
   });
 });

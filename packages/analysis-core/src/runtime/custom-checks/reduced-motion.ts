@@ -51,6 +51,16 @@ export async function reducedMotionViolation(
         const animations = getAnimations ? getAnimations.call(document) : [];
         for (const animation of animations) {
           if (animation.playState !== "running") continue;
+          // A transition is a reaction to a state change (hover, focus, a
+          // class swap) that happened to be mid-flight when we sampled; it is
+          // not ambient motion, and whether one is running depends on timing.
+          // Only CSS animations and Web Animations are reported.
+          if (
+            typeof CSSTransition !== "undefined" &&
+            animation instanceof CSSTransition
+          ) {
+            continue;
+          }
           const effect = animation.effect;
           const el = effect?.target;
           if (!(el instanceof HTMLElement)) continue;

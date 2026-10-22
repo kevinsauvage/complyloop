@@ -1,14 +1,24 @@
 /**
  * GitHub connector facade — the single entry point for app/assessment code
- * that needs GitHub. Internal modules (`github.ts`, `github-app.ts`,
- * `github-access.ts`, `git.ts`, `pr.ts`, `github-checks.ts`,
- * `github-tokens.ts`, `webhook-deliveries.ts`) are leaves: Octokit details,
- * token cryptography, and git plumbing stay behind this facade.
+ * that needs GitHub *operations* (repo listing, install tokens, PRs).
+ * Internal modules (`github.ts`, `github-app.ts`, `github-access.ts`,
+ * `pr.ts`, `github-tokens.ts`, `webhook-deliveries.ts`)
+ * are leaves: Octokit details, token cryptography, and git plumbing stay
+ * behind this facade.
+ *
+ * Deliberate direct-leaf imports (not facade violations):
+ * - `github-tokens.ts` crypto + `access-token.ts` request vault (`next/*`):
+ *   the auth root (`src/auth.ts`), `access-token.ts` consumers, and token
+ *   seeding import these directly. The connector must stay worker-bundle-safe
+ *   (the GH action bundles it via `scripts/build-worker.mjs` — no `next/*`
+ *   imports allowed here), so the request-scoped token vault stays a leaf.
+ * - `webhook-deliveries.ts` idempotency: owned by the webhook route.
+ * - `assertProductionGitHubApp` in the auth root: composition-root config
+ *   gate, not an operation.
  *
  * Out of scope (different owners): ephemeral checkouts
- * (`assessment/repo-checkout.ts` composes token + clone), user-scoped App
- * installation setup during connect (`github-app.ts` via `actions/connect.ts`),
- * and webhook delivery idempotency (the webhook route).
+ * (`assessment/repo-checkout.ts` composes token + clone), and webhook delivery
+ * idempotency (the webhook route).
  */
 import "server-only";
 
@@ -23,30 +33,39 @@ import type {
 
 import type { PatchCandidate } from "@/ai/verified-fix";
 
-import { reportWarning } from "../observability";
 import { fetchGitHubRepo, resolveProjectGitHubToken } from "./github-access";
-import { listReposViaInstallations } from "./github-app";
+import { assertBranchExists } from "./github-access";
 import {
-  postPullRequestCheckRun,
-  summarizeAssessmentForCheckRun,
-} from "./github-checks";
+  createInstallationAccessToken,
+  githubAppInstallUrl,
+  isGitHubAppConfigured,
+  listReposViaInstallations,
+  resolveUserInstallationForRepo,
+} from "./github-app";
 import type { GitHubRepoSummary } from "./github-types";
 import { preparePullRequest, type PullRequestResult } from "./pr";
 
 export type { GitHubRepoSummary };
+export { assertBranchExists, isGitHubAppConfigured };
+export { createInstallationAccessToken, resolveUserInstallationForRepo };
 
 /** Installation token for clone / PR / Checks. Null when not App-connected. */
 export { resolveProjectGitHubToken as getProjectToken };
+
+/** Public install URL for the GitHub App (repair banner, picker empty state). */
+export { githubAppInstallUrl };
 
 /** Repositories available to connect for a signed-in user's access token. */
 export function listAvailableRepos(options: {
   accessToken: string;
   perPage?: number;
+  page?: number;
   q?: string;
 }): Promise<GitHubRepoSummary[]> {
   return listReposViaInstallations({
     userAccessToken: options.accessToken,
     perPage: options.perPage,
+    page: options.page,
     q: options.q,
   });
 }
@@ -71,63 +90,4 @@ export function createProjectPullRequest(
   candidate: PatchCandidate | null,
 ): Promise<PullRequestResult> {
   return preparePullRequest(project, control, finding, remediation, candidate);
-}
-
-/**
- * Post the assessment Check Run on a PR head commit. Resolves the project
- * token internally and warns (never throws) when posting is impossible, so
- * the worker stays on its load → run → apply shape.
- */
-export async function postAssessmentCheckRun(input: {
-  project: Project;
-  jobId: string;
-  headSha: string;
-  openViolations: number;
-  failedRequirements: number;
-  assessmentId: string;
-}): Promise<void> {
-  const { project, jobId, headSha } = input;
-  try {
-    const token = await resolveProjectGitHubToken(project);
-    if (!token || !project.github?.fullName) {
-      reportWarning(
-        "Could not post pull-request check: GitHub token unavailable.",
-        {
-          code: "github_token_missing",
-          projectId: project.id,
-          jobId,
-        },
-      );
-      return;
-    }
-    const posted = await postPullRequestCheckRun({
-      fullName: project.github.fullName,
-      headSha,
-      token,
-      ...summarizeAssessmentForCheckRun({
-        openViolations: input.openViolations,
-        failedRequirements: input.failedRequirements,
-        assessmentId: input.assessmentId,
-      }),
-    });
-    if (!posted.ok) {
-      reportWarning("Pull-request Check Run could not be posted.", {
-        code: "github_check_run_failed",
-        projectId: project.id,
-        jobId,
-        error: posted.error,
-      });
-    }
-  } catch (error) {
-    // Token resolution throws (PublicError) — a missing check must never fail
-    // an otherwise successful assessment job.
-    reportWarning(
-      error instanceof Error ? error.message : "Check Run post failed.",
-      {
-        code: "github_check_run_failed",
-        projectId: project.id,
-        jobId,
-      },
-    );
-  }
 }

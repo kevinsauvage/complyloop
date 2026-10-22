@@ -1,5 +1,7 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
+
 import { createAppAuth } from "@octokit/auth-app";
 import type { Octokit } from "@octokit/rest";
 
@@ -179,32 +181,67 @@ export async function resolveUserInstallationForRepo(options: {
   );
 }
 
+interface RepoListCacheEntry {
+  expiresAt: number;
+  repos: GitHubRepoSummary[];
+}
+
+const REPO_LIST_CACHE_TTL_MS = 30_000;
+const REPO_LIST_CACHE_MAX = 200;
+const repoListCache = new Map<string, RepoListCacheEntry>();
+
+function repoListCacheKey(options: {
+  userAccessToken: string;
+  perPage: number;
+  page: number;
+  q?: string;
+}): string {
+  const tokenHash = createHash("sha256")
+    .update(options.userAccessToken)
+    .digest("hex");
+  return `${tokenHash}:${options.perPage}:${options.page}:${options.q ?? ""}`;
+}
+
 /**
  * Lists repositories visible via GitHub App installations for this user.
  * Requires a user-to-server token from the App's OAuth client (Auth.js).
+ * Results are cached briefly: the typeahead fires per keystroke debounce and
+ * each call fans out across every installation.
  */
 export async function listReposViaInstallations(options: {
   userAccessToken: string;
   perPage?: number;
+  page?: number;
   q?: string;
 }): Promise<GitHubRepoSummary[]> {
-  const octokit = createOctokit(options.userAccessToken);
   const perPage = Math.min(options.perPage ?? 50, 100);
-  const repos: GitHubRepoSummary[] = [];
+  const page = Math.max(options.page ?? 1, 1);
+  const key = repoListCacheKey({
+    userAccessToken: options.userAccessToken,
+    perPage,
+    page,
+    q: options.q,
+  });
+  const cached = repoListCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.repos;
 
+  const octokit = createOctokit(options.userAccessToken);
+  let repos: GitHubRepoSummary[];
   try {
     const installationIds = await listUserInstallationIds(octokit);
-
-    for (const installationId of installationIds) {
-      const installedRepos = await octokit.paginate(
-        octokit.rest.apps.listInstallationReposForAuthenticatedUser,
-        { installation_id: installationId, per_page: perPage },
-      );
-      for (const repo of installedRepos) {
-        repos.push(mapGitHubRepo(repo, installationId));
-      }
-      if (repos.length >= perPage) break;
-    }
+    const perInstallation = await Promise.all(
+      installationIds.map(async (installationId) =>
+        octokit
+          .paginate(
+            octokit.rest.apps.listInstallationReposForAuthenticatedUser,
+            { installation_id: installationId, per_page: perPage, page },
+          )
+          .then((rows) =>
+            rows.map((repo) => mapGitHubRepo(repo, installationId)),
+          ),
+      ),
+    );
+    repos = perInstallation.flat();
   } catch (error) {
     throw new PublicError(
       octokitErrorMessage(error, "GitHub App installation API error"),
@@ -212,5 +249,15 @@ export async function listReposViaInstallations(options: {
     );
   }
 
-  return filterReposByQuery(repos, options.q).slice(0, perPage);
+  // Filter before slicing: a query that matches a later installation must not
+  // lose to the first installation's page.
+  const filtered = filterReposByQuery(repos, options.q).slice(0, perPage);
+  if (repoListCache.size >= REPO_LIST_CACHE_MAX) {
+    repoListCache.clear();
+  }
+  repoListCache.set(key, {
+    expiresAt: Date.now() + REPO_LIST_CACHE_TTL_MS,
+    repos: filtered,
+  });
+  return filtered;
 }

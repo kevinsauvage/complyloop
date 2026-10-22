@@ -58,7 +58,7 @@ describe("findingsFromAxePages", () => {
       url: "https://app.example/login",
       selector: "input[type=email]",
       snippet: '<input type="email">',
-      elementLabel: undefined,
+      elementLabel: "input (input[type=email])",
       context: undefined,
     });
     expect(findings[0]?.fix).toBeNull();
@@ -71,7 +71,7 @@ describe("findingsFromAxePages", () => {
         violations: [],
         customFindings: [
           {
-            checkId: "focus-not-obscured-enhanced",
+            checkId: "focus-not-obscured",
             kind: "violation",
             severity: "serious",
             confidence: "high",
@@ -87,7 +87,7 @@ describe("findingsFromAxePages", () => {
             },
             fix: null,
             analyzerId: "playwright-custom",
-            analyzerRuleId: "focus-not-obscured-enhanced",
+            analyzerRuleId: "focus-not-obscured",
           },
         ],
       },
@@ -96,6 +96,58 @@ describe("findingsFromAxePages", () => {
       elementLabel: "link “Go”",
       context: "Covered by `header.sticky` at the top-left of the focus ring",
       selector: 'a[href="/x"]',
+    });
+  });
+
+  it("derives a readable label from heading text before snippet truncation", () => {
+    const findings = findingsFromAxePages([
+      {
+        url: "https://www.kevin-sauvage.com/",
+        violations: [
+          {
+            id: "color-contrast",
+            impact: "serious",
+            description:
+              "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+            help: "Elements must meet minimum color contrast ratio thresholds",
+            nodes: [
+              {
+                html: '<h2 class="animate-gradient bg-[length:200%_auto] text-4xl md:text-5xl">Build accessible experiences</h2>',
+                target: [".space-y-16 > .space-y-8.text-center > h2"],
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+    expect(findings[0]?.location).toMatchObject({
+      selector: ".space-y-16 > .space-y-8.text-center > h2",
+      elementLabel: "h2 \u201cBuild accessible experiences\u201d",
+    });
+  });
+
+  it("falls back to a naming attribute when the node has no text", () => {
+    const findings = findingsFromAxePages([
+      {
+        url: "https://app.example/",
+        violations: [
+          {
+            id: "color-contrast",
+            impact: "serious",
+            description: "contrast",
+            help: "contrast",
+            nodes: [
+              {
+                html: '<img src="/hero.png" alt="Team photo">',
+                target: [".hero > img"],
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+    expect(findings[0]?.location).toMatchObject({
+      elementLabel: "img \u201cTeam photo\u201d",
     });
   });
 
@@ -139,6 +191,30 @@ describe("findingsFromAxePages", () => {
     expect(findings[0]?.kind).toBe("warning");
     expect(findings[0]?.confidence).toBe("medium");
     expect(findings[0]?.analyzerId).toBe("axe");
+  });
+
+  it("does not rank an undecidable axe result as serious, but keeps confirmed violations serious", () => {
+    const node = { html: "<p>Hi</p>", target: ["p"] };
+    const rule = {
+      id: "color-contrast",
+      impact: "serious" as const,
+      description: "d",
+      help: "h",
+      nodes: [node],
+    };
+    const findings = findingsFromAxePages([
+      {
+        url: "https://app.example/",
+        violations: [{ ...rule, nodes: [{ ...node, target: ["h1"] }] }],
+        incomplete: [rule, { ...rule, impact: null }],
+      },
+    ]);
+    const bySelector = (kind: string) =>
+      findings.filter((finding) => finding.kind === kind);
+    expect(bySelector("violation").map((f) => f.severity)).toEqual(["serious"]);
+    expect(
+      bySelector("warning").every((finding) => finding.severity === "moderate"),
+    ).toBe(true);
   });
 
   it("emits heuristic runtime checks as warnings for needs_review", () => {

@@ -9,7 +9,6 @@ import postgres from "postgres";
 import * as schema from "./schema.ts";
 
 /**
- * Maps libpq-style sslmode to postgres.js TLS options.
  * `require` / `prefer` encrypt **and** verify the server certificate by default.
  * Opt out only with an explicit insecure flag (documented for Aiven-style CAs
  * until `sslrootcert` is wired).
@@ -54,9 +53,9 @@ export function isDatabaseSslInsecureEnabled(
  * If the OS resolver NXDOMAINs the host (common right after Aiven create),
  * falls back to public DNS and connects by IP with the original TLS servername.
  *
- * TLS: `sslmode=require` verifies the server certificate by default. Set
- * `DATABASE_SSL_INSECURE=true` only when you intentionally skip CA verification
- * (e.g. temporary Aiven CA until `sslrootcert` is configured).
+ * TLS: `sslmode=require` verifies the server certificate by default; set
+ * `DATABASE_SSL_INSECURE=true` only when skipping CA verification intentionally
+ * (see {@link resolvePostgresSslOptions}).
  */
 export async function createPostgresClient(
   connectionString: string,
@@ -66,9 +65,29 @@ export async function createPostgresClient(
   const hostname = parsed.hostname;
   const host = await resolveHostname(hostname);
 
+  const sslmode = parsed.searchParams.get("sslmode")?.toLowerCase() ?? null;
   const allowInsecureSsl = isDatabaseSslInsecureEnabled();
+  // Production traffic must be encrypted and verified: a URL without
+  // `sslmode` (or with `disable`/`allow`) silently downgrades to plaintext.
+  // Local Postgres (dev, e2e harness) is exempt — there is no TLS listener.
+  const isLocalHost =
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "[::1]";
+  const e2eHarness = process.env.E2E_PROD_HARNESS === "1";
+  if (
+    process.env.NODE_ENV === "production" &&
+    !allowInsecureSsl &&
+    !isLocalHost &&
+    !e2eHarness &&
+    (sslmode === null || sslmode === "disable" || sslmode === "allow")
+  ) {
+    throw new Error(
+      "DATABASE_URL must set sslmode=require (or verify-ca/verify-full) in production. Set DATABASE_SSL_INSECURE=true only for a deliberately unverified CA.",
+    );
+  }
   const ssl = resolvePostgresSslOptions({
-    sslmode: parsed.searchParams.get("sslmode"),
+    sslmode,
     hostname,
     allowInsecureSsl,
   });
@@ -210,7 +229,7 @@ type GlobalDb = {
 /** Survive Turbopack/HMR so we do not leak a new pool on every reload. */
 const globalForDb = globalThis as typeof globalThis & GlobalDb;
 
-/** Lazy singleton for the app process (and across HMR in dev). */
+/** Lazy singleton for the app process. */
 export async function getDrizzle(): Promise<DrizzleDb> {
   if (globalForDb.__complyloopDb) return globalForDb.__complyloopDb;
   if (!globalForDb.__complyloopInit) {
@@ -235,7 +254,6 @@ export async function getDrizzle(): Promise<DrizzleDb> {
   return globalForDb.__complyloopInit;
 }
 
-/** Test helper — closes the pool. */
 export async function closeDrizzle(): Promise<void> {
   if (globalForDb.__complyloopSql) {
     await globalForDb.__complyloopSql.end({ timeout: 5 });

@@ -1,10 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-import {
-  resolveAuthSecret,
-  sessionCookieIsSecure,
-} from "@/auth-secret";
+import { resolveAuthSecret, sessionCookieIsSecure } from "@/auth-secret";
+import { safeCallbackUrl } from "@/core/callback-url";
 
 const PUBLIC_PATHS = new Set(["/", "/login"]);
 
@@ -33,19 +31,32 @@ function isPublicPath(pathname: string): boolean {
   return normalized === "/legal" || normalized.startsWith("/legal/");
 }
 
-// Mirror login page + auth action validation: internal path only,
-// no protocol-relative open redirect. Falls back to /dashboard so
-// deep links survive the /login bounce without breaking back behavior.
-function toSafeCallbackUrl(value: string | null): string {
-  if (
-    typeof value === "string" &&
-    value.startsWith("/") &&
-    !value.startsWith("//") &&
-    !value.startsWith("/\\")
-  ) {
-    return value;
-  }
-  return "/dashboard";
+/**
+ * The public marketing pages stay outside the private-preview gate so the
+ * product can be linked and read. `/login` and the whole workspace stay behind
+ * it: GitHub sign-in is open to anyone, and the workspace runs scans.
+ */
+function isOpenMarketingPath(pathname: string): boolean {
+  const normalized = normalizePath(pathname);
+  return (
+    normalized === "/" ||
+    normalized === "/legal" ||
+    normalized.startsWith("/legal/")
+  );
+}
+
+/**
+ * Browsers label a request with `Sec-Fetch-Dest`: `document`/`iframe` for a
+ * navigation, `empty` for fetch (router prefetch and RSC requests). Clients
+ * that send no label (curl, uptime checks) still get the challenge.
+ */
+function isBackgroundRequest(req: NextRequest): boolean {
+  const destination = req.headers.get("sec-fetch-dest");
+  return (
+    destination !== null &&
+    destination !== "document" &&
+    destination !== "iframe"
+  );
 }
 
 function basicAuthCredentials(): {
@@ -87,32 +98,100 @@ function isBasicAuthSatisfied(
   );
 }
 
+/**
+ * Per-request Content-Security-Policy with a nonce. Next.js parses the
+ * `Content-Security-Policy` **request** header and stamps the nonce onto the
+ * framework/page scripts it renders, so the pages it protects must be
+ * dynamically rendered — they are (every HTML route is `ƒ` in the build; only
+ * `robots.txt`/`sitemap.xml` are static and the matcher skips dotted paths).
+ *
+ * Dev is relaxed on purpose: React needs `'unsafe-eval'` to reconstruct
+ * server stacks, and Turbopack HMR opens a `ws:` socket. `style-src` keeps
+ * `'unsafe-inline'` because Radix primitives position with inline style
+ * attributes, which a nonce cannot cover (styles are a lower-risk surface than
+ * scripts). `img-src` allows GitHub avatars; `connect-src 'self'` covers
+ * server actions, polling, and the Sentry tunnel (`/monitoring`). No
+ * `upgrade-insecure-requests` — HSTS already forces HTTPS, and it would break
+ * the http e2e/`next start` runs.
+ */
+function buildContentSecurityPolicy(nonce: string): string {
+  const isDev = process.env.NODE_ENV === "development";
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' blob: data: https://avatars.githubusercontent.com",
+    "font-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'self'",
+    `connect-src 'self'${isDev ? " ws: wss:" : ""}`,
+  ].join("; ");
+}
+
+/** Continue to the page, exposing the nonce to SSR and the CSP to the browser. */
+function nextWithCsp(request: NextRequest, nonce: string): NextResponse {
+  const csp = buildContentSecurityPolicy(nonce);
+  const headers = new Headers(request.headers);
+  headers.set("x-nonce", nonce);
+  headers.set("Content-Security-Policy", csp);
+  const response = NextResponse.next({ request: { headers } });
+  response.headers.set("Content-Security-Policy", csp);
+  return response;
+}
+
 export async function proxy(req: NextRequest) {
-  if (!isGitHubAuthConfigured()) return;
-
   const { pathname, search } = req.nextUrl;
-  if (pathname.startsWith("/api/")) return;
-  // Sentry browser-tunnel route (tunnelRoute: "/monitoring" in next.config.ts)
-  // must never be gated or redirected — otherwise client error envelopes are
-  // dropped for logged-out visitors and ad-blocker circumvention breaks.
-  if (pathname === "/monitoring" || pathname.startsWith("/monitoring/")) return;
+  // Sentry browser-tunnel route (tunnelRoute: "/monitoring" in next.config.ts).
+  // The tunnel is a Next rewrite that forwards the request — headers included —
+  // to Sentry ingest. If the private-preview Basic credential cached by the
+  // browser is attached, Sentry reads `authorization` as DSN auth and rejects
+  // the envelope with 400 `invalid project key`
+  // (getsentry/sentry-javascript#8341). Strip it here — never gate or redirect
+  // the tunnel. This branch runs before everything else so it also applies
+  // when GitHub auth is unconfigured.
+  if (pathname === "/monitoring" || pathname.startsWith("/monitoring/")) {
+    if (req.headers.has("authorization")) {
+      const headers = new Headers(req.headers);
+      headers.delete("authorization");
+      return NextResponse.next({ request: { headers } });
+    }
+    return;
+  }
 
-  // Private-preview gate: HTTP Basic Auth on every page. API routes above
-  // keep their own auth (webhook secret, cron Bearer, session cookies), and
-  // browsers cache the Basic credential per origin so in-app fetch calls
-  // reuse it. Unset credentials = gate open (local dev).
-  const basicAuth = basicAuthCredentials();
+  // API routes own their auth (webhook secret, session cookies) and return
+  // JSON, not a browser document — no CSP, and no per-request nonce needed.
+  if (pathname.startsWith("/api/")) return;
+
+  const nonce = btoa(crypto.randomUUID());
+
+  // Private-preview gate: HTTP Basic Auth on every page except the marketing
+  // pages (`isOpenMarketingPath`). Evaluated *before*
+  // the GitHub-auth early return so a deployment with `BASIC_AUTH_*` set but
+  // `AUTH_*` unset is still gated (never fails open). API routes above keep
+  // their own auth (webhook secret, session cookies), and browsers cache the
+  // Basic credential per origin so in-app fetch calls reuse it. Unset
+  // credentials = gate open (local dev).
+  const basicAuth = isOpenMarketingPath(pathname)
+    ? null
+    : basicAuthCredentials();
   if (
     basicAuth &&
     !isBasicAuthSatisfied(req.headers.get("authorization"), basicAuth)
   ) {
+    // Only a page navigation gets the challenge. A background fetch (a
+    // `<Link>` prefetch of /login from the public landing page) would
+    // otherwise open the browser's password dialog on a page that is public.
     return new NextResponse("Authentication required.", {
       status: 401,
-      headers: {
-        "WWW-Authenticate": 'Basic realm="ComplyLoop", charset="UTF-8"',
-      },
+      headers: isBackgroundRequest(req)
+        ? undefined
+        : { "WWW-Authenticate": 'Basic realm="ComplyLoop", charset="UTF-8"' },
     });
   }
+
+  if (!isGitHubAuthConfigured()) return nextWithCsp(req, nonce);
 
   const token = await getToken({
     req,
@@ -137,14 +216,20 @@ export async function proxy(req: NextRequest) {
 
   if (isLoggedIn && normalizePath(pathname) === "/login") {
     const dashboardUrl = req.nextUrl.clone();
-    dashboardUrl.pathname = toSafeCallbackUrl(
+    dashboardUrl.pathname = safeCallbackUrl(
       req.nextUrl.searchParams.get("callbackUrl"),
     );
     dashboardUrl.search = "";
     return NextResponse.redirect(dashboardUrl);
   }
+
+  return nextWithCsp(req, nonce);
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|monitoring|.*\\..*).*)"],
+  // The Sentry tunnel (/monitoring) must match so the branch above can strip
+  // the cached Basic credential before the rewrite forwards to ingest —
+  // excluding it would pass `authorization` through and Sentry would 400 with
+  // `invalid project key`. Static assets and files with extensions stay out.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)"],
 };

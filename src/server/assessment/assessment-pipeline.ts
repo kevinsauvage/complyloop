@@ -2,8 +2,9 @@
  * Assessment pipeline owner.
  *
  * Single place that answers "how does an assessment run?":
- * narrow input → scratch rows → stage sequence (`runAssessment`) → apply.
- * The worker (`assessment-worker.ts`) only does load → `runAssessment` →
+ * narrow input → `scanAssessment` (checkout → raw findings + snapshot) →
+ * `reconcileAssessment` on rows loaded inside the apply transaction → persist.
+ * The worker (`assessment-worker.ts`) does load → `scanAssessment` →
  * `applyAuthoritativeAssessment`, with no inline status/alert/evidence logic.
  *
  * Scratch-row ownership lives here (not in `workspace/project-rows.ts`):
@@ -14,15 +15,11 @@
  */
 import "server-only";
 
+import type { Alert } from "@complyloop/analysis-core/contract/entities";
 import type {
-  Alert,
-  Assessment,
-  Finding,
-  Remediation,
-  Requirement,
-} from "@complyloop/analysis-core/contract/entities";
-import type { Project } from "@complyloop/analysis-core/contract/project-types";
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+  Control,
+  Project,
+} from "@complyloop/analysis-core/contract/project-types";
 import {
   acquireNamedPostgresAdvisoryLock,
   getDrizzle,
@@ -32,90 +29,134 @@ import { listAlertsForProject } from "@complyloop/db/repo/alerts";
 import {
   applyAssessmentPayload,
   type ProjectSlice,
-  snapshotProjectSlice,
 } from "@complyloop/db/repo/apply";
+import { getAssessmentJobStatus } from "@complyloop/db/repo/assessment-jobs";
 import { insertEvidence } from "@complyloop/db/repo/evidence";
-import type { WorkspaceSlice } from "@complyloop/db/types";
+import { loadProjectRuntime } from "@complyloop/db/workspace-load";
+
+import type { AssessmentJobStage } from "@/core/assessment/assessment-jobs";
 
 import { reportWarning } from "../observability";
 import { loadProjectDb, withProjectLock } from "../workspace/db";
+import { appendEvidence, type ProjectRows } from "../workspace/project-rows";
+import { type AssessmentRunResult, reconcileAssessment } from "./assessment";
 import {
-  appendEvidence,
-  cloneProjectRows,
-  type ProjectRows,
-} from "../workspace/project-rows";
-import type { AssessmentRunResult } from "./assessment";
-import type { AssessmentJob } from "./assessment-jobs";
-import {
-  clearExpiredExceptions,
-  upsertRequirementsById,
-} from "./assessment-status";
+  type AssessmentJob,
+  AssessmentJobCancelledError,
+} from "./assessment-jobs";
+import type { AssessmentScanResult } from "./assessment-scan";
+export {
+  type AssessmentPipelineInput,
+  createAssessmentScratch,
+  toPipelineInput,
+} from "./assessment-scratch";
 
 /**
- * Narrow pipeline input — the assessment needs project-scoped rows only,
- * never the full tenancy `WorkspaceSlice` (orgs, memberships, evidence
- * window, alerts). Use {@link toPipelineInput} to narrow a loaded slice at
- * the single call site.
+ * Persists an authoritative run under the project write lock. It loads the
+ * project's rows *inside* the transaction, under the lock, and reconciles the
+ * scan against them; the regression alerts then come from a fresh alert read.
+ * Reconciling on freshly loaded rows — rather than on the slice loaded before
+ * a scan that can take minutes — is what keeps the audit trail consistent with
+ * persisted state when a user edits a finding mid-scan. Preview (PR-head) runs
+ * never reach here.
  */
-export interface AssessmentPipelineInput {
+export async function applyAuthoritativeAssessment(input: {
   project: Project;
-  findings: ReadonlyArray<Finding>;
-  remediations: ReadonlyArray<Remediation>;
-  requirements: ReadonlyArray<Requirement>;
-  assessments: ReadonlyArray<Assessment>;
-}
+  job: AssessmentJob;
+  scan: AssessmentScanResult;
+  rootPath: string;
+  collectAlerts: boolean;
+  trigger: string;
+  /** Test override for the controls used during reconcile. */
+  controls?: readonly Control[];
+  onStage?: (stage: AssessmentJobStage) => void;
+}): Promise<void> {
+  const { project, job, scan, rootPath, collectAlerts, trigger } = input;
+  const drizzle = await getDrizzle();
+  await drizzle.transaction(async (tx) => {
+    await acquireNamedPostgresAdvisoryLock(tx, projectWriteLockKey(project.id));
+    // Cancel-safety: a cancel landing after the worker's pre-apply check must
+    // still discard the run. Re-check the job status inside the transaction
+    // (under the project lock) so the check and the writes are atomic —
+    // throwing here rolls everything back and the worker reports `cancelled`.
+    if ((await getAssessmentJobStatus(tx, job.id)) !== "running") {
+      throw new AssessmentJobCancelledError(job.id);
+    }
 
-/** Narrow a loaded `WorkspaceSlice` to the pipeline input (single site). */
-export function toPipelineInput(
-  db: WorkspaceSlice,
-  projectId: string,
-): AssessmentPipelineInput {
-  const project = db.projects.find((candidate) => candidate.id === projectId);
-  if (!project) throw new PublicError("Unknown project.");
-  return {
-    project,
-    findings: db.findings,
-    remediations: db.remediations,
-    requirements: db.requirements,
-    assessments: db.assessments,
-  };
-}
+    // Load rows under the lock and reconcile against them. `reconcileAssessment`
+    // clones its input, so `baseline` stays the unchanged pre-reconcile slice
+    // used for the no-op diff (unchanged rows are not rewritten).
+    const fresh = await loadProjectRuntime(tx, project.id);
+    const baseline: ProjectSlice = {
+      findings: fresh.findings,
+      remediations: fresh.remediations,
+      requirements: fresh.requirements,
+      alerts: fresh.alerts,
+    };
+    const run = await reconcileAssessment(
+      {
+        project,
+        findings: fresh.findings,
+        remediations: fresh.remediations,
+        requirements: fresh.requirements,
+        assessments: fresh.assessments,
+      },
+      scan,
+      {
+        rootPath,
+        authoritative: true,
+        controls: input.controls,
+        onStage: input.onStage,
+      },
+    );
+    const snapshot = run.assessment.snapshot;
+    if (!snapshot) {
+      throw new Error("Assessment completed without a snapshot.");
+    }
 
-/**
- * Assessment-owned scratch rows: clone project rows, drop expired temporary
- * exceptions, and seed the run evidence. The only assessment-side composer
- * of the workspace/project-status helpers.
- */
-export function createAssessmentScratch(
-  input: AssessmentPipelineInput,
-): ProjectRows {
-  const projectId = input.project.id;
-  const rows = cloneProjectRows(
-    input.findings,
-    input.remediations,
-    input.requirements,
-    projectId,
-  );
-  const cleared = clearExpiredExceptions(rows.requirements, projectId);
-  rows.requirements = upsertRequirementsById(
-    rows.requirements,
-    cleared.requirements,
-  );
-  rows.evidence.push(...cleared.evidence);
-  return rows;
-}
-
-/** Stale-write snapshot captured when the job loads (for apply guards). */
-export function snapshotPipelineSlice(
-  input: AssessmentPipelineInput,
-): ProjectSlice {
-  return snapshotProjectSlice(
-    input.requirements,
-    input.findings,
-    input.remediations,
-    [],
-    input.project.id,
-  );
+    // Alerts are built from a read inside the transaction (under the project
+    // write lock): matching against a pre-scan slice could refresh an alert the
+    // user just read or mint duplicates of one just created.
+    const alerts = collectAlerts
+      ? buildRegressionAlerts({
+          alerts: await listAlertsForProject(tx, project.id),
+          run,
+          projectId: project.id,
+          trigger,
+        })
+      : [];
+    await applyAssessmentPayload(
+      tx,
+      {
+        assessment: run.assessment,
+        snapshot,
+        evidence: run.evidence,
+        findings: run.findings,
+        remediations: run.remediations,
+        requirements: run.requirements,
+        alerts,
+      },
+      { baseline },
+    );
+    await insertEvidence(tx, {
+      kind: "assessment_job",
+      summary: `Assessment job ${job.id} completed for "${project.name}"`,
+      projectId: project.id,
+      assessmentId: run.assessment.id,
+      detail: {
+        phase: "completed",
+        jobId: job.id,
+        trigger: job.trigger,
+        alerts: alerts.length,
+        leaseExpiresAt: job.leaseExpiresAt,
+        // Which pushed SHAs this run absorbed without scanning individually
+        // (webhook coalescing) — answers "was commit X assessed?".
+        ...(job.payload.supersededRefs?.length
+          ? { supersededRefs: job.payload.supersededRefs }
+          : {}),
+      },
+    });
+  });
 }
 
 function buildRegressionAlerts(input: {
@@ -178,80 +219,19 @@ function buildRegressionAlerts(input: {
 }
 
 /**
- * Persists an authoritative run under the project write lock: fresh
- * in-transaction alert read (the pre-scan slice may be minutes stale),
- * `applyAssessmentPayload` with stale-write guards, plus the job-completed
- * evidence row. Preview (PR-head) runs never reach here.
- */
-export async function applyAuthoritativeAssessment(input: {
-  project: Project;
-  job: AssessmentJob;
-  run: AssessmentRunResult;
-  loadedSlice: ProjectSlice;
-  collectAlerts: boolean;
-  trigger: string;
-}): Promise<void> {
-  const { project, job, run, loadedSlice, collectAlerts, trigger } = input;
-  const { assessment } = run;
-  const snapshot = assessment.snapshot;
-  if (!snapshot) {
-    throw new Error("Assessment completed without a snapshot.");
-  }
-  const drizzle = await getDrizzle();
-  await drizzle.transaction(async (tx) => {
-    await acquireNamedPostgresAdvisoryLock(tx, projectWriteLockKey(project.id));
-    // Read alerts inside the apply transaction (under the project write
-    // lock): the pre-scan slice above may be minutes stale, and matching
-    // against it could refresh an alert the user just read or mint
-    // duplicates of one just created.
-    const alerts = collectAlerts
-      ? buildRegressionAlerts({
-          alerts: await listAlertsForProject(tx, project.id),
-          run,
-          projectId: project.id,
-          trigger,
-        })
-      : [];
-    await applyAssessmentPayload(
-      tx,
-      {
-        assessment,
-        snapshot,
-        evidence: run.evidence,
-        findings: run.findings,
-        remediations: run.remediations,
-        requirements: run.requirements,
-        alerts,
-      },
-      { loadedSlice },
-    );
-    await insertEvidence(tx, {
-      kind: "assessment_job",
-      summary: `Assessment job ${job.id} completed for "${project.name}"`,
-      projectId: project.id,
-      assessmentId: assessment.id,
-      detail: {
-        phase: "completed",
-        jobId: job.id,
-        trigger: job.trigger,
-        alerts: alerts.length,
-        leaseExpiresAt: job.leaseExpiresAt,
-      },
-    });
-  });
-}
-
-/**
- * Records terminal job-failure evidence under the project write lock so it
- * serializes with concurrent assessment applies. Never masks the original
- * job failure — reports bookkeeping errors as warnings instead.
+ * Records job-failure evidence under the project write lock so it serializes
+ * with concurrent assessment applies — for terminal failures and for retries
+ * (a Pipeline showing "retrying" otherwise has no durable record of why).
+ * Never masks the original job failure — reports bookkeeping errors as
+ * warnings instead.
  */
 export async function recordAssessmentFailureEvidence(input: {
   projectId: string;
   job: AssessmentJob;
   error: unknown;
+  phase: "failed" | "retrying";
 }): Promise<void> {
-  const { projectId, job, error } = input;
+  const { projectId, job, error, phase } = input;
   try {
     const db = await loadProjectDb(projectId);
     const project = db.projects.find((candidate) => candidate.id === projectId);
@@ -261,10 +241,13 @@ export async function recordAssessmentFailureEvidence(input: {
     await withProjectLock(projectId, async (tx) => {
       await insertEvidence(tx, {
         kind: "assessment_job",
-        summary: `Assessment job ${job.id} failed after ${job.attempts} attempt(s).`,
+        summary:
+          phase === "failed"
+            ? `Assessment job ${job.id} failed after ${job.attempts} attempt(s).`
+            : `Assessment job ${job.id} failed attempt ${job.attempts}; retrying.`,
         projectId: project.id,
         detail: {
-          phase: "failed",
+          phase,
           jobId: job.id,
           attempts: job.attempts,
           error: errorMessage,

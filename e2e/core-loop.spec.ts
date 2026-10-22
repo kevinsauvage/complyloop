@@ -1,10 +1,12 @@
 import { expect, test } from "@playwright/test";
 
+import { projectPath } from "./constants";
+
 test.describe("compliance core loop", () => {
   test("assess → finding → evidence", async ({ page }) => {
-    await page.goto("/dashboard");
+    await page.goto(projectPath("dashboard"));
     await expect(
-      page.getByRole("heading", { name: /sample-app|Welcome to ComplyLoop/i }),
+      page.getByRole("heading", { name: "Dashboard" }),
     ).toBeVisible();
 
     await page.getByRole("button", { name: "Run assessment" }).click();
@@ -16,11 +18,13 @@ test.describe("compliance core loop", () => {
     ).toBeVisible({ timeout: 60_000 });
 
     await page
-      .getByRole("navigation", { name: "Main" })
+      .getByRole("navigation", { name: "Project" })
       .getByRole("link", { name: /Findings/ })
       .first()
       .click();
-    await expect(page.getByRole("heading", { name: "Findings" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Findings", exact: true }),
+    ).toBeVisible();
 
     const findingLink = page
       .getByRole("link", {
@@ -63,7 +67,7 @@ test.describe("compliance core loop", () => {
     }
 
     await page
-      .getByRole("navigation", { name: "Main" })
+      .getByRole("navigation", { name: "Project" })
       .getByRole("link", { name: /Evidence/ })
       .first()
       .click();

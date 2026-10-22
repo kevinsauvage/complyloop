@@ -19,18 +19,17 @@ vi.mock("../observability", () => ({
 }));
 
 import {
-  drainAssessmentJobQueue,
   drainAssessmentJobsInline,
+  drainQueue,
   scheduleAssessmentDrain,
   shouldDrainAssessmentJobsInline,
-} from "../assessment/assessment-job-inline";
+} from "../assessment/assessment-scheduler";
 import { processNextAssessmentJob } from "../assessment/assessment-worker";
 
 const processNext = vi.mocked(processNextAssessmentJob);
 
 beforeEach(() => {
   vi.stubEnv("AUTH_URL", "https://app.example.com");
-  vi.stubEnv("WORKER_SECRET", "test-worker-secret");
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200 }));
 });
 
@@ -64,22 +63,22 @@ describe("shouldDrainAssessmentJobsInline", () => {
   });
 });
 
-describe("drainAssessmentJobQueue", () => {
+describe("drainQueue", () => {
   it("stops when the queue is idle", async () => {
     processNext
       .mockResolvedValueOnce({ kind: "succeeded", jobId: "j1" })
       .mockResolvedValueOnce({ kind: "idle" });
 
-    const outcome = await drainAssessmentJobQueue();
+    const outcome = await drainQueue();
 
     expect(processNext).toHaveBeenCalledTimes(2);
     expect(outcome).toEqual({ ran: 1, failed: 0, retrying: 0, cancelled: 0 });
   });
 
-  it("respects maxJobs", async () => {
+  it("respects the limit", async () => {
     processNext.mockResolvedValue({ kind: "succeeded", jobId: "j1" });
 
-    const outcome = await drainAssessmentJobQueue(3);
+    const outcome = await drainQueue({ limit: 3 });
 
     expect(processNext).toHaveBeenCalledTimes(3);
     expect(outcome).toEqual({ ran: 3, failed: 0, retrying: 0, cancelled: 0 });
@@ -92,7 +91,7 @@ describe("drainAssessmentJobQueue", () => {
       .mockResolvedValueOnce({ kind: "succeeded", jobId: "j3" })
       .mockResolvedValueOnce({ kind: "idle" });
 
-    const outcome = await drainAssessmentJobQueue();
+    const outcome = await drainQueue();
 
     expect(outcome).toEqual({ ran: 1, failed: 1, retrying: 1, cancelled: 0 });
   });
@@ -102,7 +101,7 @@ describe("drainAssessmentJobQueue", () => {
       .mockResolvedValueOnce({ kind: "cancelled", jobId: "j1" })
       .mockResolvedValueOnce({ kind: "idle" });
 
-    const outcome = await drainAssessmentJobQueue();
+    const outcome = await drainQueue();
 
     expect(outcome).toEqual({ ran: 0, failed: 0, retrying: 0, cancelled: 1 });
   });
@@ -180,53 +179,16 @@ describe("scheduleAssessmentDrain", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("falls back to the worker-route self-fetch when the dispatch fails", async () => {
+  it("leaves the job queued for the schedule backstop when the dispatch fails", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("E2E_AUTH_ENABLED", "");
     dispatchAssessmentWorker.mockResolvedValue(false);
 
     await expect(scheduleAssessmentDrain()).resolves.toBeUndefined();
+    expect(dispatchAssessmentWorker).toHaveBeenCalledTimes(1);
     expect(processNext).not.toHaveBeenCalled();
-    expect(fetch).toHaveBeenCalledWith(
-      "https://app.example.com/api/internal/jobs/run?limit=1",
-      {
-        method: "POST",
-        headers: { authorization: "Bearer test-worker-secret" },
-      },
-    );
-  });
-
-  it("never throws when the self-fetch fails", async () => {
-    const { reportWarning } = await import("../observability");
-    vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("E2E_AUTH_ENABLED", "");
-    vi.mocked(fetch).mockRejectedValueOnce(new Error("network down"));
-
-    await expect(scheduleAssessmentDrain()).resolves.toBeUndefined();
-    expect(reportWarning).toHaveBeenCalledWith(
-      "opportunistic assessment drain failed",
-      expect.objectContaining({
-        code: "assessment_opportunistic_drain_failed",
-      }),
-    );
-  });
-
-  it("never throws when the worker route responds with an error", async () => {
-    vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("E2E_AUTH_ENABLED", "");
-    vi.mocked(fetch).mockResolvedValueOnce(
-      new Response("error", { status: 503 }),
-    );
-
-    await expect(scheduleAssessmentDrain()).resolves.toBeUndefined();
-  });
-
-  it("never throws when AUTH_URL or WORKER_SECRET is missing", async () => {
-    vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("E2E_AUTH_ENABLED", "");
-    vi.stubEnv("AUTH_URL", "");
-
-    await expect(scheduleAssessmentDrain()).resolves.toBeUndefined();
+    // No second executor: no self-fetch of the worker route. The executor's
+    // 15-minute schedule reclaims the queued job via lease recovery.
     expect(fetch).not.toHaveBeenCalled();
   });
 });

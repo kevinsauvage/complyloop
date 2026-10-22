@@ -1,5 +1,6 @@
 import type { Page } from "playwright-core";
 
+import { withBlockedWrites } from "./block-writes.ts";
 import {
   isInvalidField,
   submitFirstValidatableForm,
@@ -16,12 +17,18 @@ type FormErrorHit = CapturedHit & {
 const IS_INVALID_SOURCE = isInvalidField.toString();
 
 /**
- * Submits the first HTML5-validated form empty/invalid and checks that surfaced
- * errors are programmatically associated and focus is predictable.
+ * Submits the first HTML5-validated form empty/invalid and checks that
+ * page-rendered errors (`aria-invalid="true"`) are programmatically associated
+ * and focus is predictable. Browser-native validation messages are not custom
+ * error UI and are left alone.
  */
-export async function formErrorSubmitViolation(
+export function formErrorSubmitViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
+  return withBlockedWrites(page, () => submitAndInspect(page));
+}
+
+async function submitAndInspect(page: Page): Promise<CustomViolation | null> {
   const submitted = await page.evaluate(submitFirstValidatableForm);
 
   if (!submitted) return null;
@@ -74,6 +81,12 @@ export async function formErrorSubmitViolation(
 
       for (const field of invalidFields) {
         if (!(field instanceof HTMLElement)) continue;
+        // A field the browser itself rejected (`required`, `type=email` on a
+        // form without `novalidate`) is reported by the browser's native
+        // validation message, which is exposed to assistive technology. Only a
+        // field the page marks invalid (`aria-invalid="true"`) has custom error
+        // UI that must be associated.
+        if (field.getAttribute("aria-invalid") !== "true") continue;
         if (isAssociated(field)) continue;
 
         const captured = captureHit(field);

@@ -10,7 +10,7 @@ import http from "isomorphic-git/http/node";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
-import { assertE2EFixtureRoot, isE2EHarnessEnabled } from "../e2e-harness";
+import { isE2EHarnessEnabled } from "../e2e-harness";
 import { assessmentCheckoutQuota } from "../env";
 import {
   gitBasicAuthHeader,
@@ -23,18 +23,8 @@ import {
   redactCloneUrl,
 } from "../github/github";
 import { getProjectToken } from "../github/github-connector";
-
-function maxCheckoutBytes(): number {
-  return assessmentCheckoutQuota().maxBytes;
-}
-
-function maxCheckoutFiles(): number {
-  return assessmentCheckoutQuota().maxFiles;
-}
-
-function maxCheckoutScanMs(): number {
-  return assessmentCheckoutQuota().scanTimeoutMs;
-}
+import { refForProjectCheckout } from "../github/tracked-branch";
+import { withFixtureCheckout } from "./fixture-checkout";
 
 /**
  * Rejects oversized clones before AST parsing or Playwright can consume
@@ -43,9 +33,12 @@ function maxCheckoutScanMs(): number {
 export async function assertCheckoutWithinQuota(
   rootPath: string,
 ): Promise<void> {
-  const byteLimit = maxCheckoutBytes();
-  const fileLimit = maxCheckoutFiles();
-  const deadline = Date.now() + maxCheckoutScanMs();
+  const {
+    maxBytes: byteLimit,
+    maxFiles: fileLimit,
+    scanTimeoutMs,
+  } = assessmentCheckoutQuota();
+  const deadline = Date.now() + scanTimeoutMs;
   const { opendir, stat } = fs.promises;
   let bytes = 0;
   let files = 0;
@@ -125,6 +118,8 @@ export function parseCheckoutRef(ref: string): string {
   throw new PublicError("Invalid checkout ref.", "ref_not_found");
 }
 
+const CLONE_TIMEOUT_MS = 120_000;
+
 /**
  * Shallow-clones a repo into `rootPath` with pure-JS git (no `git` CLI —
  * serverless runtimes don't ship one); removes the directory on failure.
@@ -135,8 +130,9 @@ export async function cloneShallow(
   auth: GitHttpAuth = noGitHttpAuth(),
 ): Promise<void> {
   fs.mkdirSync(path.dirname(rootPath), { recursive: true });
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    await git.clone({
+    const clone = git.clone({
       fs,
       http,
       dir: rootPath,
@@ -145,13 +141,34 @@ export async function cloneShallow(
       depth: 1,
       headers: auth.headers,
     });
+    // A clone abandoned on timeout keeps running; its late failure must not
+    // surface as an unhandled rejection after we cleaned up.
+    clone.catch(() => {});
+    await Promise.race([
+      clone,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () =>
+            reject(
+              new PublicError(
+                "git clone timed out — the repository may be unreachable or too large.",
+                "connect",
+              ),
+            ),
+          CLONE_TIMEOUT_MS,
+        );
+      }),
+    ]);
   } catch (error) {
     fs.rmSync(rootPath, { recursive: true, force: true });
+    if (error instanceof PublicError) throw error;
     const detail = error instanceof Error ? error.message : "unknown error";
     throw new PublicError(
       `git clone failed: ${redactCloneUrl(detail).trim().slice(0, 400)}`,
       "connect",
     );
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
   }
 }
 
@@ -181,26 +198,12 @@ function isRefNotFoundError(error: unknown): boolean {
   return /Could not find/i.test(message);
 }
 
-/**
- * Copies the e2e fixture into a temp directory, runs `fn`, then deletes the tree.
- * Mutating the copy cannot affect the committed fixture.
- */
-export async function withFixtureCheckout<T>(
-  fn: (rootPath: string) => Promise<T>,
-): Promise<T> {
-  const fixtureRoot = assertE2EFixtureRoot();
-  const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "complyloop-e2e-"));
-  try {
-    fs.cpSync(fixtureRoot, rootPath, { recursive: true });
-    return await fn(rootPath);
-  } finally {
-    fs.rmSync(rootPath, { recursive: true, force: true });
-  }
-}
+export { withFixtureCheckout } from "./fixture-checkout";
 
 /**
  * Shallow-clones a GitHub repo into a temp directory, runs `fn`, then deletes
- * the tree. Use for every server path that needs source (assess, webhook, PR).
+ * the tree. Worker-only: request handlers that need source read the one file
+ * they touch through the contents API (`withProjectFileWorkspace`).
  */
 export async function withRepoCheckout<T>(
   options: RepoCheckoutOptions,
@@ -215,7 +218,9 @@ export async function withRepoCheckout<T>(
   const { fullName, accessToken } = options;
   parseOwnerRepo(fullName);
   // Start marker so a stall inside clone/fetch is visible in function logs.
-  console.info(`[progress] checkout started repo=${fullName} ref=${ref ?? "default"}`);
+  console.info(
+    `[progress] checkout started repo=${fullName} ref=${ref ?? "default"}`,
+  );
   const auth = gitBasicAuthHeader(accessToken);
   const rootPath = fs.mkdtempSync(
     path.join(os.tmpdir(), "complyloop-checkout-"),
@@ -259,7 +264,11 @@ export async function withRepoCheckout<T>(
         );
       }
     }
-    await assertCheckoutWithinQuota(rootPath);
+    // The post-checkout quota gate lives in the snapshot walk
+    // (`captureSnapshot` counts every file but `.git` while hashing, so a
+    // separate walk here would re-enumerate the tree for nothing). The
+    // pre-fetch walk above stays: it fails fast before a ref fetch can pull
+    // more tree than the default shallow clone.
     return await fn(rootPath);
   } finally {
     fs.rmSync(rootPath, { recursive: true, force: true });
@@ -271,6 +280,8 @@ export async function withRepoCheckout<T>(
  * against an ephemeral checkout of `github.fullName`. Under the e2e harness,
  * uses the local fixture.
  */
+export { refForProjectCheckout } from "../github/tracked-branch";
+
 export async function withProjectCheckout<T>(
   project: Project,
   fn: (rootPath: string) => Promise<T>,
@@ -296,5 +307,10 @@ export async function withProjectCheckout<T>(
       "connect",
     );
   }
-  return withRepoCheckout({ fullName, accessToken, ref }, fn);
+  // No explicit ref (a manual run): the project's tracked branch when one is
+  // set, otherwise the repository default.
+  return withRepoCheckout(
+    { fullName, accessToken, ref: refForProjectCheckout(project, ref) },
+    fn,
+  );
 }

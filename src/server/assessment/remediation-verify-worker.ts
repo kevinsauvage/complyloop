@@ -1,0 +1,402 @@
+import "server-only";
+
+import type { CheckAuditInput } from "@complyloop/analysis-core/check-authority";
+import { isHtmlValidateOwnedCheck } from "@complyloop/analysis-core/check-authority";
+import type { CheckId } from "@complyloop/analysis-core/check-registry";
+import { SITE_VERIFY_TIMEOUT_MS } from "@complyloop/analysis-core/contract/assessment-limits";
+import type {
+  Finding,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
+import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import {
+  runtimeViolationVerification,
+  scanRuntime,
+} from "@complyloop/analysis-core/runtime/scan";
+import { DEFAULT_THEME_CONDITIONS } from "@complyloop/analysis-core/runtime/theme-conditions";
+import { getDrizzle } from "@complyloop/db/postgres";
+import {
+  insertEvidence,
+  insertEvidenceRecords,
+} from "@complyloop/db/repo/evidence";
+import { getFindingById, upsertFindings } from "@complyloop/db/repo/findings";
+import { getProjectById } from "@complyloop/db/repo/projects";
+import {
+  getRemediationByFindingId,
+  upsertRemediations,
+} from "@complyloop/db/repo/remediations";
+import { upsertRequirements } from "@complyloop/db/repo/requirements";
+
+import { advanceRemediation } from "@/core/requirements/remediation-lifecycle";
+
+import { reportWarning } from "../observability";
+import { withProjectLock } from "../workspace/db";
+import { sameInstance } from "./assessment-findings";
+import { refreshRequirementsForControls } from "./assessment-status";
+import {
+  remediationEvidenceDetail,
+  remediationEvidenceSummary,
+} from "./remediation-evidence";
+
+/**
+ * Worker-side runtime remediation verify.
+ *
+ * Runtime (`dom`/`site`) findings are proven clean-or-still-failing by a
+ * Playwright re-audit. That re-audit used to run inside the finding-page
+ * server action, which traced `playwright-core` (~80 MB) into the Vercel
+ * function bundle on every deploy. It now runs on
+ * the GitHub Actions executor like every other runtime scan: the action only
+ * enqueues a `verify_remediation` job; the worker resolves the finding
+ * (no viewer session) and applies the verdict under the project write lock.
+ *
+ * Source findings never reach here — they verify through PR merge +
+ * re-assessment (`verifyRemediationOnResolve`).
+ */
+
+/** Shown when the automated re-check still finds the violation. */
+const STILL_FAILING_VERIFY_MESSAGE =
+  "Still failing — the finding is still detected at this location.";
+const PREVIEW_UNREACHABLE_MESSAGE = "Preview unreachable — check preview URL.";
+const NO_PAGES_SCANNED_MESSAGE = "No pages scanned — check preview routes.";
+const SITE_CHECKS_NOT_RUN_MESSAGE = "Site checks did not run.";
+const SITE_VERIFY_TIMEOUT_MESSAGE =
+  "Verification timed out — the preview may be slow. Try again.";
+
+class SiteVerifyTimeoutError extends Error {
+  constructor() {
+    super("Site verify scan timed out.");
+    this.name = "SiteVerifyTimeoutError";
+  }
+}
+
+/**
+ * Re-audits only the finding's own pages rather than the project's full route
+ * set: the verdict only reads this finding's instance, so a full multi-route
+ * scan (browser + link crawl) is unnecessary work. Finding pages are absolute
+ * snapshot URLs, which the runtime joins unchanged; route-style fixtures join
+ * against the base URL. Bounded by `SITE_VERIFY_TIMEOUT_MS` — on expiry the
+ * shared browser keeps settling in the background while the caller fails
+ * closed with a timeout verdict instead of hanging the job.
+ */
+async function scanSiteFindingForVerify(input: {
+  runtimeBaseUrl?: string;
+  runtimeRoutes?: string[];
+  findingPages: string[];
+}): Promise<Awaited<ReturnType<typeof scanRuntime>>> {
+  const routes =
+    input.findingPages.length > 0
+      ? input.findingPages
+      : (input.runtimeRoutes ?? []);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      scanRuntime({
+        runtimeBaseUrl: input.runtimeBaseUrl,
+        runtimeRoutes: routes,
+        browserConditions: DEFAULT_THEME_CONDITIONS,
+      }),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new SiteVerifyTimeoutError()),
+          SITE_VERIFY_TIMEOUT_MS,
+        );
+      }),
+    ]);
+  } catch (error) {
+    if (error instanceof SiteVerifyTimeoutError) {
+      return {
+        findings: [],
+        pagesScanned: 0,
+        error: SITE_VERIFY_TIMEOUT_MESSAGE,
+      };
+    }
+    throw error;
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
+interface VerifyVerdict {
+  present: boolean;
+  /**
+   * False when the re-audit could not observe the page (timeout, preview down,
+   * zero pages, engine skipped). `present` is then a fail-closed default, not a
+   * proven regression: the finding must not be re-opened and the requirement
+   * must not be flipped to failed.
+   */
+  conclusive: boolean;
+  engine: "runtime" | "site";
+  /** Positive-fix note (verified case), or undefined when still failing. */
+  note: string;
+  /**
+   * User-facing reason shown when still failing (timeout vs preview-down vs
+   * 0-pages vs engine-skipped vs still-present). Surfaced on the finding page
+   * so the engineer knows whether to retry, fix the preview, or fix the code.
+   */
+  stillFailingMessage?: string;
+  audit: CheckAuditInput;
+}
+
+async function computeVerifyVerdict(
+  finding: Finding,
+  project: { runtimeBaseUrl?: string; runtimeRoutes?: string[] },
+): Promise<VerifyVerdict> {
+  const location = finding.location;
+  switch (location.kind) {
+    case "source":
+      // Defence in depth: the enqueue path already refuses source findings.
+      throw new PublicError(
+        "Source findings are verified by merging the draft pull request and re-assessing.",
+      );
+    case "dom": {
+      const verdict = await runtimeViolationVerification(
+        {
+          checkId: finding.checkId as CheckId,
+          location,
+        },
+        undefined,
+        // Same conditions as the assessment that detected it: without them a
+        // dark-mode-only defect re-audits clean on the default theme.
+        { browserConditions: DEFAULT_THEME_CONDITIONS },
+      );
+      return {
+        present: verdict.present,
+        conclusive: verdict.conclusive,
+        engine: "runtime",
+        note: "Runtime re-audit found no remaining finding on the page",
+        audit: { runtimeRan: true },
+      };
+    }
+    case "site": {
+      const result = await scanSiteFindingForVerify({
+        runtimeBaseUrl: project.runtimeBaseUrl,
+        runtimeRoutes: project.runtimeRoutes,
+        findingPages: location.pages,
+      });
+      const verifyTimedOut = result.error === SITE_VERIFY_TIMEOUT_MESSAGE;
+      const previewUnreachable = !verifyTimedOut && Boolean(result.error);
+      const present =
+        verifyTimedOut ||
+        previewUnreachable ||
+        result.pagesScanned === 0 ||
+        result.siteLevelChecksRan !== true ||
+        result.findings.some((raw) => sameInstance(finding, raw));
+      const stillFailingMessage = verifyTimedOut
+        ? SITE_VERIFY_TIMEOUT_MESSAGE
+        : previewUnreachable
+          ? PREVIEW_UNREACHABLE_MESSAGE
+          : result.pagesScanned === 0
+            ? NO_PAGES_SCANNED_MESSAGE
+            : result.siteLevelChecksRan !== true
+              ? SITE_CHECKS_NOT_RUN_MESSAGE
+              : STILL_FAILING_VERIFY_MESSAGE;
+      return {
+        present,
+        conclusive:
+          !verifyTimedOut &&
+          !previewUnreachable &&
+          result.pagesScanned > 0 &&
+          result.siteLevelChecksRan === true &&
+          (!isHtmlValidateOwnedCheck(finding.checkId) ||
+            result.htmlValidateRan === true),
+        engine: "site",
+        note: "Runtime re-audit found no remaining site-level finding",
+        stillFailingMessage,
+        audit: {
+          runtimeRan: true,
+          siteLevelChecksRan: result.siteLevelChecksRan,
+          htmlValidateRan: result.htmlValidateRan,
+        },
+      };
+    }
+    default: {
+      const _exhaustive: never = location;
+      throw new Error(`Unhandled finding location: ${String(_exhaustive)}`);
+    }
+  }
+}
+/**
+ * Runs a `verify_remediation` job: load → re-audit → apply, as the project's
+ * system actor (no viewer session). A "still failing" verdict is a recorded
+ * outcome, not a job failure — the job only fails when the re-audit itself
+ * throws (retried by the queue like any other job).
+ *
+ * Writes are targeted: only the finding, remediation, requirement row(s) and
+ * evidence this verdict changes, all read inside the project lock.
+ */
+export async function runRemediationVerifyJob(
+  findingId: string,
+): Promise<void> {
+  const drizzle = await getDrizzle();
+  const finding = await getFindingById(drizzle, findingId);
+  if (!finding) {
+    throw new Error(`Remediation verify job: unknown finding ${findingId}.`);
+  }
+  const project = await getProjectById(drizzle, finding.projectId);
+  if (!project) {
+    throw new Error(
+      `Remediation verify job: unknown project ${finding.projectId}.`,
+    );
+  }
+  const verdict = await computeVerifyVerdict(finding, project);
+
+  await withProjectLock(finding.projectId, async (tx) => {
+    const live = await getFindingById(tx, findingId);
+    if (!live) return;
+    const remediation = await getRemediationByFindingId(tx, findingId);
+    if (!remediation || remediation.status !== "implemented") {
+      // A concurrent write already advanced it, or there is nothing to
+      // verify (dismissed / removed).
+      return;
+    }
+    // Re-validate inside the lock: the finding may have moved between the
+    // read and the apply. Dismissed findings are never verifiable; resolved
+    // ones are (identical proof), but never against a drifted location.
+    if (
+      (live.status !== "open" && live.status !== "resolved") ||
+      !sameInstance(finding, live)
+    ) {
+      reportWarning("Skipping verify apply: finding changed during re-audit.", {
+        code: "remediation_verify_finding_changed",
+        findingId,
+      });
+      return;
+    }
+
+    // Re-read the project inside the lock: `controlsInScope` filters on the
+    // project's current preset, so a preset change during the re-audit would
+    // otherwise make the requirement refresh a silent no-op.
+    const liveProject =
+      (await getProjectById(tx, finding.projectId)) ?? project;
+
+    if (verdict.present) {
+      if (!verdict.conclusive) {
+        // Could not observe the page (timeout, preview down, zero pages):
+        // record the failed attempt without re-opening the finding or
+        // deriving a compliance status from an unobserved run.
+        await recordInconclusiveVerify(tx, live, verdict.stillFailingMessage);
+        return;
+      }
+      await applyStillFailing(tx, liveProject, live, verdict);
+      return;
+    }
+    await applyVerified(tx, liveProject, live, remediation, verdict);
+  });
+}
+
+type ProjectTxDb = Parameters<typeof upsertFindings>[0];
+
+/**
+ * A resolved finding proven live again must not stay closed: re-open it so
+ * the loop reflects reality, and record the failed verification as evidence
+ * (history alone would not survive the evidence-derived timeline). The
+ * specific reason (timeout vs preview-down vs still-present) rides on the
+ * evidence `note` so the finding page can explain the failure.
+ */
+async function applyStillFailing(
+  tx: ProjectTxDb,
+  project: Project,
+  finding: Finding,
+  verdict: VerifyVerdict,
+): Promise<void> {
+  const note =
+    verdict.stillFailingMessage ??
+    "Verification failed: the finding is still detected on the page.";
+  if (finding.status === "resolved") {
+    await upsertFindings(tx, [
+      { ...finding, status: "open", resolvedNote: undefined },
+    ]);
+  }
+  await insertEvidence(tx, {
+    kind: "remediation_verification_failed",
+    summary: `Verification failed for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
+    projectId: finding.projectId,
+    controlId: finding.controlId,
+    findingId: finding.id,
+    detail: remediationEvidenceDetail({ note }),
+  });
+  // The control must reflect the re-opened finding: a proven regression that
+  // leaves the requirement at `passed` is the compliance claim this loop
+  // exists to prevent.
+  const refreshed = await refreshRequirementsForControls(
+    tx,
+    project,
+    [finding.controlId],
+    {
+      runtimeRan: verdict.audit.runtimeRan,
+      siteLevelChecksRan: verdict.audit.siteLevelChecksRan,
+      htmlValidateRan: verdict.audit.htmlValidateRan,
+    },
+  );
+  await upsertRequirements(tx, refreshed.requirements);
+  await insertEvidenceRecords(tx, refreshed.evidence);
+}
+
+/** An unobserved run: record the attempt, change no finding or status. */
+async function recordInconclusiveVerify(
+  tx: ProjectTxDb,
+  finding: Finding,
+  stillFailingMessage?: string,
+): Promise<void> {
+  await insertEvidence(tx, {
+    kind: "remediation_verification_failed",
+    summary: `Verification could not run for ${finding.checkId} at ${formatLocationRef(finding.location)}`,
+    projectId: finding.projectId,
+    controlId: finding.controlId,
+    findingId: finding.id,
+    detail: remediationEvidenceDetail({
+      note:
+        stillFailingMessage ??
+        "The re-audit could not observe the page; the finding and its requirement were left unchanged.",
+    }),
+  });
+}
+
+async function applyVerified(
+  tx: ProjectTxDb,
+  project: Project,
+  live: Finding,
+  remediation: Remediation,
+  verdict: VerifyVerdict,
+): Promise<void> {
+  const alreadyResolved = live.status === "resolved";
+  if (!alreadyResolved) {
+    await upsertFindings(tx, [
+      {
+        ...live,
+        status: "resolved",
+        resolvedNote: "Fix verified by re-running the runtime audit.",
+      },
+    ]);
+  }
+  await upsertRemediations(tx, [advanceRemediation(remediation, "verified")]);
+  await insertEvidence(tx, {
+    kind: "remediation_verified",
+    summary: remediationEvidenceSummary("verified", live),
+    projectId: live.projectId,
+    controlId: live.controlId,
+    findingId: live.id,
+    detail: remediationEvidenceDetail({
+      engine: verdict.engine,
+      note: verdict.note,
+    }),
+  });
+
+  // Re-derive the control from the rows that now exist: the resolved finding
+  // is excluded, the control's other open findings still count, and a sticky
+  // human decision keeps holding.
+  const refreshed = await refreshRequirementsForControls(
+    tx,
+    project,
+    [live.controlId],
+    {
+      runtimeRan: verdict.audit.runtimeRan,
+      siteLevelChecksRan: verdict.audit.siteLevelChecksRan,
+      htmlValidateRan: verdict.audit.htmlValidateRan,
+    },
+  );
+  await upsertRequirements(tx, refreshed.requirements);
+  await insertEvidenceRecords(tx, refreshed.evidence);
+}

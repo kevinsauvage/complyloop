@@ -2,9 +2,15 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import git from "isomorphic-git";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { captureSnapshot, detectChanges, summarizeChanges } from "./monitor";
+import {
+  captureSnapshot,
+  detectChanges,
+  readRepoHead,
+  summarizeChanges,
+} from "./monitor";
 
 let rootPath: string;
 
@@ -21,14 +27,14 @@ afterEach(() => {
 });
 
 describe("detectChanges", () => {
-  it("returns no changes when there is no previous snapshot", () => {
-    const { changes, snapshot } = detectChanges(rootPath, undefined);
+  it("returns no changes when there is no previous snapshot", async () => {
+    const { changes, snapshot } = await detectChanges(rootPath, undefined);
     expect(changes).toHaveLength(0);
     expect(snapshot.fileHashes["A.tsx"]).toBeDefined();
   });
 
-  it("detects modified and deleted files", () => {
-    const previous = captureSnapshot(rootPath);
+  it("detects modified and deleted files", async () => {
+    const previous = await captureSnapshot(rootPath);
     fs.writeFileSync(
       path.join(rootPath, "A.tsx"),
       "export const A = () => <img src='/x' />;\n",
@@ -37,7 +43,7 @@ describe("detectChanges", () => {
       path.join(rootPath, "B.tsx"),
       "export const B = () => null;\n",
     );
-    const { changes } = detectChanges(rootPath, previous);
+    const { changes } = await detectChanges(rootPath, previous);
     const paths = changes.map((change) => change.filePath).sort();
     expect(paths).toEqual(["A.tsx", "B.tsx"]);
   });
@@ -46,5 +52,53 @@ describe("detectChanges", () => {
     expect(
       summarizeChanges([{ filePath: "a.tsx" }, { filePath: "b.tsx" }]),
     ).toBe("2 file(s) changed: a.tsx, b.tsx");
+  });
+
+  it("snapshots exactly the script set (node_modules/dotfiles excluded)", async () => {
+    fs.mkdirSync(path.join(rootPath, "node_modules", "pkg"), {
+      recursive: true,
+    });
+    fs.writeFileSync(
+      path.join(rootPath, "node_modules", "pkg", "index.ts"),
+      "export {};\n",
+    );
+    fs.writeFileSync(path.join(rootPath, ".hidden.ts"), "export {};\n");
+    fs.writeFileSync(path.join(rootPath, "util.ts"), "export {};\n");
+    const snapshot = await captureSnapshot(rootPath);
+    expect(Object.keys(snapshot.fileHashes).sort()).toEqual([
+      "A.tsx",
+      "util.ts",
+    ]);
+  });
+
+  it("fails the snapshot walk when the checkout exceeds quota", async () => {
+    vi.stubEnv("ASSESSMENT_MAX_CHECKOUT_FILES", "1");
+    try {
+      fs.writeFileSync(path.join(rootPath, "B.tsx"), "export {};\n");
+      await expect(captureSnapshot(rootPath)).rejects.toThrow(
+        /assessment quota/,
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+});
+
+describe("readRepoHead", () => {
+  it("resolves HEAD with pure-JS git (no CLI)", async () => {
+    await git.init({ fs, dir: rootPath });
+    await git.add({ fs, dir: rootPath, filepath: "A.tsx" });
+    await git.commit({
+      fs,
+      dir: rootPath,
+      author: { name: "test", email: "test@example.com" },
+      message: "init",
+    });
+
+    await expect(readRepoHead(rootPath)).resolves.toMatch(/^[0-9a-f]{40}$/);
+  });
+
+  it("returns undefined outside a repository", async () => {
+    await expect(readRepoHead(rootPath)).resolves.toBeUndefined();
   });
 });

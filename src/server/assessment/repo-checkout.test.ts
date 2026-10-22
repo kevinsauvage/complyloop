@@ -6,6 +6,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
+import { testProject } from "@/test-fixtures/project";
+
 const isoClone = vi.hoisted(() => vi.fn());
 const isoFetch = vi.hoisted(() => vi.fn());
 const isoCheckout = vi.hoisted(() => vi.fn());
@@ -27,6 +29,7 @@ import {
   cloneAuthedShallow,
   cloneShallow,
   parseCheckoutRef,
+  refForProjectCheckout,
   withFixtureCheckout,
   withProjectCheckout,
   withRepoCheckout,
@@ -362,5 +365,31 @@ describe("assertCheckoutWithinQuota", () => {
     await expect(assertCheckoutWithinQuota(root)).rejects.toThrow(
       /assessment quota/,
     );
+  });
+});
+
+describe("refForProjectCheckout", () => {
+  const github = {
+    fullName: "acme/shop",
+    defaultBranch: "main",
+    private: false,
+  };
+
+  it("prefers an explicit ref (a job's commit SHA)", () => {
+    const project = testProject({
+      github: { ...github, trackedBranch: "develop" },
+    });
+    expect(refForProjectCheckout(project, "a".repeat(40))).toBe("a".repeat(40));
+  });
+
+  it("uses the tracked branch for a manual run", () => {
+    const project = testProject({
+      github: { ...github, trackedBranch: "develop" },
+    });
+    expect(refForProjectCheckout(project)).toBe("develop");
+  });
+
+  it("falls back to the repository default when nothing is tracked", () => {
+    expect(refForProjectCheckout(testProject({ github }))).toBeUndefined();
   });
 });

@@ -23,4 +23,31 @@ describe("custom runtime findings", () => {
     expect(findings[0]?.checkId).toBe("reflow");
     expect(findings[0]?.analyzerId).toBe("playwright-custom");
   });
+
+  it("downgrades advisory inference probes to warnings (never fail)", () => {
+    const findings = findingsFromCustomViolations("https://app.example/", [
+      {
+        id: "non-text-contrast",
+        impact: "serious",
+        description: "Chrome contrast",
+        help: "Increase boundary contrast",
+        nodes: [{ html: "<a>Link</a>", target: ["a"] }],
+      },
+    ]);
+    expect(findings[0]?.kind).toBe("warning");
+    expect(findings[0]?.severity).toBe("moderate");
+  });
+
+  it("keeps deterministic probes as violations", () => {
+    const findings = findingsFromCustomViolations("https://app.example/", [
+      {
+        id: "reflow",
+        impact: "serious",
+        description: "Horizontal scroll at 320px",
+        help: "Content must reflow",
+        nodes: [{ html: "<div>Wide</div>", target: ["div"] }],
+      },
+    ]);
+    expect(findings[0]?.kind).toBe("violation");
+  });
 });

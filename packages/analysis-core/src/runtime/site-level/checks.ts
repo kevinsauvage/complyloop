@@ -48,7 +48,12 @@ function mechanismCount(snapshots: ReadonlyArray<RuntimePageSnapshot>): number {
 
   for (const snapshot of snapshots) {
     if (snapshot.navLinks.length > 0) hasNav = true;
-    if (snapshot.searchInputs.length > 0) hasSearch = true;
+    if (
+      snapshot.searchInputs.length > 0 ||
+      (snapshot.searchEntries?.length ?? 0) > 0
+    ) {
+      hasSearch = true;
+    }
     if (snapshot.sitemapLinks.length > 0) hasSitemap = true;
   }
 
@@ -140,6 +145,9 @@ export function runSiteLevelChecks(
         pages,
         "Fewer than two navigation mechanisms detected",
         "The audited pages expose fewer than two ways to find other pages (navigation, search, or sitemap).",
+        // Advisory: only counts nav + search + a linked sitemap, so it can
+        // miss footer link lists. Surface for review, never fail.
+        "warning",
       ),
     );
   }

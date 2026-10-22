@@ -1,0 +1,33 @@
+/**
+ * Client-safe action-state primitives. Kept out of `@/server/action-state` so
+ * client components never pull the server module (Sentry, node logging) into
+ * the browser bundle just to read `initialActionState` or a type.
+ */
+
+import type { AppHref } from "../routes";
+
+/**
+ * Result of a form server action. `ok` separates a success toast from an inline
+ * error; `message` is public copy in both cases.
+ */
+export type ActionState = {
+  ok: boolean;
+  message: string | null;
+  /**
+   * Where the client should navigate on success. Set when the action creates or
+   * removes the thing the current URL names (connecting a repository creates a
+   * project, so the next step lives on that project's dashboard).
+   */
+  redirectTo?: AppHref;
+};
+
+export const initialActionState: ActionState = {
+  ok: false,
+  message: null,
+};
+
+const UNEXPECTED_ACTION_MESSAGE = "The action could not be completed.";
+
+export function unexpectedActionMessage(errorRef: string): string {
+  return `${UNEXPECTED_ACTION_MESSAGE} Reference: ${errorRef}`;
+}

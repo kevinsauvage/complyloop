@@ -2,20 +2,22 @@
 
 import { z } from "zod";
 
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
   listAlertsForProject,
-  markAlertRead,
+  markAlertReadById,
   markAllProjectAlertsRead,
 } from "@complyloop/db/repo/alerts";
 
-import { parseForm, requiredField } from "@/core/validate";
+import type { ActionState } from "@/core/actions/action-state";
+import { parseForm, requiredField } from "@/core/actions/validate";
 
-import { type ActionState, runAction } from "../action-state";
+import { runAction } from "../action-state";
+import { withProjectLock } from "../workspace/db";
 import {
   requireAlertAccess,
   requireProjectAccess,
 } from "../workspace/workspace";
-import { withProjectLock } from "../workspace/workspace-write";
 import { refresh } from "./shared";
 
 const markAlertReadInput = z.object({
@@ -30,16 +32,16 @@ export async function markAlertReadAction(
     const { alertId } = parseForm(markAlertReadInput, formData);
 
     // Single-row touch: permission-scoped alert load (no full workspace
-    // load), then the mutation under the project write lock.
-    const { alert, project } = await requireAlertAccess(
-      alertId,
-      "project.view",
-    );
+    // load), then the mutation under the project write lock. The mark
+    // re-reads inside the lock so a concurrent assessment refresh cannot be
+    // discarded by a stale payload.
+    const { project } = await requireAlertAccess(alertId, "project.remediate");
 
-    await withProjectLock(project.id, async (tx) => {
-      await markAlertRead(tx, alert);
+    const marked = await withProjectLock(project.id, async (tx) => {
+      return markAlertReadById(tx, alertId);
     });
-    refresh("/dashboard");
+    if (!marked) throw new PublicError("Unknown alert.");
+    refresh("/projects/[projectId]/dashboard");
     return "Alert marked as read.";
   });
 }
@@ -54,7 +56,7 @@ export async function markAllAlertsReadAction(
 ): Promise<ActionState> {
   return runAction(async () => {
     const { projectId } = parseForm(markAllAlertsReadInput, formData);
-    const project = await requireProjectAccess(projectId, "project.view");
+    const project = await requireProjectAccess(projectId, "project.remediate");
 
     // Read inside the lock so the unread set cannot change between the
     // check and the mark.
@@ -64,7 +66,7 @@ export async function markAllAlertsReadAction(
         await listAlertsForProject(tx, project.id),
       );
     });
-    refresh("/dashboard");
+    refresh("/projects/[projectId]/dashboard");
     return count === 0
       ? "No unread alerts."
       : `${count} alert${count === 1 ? "" : "s"} marked as read.`;

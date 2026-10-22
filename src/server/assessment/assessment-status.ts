@@ -15,14 +15,25 @@ import {
   type Finding,
   type Requirement,
 } from "@complyloop/analysis-core/contract/entities";
-import { TEMPORARY_EXCEPTION_REASON } from "@complyloop/analysis-core/contract/entities";
 import {
   type Control,
   type Project,
 } from "@complyloop/analysis-core/contract/project-types";
-import { isStickyHumanDecision } from "@complyloop/analysis-core/contract/requirement-status";
+import {
+  hasViolationsSinceDecision,
+  isStickyHumanDecision,
+} from "@complyloop/analysis-core/contract/requirement-status";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
+import type { DrizzleDb } from "@complyloop/db/postgres";
+import { listOpenFindingsForControls } from "@complyloop/db/repo/findings";
 import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
+import { listRequirementsForControls } from "@complyloop/db/repo/requirements";
+
+import { stickyDecisionAt } from "@/core/requirements/masked-findings";
+import {
+  clearRequirementHumanDetermination,
+  exceptionHasLapsed,
+} from "@/core/requirements/requirement-human-determination";
 
 import type { ProjectRows } from "../workspace/project-rows";
 import { controlsInScope } from "../workspace/project-scope";
@@ -61,14 +72,7 @@ export function clearExpiredExceptions(
   for (const original of requirements) {
     if (original.projectId !== projectId) continue;
     const exception = original.exception;
-    if (
-      !exception ||
-      exception.reason !== TEMPORARY_EXCEPTION_REASON ||
-      !exception.expiresAt
-    ) {
-      continue;
-    }
-    if (new Date(exception.expiresAt).getTime() > now.getTime()) continue;
+    if (!exception || !exceptionHasLapsed(exception, now.getTime())) continue;
 
     const control = controlById.get(original.controlId);
     const requirement: Requirement = {
@@ -225,6 +229,70 @@ function applyDerivedStatusChange(input: {
   });
 }
 
+/**
+ * Revoke a sticky human decision because violations were detected after it:
+ * the decision judged the findings a human saw, not later regressions. The
+ * cleared decision is kept in evidence so the history stays auditable.
+ */
+function rearmStickyDecision(input: {
+  existing: Requirement;
+  decisionAt: string | undefined;
+  openFindings: readonly Finding[];
+  control: Control;
+  projectId: string;
+  assessmentId: string | undefined;
+  now: string;
+  track: TrackRequirement;
+  evidence: EvidenceRecord[];
+}): Requirement {
+  const {
+    existing,
+    decisionAt,
+    openFindings,
+    control,
+    projectId,
+    assessmentId,
+    now,
+    track,
+    evidence,
+  } = input;
+  const decidedAt = Date.parse(decisionAt ?? "");
+  const newViolationIds = openFindings
+    .filter(
+      (finding) =>
+        finding.kind === "violation" &&
+        Date.parse(finding.detectedAt) > decidedAt,
+    )
+    .map((finding) => finding.id);
+  const field = existing.exception ? "exception" : "humanPass";
+  const cleared: Requirement = {
+    ...clearRequirementHumanDetermination(existing, field),
+    updatedAt: now,
+  };
+  evidence.push(
+    newEvidenceRecord({
+      kind:
+        field === "exception"
+          ? "requirement_exception_cleared"
+          : "requirement_human_pass_cleared",
+      summary: `${control.code} ${field === "exception" ? "exception" : "human pass"} re-opened — ${newViolationIds.length} new finding${newViolationIds.length === 1 ? "" : "s"} detected after the decision`,
+      projectId,
+      controlId: control.id,
+      assessmentId,
+      detail: {
+        reopened: true,
+        ...(field === "exception"
+          ? { previousException: existing.exception }
+          : { previousHumanPass: existing.humanPass }),
+        decisionAt,
+        newViolationFindingIds: newViolationIds,
+      },
+    }),
+  );
+  track(cleared);
+  return cleared;
+}
+
 function refreshRequirementForControl(
   workingByControlId: Map<string, Requirement>,
   openFindingsByControlId: ReadonlyMap<string, Finding[]>,
@@ -261,14 +329,27 @@ function refreshRequirementForControl(
     return;
   }
 
-  const existing = workingByControlId.get(control.id);
+  let existing = workingByControlId.get(control.id);
+  const openFindings = openFindingsByControlId.get(control.id) ?? [];
   // Human exceptions / human passes are sticky until explicitly cleared
-  // (temporary exceptions may expire earlier — see clearExpiredExceptions).
-  if (requirementIsSticky(existing)) {
-    return;
+  // (temporary exceptions may expire earlier — see clearExpiredExceptions)
+  // or re-armed by a violation the decision never judged.
+  if (existing && requirementIsSticky(existing)) {
+    const decisionAt = stickyDecisionAt(existing);
+    if (!hasViolationsSinceDecision(openFindings, decisionAt)) return;
+    existing = rearmStickyDecision({
+      existing,
+      decisionAt,
+      openFindings,
+      control,
+      projectId,
+      assessmentId,
+      now,
+      track,
+      evidence,
+    });
   }
 
-  const openFindings = openFindingsByControlId.get(control.id) ?? [];
   const status = deriveStatusForCheck(control.checkId, openFindings, {
     runtimeRan,
     siteLevelChecksRan,
@@ -373,8 +454,8 @@ export function refreshRequirementStatuses(input: {
 
 /**
  * Apply status refresh into working ProjectRows. Omit `controlIds` for a
- * full-scope refresh (assessment); pass a list to refresh only those controls
- * (entity writes after dismiss / clear exception / verify).
+ * full-scope refresh (assessment); pass a list to refresh only those controls.
+ * Assessment-only: interactive writes use {@link refreshRequirementsForControls}.
  */
 export function applyRequirementStatusRefresh(
   rows: ProjectRows,
@@ -397,4 +478,34 @@ export function applyRequirementStatusRefresh(
     result.requirements,
   );
   rows.evidence.push(...result.evidence);
+}
+
+/**
+ * Interactive requirement refresh: re-derives the given controls' statuses from
+ * the rows that actually exist (their requirement rows and their open
+ * findings) instead of a whole-project slice. Returns only the requirements
+ * whose status changed, plus the evidence to append — the caller writes them.
+ *
+ * Call it after the row change that motivates the refresh (a dismissal, a
+ * cleared exception): the read runs in the caller's transaction, so it sees
+ * those writes.
+ */
+export async function refreshRequirementsForControls(
+  tx: DrizzleDb,
+  project: Project,
+  controlIds: readonly string[],
+  options: RefreshRequirementStatusesOptions = {},
+): Promise<RefreshRequirementStatusesResult> {
+  if (controlIds.length === 0) return { requirements: [], evidence: [] };
+  const [requirements, findings] = await Promise.all([
+    listRequirementsForControls(tx, project.id, controlIds),
+    listOpenFindingsForControls(tx, project.id, controlIds),
+  ]);
+  return refreshRequirementStatuses({
+    project,
+    findings,
+    requirements,
+    controlIds,
+    options,
+  });
 }

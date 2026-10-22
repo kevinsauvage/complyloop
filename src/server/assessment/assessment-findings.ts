@@ -37,10 +37,10 @@ import { appendEvidence, type ProjectRows } from "../workspace/project-rows";
  * state survives re-assessment and dismissals stick.
  *
  * Source identity is snippet-first: when both sides carry a snippet, only
- * snippet equality matches (line numbers drift with unrelated edits, so a
- * line-only match would refresh a stale row instead of resolving it and
- * creating the new instance). Line equality is only a fallback when at least
- * one side has no snippet to compare.
+ * (whitespace-normalized) snippet equality matches (line numbers drift with
+ * unrelated edits, so a line-only match would refresh a stale row instead of
+ * resolving it and creating the new instance). Line equality is only a
+ * fallback when at least one side has no snippet to compare.
  *
  * DOM identity is the node selector (same as runtime dedupe): many contrast /
  * name failures share identical markup snippets, so snippet-only matching
@@ -56,7 +56,10 @@ export function sameInstance(
   if (isSourceLocation(left) && isSourceLocation(right)) {
     if (left.filePath !== right.filePath) return false;
     if (hasSnippet(left.snippet) && hasSnippet(right.snippet)) {
-      return left.snippet === right.snippet;
+      return (
+        normalizeSourceSnippet(left.snippet) ===
+        normalizeSourceSnippet(right.snippet)
+      );
     }
     return left.line === right.line;
   }
@@ -88,6 +91,18 @@ function usableDomSelector(selector: string): string {
 /** A snippet counts for identity only when it carries non-blank content. */
 function hasSnippet(snippet: string): boolean {
   return snippet.trim().length > 0;
+}
+
+/**
+ * Source identity key: collapses all whitespace runs (indentation, line
+ * breaks, CRLF) so formatting-only changes — Prettier reflows, moved lines —
+ * do not churn findings and orphan remediation state. Case- and
+ * content-sensitive otherwise: unlike the DOM `normalizeSnippetKey`, JSX
+ * source cannot lowercase. Two violations that differ only by whitespace in
+ * the same file and check intentionally share an instance.
+ */
+export function normalizeSourceSnippet(snippet: string): string {
+  return snippet.replace(/\s+/g, " ").trim();
 }
 
 /** Carries a human-edited fix value over to the freshly scanned fix. */
@@ -127,7 +142,10 @@ export function locateViolationInProject(
       hasSnippet(location.snippet) &&
       hasSnippet(candidate.location.snippet)
     ) {
-      return candidate.location.snippet === location.snippet;
+      return (
+        normalizeSourceSnippet(candidate.location.snippet) ===
+        normalizeSourceSnippet(location.snippet)
+      );
     }
     return candidate.location.line === location.line;
   });
@@ -188,11 +206,54 @@ export interface ReconcileControlFindingsInput {
   assessmentId: string;
   rootPath: string;
   rawForControl: RawFinding[];
+  openFindings: Finding[];
+  dismissedFindings: Finding[];
+  /** Resolved findings of this control: a re-detected instance links back. */
+  resolvedFindings?: Finding[];
   scopedFileSet: Set<string> | null;
   runtimeRan: boolean;
+  /**
+   * Route pathnames a partial runtime scan rendered cleanly. A page that
+   * failed this run is in `runtimeFailedRoutes` and never resolves a finding.
+   */
+  runtimeScannedRoutes?: ReadonlySet<string>;
+  runtimeFailedRoutes?: ReadonlySet<string>;
+  /**
+   * Origin audited by a runtime scan that is not tied to the scanned commit
+   * (static URL / mismatched SHA). Such a run still closes the runtime
+   * findings it previously reported for that same origin — otherwise a project
+   * that can never be tied only ever accumulates findings — while requirement
+   * statuses stay advisory.
+   */
+  untiedRuntimeOrigin?: string;
   /** Shared per-run file-text memo so suggestion building reads each file once. */
   fileTextCache?: FileTextCache;
   onFindingResolved: (finding: Finding) => void;
+}
+
+/** Route pathname of a dom finding's URL (`/about`, `/` for the root). */
+function pathnameOfLocation(finding: Finding): string | null {
+  if (!isDomLocation(finding.location)) return null;
+  try {
+    const pathname = new URL(finding.location.url).pathname.replace(/\/+$/, "");
+    return pathname === "" ? "/" : pathname;
+  } catch {
+    return null;
+  }
+}
+
+function originOfLocation(finding: Finding): string | undefined {
+  const url = isDomLocation(finding.location)
+    ? finding.location.url
+    : isSiteLocation(finding.location)
+      ? finding.location.pages[0]
+      : undefined;
+  if (!url) return undefined;
+  try {
+    return new URL(url).origin;
+  } catch {
+    return undefined;
+  }
 }
 
 function isRuntimeOwnedFinding(finding: Finding): boolean {
@@ -207,9 +268,35 @@ export function shouldResolveOpenFinding(input: {
   finding: Finding;
   scopedFileSet: Set<string> | null;
   runtimeRan: boolean;
+  untiedRuntimeOrigin?: string;
+  runtimeScannedRoutes?: ReadonlySet<string>;
+  runtimeFailedRoutes?: ReadonlySet<string>;
 }): boolean {
   if (isRuntimeOwnedFinding(input.finding)) {
-    return input.runtimeRan;
+    // Route-scoped first: a page that failed this run proves nothing about the
+    // finding it used to report, even when sibling pages rendered cleanly.
+    const route = isDomLocation(input.finding.location)
+      ? pathnameOfLocation(input.finding)
+      : null;
+    if (route !== null) {
+      if (input.runtimeFailedRoutes?.has(route)) return false;
+      if (input.runtimeScannedRoutes?.has(route)) {
+        // Route coverage never crosses deployments: an untied audit of another
+        // origin (rotating preview URLs) must not close a finding recorded on
+        // an origin it never audited.
+        if (
+          input.untiedRuntimeOrigin === undefined ||
+          originOfLocation(input.finding) === input.untiedRuntimeOrigin
+        ) {
+          return true;
+        }
+      }
+    }
+    if (input.runtimeRan) return true;
+    return (
+      input.untiedRuntimeOrigin !== undefined &&
+      originOfLocation(input.finding) === input.untiedRuntimeOrigin
+    );
   }
   if (
     !findingLocationMatchesScope(input.finding.location, input.scopedFileSet)
@@ -234,43 +321,48 @@ export function reconcileControlFindings(
     assessmentId,
     rootPath,
     rawForControl,
+    openFindings,
+    dismissedFindings,
+    resolvedFindings = [],
     scopedFileSet,
     runtimeRan,
+    runtimeScannedRoutes,
+    runtimeFailedRoutes,
+    untiedRuntimeOrigin,
     fileTextCache,
     onFindingResolved,
   } = input;
   const projectId = project.id;
-
-  const openFindings = rows.findings.filter(
-    (finding) =>
-      finding.projectId === projectId &&
-      finding.controlId === control.id &&
-      finding.status === "open",
-  );
-  const dismissedFindings = rows.findings.filter(
-    (finding) =>
-      finding.projectId === projectId &&
-      finding.controlId === control.id &&
-      finding.status === "dismissed",
-  );
 
   const matchedIds = new Set<string>();
   // Include findings created in this pass so duplicate raw hits update the
   // same open row instead of minting siblings (axe can emit overlapping nodes).
   const matchPool = [...openFindings];
   for (const raw of rawForControl) {
-    // A dismissal never blinds future runs: re-detection re-opens the
-    // dismissed row (status + current assessment + re-detected evidence)
-    // instead of dropping the raw hit or minting a duplicate.
     const redetected = dismissedFindings.find((finding) =>
       sameInstance(finding, raw),
     );
+    if (redetected && redetected.dismissal?.reason !== "accepted_risk") {
+      // A false-positive / not-applicable dismissal is a human verdict on
+      // this instance: it holds while the same instance is detected. Track
+      // the location so the match survives code moving around it.
+      matchedIds.add(redetected.id);
+      redetected.location = raw.location;
+      continue;
+    }
     if (redetected) {
+      // An accepted risk is still a failure, so it re-opens (accept a risk
+      // durably with a requirement exception). The row keeps its first
+      // `detectedAt`: the finding is not new, and a fresh date would revoke a
+      // requirement decision taken after it was first seen.
       matchedIds.add(redetected.id);
       redetected.status = "open";
       redetected.dismissal = undefined;
       redetected.resolvedNote = undefined;
       redetected.assessmentId = assessmentId;
+      redetected.kind = raw.kind;
+      redetected.severity = raw.severity;
+      redetected.confidence = raw.confidence;
       redetected.fix = mergeFix(redetected.fix, raw.fix);
       redetected.location = raw.location;
       if (raw.analyzerId) redetected.analyzerId = raw.analyzerId;
@@ -294,9 +386,19 @@ export function reconcileControlFindings(
     const existing = matchPool.find((finding) => sameInstance(finding, raw));
     if (existing) {
       matchedIds.add(existing.id);
-      existing.assessmentId = assessmentId;
+      // `assessmentId` stays write-once (creation / re-detection assessment):
+      // bumping it on every match would rewrite every open finding each run
+      // and defeat the no-op upsert optimization. Liveness across runs is
+      // proven by resolves + per-run evidence, not by this id.
       existing.fix = mergeFix(existing.fix, raw.fix);
       existing.location = raw.location;
+      // The current check verdict wins. A check's kind/severity/confidence can
+      // change between runs (e.g. a heuristic downgraded to a warning); a
+      // re-detected open finding must reflect the latest assessment, not the
+      // one that first created it.
+      existing.kind = raw.kind;
+      existing.severity = raw.severity;
+      existing.confidence = raw.confidence;
       if (raw.analyzerId) existing.analyzerId = raw.analyzerId;
       if (raw.analyzerRuleId) existing.analyzerRuleId = raw.analyzerRuleId;
       if (raw.analyzerVersion) existing.analyzerVersion = raw.analyzerVersion;
@@ -304,6 +406,7 @@ export function reconcileControlFindings(
         existing.contributingAnalyzers = raw.contributingAnalyzers;
       }
     } else {
+      const regressed = newestMatching(resolvedFindings, raw);
       createFinding(
         rows,
         project,
@@ -312,6 +415,7 @@ export function reconcileControlFindings(
         assessmentId,
         raw,
         fileTextCache,
+        regressed?.id,
       );
       const created = rows.findings[rows.findings.length - 1];
       if (created) {
@@ -328,6 +432,9 @@ export function reconcileControlFindings(
         finding,
         scopedFileSet,
         runtimeRan,
+        runtimeScannedRoutes,
+        runtimeFailedRoutes,
+        untiedRuntimeOrigin,
       })
     ) {
       continue;
@@ -347,6 +454,19 @@ export function reconcileControlFindings(
   }
 }
 
+/** The most recently detected finding that is the same instance as `raw`. */
+function newestMatching(
+  findings: readonly Finding[],
+  raw: RawFinding,
+): Finding | undefined {
+  let newest: Finding | undefined;
+  for (const finding of findings) {
+    if (!sameInstance(finding, raw)) continue;
+    if (!newest || finding.detectedAt > newest.detectedAt) newest = finding;
+  }
+  return newest;
+}
+
 export function createFinding(
   rows: ProjectRows,
   project: Project,
@@ -355,6 +475,7 @@ export function createFinding(
   assessmentId: string,
   raw: RawFinding,
   fileTextCache?: FileTextCache,
+  regressionOf?: string,
 ): void {
   const now = new Date().toISOString();
   const guidance = guidanceFor(raw.checkId);
@@ -377,6 +498,7 @@ export function createFinding(
     fix: raw.fix,
     explanations: [deterministicExplanation(raw.reason, guidance)],
     detectedAt: now,
+    ...(regressionOf ? { regressionOf } : {}),
   };
   rows.findings.push(finding);
 
@@ -386,12 +508,10 @@ export function createFinding(
     findingId: finding.id,
     status: suggestion ? "suggested" : "detected",
     suggestion,
-    history: suggestion
-      ? [
-          { status: "detected", at: now },
-          { status: "suggested", at: now, note: suggestion.description },
-        ]
-      : [{ status: "detected", at: now }],
+    // No seeded `history[]`: the detected/suggested events are recorded as
+    // evidence below, and the timeline UI reads evidence (P2-5). The field
+    // stays on the type for old rows.
+    history: [],
   };
   rows.remediations.push(remediation);
 
@@ -404,6 +524,7 @@ export function createFinding(
     assessmentId,
     detail: {
       event: "detected",
+      ...(regressionOf ? { regressionOf } : {}),
       ...(raw.analyzerId ? { analyzerId: raw.analyzerId } : {}),
       ...(raw.analyzerRuleId ? { analyzerRuleId: raw.analyzerRuleId } : {}),
       ...(raw.analyzerVersion ? { analyzerVersion: raw.analyzerVersion } : {}),
@@ -419,4 +540,18 @@ export function createFinding(
         : {}),
     },
   });
+  if (suggestion) {
+    // The detected→suggested transition writes history nowhere else: without
+    // this row the evidence-derived remediation timeline would start at
+    // approval and lose the suggestion.
+    appendEvidence(rows, {
+      kind: "remediation_suggested",
+      summary: `Remediation suggested for ${raw.checkId} at ${formatLocationRef(raw.location)}`,
+      projectId: project.id,
+      controlId,
+      findingId: finding.id,
+      assessmentId,
+      detail: { note: suggestion.description },
+    });
+  }
 }

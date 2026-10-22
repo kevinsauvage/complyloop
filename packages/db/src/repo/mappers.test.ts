@@ -48,6 +48,10 @@ describe("repo mappers emit stable row shapes", () => {
       "controlId",
       "assessmentId",
       "status",
+      "kind",
+      "severityRank",
+      "engine",
+      "detectedAt",
       "payload",
     ]);
     expect(Object.keys(remediationToRow(remediation))).toEqual([
@@ -81,15 +85,48 @@ describe("repo mappers emit stable row shapes", () => {
     ]);
     expect(
       Object.keys(membershipToRow({} as unknown as OrgMembership)),
-    ).toEqual(["id", "orgId", "userId", "githubLogin", "role", "payload"]);
+    ).toEqual([
+      "id",
+      "orgId",
+      "userId",
+      "githubLogin",
+      "githubUserId",
+      "role",
+      "payload",
+    ]);
     expect(
       Object.keys(organizationToRow({} as unknown as Organization)),
     ).toEqual(["id", "slug", "payload"]);
     expect(Object.keys(assessmentToRow({} as unknown as Assessment))).toEqual([
       "id",
       "projectId",
+      "startedAt",
+      "completedAt",
       "payload",
     ]);
+  });
+
+  it("projects finding severity to the denormalized rank column", () => {
+    expect(
+      findingToRow({ severity: "critical" } as unknown as Finding).severityRank,
+    ).toBe(0);
+    expect(
+      findingToRow({ severity: "minor" } as unknown as Finding).severityRank,
+    ).toBe(3);
+    // Unknown legacy severities sort last instead of failing the write.
+    expect(
+      findingToRow({ severity: "unknown" } as unknown as Finding).severityRank,
+    ).toBe(3);
+  });
+
+  it("projects the engine bucket from the payload analyzer", () => {
+    expect(
+      findingToRow({ analyzerId: "axe" } as unknown as Finding).engine,
+    ).toBe("runtime");
+    expect(
+      findingToRow({ analyzerId: "ast" } as unknown as Finding).engine,
+    ).toBe("ast");
+    expect(findingToRow({} as unknown as Finding).engine).toBe("ast");
   });
 
   it("assessment payload excludes the snapshot (stored separately)", () => {
@@ -139,6 +176,18 @@ describe("evidence row mapping", () => {
     expect(row.projectId).toBe("p1");
     expect(row.detail).toEqual({ engine: "ast" });
     expect(rowToEvidence(row)).toEqual(record);
+  });
+
+  it("fails loud on a kind outside the frozen vocabulary", () => {
+    const row = evidenceToRow({
+      id: "e-bad",
+      at: "2026-01-03T00:00:00.000Z",
+      kind: "finding",
+      summary: "corrupt",
+    });
+    expect(() => rowToEvidence({ ...row, kind: "made_up" })).toThrow(
+      /Unknown evidence kind "made_up" on row e-bad/,
+    );
   });
 
   it("maps missing optional columns to undefined / null", () => {

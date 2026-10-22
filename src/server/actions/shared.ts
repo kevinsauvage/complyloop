@@ -1,15 +1,8 @@
 import { revalidatePath } from "next/cache";
 
-import { type Finding } from "@complyloop/analysis-core/contract/entities";
-import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
 
-import { advanceRemediation } from "@/core/remediation-lifecycle";
 import { getSession } from "@/server/auth-session";
-
-import { assertProjectPermission } from "../workspace/project-visibility";
-import type { Workspace } from "../workspace/workspace";
 
 export interface SignedInUser {
   userId: string;
@@ -29,53 +22,20 @@ export async function requireSignedIn(
 /**
  * Invalidates the Router Cache for the given routes (or the whole app layout
  * when called with no paths). Triage-loop mutations should pass the narrow
- * route list from `COMPLIANCE_LOOP_ROUTES` so unrelated `force-dynamic` pages
- * are not refetched; shell/tenancy mutations keep the layout-wide default.
+ * route list from `COMPLIANCE_LOOP_ROUTES` so unrelated (dynamic) pages are
+ * not refetched; shell/tenancy mutations keep the layout-wide default.
+ *
+ * Project routes are dynamic (`/projects/[projectId]/…`), and `revalidatePath`
+ * requires the `type` argument for a path containing a dynamic segment — that
+ * invalidates every project's page, which is the intended blast radius here.
  */
 export function refresh(...paths: string[]): void {
   if (paths.length === 0) {
     revalidatePath("/", "layout");
     return;
   }
-  for (const path of new Set(paths)) revalidatePath(path);
-}
-
-export function replaceRemediation(
-  payload: ProjectWritePayload,
-  updated: ReturnType<typeof advanceRemediation>,
-): void {
-  payload.remediations = [...(payload.remediations ?? []), updated];
-}
-
-export function requireOnActive(
-  workspace: Workspace,
-  permission: Parameters<typeof assertProjectPermission>[2],
-): asserts workspace is Workspace & { project: Project } {
-  if (!workspace.project) {
-    throw new PublicError("No project connected.");
+  for (const path of new Set(paths)) {
+    if (path.includes("[")) revalidatePath(path, "page");
+    else revalidatePath(path);
   }
-  assertProjectPermission(workspace.project, workspace.access, permission);
-}
-
-export function requireOnFindingProject(
-  workspace: Workspace,
-  finding: Finding,
-  permission: Parameters<typeof assertProjectPermission>[2],
-): Project {
-  const project = workspace.projects.find(
-    (candidate) => candidate.id === finding.projectId,
-  );
-  if (!project) throw new PublicError("Unknown project.");
-  assertProjectPermission(project, workspace.access, permission);
-  return project;
-}
-
-/** Preview-load + permission + project resolve for finding actions. */
-export function requireFindingContext(
-  workspace: Workspace,
-  finding: Finding,
-  permission: Parameters<typeof assertProjectPermission>[2],
-): { finding: Finding; project: Project } {
-  const project = requireOnFindingProject(workspace, finding, permission);
-  return { finding, project };
 }

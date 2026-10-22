@@ -121,7 +121,13 @@ export function isSuspectedKeyboardTrap(
   return unique.size <= maxUniqueFocusables;
 }
 
-const MAX_TAB_STEPS = 80;
+/**
+ * Tab-walk budget per page. Long enough for real-world tab orders (a dense
+ * marketing page is ~150 focusables) while bounding the sequential
+ * Tab + evaluate round trips a single page can cost. A walk that exceeds it
+ * is reported as truncated (see `focusWalkAdvisories`), never as a clean pass.
+ */
+export const MAX_FOCUS_TAB_STEPS = 200;
 const SNAPSHOT_FOCUS_STYLES_SOURCE = snapshotFocusStyles.toString();
 const HAS_VISIBLE_FOCUS_INDICATOR_SOURCE = hasVisibleFocusIndicator.toString();
 const FOCUSABLE_SELECTOR =
@@ -138,10 +144,14 @@ const FOCUSABLE_SELECTOR =
  */
 export async function focusCustomViolations(
   page: Page,
+  options: { maxStops?: number } = {},
 ): Promise<CustomViolation[]> {
   const violations: CustomViolation[] = [];
 
-  const collected = await collectFocusWalkViolations(page);
+  const collected = await collectFocusWalkViolations(
+    page,
+    options.maxStops ?? MAX_FOCUS_TAB_STEPS,
+  );
   if (collected.visible.length > 0) {
     violations.push({
       id: "focus-visible",
@@ -169,35 +179,60 @@ export async function focusCustomViolations(
       id: "focus-not-obscured",
       impact: "serious",
       description:
-        "Focused control is covered by another element (sticky header, banner, or overlay).",
+        "Focused control is entirely covered by another element (sticky header, banner, or overlay).",
       help: "Focused controls must not be fully hidden by other content (WCAG 2.4.11).",
       nodes: collected.obscured,
     });
   }
 
-  if (collected.obscuredEnhanced.length > 0) {
-    violations.push({
-      id: "focus-not-obscured-enhanced",
-      impact: "serious",
-      description:
-        "Any part of the focused control is covered by other content.",
-      help: "No part of the focused control may be hidden (WCAG 2.4.12).",
-      nodes: collected.obscuredEnhanced,
-    });
-  }
-
-  if (collected.appearance.length > 0) {
-    violations.push({
-      id: "focus-appearance",
-      impact: "moderate",
-      description:
-        "Focus indicator is too thin to meet minimum size requirements.",
-      help: "Focus indicators need sufficient area and contrast (WCAG 2.4.13).",
-      nodes: collected.appearance,
-    });
+  if (collected.truncated) {
+    violations.push(...focusWalkAdvisories(collected.truncated));
   }
 
   return violations;
+}
+
+/**
+ * Every focus check derives from the same walk, so a truncated walk leaves
+ * all three unverified — for the checks that found no violation, the honest
+ * verdict is `needs_review`, not a silent pass.
+ */
+function focusWalkAdvisories(truncated: {
+  walkedStops: number;
+  focusableCount: number;
+}): CustomViolation[] {
+  const context = `Focus walk stopped after ${truncated.walkedStops} Tab stops; the page has ${truncated.focusableCount} focusable elements.`;
+  const node: CustomViolationNode = {
+    html: "<body>",
+    target: ["body"],
+    failureSummary: context,
+  };
+  return [
+    {
+      id: "focus-visible",
+      advisory: true,
+      impact: "minor",
+      description: context,
+      help: "The tab order is longer than the runtime walk budget, so focus indicators beyond the walked stops were not checked. Review the remaining controls manually.",
+      nodes: [node],
+    },
+    {
+      id: "keyboard-trap",
+      advisory: true,
+      impact: "minor",
+      description: context,
+      help: "Keyboard traps past the walked stops were not checked. Review the remaining controls manually.",
+      nodes: [node],
+    },
+    {
+      id: "focus-not-obscured",
+      advisory: true,
+      impact: "minor",
+      description: context,
+      help: "Focused controls past the walked stops were not checked for being covered. Review the remaining controls manually.",
+      nodes: [node],
+    },
+  ];
 }
 
 function toViolationNode(capture: CapturedHit): CustomViolationNode {
@@ -218,11 +253,8 @@ interface FocusStopResult {
   sequenceKey: string;
   visible: FocusStopHit | null;
   obscured: FocusStopHit | null;
-  obscuredEnhanced: FocusStopHit | null;
-  appearance: FocusStopHit | null;
 }
 
-/** Records a first-seen hit; returns true when it is new. */
 function takeFocusHit(
   hit: FocusStopHit | null,
   seen: Set<string>,
@@ -236,25 +268,24 @@ function takeFocusHit(
 
 /**
  * One Tab traversal feeding every focus check: per stop a single evaluate
- * computes the visible/obscured/appearance predicates for the focused
+ * computes the visible/obscured predicates for the focused
  * element and the trap-analysis sequence key. Predicates are verbatim copies
  * of the former per-collector bodies — only the traversal is shared.
  */
-async function collectFocusWalkViolations(page: Page): Promise<{
+async function collectFocusWalkViolations(
+  page: Page,
+  maxTabStops: number,
+): Promise<{
   visible: CustomViolationNode[];
   trap: CustomViolationNode | null;
   obscured: CustomViolationNode[];
-  obscuredEnhanced: CustomViolationNode[];
-  appearance: CustomViolationNode[];
+  /** Set when the tab order is longer than the walk budget. */
+  truncated: { walkedStops: number; focusableCount: number } | null;
 }> {
   const visible: CustomViolationNode[] = [];
   const obscured: CustomViolationNode[] = [];
-  const obscuredEnhanced: CustomViolationNode[] = [];
-  const appearance: CustomViolationNode[] = [];
   const seenVisible = new Set<string>();
   const seenObscured = new Set<string>();
-  const seenObscuredEnhanced = new Set<string>();
-  const seenAppearance = new Set<string>();
   const sequence: string[] = [];
 
   const focusableCount = await page.evaluate((selector) => {
@@ -281,7 +312,12 @@ async function collectFocusWalkViolations(page: Page): Promise<{
     },
   );
 
-  for (let stop = 0; stop < MAX_TAB_STEPS; stop++) {
+  // Walk the whole tab order, not "until a stop adds nothing new": quitting
+  // after the first quiet stop meant everything past the first ~10 stops was
+  // never inspected. Short pages stop once they have cycled, but never before
+  // the 12-stop tail the trap detector needs.
+  const maxStops = Math.min(maxTabStops, Math.max(focusableCount + 2, 14));
+  for (let stop = 0; stop < maxStops; stop++) {
     await page.keyboard.press("Tab");
     const result: FocusStopResult = await pageEvaluateWithHitCapture(
       page,
@@ -302,16 +338,19 @@ async function collectFocusWalkViolations(page: Page): Promise<{
           ) {
             return "modal";
           }
+          // Identity is the element's position in the tab order. Keying on
+          // tag + class collapsed sibling links that share a class (a footer
+          // of `a.link-underline`) into one "element", which made a plain
+          // walk through them look like focus cycling between two targets.
+          const position = Array.from(
+            document.querySelectorAll(selector),
+          ).indexOf(active);
+          if (position >= 0) return `#${position}`;
           const html = active as HTMLElement;
-          if (html.id) return `#${html.id}`;
-          return `${html.tagName.toLowerCase()}:${html.className}`;
+          return `${html.tagName.toLowerCase()}:${html.id}:${html.className}`;
         }
 
-        function pointObscured(
-          target: Element,
-          x: number,
-          y: number,
-        ): boolean {
+        function pointObscured(target: Element, x: number, y: number): boolean {
           const top = document.elementFromPoint(x, y);
           if (!top) return false;
           return (
@@ -319,49 +358,28 @@ async function collectFocusWalkViolations(page: Page): Promise<{
           );
         }
 
-        function firstObscuredCorner(
+        // WCAG 2.4.11 fails only when the focused control is *entirely*
+        // hidden, so every sample point (corners + centre) must be covered.
+        // A sticky bar overlapping one edge of a button is not a failure.
+        function fullyObscuredAt(
           target: Element,
-          strict: boolean,
         ): { x: number; y: number; corner: string } | undefined {
           const rect = target.getBoundingClientRect();
           if (rect.width === 0 || rect.height === 0) return undefined;
-          const corners = strict
-            ? [
-                { corner: "top-left", x: rect.left + 1, y: rect.top + 1 },
-                { corner: "top-right", x: rect.right - 1, y: rect.top + 1 },
-                { corner: "bottom-left", x: rect.left + 1, y: rect.bottom - 1 },
-                {
-                  corner: "bottom-right",
-                  x: rect.right - 1,
-                  y: rect.bottom - 1,
-                },
-                {
-                  corner: "center",
-                  x: rect.left + rect.width / 2,
-                  y: rect.top + rect.height / 2,
-                },
-              ]
-            : [
-                {
-                  corner: "center",
-                  x: rect.left + rect.width / 2,
-                  y: rect.top + rect.height / 2,
-                },
-              ];
-          return corners.find((corner) =>
-            pointObscured(target, corner.x, corner.y),
-          );
-        }
-
-        function indicatorTooSmall(target: Element): boolean {
-          const style = getComputedStyle(target);
-          const outlineWidth = parseFloat(style.outlineWidth) || 0;
-          if (outlineWidth >= 2) return false;
-          const shadow = style.boxShadow;
-          if (!shadow || shadow === "none") return true;
-          const match = /(\d+(?:\.\d+)?)px/.exec(shadow);
-          if (!match) return true;
-          return parseFloat(match[1] ?? "0") < 2;
+          const points = [
+            { corner: "top-left", x: rect.left + 1, y: rect.top + 1 },
+            { corner: "top-right", x: rect.right - 1, y: rect.top + 1 },
+            { corner: "bottom-left", x: rect.left + 1, y: rect.bottom - 1 },
+            { corner: "bottom-right", x: rect.right - 1, y: rect.bottom - 1 },
+            {
+              corner: "center",
+              x: rect.left + rect.width / 2,
+              y: rect.top + rect.height / 2,
+            },
+          ];
+          if (!points.every((point) => pointObscured(target, point.x, point.y)))
+            return undefined;
+          return points[points.length - 1];
         }
 
         const key = sequenceKey();
@@ -369,8 +387,6 @@ async function collectFocusWalkViolations(page: Page): Promise<{
           sequenceKey: key,
           visible: null,
           obscured: null,
-          obscuredEnhanced: null,
-          appearance: null,
         };
 
         const el = document.activeElement;
@@ -384,6 +400,19 @@ async function collectFocusWalkViolations(page: Page): Promise<{
         }
         if (!el.matches(":focus-visible")) return none;
 
+        // A focus ring that fades in (`transition-all duration-200`) has not
+        // started when the key press returns: settle the element's own
+        // transitions so the focused style is what a user sees, not frame zero.
+        for (const animation of el.getAnimations()) {
+          if (animation instanceof CSSTransition) {
+            try {
+              animation.finish();
+            } catch {
+              // Not finishable (zero-length or already idle): nothing to settle.
+            }
+          }
+        }
+
         let visibleHit: FocusStopHit | null = null;
         const focusables = Array.from(document.querySelectorAll(selector));
         const rest = unfocused[focusables.indexOf(el)];
@@ -396,31 +425,16 @@ async function collectFocusWalkViolations(page: Page): Promise<{
         }
 
         let obscuredHit: FocusStopHit | null = null;
-        const obscuredAt = firstObscuredCorner(el, false);
+        const obscuredAt = fullyObscuredAt(el);
         if (obscuredAt) {
           const capture = captureHit(el, { obscuredAt });
           obscuredHit = { key: capture.selector, capture };
-        }
-
-        let obscuredEnhancedHit: FocusStopHit | null = null;
-        const obscuredAtStrict = firstObscuredCorner(el, true);
-        if (obscuredAtStrict) {
-          const capture = captureHit(el, { obscuredAt: obscuredAtStrict });
-          obscuredEnhancedHit = { key: capture.selector, capture };
-        }
-
-        let appearanceHit: FocusStopHit | null = null;
-        if (indicatorTooSmall(el)) {
-          const capture = captureHit(el);
-          appearanceHit = { key: capture.selector, capture };
         }
 
         return {
           sequenceKey: key,
           visible: visibleHit,
           obscured: obscuredHit,
-          obscuredEnhanced: obscuredEnhancedHit,
-          appearance: appearanceHit,
         };
       },
       {
@@ -431,28 +445,8 @@ async function collectFocusWalkViolations(page: Page): Promise<{
       },
     );
     sequence.push(result.sequenceKey);
-    let fresh = false;
-    fresh = takeFocusHit(result.visible, seenVisible, visible) || fresh;
-    fresh = takeFocusHit(result.obscured, seenObscured, obscured) || fresh;
-    fresh =
-      takeFocusHit(
-        result.obscuredEnhanced,
-        seenObscuredEnhanced,
-        obscuredEnhanced,
-      ) || fresh;
-    fresh =
-      takeFocusHit(result.appearance, seenAppearance, appearance) || fresh;
-    if (
-      stop > 5 &&
-      !fresh &&
-      seenVisible.size +
-        seenObscured.size +
-        seenObscuredEnhanced.size +
-        seenAppearance.size >
-        0
-    ) {
-      break;
-    }
+    takeFocusHit(result.visible, seenVisible, visible);
+    takeFocusHit(result.obscured, seenObscured, obscured);
   }
 
   let trap: CustomViolationNode | null = null;
@@ -475,5 +469,15 @@ async function collectFocusWalkViolations(page: Page): Promise<{
     trap = trapHit ? toViolationNode(trapHit) : null;
   }
 
-  return { visible, trap, obscured, obscuredEnhanced, appearance };
+  return {
+    visible,
+    trap,
+    obscured,
+    // `focusableCount + 2` would need more stops than the budget allows: part
+    // of the tab order was never rendered or inspected.
+    truncated:
+      focusableCount + 2 > maxStops
+        ? { walkedStops: maxStops, focusableCount }
+        : null,
+  };
 }

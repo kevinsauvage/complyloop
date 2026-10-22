@@ -6,7 +6,6 @@ import {
 } from "./hit-capture-evaluate.ts";
 import type { CustomViolation } from "./types.ts";
 
-/** True when the table is used for layout rather than tabular data. */
 export function isLayoutTable(table: HTMLTableElement): boolean {
   // role="presentation" declares a layout table. Header markup makes it a data table.
   if (table.getAttribute("role") === "presentation") return true;

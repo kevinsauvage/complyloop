@@ -1,24 +1,27 @@
 import "./globals.css";
 
 import type { Metadata, Viewport } from "next";
-import { Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
+import { headers } from "next/headers";
 import { ThemeProvider } from "next-themes";
 import type { ReactNode } from "react";
 
-import { Toaster } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { WebVitals } from "@/components/web-vitals";
 
 const jakartaSans = Plus_Jakarta_Sans({
   variable: "--font-jakarta-sans",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// Absolute base for URL-based metadata (canonical/OG/sitemap). A relative URL
+// without this is a build error. Same fallback chain as the sitemap.
+const appBaseUrl =
+  process.env.NEXT_PUBLIC_APP_URL ??
+  process.env.AUTH_URL ??
+  "http://localhost:3000";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(appBaseUrl),
   title: {
     default: "ComplyLoop — Compliance Engineering",
     template: "%s · ComplyLoop",
@@ -37,13 +40,22 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  // Nonce from the proxy's CSP (`src/proxy.ts`). next-themes renders an inline
+  // theme script; without the nonce a strict `script-src` would block it and
+  // the page would flash the wrong theme / drift on hydration.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <html
       lang="en"
       suppressHydrationWarning
       data-scroll-behavior="smooth"
-      className={`${jakartaSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${jakartaSans.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-background text-foreground">
         <ThemeProvider
@@ -51,12 +63,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           defaultTheme="system"
           enableSystem
           storageKey="complyloop-theme"
+          nonce={nonce}
         >
-          <TooltipProvider>
-            {children}
-            <Toaster />
-          </TooltipProvider>
+          {children}
         </ThemeProvider>
+        <WebVitals />
       </body>
     </html>
   );

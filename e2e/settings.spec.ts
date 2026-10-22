@@ -1,8 +1,10 @@
 import { expect, test } from "@playwright/test";
 
+import { projectPath } from "./constants";
+
 test.describe("project settings", () => {
   test("shows connected project and runtime audit form", async ({ page }) => {
-    await page.goto("/settings");
+    await page.goto(projectPath("settings"));
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
     await expect(
       page.getByRole("link", { name: "e2e/sample-app" }),
@@ -17,7 +19,7 @@ test.describe("project settings", () => {
   });
 
   test("rejects localhost runtime audit URLs", async ({ page }) => {
-    await page.goto("/settings");
+    await page.goto(projectPath("settings"));
     await page.getByLabel(/Preview URL/i).fill("http://localhost:3000");
     await page.getByRole("button", { name: /Save preview URL/i }).click();
 

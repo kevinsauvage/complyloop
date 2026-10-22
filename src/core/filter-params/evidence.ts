@@ -3,7 +3,14 @@ import type {
   EvidenceRecord,
   Requirement,
 } from "@complyloop/analysis-core/contract/entities";
+import { isOneOf } from "@complyloop/analysis-core/contract/literal-sets";
 
+import {
+  projectEvidenceReportPath,
+  projectFindingPath,
+  type ProjectHref,
+  projectPath,
+} from "../routes";
 import { href } from "./href";
 import { firstParam, trimmedQuery } from "./params";
 import { requirementsStatusHref } from "./requirements";
@@ -29,10 +36,7 @@ export function parseEvidenceKindParam(
   raw: string | string[] | undefined,
 ): EvidenceKind | undefined {
   const value = firstParam(raw);
-  if (!value) return undefined;
-  return (EVIDENCE_KIND_FILTER_ORDER as readonly string[]).includes(value)
-    ? (value as EvidenceKind)
-    : undefined;
+  return isOneOf(EVIDENCE_KIND_FILTER_ORDER, value) ? value : undefined;
 }
 
 /** Trimmed evidence search query (summary substring), capped at 100 chars. */
@@ -54,7 +58,8 @@ export function parseEvidenceDateParam(
 ): string | undefined {
   const value = firstParam(raw);
   if (!value || !ISO_DATE_PATTERN.test(value)) return undefined;
-  const [year, month, day] = value.split("-").map(Number);
+  // The pattern guarantees three parts.
+  const [year = 0, month = 0, day = 0] = value.split("-").map(Number);
   const date = new Date(Date.UTC(year, month - 1, day));
   const roundTrips =
     date.getUTCFullYear() === year &&
@@ -71,11 +76,12 @@ export interface EvidencePageFilters {
 }
 
 export function evidenceKindHref(
+  projectId: string,
   kind?: EvidenceKind,
   page?: number,
   filters?: EvidencePageFilters,
-): string {
-  return href("/evidence", {
+): ProjectHref {
+  return href(projectPath(projectId, "evidence"), {
     kind,
     q: filters?.q,
     from: filters?.from,
@@ -96,18 +102,22 @@ export function parseReportViewParam(
 
 export type ReportFormat = "markdown" | "html";
 
-export function reportHref(view: ReportView, format: ReportFormat): string {
-  const base = format === "html" ? "/evidence/report/html" : "/evidence/report";
-  return href(base, { view });
+export function reportHref(
+  projectId: string,
+  view: ReportView,
+  format: ReportFormat,
+): ProjectHref {
+  return href(projectEvidenceReportPath(projectId, format), { view });
 }
 
 /** Primary navigation target for an evidence row in the compliance loop. */
 export function evidenceRecordHref(
+  projectId: string,
   record: EvidenceRecord,
   requirements: readonly Requirement[],
-): string | undefined {
+): ProjectHref | undefined {
   if (record.findingId) {
-    return `/findings/${record.findingId}`;
+    return projectFindingPath(projectId, record.findingId);
   }
   if (record.controlId) {
     const requirement = requirements.find(
@@ -116,11 +126,11 @@ export function evidenceRecordHref(
     // Preserve the requirement anchor so the link lands on the card, not
     // just the filtered list.
     const anchor = `requirement-${record.controlId}`;
-    const target = requirementsStatusHref(requirement?.status);
+    const target = requirementsStatusHref(projectId, requirement?.status);
     return `${target}#${anchor}`;
   }
   if (record.assessmentId) {
-    return "/dashboard";
+    return projectPath(projectId, "dashboard");
   }
   return undefined;
 }

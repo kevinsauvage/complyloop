@@ -1,26 +1,32 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { ORG_ROLES } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { emptyWorkspaceSlice } from "@complyloop/db/types";
 
-import { parseEntityId, parseForm, requiredField } from "@/core/validate";
+import type { ActionState } from "@/core/actions/action-state";
+import {
+  parseEntityId,
+  parseForm,
+  requiredField,
+} from "@/core/actions/validate";
 
+import { publicErrorMessage, runAction } from "../action-state";
+import { getGitHubAccessToken } from "../github/access-token";
+import { lookupGitHubUser } from "../github/github";
 import {
-  type ActionState,
-  publicErrorMessage,
-  runAction,
-} from "../action-state";
-import {
-  clearActiveProjectCookie,
-  writeActiveOrgCookie,
-  writeActiveProjectCookie,
-} from "../workspace/active-cookies";
+  assertExportRateLimit,
+  assertOrgCreateRateLimit,
+  assertOrgInviteRateLimit,
+} from "../rate-limit";
+import { writeActiveOrgCookie } from "../workspace/active-cookies";
 import {
   changeOrgMemberRole,
   inviteOrgMember,
+  leaveOrgMember,
   removeOrgMember,
 } from "../workspace/org-membership";
 import { resolveActiveOrgId } from "../workspace/org-queries";
@@ -79,18 +85,16 @@ export async function switchOrgAction(formData: FormData): Promise<void> {
   const { orgId } = parseForm(switchOrgInput, formData);
   await requireSignedIn("Sign in to switch organizations.");
 
-  const { organizations, projects } = await getWorkspace();
+  const { organizations } = await getWorkspace();
   if (!organizations.some((org) => org.id === orgId)) {
     throw new PublicError("You are not a member of that organization.");
   }
-  const projectInOrg = projects.find((project) => project.orgId === orgId);
   await writeActiveOrgCookie(orgId);
-  if (projectInOrg) {
-    await writeActiveProjectCookie(projectInOrg.id);
-  } else {
-    await clearActiveProjectCookie();
-  }
   refresh();
+  // The org switcher renders on project pages too: send the viewer to the
+  // portfolio, since the project in the current URL may not be in the org they
+  // just switched to.
+  redirect("/projects");
 }
 
 export async function createOrgAction(
@@ -104,10 +108,11 @@ export async function createOrgAction(
     if (!githubLogin) {
       throw new PublicError("Sign in with GitHub to create an organization.");
     }
+    await assertOrgCreateRateLimit(userId);
     const { name } = parseForm(createOrgInput, formData);
 
-    const org = await withOrgWrite((workspace) => {
-      const { org: created, membership } = createOrganization(workspace.db, {
+    const org = await withOrgWrite(() => {
+      const { org: created, membership } = createOrganization({
         name,
         creatorUserId: userId,
         githubLogin,
@@ -119,7 +124,6 @@ export async function createOrgAction(
       };
     });
     await writeActiveOrgCookie(org.id);
-    await clearActiveProjectCookie();
     refresh();
     return `Created organization "${org.name}".`;
   });
@@ -137,13 +141,50 @@ export async function inviteOrgMemberAction(
       inviteOrgMemberInput,
       formData,
     );
+    await assertOrgInviteRateLimit(userId);
 
-    await withOrgWrite(({ db }) => {
-      const membership = inviteOrgMember(db, orgId, userId, githubLogin, role);
-      return { result: undefined, upsertMemberships: [membership] };
+    // The invite binds to the account's GitHub id, so the login must resolve
+    // now: an unresolved invite could never be claimed.
+    const login = githubLogin.trim().replace(/^@/, "");
+    const inviterToken = await getGitHubAccessToken();
+    if (!inviterToken) {
+      throw new PublicError(
+        "Could not read your GitHub token. Sign out and sign in again to invite members.",
+      );
+    }
+    const lookup = await lookupGitHubUser(inviterToken, login);
+    if (lookup.status === "not-found") {
+      throw new PublicError(`No GitHub user "@${login}" — check the spelling.`);
+    }
+    if (lookup.status === "unverifiable") {
+      throw new PublicError(
+        `Could not verify "@${login}" with GitHub right now. Try again in a moment.`,
+      );
+    }
+
+    const { membership, isNew } = await withOrgWrite(({ db }) => {
+      const invited = inviteOrgMember(
+        db,
+        orgId,
+        userId,
+        lookup.login,
+        role,
+        lookup.id,
+      );
+      return {
+        result: {
+          membership: invited,
+          isNew: !db.memberships.some(
+            (candidate) => candidate.id === invited.id,
+          ),
+        },
+        upsertMemberships: [invited],
+      };
     });
     refresh();
-    return `Invited @${githubLogin} as ${role}.`;
+    return isNew
+      ? `Invited @${membership.githubLogin} as ${role}.`
+      : `Updated @${membership.githubLogin} role to ${role}.`;
   });
 }
 
@@ -170,6 +211,37 @@ export async function removeOrgMemberAction(
     });
     refresh();
     return revokedInvite ? "Invite revoked." : "Member removed.";
+  });
+}
+
+/**
+ * Self-leave: any member may remove their own membership (no membershipId —
+ * the target is always the caller, so there is nothing to forge). The active
+ * org cookie self-heals via `resolveActiveOrgId`, and project pages resolve
+ * their project from the URL, so nothing else needs clearing.
+ */
+export async function leaveOrgMemberAction(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  return runAction(async () => {
+    const { userId } = await requireSignedIn(
+      "Sign in to leave an organization.",
+    );
+    const { orgId } = parseForm(
+      orgMembershipInput.pick({ orgId: true }),
+      formData,
+    );
+
+    await withOrgWrite(({ db }) => {
+      const left = leaveOrgMember(db, orgId, userId);
+      return {
+        result: undefined,
+        deleteMembershipIds: [left.removedMembershipId],
+      };
+    });
+    refresh();
+    return "You left the organization.";
   });
 }
 
@@ -209,8 +281,20 @@ export async function exportOrgDataAction(
     const { userId } = await requireSignedIn(
       "Sign in to export organization data.",
     );
+    await assertExportRateLimit(userId);
     const orgId = parseEntityId(orgIdRaw);
     const { organizations, projects, access } = await getWorkspace();
+    // A whole-org export fans out over every project's history: owner-only,
+    // and checked before the expensive load.
+    const membership = access.memberships.find(
+      (candidate) => candidate.orgId === orgId && candidate.userId === userId,
+    );
+    if (!membership || membership.role !== "owner") {
+      throw new PublicError(
+        "Only the organization owner can export organization data.",
+        "forbidden",
+      );
+    }
     const orgProjects = projects.filter((project) => project.orgId === orgId);
     const projectIds = orgProjects.map((project) => project.id);
     // Bound the fan-out: runtime loads are O(P) full history reads. Chunked
@@ -224,10 +308,14 @@ export async function exportOrgDataAction(
         "export_too_large",
       );
     }
-    // The workspace slice is bounded (latest assessment, evidence window);
-    // the export is the audit artifact, so full history loads via the
-    // workspace export loader (one set-based query per entity type).
-    const history = await loadOrgExportData(projectIds);
+    // The export is the audit artifact, loaded via the workspace export
+    // loader: one query per entity type, with evidence and findings windowed
+    // per project and truncation flagged.
+    const {
+      history,
+      evidenceTruncatedProjectIds,
+      findingsTruncatedProjectIds,
+    } = await loadOrgExportData(projectIds);
     const payload = exportOrgData(
       {
         ...emptyWorkspaceSlice(),
@@ -239,6 +327,7 @@ export async function exportOrgDataAction(
       },
       orgId,
       userId,
+      { evidenceTruncatedProjectIds, findingsTruncatedProjectIds },
     );
     return { error: null, json: JSON.stringify(payload, null, 2) };
   } catch (error) {
@@ -283,6 +372,6 @@ export async function deleteOrgAction(
       await writeActiveOrgCookie(nextOrgId);
     }
     refresh();
-    return "Organization deleted. Evidence history was retained for audit.";
+    return "Organization deleted, including its evidence history.";
   });
 }

@@ -16,6 +16,7 @@ import {
   listEvidencePageForProject,
   WORKSPACE_EVIDENCE_LIMIT,
 } from "@complyloop/db/repo/evidence";
+import { FINDINGS_LIST_LOAD_LIMIT } from "@complyloop/db/repo/findings";
 import { loadProjectRuntime } from "@complyloop/db/workspace-load";
 
 /** Active-project compliance rows for page reads (not the tenancy Workspace). */
@@ -34,7 +35,11 @@ export interface ProjectRuntime {
  * Pass `{ includeEvidence: false }` when the caller loads evidence separately
  * (e.g. report exports), so the window read is not issued twice. Pass
  * `{ findingStatuses: ["open"] }` on read pages that never need history so an
- * unbounded findings table does not inflate every response.
+ * unbounded findings table does not inflate every response. Status-scoped
+ * loads are additionally capped at `FINDINGS_LIST_LOAD_LIMIT` rows in
+ * severity-first order (callers compare against the SQL status counts and
+ * surface truncation); omit `findingStatuses` for full history (writes,
+ * exports).
  */
 export const getProjectRuntime = cache(
   async (
@@ -42,12 +47,24 @@ export const getProjectRuntime = cache(
     options?: {
       includeEvidence?: boolean;
       findingStatuses?: readonly FindingStatus[];
+      /** Hard cap for page reads that render only a window of findings. */
+      findingsLimit?: number;
+      /** Skip remediation rows for pages that never render them. */
+      includeRemediations?: boolean;
+      /** Skip alert rows when the caller loads only unread ones. */
+      includeAlerts?: boolean;
     },
   ): Promise<ProjectRuntime> => {
     const drizzle = await getDrizzle();
     const [runtime, evidenceNewestFirst] = await Promise.all([
       loadProjectRuntime(drizzle, projectId, {
         findingStatuses: options?.findingStatuses,
+        // Cap page reads only — full-history callers omit findingStatuses.
+        findingsLimit:
+          options?.findingsLimit ??
+          (options?.findingStatuses ? FINDINGS_LIST_LOAD_LIMIT : undefined),
+        includeRemediations: options?.includeRemediations,
+        includeAlerts: options?.includeAlerts,
       }),
       options?.includeEvidence === false
         ? []

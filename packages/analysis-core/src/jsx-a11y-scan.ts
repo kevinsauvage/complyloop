@@ -3,6 +3,7 @@ import { Linter } from "eslint";
 import jsxA11yPlugin from "eslint-plugin-jsx-a11y";
 
 import type { CheckId } from "./check-registry.ts";
+import { classNameTextOf } from "./checks/heuristic-utils.ts";
 import type { ProposedFix } from "./contract/finding-types.ts";
 import type { Severity } from "./contract/statuses.ts";
 import { checkIdForJsxA11yRule, jsxA11yEslintRules } from "./jsx-a11y-map.ts";
@@ -10,10 +11,12 @@ import type { ParsedSource } from "./parse.ts";
 import {
   attributeRemovalSpan,
   getAttribute,
+  isPropSpreadingHost,
   type JsxTagNode,
   offsetAt,
   snippetForSpan,
   spanOf,
+  stringValueOf,
   tagNameOf,
   visitJsxTags,
 } from "./parse.ts";
@@ -23,9 +26,7 @@ import type { RawFinding } from "./types.ts";
 // follow static imports, so a dynamic require silently drops the plugin
 // from serverless bundles (MODULE_NOT_FOUND in production). Interop is
 // identical: the plugin is plain CJS, so the default import is module.exports.
-const jsxA11y = jsxA11yPlugin as NonNullable<
-  Linter.Config["plugins"]
->[string];
+const jsxA11y = jsxA11yPlugin as NonNullable<Linter.Config["plugins"]>[string];
 
 const linter = new Linter({ configType: "flat" });
 
@@ -132,10 +133,42 @@ function proposedFixForJsxA11y(
       return removeNamedAttribute(parsed, node, ["autoFocus", "autofocus"]);
     case "no-accesskey":
       return removeNamedAttribute(parsed, node, ["accessKey", "accesskey"]);
-    // Only a handful of jsx-a11y CheckIds have a structured template.
     default:
       return null;
   }
+}
+
+const POINTER_ON_STATIC_RULES = new Set([
+  "no-noninteractive-element-interactions",
+  "click-events-have-key-events",
+  "no-static-element-interactions",
+]);
+
+/**
+ * Patterns jsx-a11y flags by element type that are the recommended
+ * implementation, not a defect:
+ * - a native `<dialog>` with an `onClick` backdrop-dismiss: Escape and focus
+ *   handling are built in, the click is only a pointer convenience;
+ * - `tabIndex={0}` on a named scrollable region (`overflow-x-auto` +
+ *   `role="region"` + a label): keyboard users need it to scroll the content
+ *   (axe `scrollable-region-focusable`).
+ */
+function isRecommendedPattern(ruleId: string, node: JsxTagNode): boolean {
+  const bare = ruleId.replace(/^jsx-a11y\//, "");
+  // `<Link {...props} />`: a wrapper forwarding its props, children included.
+  if (bare === "anchor-has-content") return isPropSpreadingHost(node);
+  if (POINTER_ON_STATIC_RULES.has(bare)) return tagNameOf(node) === "dialog";
+  if (bare !== "no-noninteractive-tabindex") return false;
+  const role = getAttribute(node, "role");
+  const roleValue = role ? stringValueOf(role) : undefined;
+  if (roleValue !== "region" && roleValue !== "group") return false;
+  const named =
+    getAttribute(node, "aria-label") !== undefined ||
+    getAttribute(node, "aria-labelledby") !== undefined;
+  return (
+    named &&
+    /\boverflow(?:-[xy])?-(?:auto|scroll)\b/.test(classNameTextOf(node))
+  );
 }
 
 /**
@@ -159,6 +192,9 @@ export function lintJsxA11y(parsed: ParsedSource): RawFinding[] {
       ? offsetAt(text, message.endLine, message.endColumn ?? 1)
       : start + 1;
     const snippet = snippetForSpan(text, start, end);
+
+    const tag = innermostTagAt(parsed, start);
+    if (tag && isRecommendedPattern(message.ruleId, tag)) continue;
 
     findings.push({
       checkId,

@@ -1,19 +1,25 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Suspense } from "react";
 
 import { isGitHubAuthConfigured } from "@/auth";
-import { AppShell } from "@/components/app-shell";
-import { AuthControls } from "@/components/auth-controls";
+import { AppShell } from "@/components/shell/app-shell";
+import { AuthControls } from "@/components/shell/auth-controls";
 import {
-  NavAttentionBadges,
-  NavBadgeSkeletons,
-} from "@/components/nav-attention-badges";
-import { WorkspaceContext } from "@/components/workspace-context";
+  WorkspaceSwitcher,
+  WorkspaceSwitcherSkeleton,
+} from "@/components/shell/workspace-context";
+import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { getSession } from "@/server/auth-session";
 
+// Authenticated workspace routes must never be indexed: robots.txt disallows
+// are advisory and do not prevent indexing of linked URLs.
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
+
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  // Badge counts stream via <NavAttentionBadges> below — the shell and route
-  // content render without awaiting the counts query.
   const configured = isGitHubAuthConfigured();
   const session = configured ? await getSession() : null;
   const signedInUser = session?.user
@@ -28,18 +34,20 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     : null;
 
   return (
-    <AppShell
-      workspaceContext={<WorkspaceContext />}
-      authControls={
-        <AuthControls configured={configured} user={signedInUser} />
-      }
-      navLinks={
-        <Suspense fallback={<NavBadgeSkeletons />}>
-          <NavAttentionBadges />
-        </Suspense>
-      }
-    >
-      {children}
-    </AppShell>
+    <TooltipProvider>
+      <AppShell
+        workspaceSwitcher={
+          <Suspense fallback={<WorkspaceSwitcherSkeleton />}>
+            <WorkspaceSwitcher />
+          </Suspense>
+        }
+        authControls={
+          <AuthControls configured={configured} user={signedInUser} />
+        }
+      >
+        {children}
+      </AppShell>
+      <Toaster />
+    </TooltipProvider>
   );
 }

@@ -22,8 +22,6 @@ interface NamedElementConfig {
   id: string;
   reason: string;
   severity: RawFinding["severity"];
-  /** Extra condition for "already named" beyond aria/text content. */
-  hasName?: (node: JsxTagNode) => boolean;
 }
 
 function namedElementFinding(
@@ -32,7 +30,6 @@ function namedElementFinding(
   config: NamedElementConfig & { id: CheckId },
 ): RawFinding | null {
   if (isPropSpreadingHost(node)) return null;
-  if (config.hasName?.(node)) return null;
   if (hasAriaName(node)) return null;
   const element = jsxElementOf(node);
   if (element && hasTextContent(element)) return null;

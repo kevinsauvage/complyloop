@@ -5,7 +5,6 @@ import type { CheckId } from "../check-registry.ts";
  * Unmapped axe rules are ignored (we only status controls we model).
  */
 const AXE_TO_CHECK: Record<string, CheckId> = {
-  // Images / media alternatives
   "image-alt": "img-alt",
   "input-image-alt": "img-alt",
   "svg-img-alt": "img-alt",
@@ -15,7 +14,6 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "server-side-image-map": "img-alt",
   "image-redundant-alt": "img-alt",
 
-  // Names
   "button-name": "button-name",
   "input-button-name": "button-name",
   "link-name": "anchor-name",
@@ -26,30 +24,25 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "aria-meter-name": "input-label",
   "aria-progressbar-name": "input-label",
 
-  // Language
   "html-has-lang": "html-lang",
   "html-lang-valid": "html-lang-valid",
   "valid-lang": "lang-parts",
   "html-xml-lang-mismatch": "html-lang",
 
-  // Focus / keyboard
   tabindex: "positive-tabindex",
   "scrollable-region-focusable": "keyboard-interaction",
 
-  // Forms / labels
   label: "input-label",
   "select-name": "input-label",
   "form-field-multiple-labels": "input-label",
   "label-content-name-mismatch": "label-in-name",
   "label-title-only": "input-label",
 
-  // Frames / media
   "frame-title": "iframe-title",
   "frame-title-unique": "iframe-title",
   "frame-tested": "frame-keyboard",
   "no-autoplay-audio": "autoplay-media",
 
-  // IDs / headings
   "duplicate-id": "duplicate-id",
   "duplicate-id-active": "duplicate-id",
   "duplicate-id-aria": "duplicate-id",
@@ -57,7 +50,6 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "heading-order": "heading-order",
   "page-has-heading-one": "page-heading",
 
-  // ARIA
   "aria-hidden-focus": "aria-hidden-focusable",
   "aria-hidden-body": "aria-hidden-focusable",
   "aria-roles": "aria-role",
@@ -74,7 +66,6 @@ const AXE_TO_CHECK: Record<string, CheckId> = {
   "aria-conditional-attr": "aria-required-attr",
   "aria-braille-equivalent": "aria-props",
 
-  // Runtime-only / rendered
   "color-contrast": "color-contrast",
   "color-contrast-enhanced": "color-contrast-enhanced",
   "link-in-text-block": "use-of-color",
@@ -148,7 +139,6 @@ export function checkIdForAxeRule(axeRuleId: string): CheckId | undefined {
   return AXE_TO_CHECK[axeRuleId];
 }
 
-/** Distinct catalog ids axe can emit. */
 export function axeMappedCheckIds(): CheckId[] {
   return [...new Set(Object.values(AXE_TO_CHECK))];
 }

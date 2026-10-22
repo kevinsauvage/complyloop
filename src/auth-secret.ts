@@ -1,6 +1,5 @@
 const DEV_ONLY_AUTH_SECRET = "dev-only-auth-secret-not-for-production";
 
-/** Copy-paste defaults that must never become a production session key. */
 const PLACEHOLDER_AUTH_SECRETS = new Set([
   "replace-me",
   "e2e-secret-change-me",

@@ -31,6 +31,8 @@ npm run db:reset -- --confirm   # Drop all tables and re-run migrations
 3. Run `npm run db:migrate` locally (or `npm run db:reset -- --confirm` for a clean slate; local/pre-launch only).
 4. Run `npm run test:db` when persistence is touched; record invariant changes in `docs/ai/architecture.md`.
 
+Each file is applied inside **one transaction** (body + bookkeeping insert), so a failure midway rolls back completely and leaves the file unrecorded for a clean retry. This means a migration file must be transaction-safe: do **not** use `CREATE INDEX CONCURRENTLY`, `VACUUM`, `CREATE/DROP DATABASE`, or `ALTER TYPE … ADD VALUE` (in the same transaction that created the type) — they cannot run in a transaction block and will abort the migration.
+
 Do **not** reference `drizzle/migrations/*.ts` — this project uses raw SQL files, not drizzle-kit migrate output.
 
 ## Example

@@ -1,38 +1,225 @@
 #!/usr/bin/env tsx
 /** Fails a deployment/cron check when production operational prerequisites drift. */
+import fs from "node:fs";
+import path from "node:path";
+
 import { sql } from "drizzle-orm";
 
 import { getDrizzle } from "@complyloop/db/postgres";
 
-import { queuedAssessmentJobCount } from "../src/server/assessment/assessment-jobs";
+import {
+  oldestQueuedAssessmentJobAgeMs,
+  queuedAssessmentJobCount,
+} from "../src/server/assessment/assessment-jobs";
+import { migrationDrift } from "../src/server/ops-migrations";
+import {
+  DEFAULT_OPS_THRESHOLDS,
+  evaluateOpsStatus,
+  evidenceBytesFromMb,
+  PIPELINE_TABLES,
+  type PipelineTable,
+} from "../src/server/ops-thresholds";
 import { loadLocalEnv } from "./env";
 
 loadLocalEnv();
+
+/**
+ * Env the core loop cannot run without. Missing any of these in production
+ * fails the check: a silently-missing dispatch token leaves every assessment
+ * waiting on the 15-min backstop (or forever, once GitHub disables an idle
+ * scheduled workflow), which is the exact failure this check exists to catch.
+ * `SENTRY_DSN` is monitoring-only, so it stays a warning.
+ */
+const REQUIRED_PROD_ENV = [
+  "AUTH_SECRET",
+  "AUTH_URL",
+  "GITHUB_APP_ID",
+  "GITHUB_APP_PRIVATE_KEY",
+  "GITHUB_WEBHOOK_SECRET",
+  "GH_WORKER_DISPATCH_TOKEN",
+] as const;
+
+const OPTIONAL_PROD_ENV = ["SENTRY_DSN"] as const;
+
+/**
+ * The env audit only means something where the app's own env is loaded (a
+ * deploy gate, a shell with the production env pulled). The scheduled GitHub
+ * workflow runs with only `DATABASE_URL`, so it opts out instead of mirroring
+ * app secrets into Actions just to check they exist; a stalled drain still
+ * fails there via the queued-job age threshold.
+ */
+const checkProdEnv =
+  process.env.NODE_ENV === "production" &&
+  process.env.OPS_CHECK_PROD_ENV !== "0";
 
 function required(name: string): string | null {
   return process.env[name]?.trim() ? null : `${name} is required.`;
 }
 
+function positiveInt(raw: string | undefined, fallback: number): number {
+  if (!raw) return fallback;
+  const value = Number(raw);
+  return Number.isSafeInteger(value) && value > 0 ? value : fallback;
+}
+
+function toNumber(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.trunc(parsed) : NaN;
+}
+
+/** Migration files in the checkout — same listing `db-migrate` applies. */
+function localMigrationFiles(): string[] {
+  return fs
+    .readdirSync(path.join(process.cwd(), "drizzle"))
+    .filter((name) => name.endsWith(".sql"))
+    .sort();
+}
+
+/**
+ * Applied migration ids, or none when the bookkeeping table is absent: a
+ * database that was never migrated is drift, not an error to swallow.
+ */
+async function appliedMigrationIds(
+  drizzle: Awaited<ReturnType<typeof getDrizzle>>,
+): Promise<string[]> {
+  const [table] = (await drizzle.execute(sql`
+    SELECT to_regclass('_complyloop_migrations') IS NOT NULL AS present
+  `)) as Array<{ present: unknown }>;
+  if (!table?.present) return [];
+  const rows = (await drizzle.execute(sql`
+    SELECT id FROM "_complyloop_migrations" ORDER BY id
+  `)) as Array<{ id: unknown }>;
+  return rows.map((row) => String(row.id));
+}
+
 async function main(): Promise<void> {
-  const failures = [required("DATABASE_URL")];
-  if (process.env.NODE_ENV === "production") {
-    failures.push(
-      required("AUTH_SECRET"),
-      required("SENTRY_DSN"),
-      required("GITHUB_WEBHOOK_SECRET"),
-    );
-  }
-  const missing = failures.filter((failure): failure is string =>
-    Boolean(failure),
-  );
-  if (missing.length > 0) throw new Error(missing.join(" "));
+  // DATABASE_URL is the only hard requirement for the check to run at all.
+  const dbMissing = required("DATABASE_URL");
+  if (dbMissing) throw new Error(dbMissing);
+  const envFailures = checkProdEnv
+    ? REQUIRED_PROD_ENV.map((name) => required(name)).filter(
+        (failure): failure is string => Boolean(failure),
+      )
+    : [];
+  const envWarnings = checkProdEnv
+    ? OPTIONAL_PROD_ENV.map((name) => required(name)).filter(
+        (failure): failure is string => Boolean(failure),
+      )
+    : [];
 
   const drizzle = await getDrizzle();
   await drizzle.execute(sql`SELECT 1`);
-  const queuedJobs = await queuedAssessmentJobCount();
-  console.info(
-    JSON.stringify({ status: "ok", queuedJobs, at: new Date().toISOString() }),
+  const drift = migrationDrift(
+    localMigrationFiles(),
+    await appliedMigrationIds(drizzle),
   );
+  const queuedJobs = await queuedAssessmentJobCount();
+  const oldestQueuedJobAgeMs = await oldestQueuedAssessmentJobAgeMs();
+
+  // Fast, lock-free size signals: exact byte size + planner row estimate
+  // (no COUNT(*) seq scan on an ever-growing append-only table). Pipeline
+  // tables are measured in the same query so ops:check also proves retention
+  // is running (docs/vercel.md §5); a table that is missing from the current
+  // schema still gets an entry (NaN) so it fails closed instead of passing.
+  const sizeRows = (await drizzle.execute(sql`
+    SELECT relname,
+           pg_total_relation_size(oid)::text AS bytes,
+           reltuples::bigint::text AS rows_estimate
+      FROM pg_class
+     WHERE relnamespace = current_schema()::regnamespace
+       AND relname IN (
+         'evidence', 'assessment_jobs', 'assessments', 'assessment_snapshots'
+       )
+  `)) as Array<{
+    relname: unknown;
+    bytes: unknown;
+    rows_estimate: unknown;
+  }>;
+  const sizes = new Map(
+    sizeRows.map((row) => [
+      String(row.relname),
+      { bytes: toNumber(row.bytes), rows: toNumber(row.rows_estimate) },
+    ]),
+  );
+  const evidenceBytes = sizes.get("evidence")?.bytes ?? NaN;
+  const evidenceRowsEstimate = sizes.get("evidence")?.rows ?? NaN;
+  const pipelineTableBytes: Partial<Record<PipelineTable, number>> = {};
+  for (const table of PIPELINE_TABLES) {
+    pipelineTableBytes[table] = sizes.get(table)?.bytes ?? NaN;
+  }
+
+  const thresholds = {
+    maxQueuedJobs: positiveInt(
+      process.env.OPS_MAX_QUEUED_JOBS,
+      DEFAULT_OPS_THRESHOLDS.maxQueuedJobs,
+    ),
+    maxQueuedJobAgeMs:
+      positiveInt(
+        process.env.OPS_MAX_QUEUED_AGE_MINUTES,
+        DEFAULT_OPS_THRESHOLDS.maxQueuedJobAgeMs / 60_000,
+      ) * 60_000,
+    maxEvidenceBytes: evidenceBytesFromMb(
+      positiveInt(
+        process.env.OPS_MAX_EVIDENCE_MB,
+        DEFAULT_OPS_THRESHOLDS.maxEvidenceBytes / 1024 / 1024,
+      ),
+    ),
+    maxPipelineTableBytes: evidenceBytesFromMb(
+      positiveInt(
+        process.env.OPS_MAX_PIPELINE_TABLE_MB,
+        DEFAULT_OPS_THRESHOLDS.maxPipelineTableBytes / 1024 / 1024,
+      ),
+    ),
+  };
+  const evaluation = evaluateOpsStatus(
+    {
+      queuedJobs,
+      oldestQueuedJobAgeMs,
+      evidenceBytes,
+      evidenceRowsEstimate,
+      pipelineTableBytes,
+    },
+    thresholds,
+  );
+
+  console.info(
+    JSON.stringify({
+      status:
+        evaluation.ok && envFailures.length === 0 && drift.pending.length === 0
+          ? "ok"
+          : "failing",
+      queuedJobs,
+      oldestQueuedJobAgeMs,
+      evidenceBytes,
+      evidenceRowsEstimate,
+      pipelineTableBytes,
+      thresholds,
+      envFailures,
+      envWarnings,
+      pendingMigrations: drift.pending,
+      unknownMigrations: drift.unknown,
+      at: new Date().toISOString(),
+    }),
+  );
+  if (envWarnings.length > 0) {
+    console.warn(`optional prod env unset: ${envWarnings.join(" ")}`);
+  }
+  if (drift.unknown.length > 0) {
+    console.warn(
+      `database is ahead of this checkout (applied but not in drizzle/): ${drift.unknown.join(" ")}`,
+    );
+  }
+  if (envFailures.length > 0) {
+    throw new Error(`required prod env missing: ${envFailures.join(" ")}`);
+  }
+  // Code and schema out of step surfaces as a page-level 500 ("column …
+  // does not exist"), so name it here instead.
+  if (drift.pending.length > 0) {
+    throw new Error(
+      `pending migrations not applied to this database: ${drift.pending.join(" ")} — run \`npm run db:migrate\` against it.`,
+    );
+  }
+  if (!evaluation.ok) throw new Error(evaluation.failures.join(" "));
 }
 
 main().catch((error: unknown) => {

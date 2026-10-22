@@ -8,10 +8,10 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { getDrizzle } from "@complyloop/db/postgres";
 import { listAlertsForProjects } from "@complyloop/db/repo/alerts";
 import { listAssessmentsForProjects } from "@complyloop/db/repo/assessments";
-import { listAllEvidenceForProjects } from "@complyloop/db/repo/evidence";
-import { listFindingsForProjects } from "@complyloop/db/repo/findings";
-import { nextUniqueSlug, slugifyOrgName } from "@complyloop/db/repo/orgs";
-import { listRemediationsForProjects } from "@complyloop/db/repo/remediations";
+import { listEvidenceForExportForProjects } from "@complyloop/db/repo/evidence";
+import { listFindingsForExportForProjects } from "@complyloop/db/repo/findings";
+import { slugifyOrgName } from "@complyloop/db/repo/orgs";
+import { listRemediationsForFindings } from "@complyloop/db/repo/remediations";
 import { listRequirementsForProjects } from "@complyloop/db/repo/requirements";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 
@@ -21,58 +21,37 @@ import {
   roleInOrg,
 } from "./org-queries";
 
-/** Picks an unused slug from a read-only org list (does not mutate). */
-function uniqueOrgSlug(
-  db: Pick<WorkspaceSlice, "organizations">,
-  base: string,
-): string {
-  return nextUniqueSlug(base, new Set(db.organizations.map((o) => o.slug)));
-}
-
 export interface CreateOrganizationResult {
   org: Organization;
   membership: OrgMembership;
 }
 
-/** Builds org + owner membership without mutating `db`. */
-export function createOrganization(
-  db: Pick<WorkspaceSlice, "organizations">,
-  input: { name: string; creatorUserId: string; githubLogin: string },
-): CreateOrganizationResult {
+/**
+ * Builds org + owner membership. The slug is only a base: `insertOrganization`
+ * makes it unique across every tenant, which this caller cannot see.
+ */
+export function createOrganization(input: {
+  name: string;
+  creatorUserId: string;
+  githubLogin: string;
+}): CreateOrganizationResult {
   const name = input.name.trim();
   if (!name) throw new PublicError("Organization name is required.");
   const login = input.githubLogin.trim();
   if (!login) throw new PublicError("GitHub login is required.");
 
-  return buildOrgWithOwner(db, {
-    name,
-    slugBase: name,
-    ownerUserId: input.creatorUserId,
-    githubLogin: login,
-  });
-}
-
-function buildOrgWithOwner(
-  db: Pick<WorkspaceSlice, "organizations">,
-  input: {
-    name: string;
-    slugBase: string;
-    ownerUserId: string;
-    githubLogin: string;
-  },
-): CreateOrganizationResult {
   const org: Organization = {
     id: crypto.randomUUID(),
-    name: input.name,
-    slug: uniqueOrgSlug(db, slugifyOrgName(input.slugBase)),
+    name,
+    slug: slugifyOrgName(name),
     createdAt: new Date().toISOString(),
   };
   const membership: OrgMembership = {
     id: crypto.randomUUID(),
     orgId: org.id,
     role: "owner",
-    userId: input.ownerUserId,
-    githubLogin: input.githubLogin,
+    userId: input.creatorUserId,
+    githubLogin: login,
     createdAt: new Date().toISOString(),
   };
   return { org, membership };
@@ -83,6 +62,10 @@ export function exportOrgData(
   db: WorkspaceSlice,
   orgId: string,
   actorUserId: string,
+  options: {
+    evidenceTruncatedProjectIds?: readonly string[];
+    findingsTruncatedProjectIds?: readonly string[];
+  } = {},
 ): Record<string, unknown> {
   const index = buildOrgMembershipIndex(db.memberships);
   if (roleInOrg(index, orgId, actorUserId) !== "owner") {
@@ -97,6 +80,12 @@ export function exportOrgData(
     projectIds.has(finding.projectId),
   );
   const findingIds = new Set(findings.map((finding) => finding.id));
+  const evidenceTruncatedProjectIds = [
+    ...(options.evidenceTruncatedProjectIds ?? []),
+  ];
+  const findingsTruncatedProjectIds = [
+    ...(options.findingsTruncatedProjectIds ?? []),
+  ];
 
   return {
     exportedAt: new Date().toISOString(),
@@ -124,6 +113,10 @@ export function exportOrgData(
       (entry) => entry.projectId != null && projectIds.has(entry.projectId),
     ),
     alerts: db.alerts.filter((alert) => projectIds.has(alert.projectId)),
+    evidenceTruncated: evidenceTruncatedProjectIds.length > 0,
+    evidenceTruncatedProjectIds,
+    findingsTruncated: findingsTruncatedProjectIds.length > 0,
+    findingsTruncatedProjectIds,
   };
 }
 
@@ -133,7 +126,8 @@ export interface DeleteOrganizationResult {
 
 /**
  * Validates owner delete and returns membership ids to remove. Does not mutate
- * `db` — DB FK cascade handles projects; evidence remains append-only.
+ * `db` — DB FK cascade handles projects; `withOrgWrite` erases the org's
+ * evidence first (tenant erasure via deleteEvidenceForOrg).
  */
 export function deleteOrganization(
   db: WorkspaceSlice,
@@ -156,15 +150,16 @@ export function deleteOrganization(
 }
 
 /**
- * Full-history org export rows for the audit artifact. The workspace slice
- * is bounded (latest assessment, evidence window), so the export fetches
- * full history directly with one set-based query per entity type (no
- * per-project N+1). Workspace-owned so actions never open Drizzle directly.
+ * Org export rows for the audit artifact, one query per entity type (findings
+ * and their remediations read per project, so the rows stay windowed). The two
+ * tables that grow without bound are windowed per project:
+ * evidence (newest `EVIDENCE_EXPORT_LIMIT`, same as the single-project
+ * export) and findings (newest `FINDINGS_EXPORT_LIMIT`, with their
+ * remediations) — long-lived orgs would otherwise materialize hundreds of MB.
+ * Truncated project ids ride along so the payload flags incompleteness.
  */
-export async function loadOrgExportData(
-  projectIds: string[],
-): Promise<
-  Pick<
+export async function loadOrgExportData(projectIds: string[]): Promise<{
+  history: Pick<
     WorkspaceSlice,
     | "evidence"
     | "assessments"
@@ -172,24 +167,44 @@ export async function loadOrgExportData(
     | "remediations"
     | "requirements"
     | "alerts"
-  >
-> {
+  >;
+  evidenceTruncatedProjectIds: string[];
+  findingsTruncatedProjectIds: string[];
+}> {
   const drizzle = await getDrizzle();
-  const [evidence, assessments, findings, remediations, requirements, alerts] =
+  const [evidenceExport, assessments, findingsExport, requirements, alerts] =
     await Promise.all([
-      listAllEvidenceForProjects(drizzle, projectIds),
+      listEvidenceForExportForProjects(drizzle, projectIds),
       listAssessmentsForProjects(drizzle, projectIds),
-      listFindingsForProjects(drizzle, projectIds),
-      listRemediationsForProjects(drizzle, projectIds),
+      listFindingsForExportForProjects(drizzle, projectIds),
       listRequirementsForProjects(drizzle, projectIds),
       listAlertsForProjects(drizzle, projectIds),
     ]);
+  // Remediations of the exported findings only, one bounded query per
+  // project (a single IN list over every project could pass Postgres's
+  // parameter limit).
+  const remediations = (
+    await Promise.all(
+      projectIds.map((projectId) =>
+        listRemediationsForFindings(
+          drizzle,
+          findingsExport.findings
+            .filter((finding) => finding.projectId === projectId)
+            .map((finding) => finding.id),
+        ),
+      ),
+    )
+  ).flat();
   return {
-    evidence,
-    assessments,
-    findings,
-    remediations,
-    requirements,
-    alerts,
+    history: {
+      evidence: evidenceExport.records,
+      assessments,
+      findings: findingsExport.findings,
+      remediations,
+      requirements,
+      alerts,
+    },
+    evidenceTruncatedProjectIds: evidenceExport.truncatedProjectIds,
+    findingsTruncatedProjectIds: findingsExport.truncatedProjectIds,
   };
 }

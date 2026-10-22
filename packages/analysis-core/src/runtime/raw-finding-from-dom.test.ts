@@ -5,7 +5,7 @@ import { rawFindingFromDom } from "./raw-finding-from-dom";
 describe("rawFindingFromDom", () => {
   it("strips control characters from external DOM text so payloads stay JSONB-safe", () => {
     const finding = rawFindingFromDom({
-      checkId: "forced-colors",
+      checkId: "reflow",
       kind: "violation",
       severity: "serious",
       confidence: "high",
@@ -15,9 +15,9 @@ describe("rawFindingFromDom", () => {
       selector: "\u0000\u0000BUTTON",
       snippet: "<button>\u0000</button>",
       elementLabel: "\u0000",
-      context: "under forced-colors\u0007mode",
+      context: "under reflow\u0007mode",
       analyzerId: "playwright-custom",
-      analyzerRuleId: "forced-colors",
+      analyzerRuleId: "reflow",
     });
 
     expect(finding.location.kind).toBe("dom");
@@ -26,7 +26,7 @@ describe("rawFindingFromDom", () => {
     expect(finding.location.selector).toBe("BUTTON");
     expect(finding.location.snippet).toBe("<button></button>");
     expect(finding.location.elementLabel).toBe("");
-    expect(finding.location.context).toBe("under forced-colorsmode");
+    expect(finding.location.context).toBe("under reflowmode");
     const serialized = JSON.stringify(finding);
     expect(serialized).not.toMatch(/\\u0000|\\u0007/);
     expect(serialized).not.toMatch(/[\u0000-\u001f\u007f]/);
@@ -54,7 +54,7 @@ describe("rawFindingFromDom", () => {
 
   it("roundtrips through PostgreSQL jsonb (the exact PG error case)", async () => {
     const finding = rawFindingFromDom({
-      checkId: "forced-colors",
+      checkId: "reflow",
       kind: "violation",
       severity: "serious",
       confidence: "high",

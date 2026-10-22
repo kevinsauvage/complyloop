@@ -12,6 +12,7 @@ import type {
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { parseSource } from "@complyloop/analysis-core/parse";
 
+import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 
 import { buildDeveloperHandoff, buildDiffForFix } from "./handoff";
@@ -32,7 +33,7 @@ describe("developer handoff", () => {
     const source = `export const Hero = () => <button></button>;\n`;
     fs.writeFileSync(path.join(root, relative), source);
 
-    const [raw] = buttonNameCheck.run(parseSource(relative, source));
+    const raw = buttonNameCheck.run(parseSource(relative, source))[0]!;
     if (!raw.fix) throw new Error("expected fix");
 
     const project = testProject({
@@ -48,13 +49,10 @@ describe("developer handoff", () => {
       description: "Every informative image exposes a text alternative.",
       checkId: "img-alt",
     };
-    const finding: Finding = {
+    const finding: Finding = testFinding({
       id: "f1",
       projectId: project.id,
       controlId: control.id,
-      assessmentId: "a1",
-      checkId: "img-alt",
-      status: "open",
       kind: raw.kind,
       severity: raw.severity,
       confidence: raw.confidence,
@@ -71,7 +69,7 @@ describe("developer handoff", () => {
         },
       ],
       detectedAt: new Date().toISOString(),
-    };
+    });
     const remediation: Remediation = {
       id: "r1",
       findingId: finding.id,
@@ -103,5 +101,53 @@ describe("developer handoff", () => {
       "Create a draft pull request from this Finding page",
     );
     expect(handoff.diff).toContain("Hero.tsx");
+  });
+
+  it("gives site findings re-audit steps, not PR steps", () => {
+    const project = testProject({
+      name: "shop",
+      createdAt: new Date().toISOString(),
+    });
+    const control: Control = {
+      id: "ctl-site",
+      frameworkId: "fw",
+      code: "RGAA 8.2",
+      secondaryCode: "WCAG 1.1.1",
+      title: "Site check",
+      description: "Site-wide pattern.",
+      checkId: "site-check" as never,
+    };
+    const finding: Finding = {
+      id: "f-site",
+      projectId: project.id,
+      controlId: control.id,
+      assessmentId: "a1",
+      checkId: "site-check" as never,
+      status: "open",
+      kind: "violation",
+      severity: "serious",
+      confidence: "high",
+      reason: "Pattern differs across pages",
+      location: { kind: "site", pages: ["/", "/about"], detail: "Nav" },
+      fix: null,
+      explanations: [],
+      detectedAt: new Date().toISOString(),
+    };
+    const remediation: Remediation = {
+      id: "r-site",
+      findingId: finding.id,
+      status: "suggested",
+      suggestion: null,
+      history: [],
+    };
+
+    const handoff = buildDeveloperHandoff(
+      project,
+      control,
+      finding,
+      remediation,
+    );
+    expect(handoff.body).toMatch(/site-wide/);
+    expect(handoff.body).not.toMatch(/draft pull request/);
   });
 });

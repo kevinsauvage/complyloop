@@ -1,0 +1,133 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  DEFAULT_OPS_THRESHOLDS,
+  evaluateOpsStatus,
+  evidenceBytesFromMb,
+} from "./ops-thresholds";
+
+const healthy = {
+  queuedJobs: 3,
+  oldestQueuedJobAgeMs: 60_000,
+  evidenceBytes: evidenceBytesFromMb(100),
+  evidenceRowsEstimate: 12_000,
+};
+
+describe("evaluateOpsStatus", () => {
+  it("passes healthy signals", () => {
+    expect(evaluateOpsStatus(healthy).ok).toBe(true);
+  });
+
+  it("passes when the queue is empty (no oldest age)", () => {
+    expect(
+      evaluateOpsStatus({
+        ...healthy,
+        queuedJobs: 0,
+        oldestQueuedJobAgeMs: null,
+      }).ok,
+    ).toBe(true);
+  });
+
+  it("fails when the queue grows past the threshold", () => {
+    const result = evaluateOpsStatus(
+      { ...healthy, queuedJobs: 51 },
+      { ...DEFAULT_OPS_THRESHOLDS, maxQueuedJobs: 50 },
+    );
+    expect(result.ok).toBe(false);
+    expect(result.failures.join(" ")).toMatch(/queuedJobs 51 exceeds max 50/);
+  });
+
+  it("fails on a single stale queued job even when depth is low", () => {
+    const result = evaluateOpsStatus(
+      { ...healthy, queuedJobs: 1, oldestQueuedJobAgeMs: 21 * 60_000 },
+      { ...DEFAULT_OPS_THRESHOLDS, maxQueuedJobAgeMs: 20 * 60_000 },
+    );
+    expect(result.ok).toBe(false);
+    expect(result.failures.join(" ")).toMatch(
+      /oldest queued assessment job is 21 min old/,
+    );
+  });
+
+  it("fails when the evidence table grows past the threshold", () => {
+    const result = evaluateOpsStatus({
+      ...healthy,
+      evidenceBytes: evidenceBytesFromMb(2048),
+    });
+    expect(result.ok).toBe(false);
+    expect(result.failures.join(" ")).toMatch(/evidence size .* exceeds max/);
+  });
+
+  it("fails closed on unusable counts instead of passing silently", () => {
+    const result = evaluateOpsStatus({ ...healthy, queuedJobs: NaN });
+    expect(result.ok).toBe(false);
+    expect(result.failures.join(" ")).toMatch(/not a usable count/);
+  });
+
+  it("formats evidence size in MiB below one GiB", () => {
+    const result = evaluateOpsStatus(
+      { ...healthy, evidenceBytes: evidenceBytesFromMb(100) },
+      { ...DEFAULT_OPS_THRESHOLDS, maxEvidenceBytes: evidenceBytesFromMb(10) },
+    );
+    expect(result.ok).toBe(false);
+    expect(result.failures.join(" ")).toMatch(/100\.0 MiB/);
+  });
+
+  it("fails closed on an unusable queued-job age", () => {
+    for (const age of [Number.NaN, -1]) {
+      const result = evaluateOpsStatus({
+        ...healthy,
+        oldestQueuedJobAgeMs: age,
+      });
+      expect(result.ok).toBe(false);
+      expect(result.failures.join(" ")).toMatch(/not a usable duration/);
+    }
+  });
+
+  it("fails closed on unusable evidence bytes", () => {
+    for (const bytes of [Number.NaN, -1]) {
+      const result = evaluateOpsStatus({ ...healthy, evidenceBytes: bytes });
+      expect(result.ok).toBe(false);
+      expect(result.failures.join(" ")).toMatch(/not a usable count/);
+    }
+  });
+
+  it("reports every breach, not just the first", () => {
+    const result = evaluateOpsStatus({
+      queuedJobs: 999,
+      oldestQueuedJobAgeMs: 60 * 60_000,
+      evidenceBytes: evidenceBytesFromMb(9999),
+      evidenceRowsEstimate: 999_999,
+    });
+    expect(result.failures).toHaveLength(3);
+  });
+
+  it("fails when a pipeline table outgrows retention", () => {
+    const result = evaluateOpsStatus(
+      {
+        ...healthy,
+        pipelineTableBytes: {
+          assessment_snapshots: evidenceBytesFromMb(600),
+        },
+      },
+      {
+        ...DEFAULT_OPS_THRESHOLDS,
+        maxPipelineTableBytes: evidenceBytesFromMb(512),
+      },
+    );
+    expect(result.ok).toBe(false);
+    expect(result.failures.join(" ")).toMatch(
+      /assessment_snapshots size 600\.0 MiB exceeds max 512\.0 MiB/,
+    );
+  });
+
+  it("fails closed on unusable pipeline table sizes", () => {
+    const result = evaluateOpsStatus({
+      ...healthy,
+      pipelineTableBytes: { assessments: Number.NaN },
+    });
+    expect(result.ok).toBe(false);
+    expect(result.failures.join(" ")).toMatch(
+      /assessments size is not a usable count/,
+    );
+  });
+});

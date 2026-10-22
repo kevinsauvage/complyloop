@@ -1,71 +1,66 @@
 import "server-only";
 
 import {
-  and,
-  asc,
-  count,
-  desc,
-  eq,
-  gte,
-  inArray,
-  lt,
-  lte,
-  sql,
-} from "drizzle-orm";
-
-import {
   ASSESSMENT_JOB_STATUSES,
   ASSESSMENT_JOB_TRIGGERS,
   type AssessmentJobStatus,
   type AssessmentJobTrigger,
 } from "@complyloop/analysis-core/contract/assessment-jobs";
+import { isOneOf } from "@complyloop/analysis-core/contract/literal-sets";
 import { type DrizzleDb, getDrizzle } from "@complyloop/db/postgres";
-import { assessmentJobs } from "@complyloop/db/schema";
+import {
+  type AssessmentJobRow,
+  cancelActiveAssessmentJob,
+  countActiveAssessmentJobs,
+  findAssessmentJobByIdempotencyKey,
+  findNewestAssessmentJob,
+  findOldestQueuedAssessmentJob,
+  insertAssessmentJob,
+  listActiveAssessmentJobs,
+  listRecentAssessmentJobs,
+  oldestQueuedAssessmentJobAge,
+  recoverExpiredAssessmentJobLeases,
+  refreshQueuedAssessmentJob,
+} from "@complyloop/db/repo/assessment-jobs";
 
 import {
   type AssessmentJob,
   type AssessmentJobPayload,
   assessmentJobPayloadSchema,
-} from "@/core/assessment-jobs";
+} from "@/core/assessment/assessment-jobs";
 
-import { reportWarning } from "../observability";
+import { redactSecrets } from "../redact";
 
 export type { AssessmentJob };
 
-type AssessmentJobRow = typeof assessmentJobs.$inferSelect;
-
-const DEFAULT_MAX_ATTEMPTS = 3;
-const DEFAULT_LEASE_MS = 30 * 60_000;
-const RETRY_BASE_MS = 30_000;
-
 /**
- * How often a running worker extends its lease. Well below the 30-minute
- * lease so a live scan (clone + Playwright) can never expire mid-run and get
- * double-executed by `recoverExpiredLeases`.
+ * Thrown when an apply-time re-check finds the job is no longer `running`
+ * (the user cancelled mid-run). The surrounding transaction rolls back, so
+ * the worker must report cancellation — never failure.
  */
-export const ASSESSMENT_JOB_HEARTBEAT_MS = 5 * 60_000;
-
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "23505"
-  );
+export class AssessmentJobCancelledError extends Error {
+  readonly jobId: string;
+  constructor(jobId: string) {
+    super(`Assessment job ${jobId} is no longer running.`);
+    this.name = "AssessmentJobCancelledError";
+    this.jobId = jobId;
+  }
 }
 
+const DEFAULT_MAX_ATTEMPTS = 3;
+
 function parseJobStatus(value: string): AssessmentJobStatus {
-  if (!(ASSESSMENT_JOB_STATUSES as ReadonlyArray<string>).includes(value)) {
+  if (!isOneOf(ASSESSMENT_JOB_STATUSES, value)) {
     throw new Error(`Unexpected assessment job status: ${value}`);
   }
-  return value as AssessmentJobStatus;
+  return value;
 }
 
 function parseJobTrigger(value: string): AssessmentJobTrigger {
-  if (!(ASSESSMENT_JOB_TRIGGERS as ReadonlyArray<string>).includes(value)) {
+  if (!isOneOf(ASSESSMENT_JOB_TRIGGERS, value)) {
     throw new Error(`Unexpected assessment job trigger: ${value}`);
   }
-  return value as AssessmentJobTrigger;
+  return value;
 }
 
 function parseJobPayload(value: unknown): AssessmentJobPayload {
@@ -75,11 +70,24 @@ function parseJobPayload(value: unknown): AssessmentJobPayload {
   return parsed.success ? parsed.data : {};
 }
 
+/**
+ * Fail-closed payload gate: scan authority is derived from the payload, so a
+ * corrupt row must never degrade to `{}` (which scans as authoritative).
+ * NULL/undefined (legacy rows) and schema-valid objects pass; anything else
+ * (arrays, scalars, wrong-typed fields) is malformed and the claim
+ * terminal-fails the job instead of handing it to a worker.
+ */
+export function isJobPayloadWellFormed(value: unknown): boolean {
+  if (value === null || value === undefined) return true;
+  if (!isPlainObject(value)) return false;
+  return assessmentJobPayloadSchema.safeParse(value).success;
+}
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function jobFromRow(row: AssessmentJobRow): AssessmentJob {
+export function jobFromRow(row: AssessmentJobRow): AssessmentJob {
   return {
     id: row.id,
     projectId: row.projectId,
@@ -108,318 +116,178 @@ export interface EnqueueAssessmentJobInput {
   payload?: AssessmentJobPayload;
 }
 
-/** Row values shared by the queued insert and the immediate-start insert. */
-function newAssessmentJobRow(
-  id: string,
-  input: EnqueueAssessmentJobInput,
-  now: string,
-): typeof assessmentJobs.$inferInsert {
-  return {
-    id,
-    projectId: input.projectId,
-    status: "queued",
-    trigger: input.trigger,
-    requestedByUserId: input.requestedByUserId ?? null,
-    idempotencyKey: input.idempotencyKey ?? null,
-    payload: { ...(input.payload ?? {}) },
-    attempts: 0,
-    maxAttempts: DEFAULT_MAX_ATTEMPTS,
-    availableAt: now,
-    createdAt: now,
-    updatedAt: now,
-  };
-}
-
 /**
  * Enqueues a new assessment. An idempotency key returns the original job when
  * a webhook is delivered more than once or a request is retried.
  */
 export async function enqueueAssessmentJob(
   input: EnqueueAssessmentJobInput,
+  db?: DrizzleDb,
 ): Promise<AssessmentJob> {
-  const drizzle = await getDrizzle();
+  const drizzle = db ?? (await getDrizzle());
   if (input.idempotencyKey) {
-    const [existing] = await drizzle
-      .select()
-      .from(assessmentJobs)
-      .where(eq(assessmentJobs.idempotencyKey, input.idempotencyKey))
-      .limit(1);
+    const existing = await findAssessmentJobByIdempotencyKey(
+      drizzle,
+      input.idempotencyKey,
+    );
     if (existing) return jobFromRow(existing);
   }
 
   const now = new Date().toISOString();
-  // Webhook coalescing: rapid pushes / PR synchronizes for the same project
-  // would otherwise stack full scans of superseded SHAs behind the
-  // serial-per-project claim. A still-queued webhook job is refreshed in place
-  // (newest ref wins); running jobs and non-webhook triggers are untouched.
+  // Webhook coalescing: rapid pushes for the same project would otherwise
+  // stack full scans of superseded SHAs behind the serial-per-project claim.
+  // A still-queued webhook job is refreshed in place (newest ref wins);
+  // running jobs and non-webhook triggers are untouched.
   if (input.trigger === "webhook") {
-    const [pending] = await drizzle
-      .select()
-      .from(assessmentJobs)
-      .where(
-        and(
-          eq(assessmentJobs.projectId, input.projectId),
-          eq(assessmentJobs.status, "queued"),
-          eq(assessmentJobs.trigger, "webhook"),
-        ),
-      )
-      .orderBy(asc(assessmentJobs.createdAt))
-      .limit(1);
+    const pending = await findOldestQueuedAssessmentJob(
+      drizzle,
+      input.projectId,
+      "webhook",
+    );
     if (pending) {
       const pendingPayload = parseJobPayload(pending.payload);
-      const pendingIsPrPreview =
-        pendingPayload.pullRequestHeadSha !== undefined;
-      const incomingIsPrPreview =
-        input.payload?.pullRequestHeadSha !== undefined;
-      // Authority boundary: pushes (authoritative, no pullRequestHeadSha) and
-      // PR previews (pullRequestHeadSha set) must never coalesce into each
-      // other, otherwise an authoritative scan is silently dropped or a
-      // preview-only scan overwrites a pending authoritative one.
-      if (pendingIsPrPreview === incomingIsPrPreview) {
-        const oldRef = pendingPayload.ref;
-        const newRef = input.payload?.ref;
-        const seen = new Set<string>([
-          ...(pendingPayload.supersededRefs ?? []),
-          ...(input.payload?.supersededRefs ?? []),
-        ]);
-        if (oldRef && newRef && oldRef !== newRef) seen.add(oldRef);
-        const mergedPayload: AssessmentJobPayload = {
-          ...pendingPayload,
-          ...(input.payload ?? {}),
-        };
-        if (seen.size > 0) mergedPayload.supersededRefs = [...seen];
-        const [updated] = await drizzle
-          .update(assessmentJobs)
-          .set({
-            payload: mergedPayload,
-            availableAt: now,
-            updatedAt: now,
-          })
-          .where(
-            and(
-              eq(assessmentJobs.id, pending.id),
-              eq(assessmentJobs.status, "queued"),
-            ),
-          )
-          .returning();
-        // Empty when a worker claimed the row concurrently — fall through and
-        // insert so the delivery is not silently dropped.
-        if (updated) return jobFromRow(updated);
+      const oldRef = pendingPayload.ref;
+      const newRef = input.payload?.ref;
+      const seen = new Set<string>([
+        ...(pendingPayload.supersededRefs ?? []),
+        ...(input.payload?.supersededRefs ?? []),
+      ]);
+      if (oldRef && newRef && oldRef !== newRef) seen.add(oldRef);
+      const mergedPayload: AssessmentJobPayload = {
+        ...pendingPayload,
+        ...(input.payload ?? {}),
+      };
+      if (seen.size > 0) mergedPayload.supersededRefs = [...seen];
+      // A deployment target belongs to the commit it serves: a newer ref must
+      // not keep auditing the older deploy (it would only be untied anyway).
+      if (
+        mergedPayload.runtimeTarget &&
+        mergedPayload.runtimeTarget.sha !== mergedPayload.ref
+      ) {
+        delete mergedPayload.runtimeTarget;
       }
-    }
-  }
-  try {
-    const [created] = await drizzle
-      .insert(assessmentJobs)
-      .values(newAssessmentJobRow(crypto.randomUUID(), input, now))
-      .returning();
-    if (!created) throw new Error("Could not enqueue assessment job.");
-    return jobFromRow(created);
-  } catch (error) {
-    if (input.idempotencyKey && isUniqueViolation(error)) {
-      const [existing] = await drizzle
-        .select()
-        .from(assessmentJobs)
-        .where(eq(assessmentJobs.idempotencyKey, input.idempotencyKey))
-        .limit(1);
-      if (existing) return jobFromRow(existing);
-    }
-    throw error;
-  }
-}
-
-async function recoverExpiredLeases(tx: DrizzleDb, now: string): Promise<void> {
-  // Leases expire when a worker crashes mid-run. Requeue only while attempts
-  // remain; a poison job (OOM, crash loop) at max attempts is terminal instead
-  // of being resurrected on every claim tick forever.
-  await tx
-    .update(assessmentJobs)
-    .set({
-      status: "queued",
-      availableAt: now,
-      leaseExpiresAt: null,
-      updatedAt: now,
-      error: "Worker lease expired; retrying.",
-    })
-    .where(
-      and(
-        eq(assessmentJobs.status, "running"),
-        lte(assessmentJobs.leaseExpiresAt, now),
-        lt(assessmentJobs.attempts, assessmentJobs.maxAttempts),
-      ),
-    );
-  await tx
-    .update(assessmentJobs)
-    .set({
-      status: "failed",
-      completedAt: now,
-      leaseExpiresAt: null,
-      updatedAt: now,
-      error: "Worker lease expired repeatedly; giving up.",
-    })
-    .where(
-      and(
-        eq(assessmentJobs.status, "running"),
-        lte(assessmentJobs.leaseExpiresAt, now),
-        gte(assessmentJobs.attempts, assessmentJobs.maxAttempts),
-      ),
-    );
-}
-
-/** Claims one ready job while ensuring only one assessment runs per project. */
-export async function claimNextAssessmentJob(): Promise<AssessmentJob | null> {
-  const drizzle = await getDrizzle();
-  return drizzle.transaction(async (tx) => {
-    const now = new Date().toISOString();
-    await recoverExpiredLeases(tx, now);
-
-    // Single-row claim: lock exactly the job we will run. The correlated
-    // NOT EXISTS keeps one assessment per project without rescanning the table
-    // (served by assessment_jobs_ready_idx + assessment_jobs_project_idx).
-    // `attempts` and `project_id` are read in the same lock to avoid a second
-    // round trip. The final UPDATE re-checks NOT EXISTS atomically: under
-    // READ COMMITTED two workers claiming different queued jobs for the same
-    // project could both see "no running" in SELECT, so the UPDATE guard is
-    // what enforces serial-per-project. Zero rows → lost the race → null.
-    const locked = await tx.execute<{
-      id: string;
-      attempts: number;
-      project_id: string;
-    }>(sql`
-      SELECT job.id AS id, job.attempts AS attempts, job.project_id AS project_id
-      FROM assessment_jobs AS job
-      WHERE job.status = 'queued'
-        AND job.available_at <= ${now}
-        AND NOT EXISTS (
-          SELECT 1
-          FROM assessment_jobs AS running
-          WHERE running.status = 'running'
-            AND running.project_id = job.project_id
-        )
-      ORDER BY job.available_at ASC, job.created_at ASC
-      LIMIT 1
-      FOR UPDATE SKIP LOCKED
-    `);
-    const [row] = [...locked];
-    if (!row) return null;
-    const candidateId = String(row.id);
-    const candidateProjectId = String(
-      (row as { project_id?: unknown; projectId?: unknown }).project_id ??
-        (row as { projectId?: unknown }).projectId,
-    );
-
-    const leaseExpiresAt = new Date(
-      Date.now() + DEFAULT_LEASE_MS,
-    ).toISOString();
-    const [claimed] = await tx
-      .update(assessmentJobs)
-      .set({
-        status: "running",
-        attempts: Number(row.attempts) + 1,
-        startedAt: now,
-        leaseExpiresAt,
-        error: null,
+      const updated = await refreshQueuedAssessmentJob(drizzle, pending.id, {
+        payload: mergedPayload,
+        availableAt: now,
         updatedAt: now,
-      })
-      .where(
-        and(
-          eq(assessmentJobs.id, candidateId),
-          eq(assessmentJobs.status, "queued"),
-          sql`NOT EXISTS (
-            SELECT 1 FROM assessment_jobs AS running
-            WHERE running.status = 'running'
-              AND running.project_id = ${candidateProjectId}
-              AND running.id <> ${candidateId}
-          )`,
-        ),
-      )
-      .returning();
-    return claimed ? jobFromRow(claimed) : null;
-  });
-}
-
-export async function completeAssessmentJob(job: AssessmentJob): Promise<void> {
-  const drizzle = await getDrizzle();
-  const now = new Date().toISOString();
-  const result = await drizzle
-    .update(assessmentJobs)
-    .set({
-      status: "succeeded",
-      completedAt: now,
-      leaseExpiresAt: null,
-      error: null,
+      });
+      // Empty when a worker claimed the row concurrently — fall through and
+      // insert so the delivery is not silently dropped.
+      if (updated) return jobFromRow(updated);
+    }
+  }
+  if (input.trigger === "manual") {
+    // Double-submit coalescing: two concurrent clicks can both pass the
+    // active-job check in the dashboard action (separate connections) and
+    // reach this insert. A second row would stack a redundant full scan
+    // behind the first via the serial-per-project claim — return the pending
+    // manual job instead. Running jobs are untouched (the action refuses
+    // those with an "already running" message); terminal rows never match.
+    const pendingManual = await findOldestQueuedAssessmentJob(
+      drizzle,
+      input.projectId,
+      "manual",
+    );
+    if (pendingManual) {
+      const updated = await refreshQueuedAssessmentJob(
+        drizzle,
+        pendingManual.id,
+        { availableAt: now, updatedAt: now },
+      );
+      // Empty when a worker claimed the row concurrently — fall through and
+      // insert so the request is not silently dropped.
+      if (updated) return jobFromRow(updated);
+    }
+  }
+  return jobFromRow(
+    await insertAssessmentJob(drizzle, {
+      id: crypto.randomUUID(),
+      projectId: input.projectId,
+      status: "queued",
+      trigger: input.trigger,
+      requestedByUserId: input.requestedByUserId ?? null,
+      idempotencyKey: input.idempotencyKey ?? null,
+      payload: { ...(input.payload ?? {}) },
+      attempts: 0,
+      maxAttempts: DEFAULT_MAX_ATTEMPTS,
+      availableAt: now,
+      createdAt: now,
       updatedAt: now,
-    })
-    .where(
-      and(
-        eq(assessmentJobs.id, job.id),
-        eq(assessmentJobs.status, "running"),
-        eq(assessmentJobs.leaseExpiresAt, job.leaseExpiresAt as string),
-        eq(assessmentJobs.startedAt, job.startedAt as string),
-      ),
-    )
-    .returning({ id: assessmentJobs.id });
-  if (result.length === 0) {
-    reportWarning("Stale lease write rejected for assessment job", {
-      code: "assessment_job_stale_lease",
-      jobId: job.id,
-    });
-  }
+    }),
+  );
 }
 
-export async function failAssessmentJob(
-  job: AssessmentJob,
-  error: unknown,
-): Promise<AssessmentJobStatus> {
-  const drizzle = await getDrizzle();
-  const now = new Date();
-  const message =
-    error instanceof Error ? error.message : "Assessment job failed.";
-  const terminal = job.attempts >= job.maxAttempts;
-  const status: AssessmentJobStatus = terminal ? "failed" : "queued";
-  const delay = RETRY_BASE_MS * 2 ** Math.max(0, job.attempts - 1);
-  const result = await drizzle
-    .update(assessmentJobs)
-    .set({
-      status,
-      availableAt: terminal
-        ? now.toISOString()
-        : new Date(now.getTime() + delay).toISOString(),
-      completedAt: terminal ? now.toISOString() : null,
-      leaseExpiresAt: null,
-      error: message.slice(0, 2_000),
-      updatedAt: now.toISOString(),
-    })
-    .where(
-      and(
-        eq(assessmentJobs.id, job.id),
-        eq(assessmentJobs.status, "running"),
-        eq(assessmentJobs.leaseExpiresAt, job.leaseExpiresAt as string),
-        eq(assessmentJobs.startedAt, job.startedAt as string),
-      ),
-    )
-    .returning({ id: assessmentJobs.id });
-  if (result.length === 0) {
-    reportWarning("Stale lease write rejected for assessment job", {
-      code: "assessment_job_stale_lease",
-      jobId: job.id,
-    });
+/**
+ * Reclaims crashed-worker leases outside a claim tick. The manual Run action
+ * and the Run form call this before reading the active job so an
+ * expired-`running` row (dead executor, no heartbeat) does not block
+ * re-dispatch until the 15-minute schedule happens to claim. Live leases are
+ * untouched — only rows whose `leaseExpiresAt` already passed move.
+ */
+export async function recoverExpiredAssessmentLeases(
+  db?: DrizzleDb,
+): Promise<void> {
+  // An already-open transaction must not nest: run the recovery inline on it.
+  if (db) {
+    await recoverExpiredAssessmentJobLeases(db, new Date().toISOString());
+    return;
   }
-  return status;
+  const drizzle = await getDrizzle();
+  await drizzle.transaction(async (tx) => {
+    await recoverExpiredAssessmentJobLeases(tx, new Date().toISOString());
+  });
 }
 
 export async function recentAssessmentJobsForProject(
   projectId: string,
   limit = 5,
 ): Promise<AssessmentJob[]> {
-  const drizzle = await getDrizzle();
-  const rows = await drizzle
-    .select()
-    .from(assessmentJobs)
-    .where(eq(assessmentJobs.projectId, projectId))
-    .orderBy(desc(assessmentJobs.createdAt))
-    .limit(limit);
+  const rows = await listRecentAssessmentJobs(
+    await getDrizzle(),
+    projectId,
+    limit,
+  );
   return rows.map(jobFromRow);
+}
+
+/**
+ * Whitelisted poll DTO: the dashboard island renders status, trigger, attempt
+ * count, timestamps, the current stage and the error. Everything else on the
+ * job row — notably `payload.runtimeTarget.url` (preview tokens), refs,
+ * idempotency keys and the requesting user — must not leave the server.
+ */
+export function publicAssessmentJobView(job: AssessmentJob): AssessmentJob {
+  return {
+    id: job.id,
+    projectId: job.projectId,
+    status: job.status,
+    trigger: job.trigger,
+    payload: job.payload.stage ? { stage: job.payload.stage } : {},
+    attempts: job.attempts,
+    maxAttempts: job.maxAttempts,
+    availableAt: job.availableAt,
+    createdAt: job.createdAt,
+    updatedAt: job.updatedAt,
+    ...(job.startedAt ? { startedAt: job.startedAt } : {}),
+    ...(job.completedAt ? { completedAt: job.completedAt } : {}),
+    ...(job.error ? { error: redactSecrets(job.error).slice(0, 500) } : {}),
+  };
+}
+
+/**
+ * Ref (commit SHA) of the project's newest webhook job in any state, or null.
+ * `deployment_status` uses it to drop deployments of commits that a newer push
+ * already replaced — auditing them would re-derive state from stale code.
+ */
+export async function latestWebhookJobRef(
+  projectId: string,
+): Promise<string | null> {
+  const row = await findNewestAssessmentJob(
+    await getDrizzle(),
+    projectId,
+    "webhook",
+  );
+  return row ? (parseJobPayload(row.payload).ref ?? null) : null;
 }
 
 /**
@@ -431,21 +299,16 @@ export async function recentAssessmentJobsForProject(
  */
 export async function activeAssessmentJobForProject(
   projectId: string,
+  db?: DrizzleDb,
 ): Promise<AssessmentJob | null> {
-  const drizzle = await getDrizzle();
-  const rows = await drizzle
-    .select()
-    .from(assessmentJobs)
-    .where(
-      and(
-        eq(assessmentJobs.projectId, projectId),
-        inArray(assessmentJobs.status, ["queued", "running"]),
-      ),
-    )
-    .limit(25);
+  const rows = await listActiveAssessmentJobs(
+    db ?? (await getDrizzle()),
+    projectId,
+    25,
+  );
   // Oldest-first in JS (not ORDER BY): one row is all the caller needs and
   // this stays deterministic regardless of index order.
-  let oldest: (typeof rows)[number] | null = null;
+  let oldest: AssessmentJobRow | null = null;
   for (const row of rows) {
     if (!oldest || row.createdAt < oldest.createdAt) oldest = row;
   }
@@ -467,67 +330,28 @@ export interface CancelAssessmentJobInput {
  */
 export async function cancelAssessmentJob(
   input: CancelAssessmentJobInput,
+  db?: DrizzleDb,
 ): Promise<AssessmentJob | null> {
-  const drizzle = await getDrizzle();
-  const now = new Date().toISOString();
-  const [cancelled] = await drizzle
-    .update(assessmentJobs)
-    .set({
-      status: "cancelled",
-      completedAt: now,
-      leaseExpiresAt: null,
-      error: null,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(assessmentJobs.id, input.jobId),
-        eq(assessmentJobs.projectId, input.projectId),
-        inArray(assessmentJobs.status, ["queued", "running"]),
-      ),
-    )
-    .returning();
+  const cancelled = await cancelActiveAssessmentJob(
+    db ?? (await getDrizzle()),
+    input,
+    new Date().toISOString(),
+  );
   return cancelled ? jobFromRow(cancelled) : null;
 }
 
-export interface RefreshAssessmentJobLeaseInput {
-  id: string;
-  leaseExpiresAt: string;
-  startedAt: string;
+export async function queuedAssessmentJobCount(): Promise<number> {
+  return countActiveAssessmentJobs(await getDrizzle());
 }
 
 /**
- * Worker heartbeat: extends a `running` job's lease by one full lease period.
- * Returns the new expiry, or null when the job left `running` (cancelled,
- * completed, or reaped) — the worker must then stop and neither
- * complete nor fail it.
+ * Age (ms) of the oldest job still waiting in `queued`, or `null` when none
+ * are waiting. `running` jobs are excluded on purpose: a long scan legitimately
+ * ages, and the lease/heartbeat already covers a wedged worker. `ops:check`
+ * uses this to alert on a stalled drain even when the depth is 1 — the
+ * dispatch-token / disabled-schedule failure mode leaves a single job waiting
+ * forever with no depth signal.
  */
-export async function refreshAssessmentJobLease(
-  input: RefreshAssessmentJobLeaseInput,
-): Promise<string | null> {
-  const drizzle = await getDrizzle();
-  const now = new Date().toISOString();
-  const leaseExpiresAt = new Date(Date.now() + DEFAULT_LEASE_MS).toISOString();
-  const [refreshed] = await drizzle
-    .update(assessmentJobs)
-    .set({ leaseExpiresAt, updatedAt: now })
-    .where(
-      and(
-        eq(assessmentJobs.id, input.id),
-        eq(assessmentJobs.status, "running"),
-        eq(assessmentJobs.leaseExpiresAt, input.leaseExpiresAt),
-        eq(assessmentJobs.startedAt, input.startedAt),
-      ),
-    )
-    .returning({ leaseExpiresAt: assessmentJobs.leaseExpiresAt });
-  return refreshed?.leaseExpiresAt ?? null;
-}
-
-export async function queuedAssessmentJobCount(): Promise<number> {
-  const drizzle = await getDrizzle();
-  const [row] = await drizzle
-    .select({ value: count() })
-    .from(assessmentJobs)
-    .where(inArray(assessmentJobs.status, ["queued", "running"]));
-  return Number(row?.value ?? 0);
+export async function oldestQueuedAssessmentJobAgeMs(): Promise<number | null> {
+  return oldestQueuedAssessmentJobAge(await getDrizzle());
 }

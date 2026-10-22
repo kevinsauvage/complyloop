@@ -54,7 +54,6 @@ export async function tryConsumeRateLimitSlot(
   return updated.length > 0;
 }
 
-/** Removes expired windows; returns the number of pruned buckets. */
 export async function pruneRateLimitBuckets(
   db: DrizzleDb,
   maxAgeMs = 86_400_000,

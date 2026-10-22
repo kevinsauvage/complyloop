@@ -1,17 +1,25 @@
-import type {
-  Alert,
-  Assessment,
-  AssessmentSnapshot,
-  EvidenceRecord,
-  Finding,
-  Remediation,
-  Requirement,
+import {
+  type Alert,
+  type Assessment,
+  type AssessmentSnapshot,
+  EVIDENCE_KINDS,
+  type EvidenceKind,
+  type EvidenceRecord,
+  type Finding,
+  type Remediation,
+  type Requirement,
 } from "@complyloop/analysis-core/contract/entities";
+import {
+  type AssessmentEngine,
+  engineFor,
+} from "@complyloop/analysis-core/contract/finding-types";
+import { isOneOf } from "@complyloop/analysis-core/contract/literal-sets";
 import type {
   Organization,
   OrgMembership,
   Project,
 } from "@complyloop/analysis-core/contract/project-types";
+import { SEVERITY_RANK } from "@complyloop/analysis-core/contract/statuses";
 
 import type { AssessmentPayload } from "../schema.ts";
 import { evidence } from "../schema.ts";
@@ -41,6 +49,7 @@ export function membershipToRow(membership: OrgMembership) {
     orgId: membership.orgId,
     userId: membership.userId ?? null,
     githubLogin: membership.githubLogin,
+    githubUserId: membership.githubUserId ?? null,
     role: membership.role,
   });
 }
@@ -70,6 +79,8 @@ function assessmentPayloadFrom(assessment: Assessment): AssessmentPayload {
 export function assessmentToRow(assessment: Assessment) {
   return withPayload(assessmentPayloadFrom(assessment), {
     projectId: assessment.projectId,
+    startedAt: assessment.startedAt,
+    completedAt: assessment.completedAt,
   });
 }
 
@@ -86,7 +97,26 @@ export function findingToRow(finding: Finding) {
     controlId: finding.controlId,
     assessmentId: finding.assessmentId,
     status: finding.status,
+    kind: finding.kind,
+    // Unknown severities sort last (same as `minor`); core `severityRank`
+    // throws on them, but the write path must never fail on a projection.
+    severityRank: SEVERITY_RANK[finding.severity] ?? 3,
+    engine: engineForRow(finding),
+    detectedAt: finding.detectedAt,
   });
+}
+
+/**
+ * Engine bucket projection (`engineFor` over the payload analyzer). Unknown
+ * legacy analyzers fall back to `ast` (same default as a missing analyzer);
+ * core throws on them, but the write path must never fail on a projection.
+ */
+function engineForRow(finding: Finding): AssessmentEngine {
+  try {
+    return engineFor(finding);
+  } catch {
+    return "ast";
+  }
 }
 
 export function remediationToRow(remediation: Remediation) {
@@ -133,13 +163,24 @@ function nullToUndefined<T>(value: T | null | undefined): T | undefined {
   return value ?? undefined;
 }
 
+/**
+ * The evidence vocabulary is frozen and append-only, and the column has no
+ * CHECK constraint: an unknown kind is a corrupt row, so fail loud.
+ */
+function evidenceKindOf(row: typeof evidence.$inferSelect): EvidenceKind {
+  if (!isOneOf(EVIDENCE_KINDS, row.kind)) {
+    throw new Error(`Unknown evidence kind "${row.kind}" on row ${row.id}.`);
+  }
+  return row.kind;
+}
+
 export function rowToEvidence(
   row: typeof evidence.$inferSelect,
 ): EvidenceRecord {
   return {
     id: row.id,
     at: row.at,
-    kind: row.kind as EvidenceRecord["kind"],
+    kind: evidenceKindOf(row),
     summary: row.summary,
     projectId: nullToUndefined(row.projectId),
     controlId: nullToUndefined(row.controlId),

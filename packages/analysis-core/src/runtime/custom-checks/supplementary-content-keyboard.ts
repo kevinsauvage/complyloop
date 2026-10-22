@@ -24,6 +24,34 @@ export async function supplementaryContentKeyboardViolation(
 
     const violations: CapturedHit[] = [];
 
+    // Accessible name computed *without* the title attribute. If the title is
+    // already exposed this way (e.g. `aria-label` equal to `title`), it is not
+    // hover-only supplementary content and 2.1.1 does not apply.
+    function nameWithoutTitle(el: Element): string {
+      const aria = (el.getAttribute("aria-label") ?? "").trim();
+      if (aria) return aria;
+      const labelledby = el.getAttribute("aria-labelledby");
+      if (labelledby) {
+        return labelledby
+          .split(/\s+/)
+          .map((id) => document.getElementById(id)?.textContent ?? "")
+          .join(" ")
+          .trim();
+      }
+      // Form controls are named by their <label>, not by content: a title
+      // repeating the label (or the placeholder) adds nothing hover-only.
+      const labels =
+        el instanceof HTMLInputElement ||
+        el instanceof HTMLSelectElement ||
+        el instanceof HTMLTextAreaElement
+          ? Array.from(el.labels ?? [])
+              .map((label) => label.textContent ?? "")
+              .join(" ")
+          : "";
+      const placeholder = el.getAttribute("placeholder") ?? "";
+      return `${labels} ${placeholder} ${el.textContent ?? ""}`.trim();
+    }
+
     // Diagnostic counts: a pure-markup predicate must see the same DOM on
     // every stack, so the counts below distinguish "different DOM" from
     // "different verdict" when runs disagree.
@@ -42,6 +70,8 @@ export async function supplementaryContentKeyboardViolation(
       if (title.length < 4) continue;
       if (el.getAttribute("aria-describedby")) continue;
       if (el.hasAttribute("aria-expanded")) continue;
+      if (nameWithoutTitle(el).toLowerCase().includes(title.toLowerCase()))
+        continue;
 
       violations.push(captureHit(el));
       if (violations.length >= 5) {

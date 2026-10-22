@@ -112,7 +112,16 @@ import {
   assertAiRateLimit,
   assertAssessRateLimit,
   assertConnectRateLimit,
+  assertExportRateLimit,
+  assertJobPollRateLimit,
+  assertOrgCreateRateLimit,
+  assertOrgInviteRateLimit,
+  assertPrRateLimit,
   assertRateLimit,
+  assertRemediationRateLimit,
+  assertReposRateLimit,
+  assertRequirementsRateLimit,
+  assertRuntimeAuditRateLimit,
   pruneRateLimitBuckets,
   RateLimitError,
 } from "./rate-limit";
@@ -207,6 +216,31 @@ describe("wrappers", () => {
     await assertAiRateLimit("user-1");
     expect(buckets.has("assess:user-1")).toBe(true);
     expect(buckets.has("ai:user-1")).toBe(true);
+  });
+
+  it("new domain wrappers use their own keys", async () => {
+    await assertRemediationRateLimit("user-1");
+    await assertRequirementsRateLimit("user-1");
+    await assertRuntimeAuditRateLimit("user-1");
+    await assertOrgCreateRateLimit("user-1");
+    await assertOrgInviteRateLimit("user-1");
+    await assertExportRateLimit("user-1");
+    await assertPrRateLimit("user-1");
+    await assertReposRateLimit("user-1");
+    await assertJobPollRateLimit("user-1");
+    for (const key of [
+      "remediation:user-1",
+      "requirements:user-1",
+      "runtime-audit:user-1",
+      "org-create:user-1",
+      "org-invite:user-1",
+      "export:user-1",
+      "pr:user-1",
+      "repos:user-1",
+      "job-poll:user-1",
+    ]) {
+      expect(buckets.has(key)).toBe(true);
+    }
   });
 });
 

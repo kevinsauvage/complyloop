@@ -4,16 +4,18 @@ import { z } from "zod";
 
 import { presetById } from "@complyloop/analysis-core/catalog/registry";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
+import { insertEvidence } from "@complyloop/db/repo/evidence";
+import { updateProject } from "@complyloop/db/repo/projects";
 
-import { parseForm, requiredField } from "@/core/validate";
+import type { ActionState } from "@/core/actions/action-state";
+import { parseForm, requiredField } from "@/core/actions/validate";
 
-import { type ActionState, runAction } from "../action-state";
-import { appendEvidence } from "../workspace/project-rows";
-import { withProjectWrite } from "../workspace/workspace-write";
-import { refresh, requireOnActive } from "./shared";
+import { runAction } from "../action-state";
+import { withProjectTx } from "../workspace/workspace-write";
+import { refresh } from "./shared";
 
 const setDefaultPresetInput = z.object({
+  projectId: requiredField("Unknown project."),
   presetId: requiredField("A framework preset is required."),
 });
 
@@ -22,31 +24,33 @@ export async function setDefaultPresetAction(
   formData: FormData,
 ): Promise<ActionState> {
   return runAction(async () => {
-    const { presetId } = parseForm(setDefaultPresetInput, formData);
-    let changed = false;
-    await withProjectWrite(async (workspace) => {
-      requireOnActive(workspace, "project.connect");
-      const { project } = workspace;
-      const payload: ProjectWritePayload = {};
+    const { projectId, presetId } = parseForm(setDefaultPresetInput, formData);
+    const preset = presetById(presetId);
+    if (!preset) {
+      throw new PublicError(`Unknown framework preset: ${presetId}`);
+    }
 
-      const preset = presetById(presetId);
-      if (!preset) {
-        throw new PublicError(`Unknown framework preset: ${presetId}`);
-      }
-      if (project.defaultPresetId !== preset.id) {
-        project.defaultPresetId = preset.id;
-        appendEvidence(payload, {
+    const changed = await withProjectTx(
+      projectId,
+      "project.connect",
+      async ({ tx, project, actor }) => {
+        if (project.defaultPresetId === preset.id) return false;
+        await updateProject(tx, { ...project, defaultPresetId: preset.id });
+        await insertEvidence(tx, {
           kind: "requirements_imported",
           summary: `Default assessment preset set to "${preset.name}" (${preset.controlIds.length} controls)`,
           projectId: project.id,
           detail: { presetId: preset.id, controlIds: preset.controlIds },
+          actor,
         });
-        payload.project = project;
-        changed = true;
-      }
-      return payload;
-    });
-    refresh("/settings", "/requirements", "/evidence");
+        return true;
+      },
+    );
+    refresh(
+      "/projects/[projectId]/settings",
+      "/projects/[projectId]/requirements",
+      "/projects/[projectId]/evidence",
+    );
     return changed
       ? "Default assessment preset saved"
       : "This is already the default preset.";

@@ -16,25 +16,43 @@ function findingFingerprint(finding: RawFinding): string {
   return `${identity ?? finding.checkId}\0${finding.reason}`;
 }
 
+/**
+ * Passes when the patch removed the target and introduced nothing. A file can
+ * hold several instances of the Finding's rule, and lines shift under an
+ * edit, so the target counts as fixed when its rule-in-file count drops
+ * (siblings may remain). New failures are counted as a multiset: a second
+ * copy of an existing failure is new too.
+ */
 export function complyLoopGate(
   finding: Finding,
   baseline: ReadonlyArray<RawFinding>,
   after: ReadonlyArray<RawFinding>,
 ): ComplyLoopGateResult {
   const target = findingIdentity(finding);
-  const remaining = after
-    .filter((candidate) => findingIdentity(candidate) === target)
-    .map((candidate) => candidate.checkId);
-  const baselineKeys = new Set(baseline.map(findingFingerprint));
-  const newFindings = after.filter(
-    (candidate) => !baselineKeys.has(findingFingerprint(candidate)),
-  );
-  const passed = remaining.length === 0 && newFindings.length === 0;
-  return {
-    passed,
-    remaining: [
-      ...remaining,
-      ...newFindings.map((candidate) => candidate.checkId),
-    ],
-  };
+  const isTarget = (candidate: RawFinding) =>
+    findingIdentity(candidate) === target;
+  const targetBefore = baseline.filter(isTarget).length;
+  const targetAfter = after.filter(isTarget);
+  const targetFixed =
+    targetAfter.length === 0 ||
+    (target !== null && targetAfter.length < targetBefore);
+
+  const unmatchedBaseline = new Map<string, number>();
+  for (const candidate of baseline) {
+    const key = findingFingerprint(candidate);
+    unmatchedBaseline.set(key, (unmatchedBaseline.get(key) ?? 0) + 1);
+  }
+  const newFindings = after.filter((candidate) => {
+    const key = findingFingerprint(candidate);
+    const left = unmatchedBaseline.get(key) ?? 0;
+    if (left === 0) return true;
+    unmatchedBaseline.set(key, left - 1);
+    return false;
+  });
+
+  const remaining = [
+    ...(targetFixed ? [] : targetAfter.map((candidate) => candidate.checkId)),
+    ...newFindings.map((candidate) => candidate.checkId),
+  ];
+  return { passed: remaining.length === 0, remaining };
 }

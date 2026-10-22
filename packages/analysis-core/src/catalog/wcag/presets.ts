@@ -73,7 +73,6 @@ function wcagExtraControlIds(): string[] {
     .map((control) => control.id);
 }
 
-/** Framework + level targets for WCAG assessment. */
 export const wcagPresets: FrameworkPreset[] = [
   {
     id: "preset-wcag-full",

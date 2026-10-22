@@ -3,8 +3,15 @@ import { describe, expect, it } from "vitest";
 import {
   dedupeRuntimeFindings,
   filterAstFindingsForAuthority,
+  type RuntimeFileCoverage,
 } from "./merge-findings";
 import type { RawFinding } from "./types";
+
+/** Every page was rendered — the repo-wide drop is safe. */
+const FULL_COVERAGE: RuntimeFileCoverage = {
+  fullyCovered: true,
+  coveredFiles: new Set(),
+};
 
 describe("filterAstFindingsForAuthority", () => {
   const astInput: RawFinding = {
@@ -45,7 +52,7 @@ describe("filterAstFindingsForAuthority", () => {
 
   it("keeps composition-sensitive AST findings when runtime did not run", () => {
     expect(
-      filterAstFindingsForAuthority([astInput, astImg], false),
+      filterAstFindingsForAuthority([astInput, astImg], false, FULL_COVERAGE),
     ).toHaveLength(2);
   });
 
@@ -55,7 +62,11 @@ describe("filterAstFindingsForAuthority", () => {
       checkId: "fieldset-legend",
       reason: "legend",
     };
-    const filtered = filterAstFindingsForAuthority([astInput, astLegend], true);
+    const filtered = filterAstFindingsForAuthority(
+      [astInput, astLegend],
+      true,
+      FULL_COVERAGE,
+    );
     expect(filtered.map((finding) => finding.checkId)).toEqual([
       "fieldset-legend",
     ]);
@@ -70,6 +81,7 @@ describe("filterAstFindingsForAuthority", () => {
     const filtered = filterAstFindingsForAuthority(
       [astLandmark, astDeprecated, astLegend],
       true,
+      FULL_COVERAGE,
     );
     expect(filtered.map((finding) => finding.checkId)).toEqual([
       "fieldset-legend",
@@ -85,7 +97,9 @@ describe("filterAstFindingsForAuthority", () => {
       { ...astInput, checkId: "list-structure", reason: "div list" },
     ];
     expect(
-      filterAstFindingsForAuthority(twins, false).map((f) => f.checkId),
+      filterAstFindingsForAuthority(twins, false, FULL_COVERAGE).map(
+        (f) => f.checkId,
+      ),
     ).toEqual([
       "img-alt",
       "video-caption",
@@ -93,7 +107,9 @@ describe("filterAstFindingsForAuthority", () => {
       "no-blink-marquee",
       "list-structure",
     ]);
-    expect(filterAstFindingsForAuthority(twins, true)).toEqual([]);
+    expect(filterAstFindingsForAuthority(twins, true, FULL_COVERAGE)).toEqual(
+      [],
+    );
   });
 
   it("drops AST text-spacing when runtime ran (axe avoid-inline-spacing owns it)", () => {
@@ -108,14 +124,18 @@ describe("filterAstFindingsForAuthority", () => {
       reason: "legend",
     };
     expect(
-      filterAstFindingsForAuthority([astSpacing, astLegend], false).map(
-        (finding) => finding.checkId,
-      ),
+      filterAstFindingsForAuthority(
+        [astSpacing, astLegend],
+        false,
+        FULL_COVERAGE,
+      ).map((finding) => finding.checkId),
     ).toEqual(["text-spacing", "fieldset-legend"]);
     expect(
-      filterAstFindingsForAuthority([astSpacing, astLegend], true).map(
-        (finding) => finding.checkId,
-      ),
+      filterAstFindingsForAuthority(
+        [astSpacing, astLegend],
+        true,
+        FULL_COVERAGE,
+      ).map((finding) => finding.checkId),
     ).toEqual(["fieldset-legend"]);
   });
 
@@ -123,11 +143,57 @@ describe("filterAstFindingsForAuthority", () => {
     const filtered = filterAstFindingsForAuthority(
       [astLandmark, astDeprecated],
       false,
+      FULL_COVERAGE,
     );
     expect(filtered.map((finding) => finding.checkId)).toEqual([
       "landmark-one-main",
       "css-for-presentation",
     ]);
+  });
+
+  it("keeps every AST finding when coverage is unknown", () => {
+    const astLegend: RawFinding = {
+      ...astInput,
+      checkId: "fieldset-legend",
+      reason: "legend",
+    };
+    expect(
+      filterAstFindingsForAuthority([astInput, astLegend], true, null).map(
+        (finding) => finding.checkId,
+      ),
+    ).toEqual(["input-label", "fieldset-legend"]);
+  });
+
+  it("drops only findings on pages the audit actually rendered", () => {
+    const sourceAt = (filePath: string): RawFinding => ({
+      ...astImg,
+      location: {
+        kind: "source",
+        filePath,
+        line: 1,
+        column: 1,
+        snippet: "<img />",
+        span: { start: 0, end: 1 },
+      },
+    });
+    const onHome = sourceAt("app/page.tsx");
+    const onCheckout = sourceAt("app/checkout/page.tsx");
+    const partial: RuntimeFileCoverage = {
+      fullyCovered: false,
+      coveredFiles: new Set(["app/page.tsx"]),
+    };
+    const filtered = filterAstFindingsForAuthority(
+      [onHome, onCheckout],
+      true,
+      partial,
+    );
+    // Home was rendered (runtime owns it), checkout was not — its AST finding
+    // must survive so the requirement cannot derive `passed`.
+    expect(
+      filtered.map((finding) =>
+        finding.location.kind === "source" ? finding.location.filePath : null,
+      ),
+    ).toEqual(["app/checkout/page.tsx"]);
   });
 });
 

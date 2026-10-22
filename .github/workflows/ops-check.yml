@@ -1,0 +1,78 @@
+# Ops check (replaces the old worker healthcheck).
+#
+# Runs `npm run ops:check` hourly: verifies DB reachability, that every
+# `drizzle/*.sql` in the checkout is applied (code/schema drift surfaces as a
+# page 500 otherwise), assessment-queue depth, oldest-queued-job age and
+# evidence-table growth. Any breach — e.g. a single job queued past the age
+# threshold because dispatch stopped draining — exits non-zero so the workflow
+# fails and stock Actions failure notifications fire. A red run here means
+# "dispatch/schedule stopped draining", "evidence is outgrowing the database",
+# or "a migration shipped but the database did not get it".
+#
+# The app's own env (AUTH_*, GITHUB_APP_*, GH_WORKER_DISPATCH_TOKEN, …) lives in
+# Vercel, not here, so the prod-env audit is skipped (`OPS_CHECK_PROD_ENV=0`):
+# copying those secrets into Actions only to check they exist would prove
+# nothing about the deployment. Run `npm run ops:check` with the production env
+# pulled (`vercel env pull`) to audit it.
+#
+# Required repository secrets: `DATABASE_URL` (pooled Postgres).
+# Optional vars: `OPS_MAX_QUEUED_JOBS` (default 50), `OPS_MAX_QUEUED_AGE_MINUTES`
+# (default 20), `OPS_MAX_EVIDENCE_MB` (default 1024).
+# Optional secrets: `SLACK_WEBHOOK_URL` (failure posts), `HEALTH_URL`
+# (unauthenticated GET of the app `/api/health` endpoint).
+name: ops-check
+
+on:
+  schedule:
+    # Hourly: a stalled drain must page within the hour, not the day. The
+    # 15-min worker tick is the backstop, so an hour-old queued job means the
+    # backstop is down too (e.g. GitHub disabled the idle scheduled workflow).
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+# Least privilege: the check only reads the repo.
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Job-level so each step's `if` can read them: a step's own `env` is not
+    # visible to its `if`, which made these optional steps never run.
+    env:
+      HEALTH_URL: ${{ secrets.HEALTH_URL }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Run ops check
+        run: npm run ops:check
+        env:
+          NODE_ENV: production
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          OPS_CHECK_PROD_ENV: "0"
+          OPS_MAX_QUEUED_JOBS: ${{ vars.OPS_MAX_QUEUED_JOBS }}
+          OPS_MAX_QUEUED_AGE_MINUTES: ${{ vars.OPS_MAX_QUEUED_AGE_MINUTES }}
+          OPS_MAX_EVIDENCE_MB: ${{ vars.OPS_MAX_EVIDENCE_MB }}
+      - name: Ping app health
+        # Optional: set repository secret HEALTH_URL to the /api/health URL.
+        # The endpoint is an unauthenticated scrape target; non-200 fails.
+        if: env.HEALTH_URL != ''
+        run: |
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "$HEALTH_URL") || code="000"
+          echo "health HTTP $code"
+          [ "$code" = "200" ]
+      - name: Notify on failure
+        # Optional: set repository secret SLACK_WEBHOOK_URL to post failures.
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          curl -fsS -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\"$GITHUB_WORKFLOW failed on $REF_NAME — $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID\"}" \
+            "$SLACK_WEBHOOK_URL"

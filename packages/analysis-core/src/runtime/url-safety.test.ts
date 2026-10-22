@@ -15,6 +15,7 @@ import {
   allowRuntimeNavigation,
   assertSafeRuntimeUrl,
   assertStableRuntimeDns,
+  createCachedDnsLookup,
   createRedirectHopGuard,
   type DnsLookup,
   TOO_MANY_REDIRECTS_MESSAGE,
@@ -233,7 +234,7 @@ describe("assertStableRuntimeDns", () => {
 
 describe("scanRuntime SSRF gate", () => {
   it("refuses scans when the base URL resolves to a private IP", async () => {
-    const scanner = vi.fn(async () => []);
+    const scanner = vi.fn(async () => ({ pages: [], pageFailures: [] }));
     const result = await scanRuntime({
       runtimeBaseUrl: "https://evil.example.com",
       runtimeRoutes: ["/"],
@@ -246,7 +247,7 @@ describe("scanRuntime SSRF gate", () => {
   });
 
   it("refuses scans when a route URL is a private literal", async () => {
-    const scanner = vi.fn(async () => []);
+    const scanner = vi.fn(async () => ({ pages: [], pageFailures: [] }));
     const result = await scanRuntime({
       runtimeBaseUrl: "https://preview.example.com",
       runtimeRoutes: ["http://127.0.0.1/admin"],
@@ -258,9 +259,10 @@ describe("scanRuntime SSRF gate", () => {
   });
 
   it("allows scans when DNS resolves to a public address", async () => {
-    const scanner = vi.fn(async () => [
-      { url: "https://preview.example.com/", violations: [] },
-    ]);
+    const scanner = vi.fn(async () => ({
+      pages: [{ url: "https://preview.example.com/", violations: [] }],
+      pageFailures: [],
+    }));
     const result = await scanRuntime({
       runtimeBaseUrl: "https://preview.example.com",
       runtimeRoutes: ["/"],
@@ -349,5 +351,18 @@ describe("createRedirectHopGuard", () => {
     expect(() => guard.countHop("document")).toThrow(
       TOO_MANY_REDIRECTS_MESSAGE,
     );
+  });
+});
+
+describe("createCachedDnsLookup", () => {
+  it("resolves each hostname once per scan", async () => {
+    const base = vi.fn(async () => [{ address: "93.184.216.34", family: 4 }]);
+    const lookup = createCachedDnsLookup(base);
+    await expect(lookup("example.test")).resolves.toEqual([
+      { address: "93.184.216.34", family: 4 },
+    ]);
+    await lookup("example.test");
+    await lookup("other.test");
+    expect(base).toHaveBeenCalledTimes(2);
   });
 });

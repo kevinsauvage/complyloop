@@ -1,22 +1,22 @@
 import "@/test-fixtures/register-action-workspace-mock";
+import "@/test-fixtures/register-repo-mock";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Requirement } from "@complyloop/analysis-core/contract/entities";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 
+import { initialActionState } from "@/core/actions/action-state";
 import {
-  clearProjectWritePayloads,
-  mockProjectWrite,
-  projectWritePayload,
+  clearRecordedWrites,
+  mockProjectTx,
+  recordedWrites,
 } from "@/test-fixtures/action-workspace-mocks";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
-import { testWorkspace } from "@/test-fixtures/workspace";
+import { type TestWorkspace, testWorkspace } from "@/test-fixtures/workspace";
 
-import { initialActionState } from "../action-state";
-import type { Workspace } from "../workspace/workspace";
 import {
   clearRequirementExceptionAction,
   clearRequirementHumanPassAction,
@@ -24,13 +24,27 @@ import {
   markRequirementPassedAction,
 } from "./requirements";
 
-const applyRequirementStatusRefresh = vi.hoisted(() => vi.fn());
+const refreshRequirementsForControls = vi.hoisted(() =>
+  vi.fn(async (...args: unknown[]) => {
+    void args;
+    return { requirements: [], evidence: [] };
+  }),
+);
+const assertRequirementsRateLimit = vi.hoisted(() => vi.fn());
+
+vi.mock("../rate-limit", async () => {
+  const actual =
+    await vi.importActual<typeof import("../rate-limit")>("../rate-limit");
+  return {
+    ...actual,
+    assertRequirementsRateLimit: (...args: unknown[]) =>
+      assertRequirementsRateLimit(...args),
+  };
+});
 
 vi.mock("../observability", () => ({
   reportError: vi.fn(),
   reportWarning: vi.fn(),
-  reportDebug: vi.fn(),
-  reportInfo: vi.fn(),
   reportAppError: vi.fn(),
 }));
 
@@ -40,18 +54,22 @@ vi.mock("../assessment/assessment-status", async () => {
   >("../assessment/assessment-status");
   return {
     ...actual,
-    applyRequirementStatusRefresh: (...args: unknown[]) =>
-      applyRequirementStatusRefresh(...args),
+    refreshRequirementsForControls: (
+      ...args: Parameters<typeof actual.refreshRequirementsForControls>
+    ) => refreshRequirementsForControls(...args),
   };
 });
 
 const project = testProject({ orgId: "org-1" });
 const finding = testFinding();
 
-function baseWorkspace(overrides: Partial<WorkspaceSlice> = {}): Workspace {
+function baseWorkspace(
+  overrides: Partial<WorkspaceSlice> = {},
+  role: "member" | "admin" = "admin",
+): TestWorkspace {
   const { findings, remediations, ...rest } = overrides;
   return testWorkspace({
-    role: "member",
+    role,
     userId: "user-1",
     project,
     findings: findings ?? [finding],
@@ -66,7 +84,7 @@ function baseWorkspace(overrides: Partial<WorkspaceSlice> = {}): Workspace {
   });
 }
 
-function requirementWorkspace(requirement: Requirement): Workspace {
+function requirementWorkspace(requirement: Requirement): TestWorkspace {
   return baseWorkspace({
     requirements: [requirement],
     findings: [],
@@ -75,11 +93,41 @@ function requirementWorkspace(requirement: Requirement): Workspace {
 }
 
 afterEach(() => {
-  clearProjectWritePayloads();
+  clearRecordedWrites();
   vi.clearAllMocks();
 });
 
 describe("requirement decision actions", () => {
+  it("refuses exceptions from a member (compliance decisions are admin/owner)", async () => {
+    const requirement: Requirement = {
+      id: "req-1",
+      projectId: "p1",
+      controlId: "ctl-img-alt",
+      status: "failed",
+      determination: "automated",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    mockProjectTx(
+      baseWorkspace(
+        { requirements: [requirement], findings: [], remediations: [] },
+        "member",
+      ),
+    );
+    const form = new FormData();
+    form.set("reason", "accepted_risk");
+    form.set("note", "Risk noted");
+
+    const result = await markRequirementExceptionAction(
+      "req-1",
+      initialActionState,
+      form,
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/project\.decide/);
+    expect(recordedWrites()?.requirements ?? []).toEqual([]);
+  });
+
   it("records a not-applicable exception", async () => {
     const requirement: Requirement = {
       id: "req-1",
@@ -90,7 +138,7 @@ describe("requirement decision actions", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     };
     const workspace = requirementWorkspace(requirement);
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
 
     const form = new FormData();
     form.set("reason", "not_applicable");
@@ -103,10 +151,8 @@ describe("requirement decision actions", () => {
     );
 
     expect(result.message).toMatch(/Exception recorded/);
-    expect(projectWritePayload()?.requirements?.[0]?.status).toBe(
-      "not_applicable",
-    );
-    expect(projectWritePayload()?.requirements?.[0]?.exception?.reason).toBe(
+    expect(recordedWrites()?.requirements?.[0]?.status).toBe("not_applicable");
+    expect(recordedWrites()?.requirements?.[0]?.exception?.reason).toBe(
       "not_applicable",
     );
   });
@@ -121,12 +167,15 @@ describe("requirement decision actions", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     };
     const workspace = requirementWorkspace(requirement);
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
 
     const form = new FormData();
     form.set("reason", "temporary");
     form.set("note", "Fix landing next sprint");
-    form.set("expiresAt", "2026-12-31");
+    const expiryDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    form.set("expiresAt", expiryDate);
 
     const result = await markRequirementExceptionAction(
       "req-temp",
@@ -135,10 +184,11 @@ describe("requirement decision actions", () => {
     );
 
     expect(result.message).toBe("Exception recorded.");
-    expect(projectWritePayload()?.requirements?.[0]?.status).toBe("failed");
-    expect(
-      projectWritePayload()?.requirements?.[0]?.exception?.expiresAt,
-    ).toMatch(/^2026-12-31/);
+    expect(assertRequirementsRateLimit).toHaveBeenCalled();
+    expect(recordedWrites()?.requirements?.[0]?.status).toBe("failed");
+    expect(recordedWrites()?.requirements?.[0]?.exception?.expiresAt).toMatch(
+      new RegExp(`^${expiryDate}`),
+    );
   });
 
   it("requires expiry for temporary exceptions", async () => {
@@ -151,7 +201,7 @@ describe("requirement decision actions", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     };
     const workspace = requirementWorkspace(requirement);
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
 
     const form = new FormData();
     form.set("reason", "temporary");
@@ -175,7 +225,7 @@ describe("requirement decision actions", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     };
     const workspace = requirementWorkspace(requirement);
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
 
     const form = new FormData();
     form.set("reason", "accepted_risk");
@@ -198,7 +248,7 @@ describe("requirement decision actions", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     };
     const workspace = requirementWorkspace(requirement);
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
 
     const form = new FormData();
     form.set("note", "Reviewed in staging");
@@ -210,8 +260,8 @@ describe("requirement decision actions", () => {
     );
 
     expect(result.message).toMatch(/Human pass/);
-    expect(projectWritePayload()?.requirements?.[0]?.status).toBe("passed");
-    expect(projectWritePayload()?.requirements?.[0]?.humanPass?.note).toMatch(
+    expect(recordedWrites()?.requirements?.[0]?.status).toBe("passed");
+    expect(recordedWrites()?.requirements?.[0]?.humanPass?.note).toMatch(
       /staging/,
     );
   });
@@ -226,7 +276,7 @@ describe("requirement decision actions", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     };
     const workspace = requirementWorkspace(requirement);
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
 
     const form = new FormData();
     form.set("note", "should not work");
@@ -253,7 +303,7 @@ describe("requirement decision actions", () => {
       },
     };
     const workspace = requirementWorkspace(requirement);
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
 
     const result = await clearRequirementHumanPassAction(
       "req-pass",
@@ -262,11 +312,11 @@ describe("requirement decision actions", () => {
     );
 
     expect(result.message).toBe("Human pass cleared.");
-    expect(projectWritePayload()?.requirements?.[0]?.humanPass).toBeUndefined();
-    expect(applyRequirementStatusRefresh).toHaveBeenCalledWith(
-      expect.any(Object),
+    expect(recordedWrites()?.requirements?.[0]?.humanPass).toBeUndefined();
+    expect(refreshRequirementsForControls).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({ id: "p1" }),
-      expect.objectContaining({ controlIds: ["ctl-outline-none"] }),
+      ["ctl-outline-none"],
     );
   });
 
@@ -280,7 +330,7 @@ describe("requirement decision actions", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     };
     const workspace = requirementWorkspace(requirement);
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
 
     const result = await clearRequirementHumanPassAction(
       "req-no-pass",
@@ -305,7 +355,7 @@ describe("requirement decision actions", () => {
       },
     };
     const workspace = requirementWorkspace(requirement);
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
 
     const result = await clearRequirementExceptionAction(
       "req-3",
@@ -314,11 +364,11 @@ describe("requirement decision actions", () => {
     );
 
     expect(result.message).toMatch(/Exception cleared/);
-    expect(projectWritePayload()?.requirements?.[0]?.exception).toBeUndefined();
-    expect(applyRequirementStatusRefresh).toHaveBeenCalledWith(
-      expect.any(Object),
+    expect(recordedWrites()?.requirements?.[0]?.exception).toBeUndefined();
+    expect(refreshRequirementsForControls).toHaveBeenCalledWith(
+      expect.anything(),
       expect.objectContaining({ id: "p1" }),
-      expect.objectContaining({ controlIds: ["ctl-img-alt"] }),
+      ["ctl-img-alt"],
     );
   });
 
@@ -332,7 +382,7 @@ describe("requirement decision actions", () => {
       updatedAt: "2026-01-01T00:00:00.000Z",
     };
     const workspace = requirementWorkspace(requirement);
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
 
     const result = await clearRequirementExceptionAction(
       "req-no-ex",

@@ -12,7 +12,7 @@ import {
   findingStatusDisplay,
   requirementStatusDisplay,
   severityDisplay,
-} from "@/core/display";
+} from "@/core/display/status";
 
 import {
   type AuditReportModel,
@@ -75,17 +75,29 @@ function footerMarkdown(): string[] {
   ];
 }
 
+function countRows<T extends string>(
+  statuses: readonly T[],
+  counts: Record<T, number>,
+  label: (status: T) => string,
+): string[] {
+  return statuses.map(
+    (status) => `| ${mdProse(label(status))} | ${counts[status]} |`,
+  );
+}
+
 function statusCountRows(counts: Record<RequirementStatus, number>): string[] {
-  return REQUIREMENT_STATUSES.map(
-    (status) =>
-      `| ${mdProse(requirementStatusDisplay(status).label)} | ${counts[status]} |`,
+  return countRows(
+    REQUIREMENT_STATUSES,
+    counts,
+    (status) => requirementStatusDisplay(status).label,
   );
 }
 
 function findingCountRows(counts: Record<FindingStatus, number>): string[] {
-  return FINDING_STATUSES.map(
-    (status) =>
-      `| ${mdProse(findingStatusDisplay(status).label)} | ${counts[status]} |`,
+  return countRows(
+    FINDING_STATUSES,
+    counts,
+    (status) => findingStatusDisplay(status).label,
   );
 }
 
@@ -119,8 +131,7 @@ function renderEngineeringMarkdown(model: EngineeringReportModel): string {
     ``,
     `| Metric | Count |`,
     `| --- | ---: |`,
-    `| Open findings | ${model.findings.length} |`,
-    `| Shared root causes | ${model.clusters.length} |`,
+    `| Open findings | ${model.openFindingsTotal} |`,
     ``,
   ];
 
@@ -134,21 +145,14 @@ function renderEngineeringMarkdown(model: EngineeringReportModel): string {
     lines.push(``);
   }
 
-  lines.push(`## Shared root causes`);
-  lines.push(``);
-  if (model.clusters.length === 0) {
-    lines.push(`_No shared root causes detected._`);
-  } else {
-    for (const cluster of model.clusters) {
-      lines.push(
-        `- **${mdProse(cluster.checkId)}** — ${cluster.findingCount} finding(s) at \`${mdCode(cluster.sharedLocation)}\``,
-      );
-    }
-  }
-  lines.push(``);
-
   lines.push(`## Open findings`);
   lines.push(``);
+  if (model.findings.length < model.openFindingsTotal) {
+    lines.push(
+      `_Showing the ${model.findings.length} most severe of ${model.openFindingsTotal} open findings._`,
+    );
+    lines.push(``);
+  }
 
   if (model.findings.length === 0) {
     lines.push(`_No open findings — nothing to fix right now._`);

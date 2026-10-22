@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
-  registerPlaywrightBrowserTeardown,
   withProbePage,
 } from "./playwright-page";
+import { registerPlaywrightBrowserTeardown } from "./playwright-test-teardown";
 import { textSpacingRuntimeViolation } from "./text-spacing-runtime";
 
 registerPlaywrightBrowserTeardown();
@@ -18,13 +18,14 @@ describe("textSpacingRuntimeViolation", () => {
         `
         <!doctype html><html lang="fr"><head><style>
           .clip {
-            width: 120px;
-            height: 24px;
+            width: 600px;
+            height: 20px;
             overflow: hidden;
+            white-space: nowrap;
             line-height: 1;
           }
         </style></head><body>
-          <p class="clip">Texte long qui déborde lorsque l'espacement augmente.</p>
+          <p class="clip">Texte qui tient jusqu'à ce que l'espacement augmente.</p>
         </body></html>
       `,
         async (page) => {
@@ -79,6 +80,30 @@ describe("textSpacingRuntimeViolation", () => {
         async (page) => {
           const violation = await textSpacingRuntimeViolation(page);
           expect(violation).toBeNull();
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "ignores text the page already clips before the spacing override",
+    async () => {
+      await withProbePage(
+        `
+        <!doctype html><html lang="fr"><head><style>
+          .clamp {
+            width: 120px;
+            height: 24px;
+            overflow: hidden;
+            line-height: 1;
+          }
+        </style></head><body>
+          <p class="clamp">Texte long qui est déjà tronqué par la page elle-même.</p>
+        </body></html>
+      `,
+        async (page) => {
+          expect(await textSpacingRuntimeViolation(page)).toBeNull();
         },
       );
     },

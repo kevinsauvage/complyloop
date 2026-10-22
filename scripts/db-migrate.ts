@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /**
  * Applies SQL migrations in drizzle/ against DATABASE_URL (in filename order).
- * Loads `.env.local` then `.env` (same as local Next.js) when the var is unset.
+ * Loads local `.env` files when the var is unset (`./db`).
  * Usage: npm run db:migrate
  *
  * Runs inside a Postgres advisory lock so concurrent invocations (e.g. a
@@ -45,10 +45,17 @@ async function applyMigrations(
         continue;
       }
       const body = fs.readFileSync(path.join(dir, file), "utf8");
-      await sql.unsafe(body);
-      await sql`
-        INSERT INTO "_complyloop_migrations" (id) VALUES (${file})
-      `;
+      // One transaction per file: a multi-statement body that fails midway
+      // rolls back completely and stays unrecorded, so the retry re-applies
+      // from a clean state instead of hitting half-created DDL. The
+      // session-scoped advisory lock above still serializes whole runs (so
+      // ordered files never interleave across processes).
+      await sql.begin(async (tx) => {
+        await tx.unsafe(body);
+        await tx`
+          INSERT INTO "_complyloop_migrations" (id) VALUES (${file})
+        `;
+      });
       console.log("Applied", file);
     }
   } finally {

@@ -1,11 +1,5 @@
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import git from "isomorphic-git";
-import { afterEach, describe, expect, it, vi } from "vitest";
-
-import { buttonNameCheck } from "@complyloop/analysis-core/checks/families/names";
 import type {
   Finding,
   Remediation,
@@ -14,569 +8,537 @@ import type {
   Control,
   Project,
 } from "@complyloop/analysis-core/contract/project-types";
-import { applyFix } from "@complyloop/analysis-core/fixes";
-import { parseSource } from "@complyloop/analysis-core/parse";
-import { scanFile } from "@complyloop/analysis-core/scan";
 
+import type { PatchCandidate } from "@/ai/verified-fix";
+import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 
-import {
-  locateViolationInProject,
-  mergeFix,
-} from "../assessment/assessment-findings";
 import { preparePullRequest } from "./pr";
 
 /**
- * The only network edge in PR preparation is the push: everything else
- * (branch, checkout, status, add, commit) runs against the local fixture via
- * the real pure-JS implementation. Push is mocked per-test (resolve = remote
- * accepts, reject = remote refuses).
+ * The only network edge is the GitHub REST API, so the tests drive an
+ * in-memory repository through the mocked Octokit client: refs, blobs, trees,
+ * commits, branches and PRs behave like the real API where the code depends
+ * on it, and every call is asserted against the recorded state.
  */
-const isoPush = vi.hoisted(() => vi.fn());
-
-vi.mock("isomorphic-git", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("isomorphic-git")>();
-  const passthrough = [
-    "init",
-    "add",
-    "commit",
-    "currentBranch",
-    "listBranches",
-    "checkout",
-    "branch",
-    "statusMatrix",
-  ] as const;
-  const mocked: Record<string, (...args: never[]) => unknown> = {
-    push: (...args: never[]) => isoPush(...args),
+const hub = vi.hoisted(() => {
+  const state = {
+    files: new Map<string, string>(),
+    fileModes: new Map<string, string>(),
+    refs: new Map<string, string>(),
+    defaultBranch: "main",
+    blobs: [] as string[],
+    treeEntries: [] as Array<
+      Array<{ path: string; mode: string; type: string; sha: string }>
+    >,
+    commits: [] as Array<{
+      message: string;
+      tree: string;
+      parents: string[];
+    }>,
+    createdBranches: [] as string[],
+    updatedBranches: [] as Array<{ ref: string; force?: boolean }>,
+    openPrs: [] as Array<{ html_url: string; base: { ref: string } }>,
+    treeTruncated: false,
+    failPrCreate: false,
+    readOnly: false,
+    prCreateArgs: [] as Array<{
+      head: string;
+      base: string;
+      draft?: boolean;
+      body?: string;
+    }>,
   };
-  const real = actual.default as unknown as Record<
-    string,
-    (...args: never[]) => unknown
-  >;
-  for (const name of passthrough) {
-    const fn = real[name];
-    if (typeof fn !== "function") throw new Error(`missing git.${name}`);
-    mocked[name] = (...args: never[]) => fn(...args);
-  }
-  return { ...actual, default: mocked };
+
+  const notFound = () => Object.assign(new Error("Not Found"), { status: 404 });
+
+  const octokit = {
+    rest: {
+      repos: {
+        get: async () => ({
+          data: {
+            default_branch: state.defaultBranch,
+            // The App token may push: this double models a writable repo.
+            permissions: state.readOnly
+              ? { admin: false, push: false, pull: true }
+              : { admin: true, push: true },
+          },
+        }),
+        getContent: async (args: { path: string }) => {
+          const text = state.files.get(args.path);
+          if (text === undefined) throw notFound();
+          return {
+            data: {
+              type: "file",
+              encoding: "base64",
+              content: Buffer.from(text, "utf8").toString("base64"),
+            },
+          };
+        },
+      },
+      git: {
+        getRef: async (args: { ref: string }) => {
+          const sha = state.refs.get(args.ref);
+          if (!sha) throw notFound();
+          return { data: { object: { sha } } };
+        },
+        getCommit: async () => ({
+          data: { tree: { sha: "base-tree-sha" } },
+        }),
+        getTree: async (args: { tree_sha: string; recursive?: string }) => {
+          const treeForDir = (dir: string) => {
+            const prefix = dir ? `${dir}/` : "";
+            const entries: Array<{
+              path: string;
+              mode: string;
+              type: string;
+              sha?: string;
+            }> = [];
+            const seenDirs = new Set<string>();
+            for (const filePath of state.files.keys()) {
+              if (!filePath.startsWith(prefix)) continue;
+              const [head, ...rest] = filePath.slice(prefix.length).split("/");
+              if (!head) continue;
+              if (rest.length === 0) {
+                entries.push({
+                  path: head,
+                  mode: state.fileModes.get(filePath) ?? "100644",
+                  type: "blob",
+                  sha: `blob:${filePath}`,
+                });
+              } else if (!seenDirs.has(head)) {
+                seenDirs.add(head);
+                entries.push({
+                  path: head,
+                  mode: "040000",
+                  type: "tree",
+                  sha: `dir:${prefix}${head}`,
+                });
+              }
+            }
+            return entries;
+          };
+          if (args.recursive) {
+            return {
+              data: {
+                truncated: state.treeTruncated,
+                tree: state.treeTruncated
+                  ? []
+                  : [...state.files.keys()].map((filePath) => ({
+                      path: filePath,
+                      mode: state.fileModes.get(filePath) ?? "100644",
+                      type: "blob",
+                      sha: `blob:${filePath}`,
+                    })),
+              },
+            };
+          }
+          const dir =
+            args.tree_sha === "base-tree-sha"
+              ? ""
+              : args.tree_sha.startsWith("dir:")
+                ? args.tree_sha.slice(4)
+                : "";
+          return { data: { truncated: false, tree: treeForDir(dir) } };
+        },
+        createBlob: async (args: { content: string }) => {
+          state.blobs.push(args.content);
+          return { data: { sha: `blob-${state.blobs.length}` } };
+        },
+        createTree: async (args: {
+          tree: Array<{
+            path: string;
+            mode: string;
+            type: string;
+            sha: string;
+          }>;
+        }) => {
+          state.treeEntries.push(args.tree);
+          return { data: { sha: `tree-${state.treeEntries.length}` } };
+        },
+        createCommit: async (args: {
+          message: string;
+          tree: string;
+          parents: string[];
+        }) => {
+          state.commits.push(args);
+          return { data: { sha: `commit-${state.commits.length}` } };
+        },
+        createRef: async (args: { ref: string; sha: string }) => {
+          if (state.refs.has(args.ref)) {
+            throw Object.assign(new Error("Reference already exists"), {
+              status: 422,
+            });
+          }
+          state.refs.set(args.ref, args.sha);
+          state.createdBranches.push(args.ref);
+          return { data: {} };
+        },
+        updateRef: async (args: {
+          ref: string;
+          sha: string;
+          force?: boolean;
+        }) => {
+          state.refs.set(args.ref, args.sha);
+          state.updatedBranches.push({ ref: args.ref, force: args.force });
+          return { data: {} };
+        },
+      },
+      pulls: {
+        list: async () => ({ data: state.openPrs }),
+        create: async (args: {
+          head: string;
+          base: string;
+          draft?: boolean;
+          body?: string;
+        }) => {
+          if (state.failPrCreate) throw new Error("API down");
+          state.prCreateArgs.push(args);
+          return {
+            data: { html_url: "https://github.com/acme/shop/pull/42" },
+          };
+        },
+      },
+    },
+  };
+
+  return {
+    state,
+    octokit,
+    reset() {
+      state.files = new Map([
+        ["src/Hero.tsx", "export const Hero = () => <button></button>;\n"],
+      ]);
+      state.refs = new Map([["refs/heads/main", "base-sha"]]);
+      state.fileModes = new Map([["src/Hero.tsx", "100644"]]);
+      state.defaultBranch = "main";
+      state.blobs.length = 0;
+      state.treeEntries.length = 0;
+      state.commits.length = 0;
+      state.createdBranches.length = 0;
+      state.updatedBranches.length = 0;
+      state.openPrs.length = 0;
+      state.treeTruncated = false;
+      state.failPrCreate = false;
+      state.readOnly = false;
+      state.prCreateArgs.length = 0;
+    },
+  };
 });
 
-isoPush.mockResolvedValue({ ok: true, refs: {} });
+const tokenMock = vi.hoisted(() => vi.fn<() => Promise<string | null>>());
 
-const withProjectCheckout = vi.hoisted(() =>
-  vi.fn(
-    async <T>(
-      project: unknown,
-      fn: (rootPath: string) => Promise<T>,
-      ref?: string,
-    ): Promise<T> => {
-      void project;
-      void fn;
-      void ref;
-      throw new Error("withProjectCheckout mock not configured");
-    },
-  ),
-);
-
-const resolveProjectGitHubToken = vi.hoisted(() =>
-  vi.fn<() => Promise<string | null>>(async () => null),
-);
-
-const createPullRequest = vi.hoisted(() =>
-  vi.fn(async () => ({
-    data: { html_url: "https://github.com/acme/shop/pull/42" },
-  })),
-);
-
-const listPullRequests = vi.hoisted(() =>
-  vi.fn(async () => ({
-    data: [] as Array<{ html_url: string }>,
-  })),
-);
-
-const githubPublicCloneUrl = vi.hoisted(() => vi.fn(() => ""));
-
-vi.mock("../assessment/repo-checkout", () => ({
-  withProjectCheckout: (
-    project: unknown,
-    fn: (rootPath: string) => Promise<unknown>,
-    ref?: string,
-  ) => withProjectCheckout(project, fn, ref),
-  withRepoCheckout: vi.fn(),
-}));
-
-vi.mock("./github-access", () => ({
-  resolveProjectGitHubToken,
-}));
+vi.mock("./github-access", () => ({ resolveProjectGitHubToken: tokenMock }));
 
 vi.mock("./github", async (importOriginal) => {
-  const original = await importOriginal<typeof import("./github")>();
-  return {
-    ...original,
-    githubPublicCloneUrl,
-    parseOwnerRepo: (fullName: string) => {
-      const [owner, repo] = fullName.split("/");
-      if (!owner || !repo) throw new Error("invalid full name");
-      return { owner, repo };
-    },
-    createOctokit: () => ({
-      rest: { pulls: { create: createPullRequest, list: listPullRequests } },
-    }),
-    octokitErrorMessage: (error: unknown) => String(error),
-  };
+  const actual = await importOriginal<typeof import("./github")>();
+  return { ...actual, createOctokit: () => hub.octokit };
 });
 
-const tempDirs: string[] = [];
-
-afterEach(() => {
-  for (const dir of tempDirs.splice(0)) {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
-  vi.clearAllMocks();
+const PROJECT: Project = testProject({
+  name: "shop",
+  github: {
+    fullName: "acme/shop",
+    defaultBranch: "main",
+    private: false,
+  },
 });
 
-async function initRepo(source: string): Promise<{
-  root: string;
-  relative: string;
-  project: Project;
-  control: Control;
-  finding: Finding;
-  remediation: Remediation;
-}> {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "pr-test-"));
-  tempDirs.push(root);
-  const relative = "Hero.tsx";
-  fs.writeFileSync(path.join(root, relative), source);
+const CONTROL: Control = {
+  id: "ctl-button-name",
+  frameworkId: "fw",
+  code: "WCAG 4.1.2",
+  secondaryCode: "RGAA 11.9",
+  title: "Buttons have an accessible name",
+  description: "Every button exposes a name describing its action.",
+  checkId: "button-name",
+};
 
-  await git.init({ fs, dir: root, defaultBranch: "main" });
-  await git.add({ fs, dir: root, filepath: relative });
-  await git.commit({
-    fs,
-    dir: root,
-    message: "initial",
-    author: { name: "Test", email: "test@example.com" },
-  });
+const FINDING: Finding = testFinding({
+  projectId: PROJECT.id,
+  controlId: CONTROL.id,
+  checkId: "button-name",
+  reason: "Button has no accessible name",
+  location: {
+    kind: "source",
+    filePath: "src/Hero.tsx",
+    line: 1,
+    column: 28,
+    snippet: "<button></button>",
+    span: { start: 27, end: 45 },
+  },
+});
 
-  const [raw] = buttonNameCheck.run(parseSource(relative, source));
-  if (!raw?.fix) throw new Error("expected button-name fix");
+const REMEDIATION: Remediation = {
+  id: "r1",
+  findingId: FINDING.id,
+  status: "approved",
+  suggestion: {
+    description: "Add alt",
+    proposedSnippet: '<button aria-label="Save"></button>',
+    provenance: "deterministic",
+  },
+  history: [],
+};
 
-  const project = testProject({
-    name: "shop",
-    github: {
-      fullName: "acme/shop",
-      defaultBranch: "main",
-      private: false,
+const CANDIDATE: PatchCandidate = {
+  description: "Add alt",
+  provenance: "deterministic",
+  edits: [
+    {
+      path: "src/Hero.tsx",
+      oldText: "<button></button>",
+      newText: '<button aria-label="Save"></button>',
     },
-    createdAt: new Date().toISOString(),
-  });
-  const control: Control = {
-    id: "ctl-button-name",
-    frameworkId: "fw",
-    code: "WCAG 4.1.2",
-    secondaryCode: "RGAA 11.9",
-    title: "Buttons have an accessible name",
-    description: "Every button exposes a name describing its action.",
-    checkId: "button-name",
-  };
-  const finding: Finding = {
-    id: "f1",
-    projectId: project.id,
-    controlId: control.id,
-    assessmentId: "a1",
-    checkId: "button-name",
-    status: "open",
-    kind: raw.kind,
-    severity: raw.severity,
-    confidence: raw.confidence,
-    reason: raw.reason,
-    location: raw.location,
-    fix: raw.fix,
-    explanations: [],
-    detectedAt: new Date().toISOString(),
-  };
-  const remediation: Remediation = {
-    id: "r1",
-    findingId: finding.id,
-    status: "approved",
-    suggestion: {
-      description: "Add alt",
-      proposedSnippet: '<button aria-label="Save"></button>',
-      provenance: "deterministic",
-    },
-    history: [],
-  };
+  ],
+  complyLoop: { passed: true, remaining: [] },
+};
 
-  withProjectCheckout.mockImplementation(async (_project, fn) => fn(root));
+const BRANCH = "complyloop/fix-button-name-f1";
 
-  return { root, relative, project, control, finding, remediation };
+function run(
+  candidate: PatchCandidate | null = CANDIDATE,
+  finding: Finding = FINDING,
+  project: Project = PROJECT,
+) {
+  return preparePullRequest(project, CONTROL, finding, REMEDIATION, candidate);
 }
 
-describe("locateViolationInProject + PR apply", () => {
-  it("re-locates a drifted span and applies the fix at the current offset", async () => {
-    const initial = `export const Hero = () => <button></button>;\n`;
-    const { root, relative, project, control, finding, remediation } =
-      await initRepo(initial);
+beforeEach(() => {
+  hub.reset();
+  tokenMock.mockReset();
+  tokenMock.mockResolvedValue("token");
+});
 
-    // Drift the file: prepend lines so stored span offsets are stale.
-    const drifted = `/* banner */\n\n${initial}`;
-    fs.writeFileSync(path.join(root, relative), drifted);
+describe("preparePullRequest", () => {
+  it("commits the verified edit through the Git Data API and opens a draft PR", async () => {
+    const result = await run();
 
-    const match = locateViolationInProject(root, finding);
-    expect(match?.fix).toBeTruthy();
-    expect(match?.location.kind).toBe("source");
-    expect(
-      match?.location.kind === "source" && finding.location.kind === "source"
-        ? match.location.span.start !== finding.location.span.start
-        : false,
-    ).toBe(true);
+    expect(result.branch).toBe(BRANCH);
+    expect(result.prUrl).toBe("https://github.com/acme/shop/pull/42");
+    expect(result.message).toMatch(/Draft pull request created/);
 
-    const fix = mergeFix(finding.fix, match!.fix);
-    expect(fix).toBeTruthy();
-
-    const fixed = applyFix(drifted, fix!);
-    expect(fixed).toContain("aria-label=");
-    // Stale stored span would leave the violation or corrupt the banner comment.
-    const staleFixed = applyFix(drifted, finding.fix!);
-    expect(staleFixed).not.toBe(fixed);
-
-    // Poison the stored fix span — preparePullRequest must re-locate, not use it.
-    if (finding.fix?.kind === "insert_attribute") {
-      finding.fix = {
-        ...finding.fix,
-        span: { start: 0, end: 5 },
-      };
-    }
-
-    const result = await preparePullRequest(
-      project,
-      control,
-      finding,
-      remediation,
-      {
-        description: "Add alt",
-        provenance: "deterministic",
-        edits: [{ path: relative, oldText: drifted, newText: fixed }],
-        complyLoop: { passed: true, remaining: [] },
-      },
+    expect(hub.state.blobs).toHaveLength(1);
+    expect(hub.state.blobs[0]).toContain('aria-label="Save"');
+    expect(hub.state.treeEntries[0]).toEqual([
+      { path: "src/Hero.tsx", mode: "100644", type: "blob", sha: "blob-1" },
+    ]);
+    expect(hub.state.commits[0]).toMatchObject({
+      tree: "tree-1",
+      parents: ["base-sha"],
+    });
+    expect(hub.state.commits[0]?.message).toContain("fix(a11y)");
+    expect(hub.state.createdBranches).toEqual([`refs/heads/${BRANCH}`]);
+    expect(hub.state.prCreateArgs[0]).toMatchObject({
+      head: BRANCH,
+      base: "main",
+      draft: true,
+    });
+    expect(hub.state.prCreateArgs[0]?.body).toContain(
+      "Repository tests run in GitHub CI",
     );
-    expect(result.branch).toContain("complyloop/fix-");
-    const onDisk = fs.readFileSync(path.join(root, relative), "utf8");
-    expect(onDisk).toContain("aria-label=");
-    expect(onDisk.startsWith("/* banner */")).toBe(true);
-    expect(scanFile(root, relative)).toHaveLength(0);
   });
 
-  it("commits a verified AI patch when there is no structured fix template", async () => {
-    const initial = `export const Hero = () => <button></button>;\n`;
-    const { root, relative, project, control, finding, remediation } =
-      await initRepo(initial);
-    finding.fix = null;
+  it("refuses to commit when the App lost write access", async () => {
+    hub.state.readOnly = true;
 
-    const result = await preparePullRequest(
-      project,
-      control,
-      finding,
-      remediation,
-      {
-        description: "Add alt",
-        provenance: "ai",
-        edits: [
-          {
-            path: relative,
-            oldText: "<button></button>",
-            newText: '<button aria-label="Save"></button>',
-          },
-        ],
-        complyLoop: { passed: true, remaining: [] },
-      },
-    );
-
-    expect(result.branch).toContain("complyloop/fix-");
-    expect(fs.readFileSync(path.join(root, relative), "utf8")).toContain(
-      'aria-label="Save"',
-    );
-    expect(scanFile(root, relative)).toHaveLength(0);
+    await expect(run()).rejects.toThrow(/no longer has write access/);
+    // Nothing was written: no blob, no commit, no branch, no PR.
+    expect(hub.state.blobs).toHaveLength(0);
+    expect(hub.state.commits).toHaveLength(0);
+    expect(hub.state.createdBranches).toHaveLength(0);
   });
 
-  it("fails loud when the patch does not change the working tree", async () => {
-    const initial = `export const Hero = () => <button></button>;\n`;
-    const { relative, project, control, finding, remediation } =
-      await initRepo(initial);
+  it("resets an existing fix branch instead of failing the retry", async () => {
+    hub.state.refs.set(`refs/heads/${BRANCH}`, "previous-run-sha");
 
+    const result = await run();
+
+    expect(result.prUrl).toBe("https://github.com/acme/shop/pull/42");
+    expect(hub.state.createdBranches).toEqual([]);
+    expect(hub.state.updatedBranches).toEqual([
+      { ref: `refs/heads/${BRANCH}`, force: true },
+    ]);
+  });
+
+  it("reuses an open PR without creating another", async () => {
+    hub.state.openPrs = [
+      {
+        html_url: "https://github.com/acme/shop/pull/7",
+        base: { ref: "main" },
+      },
+    ];
+
+    const result = await run();
+
+    expect(result.prUrl).toBe("https://github.com/acme/shop/pull/7");
+  });
+
+  it("refuses to reuse an open PR that targets another base", async () => {
+    hub.state.openPrs = [
+      {
+        html_url: "https://github.com/acme/shop/pull/9",
+        base: { ref: "release" },
+      },
+    ];
+
+    await expect(run()).rejects.toThrow(/targets `release`, not `main`/);
+    // Nothing is committed before the mismatch is caught.
+    expect(hub.state.commits).toHaveLength(0);
+  });
+
+  it("fails closed when the file changed since the patch was generated", async () => {
+    hub.state.files.set(
+      "src/Hero.tsx",
+      'export const Hero = () => <button aria-label="Edited"></button>;\n',
+    );
+
+    await expect(run()).rejects.toThrow(/oldText not found/);
+    expect(hub.state.blobs).toHaveLength(0);
+  });
+
+  it("rejects an ambiguous edit", async () => {
+    hub.state.files.set(
+      "src/Hero.tsx",
+      "export const A = () => <button></button>;\nexport const B = () => <button></button>;\n",
+    );
+
+    await expect(run()).rejects.toThrow(/not unique/);
+    expect(hub.state.blobs).toHaveLength(0);
+  });
+
+  it("rejects a patch that does not change the file", async () => {
     await expect(
-      preparePullRequest(project, control, finding, remediation, {
-        description: "No-op",
-        provenance: "ai",
+      run({
+        ...CANDIDATE,
         edits: [
           {
-            path: relative,
+            path: "src/Hero.tsx",
             oldText: "<button></button>",
             newText: "<button></button>",
           },
         ],
-        complyLoop: { passed: true, remaining: [] },
       }),
     ).rejects.toThrow(/No changes to commit/);
+    expect(hub.state.commits).toHaveLength(0);
   });
 
-  it("opens AI-generated changes as a draft pull request", async () => {
-    const initial = `export const Hero = () => <button></button>;\n`;
-    const { root, relative, project, control, finding, remediation } =
-      await initRepo(initial);
-    finding.fix = null;
-    resolveProjectGitHubToken.mockResolvedValue("token");
-    githubPublicCloneUrl.mockReturnValue(root);
-
-    const result = await preparePullRequest(
-      project,
-      control,
-      finding,
-      remediation,
-      {
-        description: "Add alt",
-        provenance: "ai",
-        edits: [
-          {
-            path: relative,
-            oldText: "<button></button>",
-            newText: '<button aria-label="Save"></button>',
-          },
-        ],
-        complyLoop: { passed: true, remaining: [] },
-      },
-    );
-
-    expect(result.prUrl).toBe("https://github.com/acme/shop/pull/42");
-    expect(isoPush).toHaveBeenCalledWith(
-      expect.objectContaining({
-        ref: expect.stringContaining("complyloop/fix-"),
-        remoteRef: expect.stringContaining("complyloop/fix-"),
-        force: true,
-      }),
-    );
-    expect(createPullRequest).toHaveBeenCalledWith(
-      expect.objectContaining({
-        draft: true,
-        body: expect.stringContaining("Repository tests run in GitHub CI"),
-      }),
-    );
-  });
-
-  it("fails loud when pushing the fix branch fails", async () => {
-    const initial = `export const Hero = () => <button></button>;\n`;
-    const { relative, project, control, finding, remediation } =
-      await initRepo(initial);
-    finding.fix = null;
-    resolveProjectGitHubToken.mockResolvedValue("token");
-    // The branch commits locally, then the remote refuses the push: push +
-    // PR creation fail as one user-visible error.
-    isoPush.mockRejectedValueOnce(new Error("remote: permission denied"));
-
+  it("fails when the target file is missing from the repository", async () => {
     await expect(
-      preparePullRequest(project, control, finding, remediation, {
-        description: "Add alt",
-        provenance: "ai",
-        edits: [
-          {
-            path: relative,
-            oldText: "<button></button>",
-            newText: '<button aria-label="Save"></button>',
-          },
-        ],
-        complyLoop: { passed: true, remaining: [] },
-      }),
-    ).rejects.toThrow(/committed locally but push/);
-    expect(createPullRequest).not.toHaveBeenCalled();
-  });
-
-  it("aborts when the violation can no longer be found", async () => {
-    const initial = `export const Hero = () => <button></button>;\n`;
-    const { root, relative, project, control, finding, remediation } =
-      await initRepo(initial);
-
-    fs.writeFileSync(
-      path.join(root, relative),
-      `export const Hero = () => <button aria-label="ok"></button>;\n`,
-    );
-
-    await expect(
-      preparePullRequest(project, control, finding, remediation, {
-        description: "Add alt",
-        provenance: "deterministic",
-        edits: [
-          {
-            path: relative,
-            oldText: "<button></button>",
-            newText: '<button aria-label=""></button>',
-          },
-        ],
-        complyLoop: { passed: true, remaining: [] },
-      }),
-    ).rejects.toThrow(/oldText not found/);
-  });
-
-  it("rejects runtime DOM findings without touching git", async () => {
-    const { project, control, finding, remediation } = await initRepo(
-      `export const Hero = () => <button></button>;\n`,
-    );
-    await expect(
-      preparePullRequest(
-        project,
-        control,
+      run(
         {
-          ...finding,
+          ...CANDIDATE,
+          edits: [
+            {
+              path: "src/Gone.tsx",
+              oldText: "<button></button>",
+              newText: '<button aria-label="Save"></button>',
+            },
+          ],
+        },
+        {
+          ...FINDING,
           location: {
-            kind: "dom",
-            url: "https://preview.example/",
-            selector: "button",
+            kind: "source",
+            filePath: "src/Gone.tsx",
+            line: 1,
+            column: 1,
             snippet: "<button></button>",
+            span: { start: 0, end: 18 },
           },
         },
-        remediation,
-        null,
       ),
-    ).rejects.toThrow(/cannot be committed automatically/);
+    ).rejects.toThrow(/File not found in acme\/shop/);
   });
 
-  it("requires a verified candidate before opening a checkout", async () => {
-    const { project, control, finding, remediation } = await initRepo(
-      `export const Hero = () => <button></button>;\n`,
-    );
+  it("refuses to commit an edit outside the finding's file", async () => {
     await expect(
-      preparePullRequest(project, control, finding, remediation, null),
+      run({
+        ...CANDIDATE,
+        edits: [
+          {
+            path: "src/Other.tsx",
+            oldText: "<button></button>",
+            newText: '<button aria-label="Save"></button>',
+          },
+        ],
+      }),
+    ).rejects.toThrow(/must target src\/Hero.tsx/);
+    expect(hub.state.blobs).toHaveLength(0);
+  });
+
+  it("preserves the executable bit of the committed file", async () => {
+    hub.state.fileModes.set("src/Hero.tsx", "100755");
+
+    await run();
+
+    expect(hub.state.treeEntries[0]?.[0]?.mode).toBe("100755");
+  });
+
+  it("resolves the executable bit when the recursive tree is truncated", async () => {
+    hub.state.treeTruncated = true;
+    hub.state.fileModes.set("src/Hero.tsx", "100755");
+
+    await run();
+
+    expect(hub.state.treeEntries[0]?.[0]?.mode).toBe("100755");
+  });
+
+  it("fails loud when the GitHub token is unavailable", async () => {
+    tokenMock.mockResolvedValue(null);
+
+    await expect(run()).rejects.toThrow(
+      /token unavailable.*Nothing was pushed/,
+    );
+    expect(hub.state.blobs).toHaveLength(0);
+  });
+
+  it("falls back to the repository default branch when the tracked one is gone", async () => {
+    const result = await run(CANDIDATE, FINDING, {
+      ...PROJECT,
+      github: {
+        fullName: "acme/shop",
+        defaultBranch: "main",
+        private: false,
+        trackedBranch: "release",
+      },
+    });
+
+    expect(result.prUrl).toBe("https://github.com/acme/shop/pull/42");
+    expect(hub.state.commits[0]?.parents).toEqual(["base-sha"]);
+    // The PR targets the branch that actually exists, not the stale tracked one.
+    expect(hub.state.prCreateArgs[0]?.base).toBe("main");
+    expect(result.branch).toBe(BRANCH);
+  });
+
+  it("rejects runtime DOM findings before any repository call", async () => {
+    await expect(
+      run(CANDIDATE, {
+        ...FINDING,
+        location: {
+          kind: "dom",
+          url: "https://preview.example/",
+          selector: "button",
+          snippet: "<button></button>",
+        },
+      }),
+    ).rejects.toThrow(/cannot be committed automatically/);
+    expect(hub.state.blobs).toHaveLength(0);
+  });
+
+  it("requires a verified candidate", async () => {
+    await expect(run(null)).rejects.toThrow(/Generate and review/);
+    await expect(
+      run({ ...CANDIDATE, complyLoop: { passed: false, remaining: [] } }),
     ).rejects.toThrow(/Generate and review/);
   });
 
-  it("fails when the checkout is not a git repository", async () => {
-    const { project, control, finding, remediation } = await initRepo(
-      `export const Hero = () => <button></button>;\n`,
+  it("surfaces a PR API failure after the commit", async () => {
+    hub.state.failPrCreate = true;
+
+    await expect(run()).rejects.toThrow(
+      /was committed, but opening the draft pull request failed/,
     );
-    finding.fix = null;
-    withProjectCheckout.mockImplementation(async (_project, fn) =>
-      fn(os.tmpdir()),
-    );
-    await expect(
-      preparePullRequest(project, control, finding, remediation, {
-        description: "Add alt",
-        provenance: "ai",
-        edits: [
-          {
-            path: "Hero.tsx",
-            oldText: "<button></button>",
-            newText: '<button aria-label="Save"></button>',
-          },
-        ],
-        complyLoop: { passed: true, remaining: [] },
-      }),
-    ).rejects.toThrow(/requires a git repository/);
-  });
-
-  it("surfaces GitHub API failures after a successful push", async () => {
-    const initial = `export const Hero = () => <button></button>;\n`;
-    const { relative, project, control, finding, remediation } =
-      await initRepo(initial);
-    finding.fix = null;
-    resolveProjectGitHubToken.mockResolvedValue("token");
-    createPullRequest.mockRejectedValueOnce(new Error("API down"));
-
-    await expect(
-      preparePullRequest(project, control, finding, remediation, {
-        description: "Add alt",
-        provenance: "ai",
-        edits: [
-          {
-            path: relative,
-            oldText: "<button></button>",
-            newText: '<button aria-label="Save"></button>',
-          },
-        ],
-        complyLoop: { passed: true, remaining: [] },
-      }),
-    ).rejects.toThrow(/committed locally but push/);
-  });
-
-  it("reuses the existing fix branch on a second run", async () => {
-    const initial = `export const Hero = () => <button></button>;\n`;
-    const { root, relative, project, control, finding, remediation } =
-      await initRepo(initial);
-    finding.fix = null;
-    resolveProjectGitHubToken.mockResolvedValue("token");
-    githubPublicCloneUrl.mockReturnValue(root);
-    const candidate = {
-      description: "Add alt",
-      provenance: "ai" as const,
-      edits: [
-        {
-          path: relative,
-          oldText: "<button></button>",
-          newText: '<button aria-label="Save"></button>',
-        },
-      ],
-      complyLoop: { passed: true, remaining: [] },
-    };
-
-    const first = await preparePullRequest(
-      project,
-      control,
-      finding,
-      remediation,
-      candidate,
-    );
-    // The working tree already carries the first fix; the second run must
-    // reuse the branch instead of creating it again.
-    const second = await preparePullRequest(
-      project,
-      control,
-      finding,
-      remediation,
-      {
-        ...candidate,
-        edits: [
-          {
-            path: relative,
-            oldText: '<button aria-label="Save"></button>',
-            newText: '<button aria-label="Save twice"></button>',
-          },
-        ],
-      },
-    );
-    expect(second.branch).toBe(first.branch);
-    expect(second.prUrl).toBe("https://github.com/acme/shop/pull/42");
-  });
-
-  it("reuses an open PR from pulls.list without calling pulls.create", async () => {
-    const initial = `export const Hero = () => <button></button>;\n`;
-    const { root, relative, project, control, finding, remediation } =
-      await initRepo(initial);
-    finding.fix = null;
-    resolveProjectGitHubToken.mockResolvedValue("token");
-    githubPublicCloneUrl.mockReturnValue(root);
-    listPullRequests.mockResolvedValue({
-      data: [{ html_url: "https://github.com/acme/shop/pull/7" }],
-    });
-
-    const result = await preparePullRequest(
-      project,
-      control,
-      finding,
-      remediation,
-      {
-        description: "Add alt",
-        provenance: "ai",
-        edits: [
-          {
-            path: relative,
-            oldText: "<button></button>",
-            newText: '<button aria-label="Save"></button>',
-          },
-        ],
-        complyLoop: { passed: true, remaining: [] },
-      },
-    );
-
-    expect(result.prUrl).toBe("https://github.com/acme/shop/pull/7");
-    expect(listPullRequests).toHaveBeenCalled();
-    expect(createPullRequest).not.toHaveBeenCalled();
+    expect(hub.state.commits).toHaveLength(1);
   });
 });

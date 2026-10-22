@@ -44,6 +44,26 @@ export async function reflowViolation(
           `return (${twoDSrc})`,
         )() as typeof isTwoDimensionalLayout;
 
+        // An over-wide element clipped by an ancestor (`overflow: hidden/clip`,
+        // e.g. a decorative blurred circle inside a hero) cannot widen the
+        // page; only unclipped ones can be the cause.
+        function isClippedByAncestor(el: Element): boolean {
+          let current = el.parentElement;
+          while (current && current !== document.body) {
+            const style = getComputedStyle(current);
+            if (
+              style.overflowX === "hidden" ||
+              style.overflowX === "clip" ||
+              style.overflowX === "auto" ||
+              style.overflowX === "scroll"
+            ) {
+              return true;
+            }
+            current = current.parentElement;
+          }
+          return false;
+        }
+
         function isExempt(el: Element): boolean {
           let current: Element | null = el;
           while (current) {
@@ -72,17 +92,32 @@ export async function reflowViolation(
         // same first-wide-non-exempt result, far fewer style reads.
         const limit = root.clientWidth + 1;
         let wide: HTMLElement | null = null;
+        let sawExempt = false;
+        let sawClipped = false;
         for (const el of Array.from(document.querySelectorAll("body *"))) {
           if (!(el instanceof HTMLElement)) continue;
-          if (el.getBoundingClientRect().width <= limit) continue;
-          if (!isExempt(el)) {
-            wide = el;
-            break;
+          const rect = el.getBoundingClientRect();
+          if (rect.width <= limit && rect.right <= limit && rect.left >= -1) {
+            continue;
           }
+          if (isClippedByAncestor(el)) {
+            sawClipped = true;
+            continue;
+          }
+          if (isExempt(el)) {
+            sawExempt = true;
+            continue;
+          }
+          wide = el;
+          break;
         }
 
-        if (!wide) return null;
-        return captureHit(wide);
+        if (wide) return captureHit(wide);
+        // The page scrolls sideways, no exempt 2D content explains it, and the
+        // only over-wide elements are clipped by an ancestor: something else
+        // widens the page. Report the document, not an innocent clipped node.
+        if (sawClipped && !sawExempt) return captureHit(root);
+        return null;
       },
       {
         twoDSrc: TWO_D_LAYOUT_SOURCE,

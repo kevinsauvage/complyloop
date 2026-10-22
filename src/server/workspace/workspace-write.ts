@@ -1,9 +1,6 @@
 import "server-only";
 
-import type {
-  EvidenceRecord,
-  Finding,
-} from "@complyloop/analysis-core/contract/entities";
+import type { EvidenceRecord } from "@complyloop/analysis-core/contract/entities";
 import type {
   Organization,
   OrgMembership,
@@ -18,37 +15,105 @@ import {
   projectWriteLockKey,
 } from "@complyloop/db/postgres";
 import {
-  persistProjectRows,
-  type ProjectWritePayload,
-  snapshotProjectSlice,
-} from "@complyloop/db/repo/apply";
-import { insertEvidenceRecords } from "@complyloop/db/repo/evidence";
-import { getFindingById } from "@complyloop/db/repo/findings";
+  deleteEvidenceForOrg,
+  insertEvidenceRecords,
+} from "@complyloop/db/repo/evidence";
 import {
   deleteMembership,
   deleteOrganizationRow,
   insertOrganization,
+  listMembershipsForOrgs,
   upsertMembership,
 } from "@complyloop/db/repo/orgs";
-import { deleteProject, insertProject } from "@complyloop/db/repo/projects";
-import type { WorkspaceSlice } from "@complyloop/db/types";
 import {
-  loadProjectWriteDb,
-  loadTenancyDb,
-} from "@complyloop/db/workspace-load";
+  deleteProject,
+  getProjectById,
+  insertProject,
+} from "@complyloop/db/repo/projects";
+import type { WorkspaceSlice } from "@complyloop/db/types";
+import { loadTenancyDb } from "@complyloop/db/workspace-load";
 
 import type { Permission } from "@/core/rbac";
 
-import { requireOnFindingProject } from "../actions/shared";
 import { getSession } from "../auth-session";
 import { orgsForUser } from "./org-queries";
 import { stampEvidenceActor } from "./project-rows";
-import {
-  prepareWorkspaceState,
-  type ProjectWriteWorkspace,
-  readViewerSession,
-} from "./workspace";
-import { findingById } from "./workspace";
+import { assertProjectPermission } from "./project-visibility";
+
+/**
+ * In-transaction handle for one project's mutations. Callbacks load the rows
+ * they touch through repo functions and write them back explicitly; there is
+ * no project-wide load, snapshot or diff.
+ */
+export interface ProjectTx {
+  tx: DrizzleDb;
+  project: Project;
+  userId: string | null;
+  githubLogin: string | null;
+  /** Evidence author (GitHub login, else user id); undefined = system. */
+  actor: string | undefined;
+}
+
+/**
+ * Authorizes the viewer against the project's org. Runs before the advisory
+ * lock (a non-member must not be able to serialize another tenant's project)
+ * and again after it (membership could be revoked in between).
+ */
+async function authorizeProjectWrite(
+  tx: DrizzleDb,
+  projectId: string,
+  permission: Permission,
+  userId: string,
+  githubLogin: string | null,
+): Promise<Project> {
+  const project = await getProjectById(tx, projectId);
+  if (!project) throw new PublicError("Unknown project.");
+  const memberships = await listMembershipsForOrgs(tx, [project.orgId]);
+  assertProjectPermission(
+    project,
+    { userId, githubLogin, organizations: [], memberships },
+    permission,
+  );
+  return project;
+}
+
+/**
+ * The single project write primitive: per-project advisory lock, one
+ * transaction, explicit row writes. Every writer of a project's findings,
+ * remediations, requirements or alerts holds this lock, which is what makes a
+ * read-modify-write inside the callback atomic — a concurrent human decision
+ * cannot be reverted by a stale in-memory copy.
+ */
+export async function withProjectTx<T>(
+  projectId: string,
+  permission: Permission,
+  fn: (ctx: ProjectTx) => Promise<T>,
+): Promise<T> {
+  const session = await getSession();
+  const userId = session?.user?.id ?? null;
+  const githubLogin = session?.user?.login ?? null;
+  if (!userId) throw new PublicError("Sign in to continue.");
+
+  const drizzle = await getDrizzle();
+  return drizzle.transaction(async (tx) => {
+    await authorizeProjectWrite(tx, projectId, permission, userId, githubLogin);
+    await acquireNamedPostgresAdvisoryLock(tx, projectWriteLockKey(projectId));
+    const project = await authorizeProjectWrite(
+      tx,
+      projectId,
+      permission,
+      userId,
+      githubLogin,
+    );
+    return fn({
+      tx,
+      project,
+      userId,
+      githubLogin,
+      actor: githubLogin ?? userId ?? undefined,
+    });
+  });
+}
 
 export interface OrgWritePayload {
   insertOrgs?: Organization[];
@@ -64,144 +129,6 @@ export interface OrgWriteContext {
   organizations: Organization[];
 }
 
-/**
- * Serializes project mutations under a per-project advisory lock. Loads the
- * full project runtime; the handler returns a {@link ProjectWritePayload}, or
- * void when there is nothing to persist.
- */
-export async function withProjectWrite(
-  fn: (workspace: ProjectWriteWorkspace) => Promise<ProjectWritePayload | void>,
-): Promise<void> {
-  const { userId, githubLogin, preferredOrgId, preferredProjectId } =
-    await readViewerSession();
-
-  const drizzle = await getDrizzle();
-  return drizzle.transaction(async (tx) => {
-    const loadWorkspace = async (): Promise<ProjectWriteWorkspace> => {
-      const db = await loadProjectWriteDb(tx, {
-        userId,
-        githubLogin,
-        activeProjectId: preferredProjectId,
-      });
-      return {
-        ...prepareWorkspaceState(
-          db,
-          userId,
-          githubLogin,
-          preferredOrgId,
-          preferredProjectId,
-        ),
-        db,
-      };
-    };
-
-    // Single-lock protocol: resolve the effective project from a lock-free
-    // tenancy read, then lock exactly that project. Locking the cookie project
-    // and re-locking the resolved project can deadlock two writers whose stale
-    // cookies point at each other's projects.
-    const probe = await loadTenancyDb(tx, {
-      userId,
-      githubLogin,
-      activeProjectId: preferredProjectId,
-    });
-    const probeProject = prepareWorkspaceState(
-      probe,
-      userId,
-      githubLogin,
-      preferredOrgId,
-      preferredProjectId,
-    ).project;
-    if (!probeProject) {
-      throw new PublicError("Select a project first.");
-    }
-    const projectId = probeProject.id;
-
-    await acquireNamedPostgresAdvisoryLock(tx, projectWriteLockKey(projectId));
-
-    const workspace = await loadWorkspace();
-    if (!workspace.project || workspace.project.id !== projectId) {
-      // Project set changed between the lock-free resolve and the locked load.
-      // No write has happened; ask the caller to retry rather than write to an
-      // unlocked project.
-      throw new PublicError("The active project changed. Try again.");
-    }
-
-    // Clone before the handler mutates rows in place: persist compares against
-    // what was loaded, not the post-mutation state.
-    const loadedSlice = snapshotProjectSlice(
-      workspace.db.requirements,
-      workspace.db.findings,
-      workspace.db.remediations,
-      workspace.db.alerts,
-      projectId,
-    );
-    const payload = (await fn(workspace)) ?? {};
-    stampEvidenceActor(payload.evidence, githubLogin ?? userId);
-
-    await persistProjectRows(tx, payload, { loadedSlice });
-  });
-}
-
-/** Finding-scoped project write: locks the finding's project, not the cookie project. */
-export async function withFindingWrite(
-  findingId: string,
-  permission: Permission,
-  fn: (ctx: {
-    db: WorkspaceSlice;
-    finding: Finding;
-    workspace: ProjectWriteWorkspace;
-  }) => Promise<ProjectWritePayload | void>,
-): Promise<void> {
-  const { userId, githubLogin, preferredOrgId } = await readViewerSession();
-
-  const drizzle = await getDrizzle();
-  return drizzle.transaction(async (tx) => {
-    const preview = await getFindingById(tx, findingId);
-    if (!preview) throw new PublicError("Unknown finding.");
-    const projectId = preview.projectId;
-
-    await acquireNamedPostgresAdvisoryLock(tx, projectWriteLockKey(projectId));
-
-    const db = await loadProjectWriteDb(tx, {
-      userId,
-      githubLogin,
-      activeProjectId: projectId,
-    });
-    const base = prepareWorkspaceState(
-      db,
-      userId,
-      githubLogin,
-      preferredOrgId,
-      projectId,
-    );
-    const lockedProject =
-      db.projects.find((candidate) => candidate.id === projectId) ??
-      base.project;
-    const workspace: ProjectWriteWorkspace = {
-      ...base,
-      project: lockedProject,
-      db,
-    };
-    const finding = findingById(db, findingId);
-    requireOnFindingProject(workspace, finding, permission);
-
-    const loadedSlice = snapshotProjectSlice(
-      workspace.db.requirements,
-      workspace.db.findings,
-      workspace.db.remediations,
-      workspace.db.alerts,
-      projectId,
-    );
-    const payload = (await fn({ db, finding, workspace })) ?? {};
-    stampEvidenceActor(payload.evidence, githubLogin ?? userId);
-
-    await persistProjectRows(tx, payload, { loadedSlice });
-  });
-}
-
-/** Re-exported so existing callers keep importing from here. */
-export { withProjectLock } from "./db";
-
 interface LockedTenancyContext {
   tx: DrizzleDb;
   db: WorkspaceSlice;
@@ -215,7 +142,6 @@ interface LockedTenancyContext {
  * in those callers.
  */
 async function withLockedTenancy<T>(
-  options: { activeProjectId: string | null },
   fn: (ctx: LockedTenancyContext) => Promise<T>,
 ): Promise<T> {
   const session = await getSession();
@@ -229,7 +155,6 @@ async function withLockedTenancy<T>(
     const db = await loadTenancyDb(tx, {
       userId,
       githubLogin,
-      activeProjectId: options.activeProjectId,
     });
     return fn({ tx, db, userId, githubLogin });
   });
@@ -246,34 +171,34 @@ export async function withOrgWrite<T>(
     | Promise<OrgWritePayload & { result: T }>
     | (OrgWritePayload & { result: T }),
 ): Promise<T> {
-  return withLockedTenancy(
-    { activeProjectId: null },
-    async ({ tx, db, userId, githubLogin }) => {
-      const organizations = orgsForUser(db, userId);
-      const {
-        result,
-        insertOrgs,
-        upsertMemberships,
-        deleteMembershipIds,
-        deleteOrgIds,
-      } = await fn({ db, userId, githubLogin, organizations });
+  return withLockedTenancy(async ({ tx, db, userId, githubLogin }) => {
+    const organizations = orgsForUser(db, userId);
+    const {
+      result,
+      insertOrgs,
+      upsertMemberships,
+      deleteMembershipIds,
+      deleteOrgIds,
+    } = await fn({ db, userId, githubLogin, organizations });
 
-      for (const org of insertOrgs ?? []) {
-        await insertOrganization(tx, org);
-      }
-      for (const membership of upsertMemberships ?? []) {
-        await upsertMembership(tx, membership);
-      }
-      for (const id of deleteMembershipIds ?? []) {
-        await deleteMembership(tx, id);
-      }
-      for (const id of deleteOrgIds ?? []) {
-        await deleteOrganizationRow(tx, id);
-      }
+    for (const org of insertOrgs ?? []) {
+      await insertOrganization(tx, org);
+    }
+    for (const membership of upsertMemberships ?? []) {
+      await upsertMembership(tx, membership);
+    }
+    for (const id of deleteMembershipIds ?? []) {
+      await deleteMembership(tx, id);
+    }
+    for (const id of deleteOrgIds ?? []) {
+      // Tenant erasure precedes the row deletes: org deletion honors data
+      // erasure (owner-gated upstream); project disconnect keeps retention.
+      await deleteEvidenceForOrg(tx, id);
+      await deleteOrganizationRow(tx, id);
+    }
 
-      return result;
-    },
-  );
+    return result;
+  });
 }
 
 export interface ConnectWritePayload {
@@ -289,19 +214,18 @@ export interface ConnectWriteContext {
 }
 
 /**
- * Connect/disconnect writes: tenancy load (no active-project requirement),
- * user-scoped org lock (not project lock — there may be no project cookie yet),
- * persist insert/delete project + evidence.
+ * Connect/disconnect writes: tenancy load, user-scoped org lock (not the
+ * project lock — a connect has no project row yet), persist insert/delete
+ * project + evidence.
  */
 export async function withConnectWrite<T>(
-  options: { activeProjectId: string | null },
   fn: (
     ctx: ConnectWriteContext,
   ) =>
     | Promise<ConnectWritePayload & { result: T }>
     | (ConnectWritePayload & { result: T }),
 ): Promise<T> {
-  return withLockedTenancy(options, async ({ tx, db, userId, githubLogin }) => {
+  return withLockedTenancy(async ({ tx, db, userId, githubLogin }) => {
     const { result, insertProjects, deleteProjectIds, evidence } = await fn({
       db,
       userId,

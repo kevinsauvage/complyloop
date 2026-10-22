@@ -22,67 +22,42 @@ function positiveInt(name: string, fallback: number): number {
   return Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }
 
-/** GitHub App id for installation tokens (`github-app.ts`). */
 export function githubAppId(): string | undefined {
   return trimmed("GITHUB_APP_ID");
 }
 
-/** GitHub App slug for the installation URL. */
 export function githubAppSlug(): string | undefined {
   return trimmed("GITHUB_APP_SLUG");
 }
 
-/** GitHub App private key (PEM) for installation tokens. */
 export function githubAppPrivateKey(): string | undefined {
   return trimmed("GITHUB_APP_PRIVATE_KEY");
 }
 
-/** Enterprise/custom GitHub API base URL (github.com by default). */
 export function githubApiBaseUrl(): string | undefined {
   return trimmed("GITHUB_API_BASE_URL");
 }
 
-/** Webhook HMAC secret for delivery verification. */
 export function githubWebhookSecret(): string | undefined {
   return trimmed("GITHUB_WEBHOOK_SECRET");
 }
 
-/** Vercel AI Gateway key; unset means AI features stay unavailable. */
-export function aiGatewayApiKey(): string | undefined {
-  return trimmed("AI_GATEWAY_API_KEY");
-}
-
-/** Support email shown on the org page (null when unconfigured). */
 export function supportEmail(): string | null {
   return trimmed("COMPLYLOOP_SUPPORT_EMAIL") ?? null;
 }
 
-/** Public app URL for sitemaps/absolute links. */
-export function appUrl(): string | undefined {
-  return trimmed("NEXT_PUBLIC_APP_URL") ?? trimmed("AUTH_URL") ?? undefined;
-}
-
-/** Playwright harness master switch (see `e2e-harness.ts`). */
 export function e2eAuthEnabled(): boolean {
   return process.env.E2E_AUTH_ENABLED === "1";
 }
 
-/** Playwright acknowledgement for production-mode harness servers. */
 export function e2eProdHarnessAcknowledged(): boolean {
   return process.env.E2E_PROD_HARNESS === "1";
 }
 
-/** Absolute fixture tree root for harness checkouts. */
 export function e2eFixtureRoot(): string | undefined {
   return trimmed("E2E_FIXTURE_ROOT");
 }
 
-/** Current runtime environment (`development` | `production` | `test`). */
-export function nodeEnv(): string | undefined {
-  return process.env.NODE_ENV;
-}
-
-/** Ephemeral checkout quotas (see `assessment/repo-checkout.ts`). */
 export function assessmentCheckoutQuota(): {
   maxBytes: number;
   maxFiles: number;
@@ -93,4 +68,20 @@ export function assessmentCheckoutQuota(): {
     maxFiles: positiveInt("ASSESSMENT_MAX_CHECKOUT_FILES", 50_000),
     scanTimeoutMs: positiveInt("ASSESSMENT_MAX_CHECKOUT_SCAN_MS", 30_000),
   };
+}
+
+export function workerDispatchToken(): string | undefined {
+  return trimmed("GH_WORKER_DISPATCH_TOKEN");
+}
+
+export function appRepoFullName(): string | undefined {
+  return trimmed("APP_REPO_FULL_NAME");
+}
+
+export function vercelGitRepoOwner(): string | undefined {
+  return trimmed("VERCEL_GIT_REPO_OWNER");
+}
+
+export function vercelGitRepoSlug(): string | undefined {
+  return trimmed("VERCEL_GIT_REPO_SLUG");
 }

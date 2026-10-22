@@ -103,6 +103,17 @@ export interface AssessmentEngines {
   ast: true;
   runtime: boolean;
   runtimePagesScanned?: number;
+  /**
+   * Commit the audited deployment was serving, when known (set by
+   * `deployment_status` runs). Absent for a static URL: "not tied to a commit".
+   */
+  runtimeAuditedSha?: string;
+  /**
+   * True only when `runtimeAuditedSha` equals the scanned commit. Untied runs
+   * still report violations but never supersede AST findings, resolve runtime
+   * findings, or pass runtime-only checks.
+   */
+  runtimeTied?: boolean;
   /** Optional runtime passes that ran (empty when runtime did not run). */
   scanFeatures?: readonly (
     "site_level" | "html_validate" | "link_check" | "theme_conditions"
@@ -157,15 +168,6 @@ export interface Dismissal {
   reason: (typeof DISMISSAL_REASONS)[number];
   note: string;
   at: string;
-}
-
-export function isDismissalReason(
-  value: unknown,
-): value is Dismissal["reason"] {
-  return (
-    typeof value === "string" &&
-    (DISMISSAL_REASONS as readonly string[]).includes(value)
-  );
 }
 
 export interface RemediationSuggestion {

@@ -1,17 +1,13 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
-import { CreateOrgForm } from "@/components/create-org-form";
-import { InviteMemberForm } from "@/components/invite-member-form";
-import { OrgAccountOverview } from "@/components/org-account-overview";
-import { OrgDataLifecycle } from "@/components/org-data-lifecycle";
-import { OrgMembersCard } from "@/components/org-members-card";
 import {
   EmptyState,
   PageContent,
   PageHeader,
   PageSection,
-} from "@/components/page-primitives";
-import { SignInWithGitHubButton } from "@/components/sign-in-with-github-button";
+} from "@/components/primitives/page-primitives";
+import { SignInWithGitHubButton } from "@/components/shell/sign-in-with-github-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,6 +24,12 @@ import { createOrgAction, inviteOrgMemberAction } from "@/server/actions/org";
 import { getSession } from "@/server/auth-session";
 import { supportEmail as getSupportEmail } from "@/server/env";
 import { getWorkspace } from "@/server/workspace/workspace";
+
+import { CreateOrgForm } from "./_components/create-org-form";
+import { InviteMemberForm } from "./_components/invite-member-form";
+import { OrgAccountOverview } from "./_components/org-account-overview";
+import { OrgDataLifecycle } from "./_components/org-data-lifecycle";
+import { OrgMembersCard } from "./_components/org-members-card";
 
 export const metadata: Metadata = {
   title: "Organization",
@@ -73,7 +75,7 @@ export default async function OrgPage() {
           action={
             <div className="flex flex-wrap items-center justify-center gap-2">
               <Button size="sm" asChild>
-                <a href="/org">Retry</a>
+                <Link href="/org">Retry</Link>
               </Button>
               <form action={signOutAction}>
                 <Button type="submit" variant="outline" size="sm">
@@ -127,8 +129,8 @@ export default async function OrgPage() {
               <DialogHeader>
                 <DialogTitle>Invite by GitHub username</DialogTitle>
                 <DialogDescription>
-                  Teammates claim the invite on their next sign-in when their
-                  GitHub login matches.
+                  The invite is bound to that GitHub account (by its id, so a
+                  later rename still works) and is claimed on its next sign-in.
                 </DialogDescription>
               </DialogHeader>
               <InviteMemberForm

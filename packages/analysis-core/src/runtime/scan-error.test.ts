@@ -75,36 +75,6 @@ describe("classifyRuntimeScanError", () => {
     expect(message).not.toContain("ms-playwright");
   });
 
-  it("maps serverless Chromium (@sparticuz/chromium) failures the same way", () => {
-    const message = classifyRuntimeScanError(
-      new Error("sparticuz/chromium: incompatible architecture arm64"),
-    );
-    expect(message).toMatch(/browser/i);
-    expect(message).not.toContain("arm64");
-  });
-
-  it("maps missing sparticuz binaries to the bundling fix, not the preview URL", () => {
-    const message = classifyRuntimeScanError(
-      new Error(
-        'The input directory "/var/task/node_modules/@sparticuz/chromium/bin" does not exist. See: https://github.com/Sparticuz/chromium#bundler-configuration',
-      ),
-    );
-    expect(message).toMatch(/outputFileTracingIncludes/);
-    expect(message).not.toContain("/var/task");
-    expect(message).not.toBe(RUNTIME_SCAN_FAILED_MESSAGE);
-  });
-
-  it("maps a sparticuz launch failure via the diagnostic prefix", () => {
-    const message = classifyRuntimeScanError(
-      new Error(
-        "sparticuz-launch: Error: Failed to launch: /node_modules/@sparticuz/chromium/bin/chromium.br: No such file or directory",
-      ),
-    );
-    expect(message).toMatch(/browser/i);
-    expect(message).not.toContain("/node_modules");
-    expect(message).not.toBe(RUNTIME_SCAN_FAILED_MESSAGE);
-  });
-
   it("maps a blocked third-party beacon to the CSP fix with host hint", () => {
     const message = classifyRuntimeScanError(
       new Error(

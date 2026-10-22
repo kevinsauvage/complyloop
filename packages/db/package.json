@@ -20,11 +20,11 @@
   },
   "dependencies": {
     "@complyloop/analysis-core": "^0.1.0",
-    "drizzle-orm": "^0.45.2"
+    "drizzle-orm": "^0.45.3"
   },
   "peerDependencies": {
     "postgres": "^3.4.9",
-    "typescript": "^5"
+    "typescript": "~6.0.3"
   },
   "license": "UNLICENSED",
   "publishConfig": {

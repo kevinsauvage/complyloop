@@ -16,3 +16,15 @@ export const E2E_VIEWER = {
 export const E2E_ORG_ID = "e2e-org";
 export const E2E_PROJECT_ID = "e2e-project";
 export const E2E_PROJECT_FULL_NAME = "e2e/sample-app";
+
+export type E2eProjectTab =
+  "dashboard" | "requirements" | "findings" | "evidence" | "settings";
+
+/** Project-scoped path for the seeded project — the URL names the project. */
+export function projectPath(tab: E2eProjectTab): string {
+  return `/projects/${E2E_PROJECT_ID}/${tab}`;
+}
+
+export function projectFindingPath(findingId: string): string {
+  return `/projects/${E2E_PROJECT_ID}/findings/${findingId}`;
+}

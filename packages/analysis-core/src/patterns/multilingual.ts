@@ -33,6 +33,61 @@ export function matchesMultilingual(pattern: RegExp, text: string): boolean {
  */
 export const RUNTIME_MATCHES_SRC = `const foldAccents = (${foldAccents.toString()}); const matchesMultilingual = (${matchesMultilingual.toString()}); return matchesMultilingual(pattern, text);`;
 
+/**
+ * Consent / legal-boilerplate phrases that must not make an ordinary form look
+ * "high-impact" to {@link ./HIGH_RISK}. A contact form's reCAPTCHA notice
+ * ("… subject to the Google Privacy Policy and Terms of Service") otherwise
+ * matches the `terms` / `legal` tokens and yields a false `error-prevention`
+ * finding (RGAA 11.12 / WCAG 3.3.4). Folded + lowercased before removal.
+ */
+export const CONSENT_BOILERPLATE: readonly string[] = [
+  "terms of service",
+  "terms and conditions",
+  "terms & conditions",
+  "privacy policy",
+  "privacy notice",
+  "cookie policy",
+  "legal notice",
+  "legal notices",
+  "conditions générales",
+  "conditions d'utilisation",
+  "conditions d utilisation",
+  "conditions d’utilisation",
+  "politique de confidentialité",
+  "politique de cookies",
+  "mentions légales",
+  "términos del servicio",
+  "términos y condiciones",
+  "política de privacidad",
+  "aviso legal",
+  "allgemeine geschäftsbedingungen",
+  "nutzungsbedingungen",
+  "datenschutzerklärung",
+  "rechtliche hinweise",
+];
+
+/**
+ * Removes {@link CONSENT_BOILERPLATE} from text before it is matched against
+ * {@link HIGH_RISK}, so consent links/notices cannot masquerade as a
+ * transaction signal. Accent-folded so FR/ES/DE phrases match unaccented too.
+ */
+export function stripConsentBoilerplate(value: string): string {
+  let stripped = foldAccents(value).toLowerCase();
+  for (const phrase of CONSENT_BOILERPLATE) {
+    stripped = stripped.split(foldAccents(phrase).toLowerCase()).join(" ");
+  }
+  return stripped;
+}
+
+/**
+ * Browser-side counterpart to {@link stripConsentBoilerplate} — injected into
+ * `page.evaluate` like {@link RUNTIME_MATCHES_SRC}. Keeps the phrase list and
+ * the `foldAccents` implementation identical to the AST path.
+ */
+export const RUNTIME_STRIP_BOILERPLATE_SRC = `const foldAccents = (${foldAccents.toString()}); const phrases = ${JSON.stringify(
+  CONSENT_BOILERPLATE,
+)}; const stripConsentBoilerplate = (value) => { let s = foldAccents(value).toLowerCase(); for (const p of phrases) s = s.split(foldAccents(p).toLowerCase()).join(" "); return s; }; return stripConsentBoilerplate;`;
+
 export const HIGH_RISK =
   /\b(checkout|payment|pay|purchase|order|donat|transfer|withdraw|subscribe|contract|legal|terms|financial|invoice|billing|exam|quiz|test submission|submit application|delete account|cancel subscription|paiement|payer|achat|commande|don\b|virement|retrait|abonnement|souscri|contrat|juridique|l[eéEÉ]gal|conditions|financier|facture|facturation|examen|concours|candidature|supprimer|r[eéEÉ]silier|pago|pagar|compra|pedido|contrato|factura|zahlung|bezahlen|kauf|bestellung|vertrag|rechnung)\b/i;
 

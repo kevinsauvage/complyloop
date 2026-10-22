@@ -3,11 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   authorityForCheck,
   deriveStatusForCheck,
+  isAdvisoryCheck,
   isCompositionSensitiveCheck,
   isHeuristicCheck,
   isHtmlValidateOwnedCheck,
   isPackageTwinSourceCheck,
   isRuntimeOnlyCheck,
+  requiresFullTreeScan,
 } from "./check-authority";
 import {
   CHECK_REGISTRY,
@@ -51,6 +53,26 @@ describe("check authority", () => {
     expect(isCompositionSensitiveCheck("color-contrast")).toBe(false);
   });
 
+  it("requires a full-tree scan for exactly the cross-file checks", () => {
+    // Derived from the registry (not a hardcopy): the scoped-scan guard in
+    // `runAssessment` must force a full tree for these and only these.
+    const crossFile = CHECK_REGISTRY.filter(
+      (entry: CheckRegistration) => entry.crossFile === true,
+    ).map((entry: CheckRegistration) => entry.id);
+    expect(crossFile.sort()).toEqual([
+      "duplicate-id",
+      "heading-order",
+      "list-structure",
+    ]);
+    for (const checkId of crossFile) {
+      expect(requiresFullTreeScan(checkId)).toBe(true);
+    }
+    expect(requiresFullTreeScan("img-alt")).toBe(false);
+    // Composition-sensitive but file-local: runtime wins the merge, yet a
+    // scoped re-scan can still confirm or clear it.
+    expect(requiresFullTreeScan("input-label")).toBe(false);
+  });
+
   it("keeps runtime findings open for every runtime-only id", () => {
     // Iterates the source list directly — the rendered-page-only set must not
     // drift from check-authority.ts (a hardcopy rots silently on additions).
@@ -60,7 +82,7 @@ describe("check authority", () => {
     }
     expect(isRuntimeOnlyCheck("img-alt")).toBe(false);
     expect(isRuntimeOnlyCheck("input-label")).toBe(false);
-    expect(RUNTIME_ONLY_CHECK_IDS.length).toBeGreaterThan(55);
+    expect(RUNTIME_ONLY_CHECK_IDS.length).toBeGreaterThan(45);
   });
 
   it("keeps runtime findings open only for authority-gated ids", () => {
@@ -69,7 +91,7 @@ describe("check authority", () => {
     expect(keepsRuntimeFindingsOpen("empty-heading")).toBe(true);
     expect(keepsRuntimeFindingsOpen("target-size")).toBe(true);
     expect(keepsRuntimeFindingsOpen("target-size-enhanced")).toBe(true);
-    expect(keepsRuntimeFindingsOpen("forced-colors")).toBe(true);
+    expect(keepsRuntimeFindingsOpen("reflow")).toBe(true);
     expect(keepsRuntimeFindingsOpen("img-alt")).toBe(false);
   });
 
@@ -105,6 +127,15 @@ describe("check authority", () => {
     expect(isRuntimeOnlyCheck("duplicate-page-title")).toBe(true);
   });
 
+  it("flags inference checks as advisory (never hard-fail)", () => {
+    expect(isAdvisoryCheck("non-text-contrast")).toBe(true);
+    expect(isAdvisoryCheck("supplementary-content-keyboard")).toBe(true);
+    expect(isAdvisoryCheck("multiple-ways")).toBe(true);
+    expect(isAdvisoryCheck("captcha-alternative")).toBe(true);
+    expect(isAdvisoryCheck("img-alt")).toBe(false);
+    expect(isAdvisoryCheck("reflow")).toBe(false);
+  });
+
   it("classifies with site_level → runtime_only → heuristic → standard", () => {
     expect(authorityForCheck("consistent-nav")).toBe("site_level");
     expect(isRuntimeOnlyCheck("consistent-nav")).toBe(true);
@@ -112,9 +143,9 @@ describe("check authority", () => {
     expect(authorityForCheck("consistent-lang")).toBe("site_level");
     expect(isRuntimeOnlyCheck("consistent-lang")).toBe(false);
 
-    expect(isRuntimeOnlyCheck("label-adjacent")).toBe(true);
-    expect(isHeuristicCheck("label-adjacent")).toBe(false);
-    expect(authorityForCheck("label-adjacent")).toBe("runtime_only");
+    expect(isRuntimeOnlyCheck("reflow")).toBe(true);
+    expect(isHeuristicCheck("reflow")).toBe(false);
+    expect(authorityForCheck("reflow")).toBe("runtime_only");
     expect(authorityForCheck("video-caption")).toBe("runtime_only");
     expect(authorityForCheck("audio-caption")).toBe("runtime_only");
     expect(authorityForCheck("media-controls-present")).toBe("heuristic");

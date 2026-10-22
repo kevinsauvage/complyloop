@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 
-import type { ActionState } from "@/core/action-state";
+import type { ActionState } from "@/core/actions/action-state";
 
 /**
  * Ad-hoc outcome toast for flows without a `useActionState` form (direct

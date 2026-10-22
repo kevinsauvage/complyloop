@@ -5,12 +5,16 @@ import { z } from "zod";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { normalizeRoutes } from "@complyloop/analysis-core/runtime/routes";
 import { assertSafeRuntimeUrl } from "@complyloop/analysis-core/runtime/url-safety";
+import { updateProject } from "@complyloop/db/repo/projects";
 
-import { parseForm } from "@/core/validate";
+import type { ActionState } from "@/core/actions/action-state";
+import { parseForm, requiredField } from "@/core/actions/validate";
 
-import { type ActionState, runAction } from "../action-state";
-import { withProjectWrite } from "../workspace/workspace-write";
-import { refresh, requireOnActive } from "./shared";
+import { runAction } from "../action-state";
+import { assertRuntimeAuditRateLimit } from "../rate-limit";
+import { requireProjectAccess } from "../workspace/workspace";
+import { withProjectTx } from "../workspace/workspace-write";
+import { refresh } from "./shared";
 
 const ABSOLUTE_ROUTE_MESSAGE =
   "Routes must be paths under the Preview / staging URL (e.g. `/` or `/pricing`), not absolute http(s) URLs.";
@@ -32,6 +36,7 @@ function parseRoutes(raw: string | undefined): string[] {
 }
 
 const updateRuntimeAuditInput = z.object({
+  projectId: requiredField("Unknown project."),
   runtimeBaseUrl: z.string().max(2048).optional(),
   runtimeRoutes: z.string().max(4000).optional(),
 });
@@ -41,32 +46,44 @@ export async function updateRuntimeAuditAction(
   formData: FormData,
 ): Promise<ActionState> {
   return runAction(async () => {
-    const parsed = parseForm(updateRuntimeAuditInput, formData);
-    const base = parsed.runtimeBaseUrl?.trim() ?? "";
-    const routes = parseRoutes(parsed.runtimeRoutes);
+    const { projectId, runtimeBaseUrl, runtimeRoutes } = parseForm(
+      updateRuntimeAuditInput,
+      formData,
+    );
+    const base = runtimeBaseUrl?.trim() ?? "";
+    const routes = parseRoutes(runtimeRoutes);
 
-    // DNS check outside the write lock so a slow lookup does not block writers.
+    // Authorize before any network work: the DNS probe is an outbound request
+    // an unauthorized caller must not be able to trigger.
+    await requireProjectAccess(projectId, "project.connect");
+
+    // DNS check outside the write transaction so a slow lookup does not block
+    // writers.
     let normalized: string | null = null;
     if (base.length > 0) {
       const resolved = await assertSafeRuntimeUrl(base);
       normalized = new URL(resolved).origin;
     }
 
-    await withProjectWrite(async (workspace) => {
-      requireOnActive(workspace, "project.connect");
-      const { project } = workspace;
-
-      if (normalized == null) {
-        delete project.runtimeBaseUrl;
-        delete project.runtimeRoutes;
-        return { project };
+    await withProjectTx(projectId, "project.connect", async (ctx) => {
+      if (ctx.userId) {
+        await assertRuntimeAuditRateLimit(ctx.userId, ctx.tx);
       }
-
-      project.runtimeBaseUrl = normalized;
-      project.runtimeRoutes = routes;
-      return { project };
+      const next = { ...ctx.project };
+      if (normalized == null) {
+        delete next.runtimeBaseUrl;
+        delete next.runtimeRoutes;
+      } else {
+        next.runtimeBaseUrl = normalized;
+        next.runtimeRoutes = routes;
+      }
+      await updateProject(ctx.tx, next);
     });
-    refresh("/settings", "/dashboard", "/requirements");
+    refresh(
+      "/projects/[projectId]/settings",
+      "/projects/[projectId]/dashboard",
+      "/projects/[projectId]/requirements",
+    );
     return "Runtime audit settings saved. Run assessment to audit the pages.";
   });
 }

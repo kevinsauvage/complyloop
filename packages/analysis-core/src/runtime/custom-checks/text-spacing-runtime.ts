@@ -14,14 +14,34 @@ const IS_HIDDEN_SOURCE = isVisuallyHiddenByDesign.toString();
 export async function textSpacingRuntimeViolation(
   page: Page,
 ): Promise<CustomViolation | null> {
-    const nodes = await pageEvaluateWithHitCapture(
-      page,
-      (captureHit, { styleId, hiddenSrc }) => {
-        const isHidden = new Function(
-          `return (${hiddenSrc})`,
-        )() as typeof isVisuallyHiddenByDesign;
+  const nodes = await pageEvaluateWithHitCapture(
+    page,
+    (captureHit, { styleId, hiddenSrc }) => {
+      const isHidden = new Function(
+        `return (${hiddenSrc})`,
+      )() as typeof isVisuallyHiddenByDesign;
       const existing = document.getElementById(styleId);
       existing?.remove();
+
+      function isClipped(el: HTMLElement): boolean {
+        const computed = getComputedStyle(el);
+        return (
+          (el.scrollHeight > el.clientHeight + 2 ||
+            el.scrollWidth > el.clientWidth + 2) &&
+          (computed.overflow === "hidden" ||
+            computed.overflowY === "hidden" ||
+            computed.textOverflow === "ellipsis")
+        );
+      }
+
+      // Text that is already clipped at the page's own spacing (line-clamp,
+      // intentional ellipsis) is not caused by the user's spacing override.
+      const clippedBefore = new Set<Element>();
+      for (const el of document.querySelectorAll(
+        "p, li, label, button, a, input, textarea",
+      )) {
+        if (el instanceof HTMLElement && isClipped(el)) clippedBefore.add(el);
+      }
 
       const style = document.createElement("style");
       style.id = styleId;
@@ -53,13 +73,7 @@ export async function textSpacingRuntimeViolation(
         const rect = el.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) continue;
 
-        const clipped =
-          (el.scrollHeight > el.clientHeight + 2 ||
-            el.scrollWidth > el.clientWidth + 2) &&
-          (computed.overflow === "hidden" ||
-            computed.overflowY === "hidden" ||
-            computed.textOverflow === "ellipsis");
-        if (!clipped) continue;
+        if (clippedBefore.has(el) || !isClipped(el)) continue;
 
         violations.push(captureHit(el));
         if (violations.length >= 5) break;
@@ -68,8 +82,8 @@ export async function textSpacingRuntimeViolation(
       document.getElementById(styleId)?.remove();
       return violations;
     },
-      { styleId: SPACING_STYLE_ID, hiddenSrc: IS_HIDDEN_SOURCE },
-    );
+    { styleId: SPACING_STYLE_ID, hiddenSrc: IS_HIDDEN_SOURCE },
+  );
 
   if (nodes.length === 0) return null;
   return {

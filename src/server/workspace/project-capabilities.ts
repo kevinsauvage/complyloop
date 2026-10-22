@@ -10,6 +10,8 @@ export interface ProjectCapabilities {
   canView: boolean;
   canAssess: boolean;
   canRemediate: boolean;
+  /** Record requirement exceptions and human passes (admin/owner). */
+  canDecide: boolean;
   canConnect: boolean;
 }
 
@@ -38,6 +40,7 @@ export function projectCapabilities(
       canView: false,
       canAssess: false,
       canRemediate: false,
+      canDecide: false,
       canConnect: signedInConnect || !access.userId,
     };
   }
@@ -48,6 +51,7 @@ export function projectCapabilities(
     canView: check("project.view"),
     canAssess: check("project.assess"),
     canRemediate: check("project.remediate"),
+    canDecide: check("project.decide"),
     canConnect: check("project.connect"),
   };
 }

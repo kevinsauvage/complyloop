@@ -9,3 +9,6 @@ function positiveEnv(name: string, fallback: number): number {
 export function maxRuntimePages(): number {
   return positiveEnv("ASSESSMENT_MAX_RUNTIME_PAGES", 25);
 }
+
+/** Wall-clock budget for an interactive site re-audit (verify-fix action). */
+export const SITE_VERIFY_TIMEOUT_MS = 120_000;

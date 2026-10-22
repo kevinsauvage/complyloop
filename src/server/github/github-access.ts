@@ -3,6 +3,7 @@ import "server-only";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
+import { isE2EHarnessEnabled } from "../e2e-harness";
 import {
   createOctokit,
   mapGitHubRepo,
@@ -34,10 +35,9 @@ export async function resolveProjectGitHubToken(
     return createInstallationAccessToken(installationId);
   }
 
-  // E2E harness has no GitHub App installation: the mock Checks API
-  // (GITHUB_API_BASE_URL) accepts any bearer, so return the seeded stub
-  // token to exercise Check Run posting end-to-end.
-  if (process.env.E2E_AUTH_ENABLED === "1") {
+  // E2E harness has no GitHub App installation: return the seeded stub
+  // token so fixture checkouts and PR flows can resolve a token offline.
+  if (isE2EHarnessEnabled()) {
     return process.env.E2E_GITHUB_TOKEN ?? "ghx_e2e_mock_check";
   }
 
@@ -56,6 +56,41 @@ export async function fetchGitHubRepo(
   } catch (error) {
     throw new PublicError(
       octokitErrorMessage(error, `Could not load repository ${fullName}`),
+      "connect",
+    );
+  }
+}
+
+/**
+ * Fails with a user-facing message unless `branch` exists in the repository.
+ * Used when a project is pointed at a tracked branch: a typo would otherwise
+ * make every webhook for the project silently ignored.
+ */
+export async function assertBranchExists(
+  accessToken: string,
+  fullName: string,
+  branch: string,
+): Promise<void> {
+  const { owner, repo } = parseOwnerRepo(fullName);
+  try {
+    await createOctokit(accessToken).rest.repos.getBranch({
+      owner,
+      repo,
+      branch,
+    });
+  } catch (error) {
+    const status =
+      typeof error === "object" && error !== null && "status" in error
+        ? (error as { status?: number }).status
+        : undefined;
+    if (status === 404) {
+      throw new PublicError(
+        `Branch "${branch}" does not exist in ${fullName}.`,
+        "ref_not_found",
+      );
+    }
+    throw new PublicError(
+      octokitErrorMessage(error, "Could not verify the branch on GitHub."),
       "connect",
     );
   }

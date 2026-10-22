@@ -15,15 +15,9 @@ const violation = (
 });
 
 const mocks = vi.hoisted(() => ({
-  restorePageAfterMutatingProbes: vi
-    .fn<() => Promise<void>>()
-    .mockResolvedValue(undefined),
   textSpacingRuntimeViolation: vi.fn<() => Promise<CustomViolation | null>>(),
   nonTextContrastViolation: vi.fn<() => Promise<CustomViolation | null>>(),
-  labelAdjacentViolation: vi.fn<() => Promise<CustomViolation | null>>(),
-  cssDisabledContentViolations: vi.fn<() => Promise<CustomViolation[]>>(),
   mediaKeyboardViolation: vi.fn<() => Promise<CustomViolation | null>>(),
-  cssHoverKeyboardViolation: vi.fn<() => Promise<CustomViolation | null>>(),
   cssOffUnderstandableViolation: vi.fn<() => Promise<CustomViolation | null>>(),
   layoutTableLinearizationViolation:
     vi.fn<() => Promise<CustomViolation | null>>(),
@@ -40,33 +34,19 @@ const mocks = vi.hoisted(() => ({
   formErrorSubmitViolation: vi.fn<() => Promise<CustomViolation | null>>(),
   liveRegionUpdatesViolation: vi.fn<() => Promise<CustomViolation | null>>(),
   hoverContentViolation: vi.fn<() => Promise<CustomViolation | null>>(),
-  forcedColorsViolation: vi.fn<() => Promise<CustomViolation | null>>(),
   reducedMotionViolation: vi.fn<() => Promise<CustomViolation | null>>(),
   reflowViolation: vi.fn<() => Promise<CustomViolation | null>>(),
-  resizeTextViolation: vi.fn<() => Promise<CustomViolation | null>>(),
   targetSizeEnhancedViolation: vi.fn<() => Promise<CustomViolation | null>>(),
 }));
 
-vi.mock("./page-restore.js", () => ({
-  restorePageAfterMutatingProbes: mocks.restorePageAfterMutatingProbes,
-}));
 vi.mock("./text-spacing-runtime.js", () => ({
   textSpacingRuntimeViolation: mocks.textSpacingRuntimeViolation,
 }));
 vi.mock("./non-text-contrast.js", () => ({
   nonTextContrastViolation: mocks.nonTextContrastViolation,
 }));
-vi.mock("./label-adjacent.js", () => ({
-  labelAdjacentViolation: mocks.labelAdjacentViolation,
-}));
-vi.mock("./css-disabled-content.js", () => ({
-  cssDisabledContentViolations: mocks.cssDisabledContentViolations,
-}));
 vi.mock("./media-keyboard.js", () => ({
   mediaKeyboardViolation: mocks.mediaKeyboardViolation,
-}));
-vi.mock("./css-hover-keyboard.js", () => ({
-  cssHoverKeyboardViolation: mocks.cssHoverKeyboardViolation,
 }));
 vi.mock("./css-off-understandable.js", () => ({
   cssOffUnderstandableViolation: mocks.cssOffUnderstandableViolation,
@@ -108,17 +88,11 @@ vi.mock("./live-region-updates.js", () => ({
 vi.mock("./hover-content.js", () => ({
   hoverContentViolation: mocks.hoverContentViolation,
 }));
-vi.mock("./forced-colors.js", () => ({
-  forcedColorsViolation: mocks.forcedColorsViolation,
-}));
 vi.mock("./reduced-motion.js", () => ({
   reducedMotionViolation: mocks.reducedMotionViolation,
 }));
 vi.mock("./reflow.js", () => ({
   reflowViolation: mocks.reflowViolation,
-}));
-vi.mock("./resize-text.js", () => ({
-  resizeTextViolation: mocks.resizeTextViolation,
 }));
 vi.mock("./target-size-enhanced.js", () => ({
   targetSizeEnhancedViolation: mocks.targetSizeEnhancedViolation,
@@ -129,18 +103,16 @@ import { runCustomRuntimeChecks, runThemeSensitiveCustomChecks } from "./index";
 const page = {
   evaluate: vi.fn(async () => undefined),
   mouse: { move: vi.fn(async () => undefined) },
+  url: vi.fn(() => "https://app.example/"),
+  goto: vi.fn(async () => undefined),
+  waitForTimeout: vi.fn(async () => undefined),
 } as unknown as Page;
 
 describe("runCustomRuntimeChecks", () => {
   it("merges optional, composite, and sequential violations into findings", async () => {
     mocks.textSpacingRuntimeViolation.mockResolvedValue(null);
     mocks.nonTextContrastViolation.mockResolvedValue(null);
-    mocks.labelAdjacentViolation.mockResolvedValue(violation("label-adjacent"));
-    mocks.cssDisabledContentViolations.mockResolvedValue([
-      violation("css-disabled-content"),
-    ]);
     mocks.mediaKeyboardViolation.mockResolvedValue(null);
-    mocks.cssHoverKeyboardViolation.mockResolvedValue(null);
     mocks.cssOffUnderstandableViolation.mockResolvedValue(null);
     mocks.layoutTableLinearizationViolation.mockResolvedValue(null);
     mocks.errorPreventionViolation.mockResolvedValue(null);
@@ -158,20 +130,16 @@ describe("runCustomRuntimeChecks", () => {
     mocks.formErrorSubmitViolation.mockResolvedValue(null);
     mocks.liveRegionUpdatesViolation.mockResolvedValue(null);
     mocks.hoverContentViolation.mockResolvedValue(null);
-    mocks.forcedColorsViolation.mockResolvedValue(violation("forced-colors"));
     mocks.reducedMotionViolation.mockResolvedValue(null);
-    mocks.reflowViolation.mockResolvedValue(null);
-    mocks.resizeTextViolation.mockResolvedValue(null);
+    mocks.reflowViolation.mockResolvedValue(violation("reflow"));
     mocks.targetSizeEnhancedViolation.mockResolvedValue(null);
 
     const results = await runCustomRuntimeChecks(page, "https://app.example/");
 
     expect(results.findings.map((result) => result.checkId).sort()).toEqual([
-      "css-disabled-content",
       "dialog-keyboard",
       "focus-visible",
-      "forced-colors",
-      "label-adjacent",
+      "reflow",
       "tabs-keyboard",
     ]);
     expect(
@@ -180,18 +148,14 @@ describe("runCustomRuntimeChecks", () => {
       ),
     ).toBe(true);
     expect(results.probeFailures).toEqual([]);
-    expect(mocks.restorePageAfterMutatingProbes).toHaveBeenCalledTimes(1);
   });
 
   it("contains a throwing probe and records it instead of aborting the audit (P2-5)", async () => {
     for (const mock of Object.values(mocks)) mock.mockReset();
-    mocks.restorePageAfterMutatingProbes.mockResolvedValue(undefined);
     for (const mock of [
       mocks.textSpacingRuntimeViolation,
       mocks.nonTextContrastViolation,
-      mocks.labelAdjacentViolation,
       mocks.mediaKeyboardViolation,
-      mocks.cssHoverKeyboardViolation,
       mocks.cssOffUnderstandableViolation,
       mocks.layoutTableLinearizationViolation,
       mocks.errorPreventionViolation,
@@ -202,26 +166,23 @@ describe("runCustomRuntimeChecks", () => {
       mocks.formErrorSubmitViolation,
       mocks.liveRegionUpdatesViolation,
       mocks.hoverContentViolation,
-      mocks.reducedMotionViolation,
       mocks.reflowViolation,
-      mocks.resizeTextViolation,
       mocks.targetSizeEnhancedViolation,
     ]) {
       mock.mockResolvedValue(null);
     }
-    mocks.cssDisabledContentViolations.mockResolvedValue([]);
     mocks.focusCustomViolations.mockResolvedValue([]);
     mocks.dialogFocusViolations.mockResolvedValue([]);
     mocks.widgetKeyboardViolations.mockResolvedValue([]);
     // One flaky probe (e.g. frozen matchMedia emulation) throws.
-    mocks.forcedColorsViolation.mockRejectedValue(new Error("evaluate hung"));
-    mocks.labelAdjacentViolation.mockResolvedValue(violation("label-adjacent"));
+    mocks.reducedMotionViolation.mockRejectedValue(new Error("evaluate hung"));
+    mocks.reflowViolation.mockResolvedValue(violation("reflow"));
 
     const results = await runCustomRuntimeChecks(page, "https://app.example/");
 
-    expect(results.probeFailures).toEqual(["forced-colors"]);
+    expect(results.probeFailures).toEqual(["reduced-motion"]);
     expect(results.findings.map((result) => result.checkId)).toEqual([
-      "label-adjacent",
+      "reflow",
     ]);
   });
 });

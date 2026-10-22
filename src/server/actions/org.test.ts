@@ -7,22 +7,23 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 import { emptyWorkspaceSlice as emptyDbBase } from "@complyloop/db/types";
 
+import { initialActionState } from "@/core/actions/action-state";
 import {
   actionAuthMocks,
   actionWorkspaceMocks,
 } from "@/test-fixtures/action-workspace-mocks";
 import { testMembership } from "@/test-fixtures/membership";
 import { testProject } from "@/test-fixtures/project";
+import type { TestWorkspace } from "@/test-fixtures/workspace";
 import { testWorkspace } from "@/test-fixtures/workspace";
 
-import { initialActionState } from "../action-state";
-import type { ProjectWriteWorkspace } from "../workspace/workspace";
 import {
   changeOrgMemberRoleAction,
   createOrgAction,
   deleteOrgAction,
   exportOrgDataAction,
   inviteOrgMemberAction,
+  leaveOrgMemberAction,
   removeOrgMemberAction,
   switchOrgAction,
 } from "./org";
@@ -32,13 +33,39 @@ const exportOrgData = vi.hoisted(() => vi.fn());
 const deleteOrganization = vi.hoisted(() => vi.fn());
 const resolveActiveOrgId = vi.hoisted(() => vi.fn());
 const writeActiveOrgCookie = vi.hoisted(() => vi.fn());
-const writeActiveProjectCookie = vi.hoisted(() => vi.fn());
-const clearActiveProjectCookie = vi.hoisted(() => vi.fn());
+const readActiveOrgCookie = vi.hoisted(() => vi.fn());
+const assertOrgCreateRateLimit = vi.hoisted(() => vi.fn());
+const assertOrgInviteRateLimit = vi.hoisted(() => vi.fn());
+const assertExportRateLimit = vi.hoisted(() => vi.fn());
+
+vi.mock("../rate-limit", async () => {
+  const actual =
+    await vi.importActual<typeof import("../rate-limit")>("../rate-limit");
+  return {
+    ...actual,
+    assertOrgCreateRateLimit: (...args: unknown[]) =>
+      assertOrgCreateRateLimit(...args),
+    assertOrgInviteRateLimit: (...args: unknown[]) =>
+      assertOrgInviteRateLimit(...args),
+    assertExportRateLimit: (...args: unknown[]) =>
+      assertExportRateLimit(...args),
+  };
+});
 const refresh = vi.hoisted(() => vi.fn());
-const listFindingsForProjects = vi.hoisted(() => vi.fn());
-const listRemediationsForProjects = vi.hoisted(() => vi.fn());
+const listFindingsForExportForProjects = vi.hoisted(() => vi.fn());
+const listRemediationsForFindings = vi.hoisted(() => vi.fn());
 const listRequirementsForProjects = vi.hoisted(() => vi.fn());
 const listAlertsForProjects = vi.hoisted(() => vi.fn());
+const lookupGitHubUser = vi.hoisted(() => vi.fn());
+const redirect = vi.hoisted(() => vi.fn());
+
+vi.mock("next/navigation", () => ({
+  redirect: (...args: unknown[]) => {
+    redirect(...args);
+    // Mirror Next: the real `redirect` throws to unwind the action.
+    throw new Error(`NEXT_REDIRECT:${String(args[0])}`);
+  },
+}));
 
 vi.mock("../workspace/orgs", async () => {
   const actual =
@@ -64,12 +91,7 @@ vi.mock("../workspace/org-queries", async () => {
 
 vi.mock("../workspace/active-cookies", () => ({
   writeActiveOrgCookie: (...args: unknown[]) => writeActiveOrgCookie(...args),
-  writeActiveProjectCookie: (...args: unknown[]) =>
-    writeActiveProjectCookie(...args),
-  clearActiveProjectCookie: (...args: unknown[]) =>
-    clearActiveProjectCookie(...args),
-  readActiveOrgCookie: vi.fn(),
-  readActiveProjectCookie: vi.fn(),
+  readActiveOrgCookie: (...args: unknown[]) => readActiveOrgCookie(...args),
 }));
 
 vi.mock("./shared", async () => {
@@ -93,18 +115,23 @@ vi.mock("@complyloop/db/postgres", () => ({
 }));
 
 vi.mock("@complyloop/db/repo/evidence", () => ({
-  listAllEvidenceForProjects: async () => [],
+  listEvidenceForExportForProjects: async () => ({
+    records: [],
+    total: 0,
+    limitPerProject: 5_000,
+    truncatedProjectIds: [],
+  }),
 }));
 vi.mock("@complyloop/db/repo/assessments", () => ({
   listAssessmentsForProjects: async () => [],
 }));
 vi.mock("@complyloop/db/repo/findings", () => ({
-  listFindingsForProjects: (...args: unknown[]) =>
-    listFindingsForProjects(...args),
+  listFindingsForExportForProjects: (...args: unknown[]) =>
+    listFindingsForExportForProjects(...args),
 }));
 vi.mock("@complyloop/db/repo/remediations", () => ({
-  listRemediationsForProjects: (...args: unknown[]) =>
-    listRemediationsForProjects(...args),
+  listRemediationsForFindings: (...args: unknown[]) =>
+    listRemediationsForFindings(...args),
 }));
 vi.mock("@complyloop/db/repo/requirements", () => ({
   listRequirementsForProjects: (...args: unknown[]) =>
@@ -114,6 +141,16 @@ vi.mock("@complyloop/db/repo/alerts", () => ({
   listAlertsForProjects: (...args: unknown[]) => listAlertsForProjects(...args),
 }));
 
+vi.mock("../github/github", async () => {
+  const actual =
+    await vi.importActual<typeof import("../github/github")>(
+      "../github/github",
+    );
+  return {
+    ...actual,
+    lookupGitHubUser: (...args: unknown[]) => lookupGitHubUser(...args),
+  };
+});
 const org: Organization = {
   id: "org-1",
   name: "Acme",
@@ -157,7 +194,7 @@ function emptyWorkspaceSlice(memberships = [ownerMembership]): WorkspaceSlice {
 
 function fixtureWorkspace(
   db: WorkspaceSlice = emptyWorkspaceSlice(),
-): ProjectWriteWorkspace {
+): TestWorkspace {
   return testWorkspace({
     role: "owner",
     userId: "user-1",
@@ -176,18 +213,29 @@ beforeEach(() => {
   deleteOrganization.mockReset();
   resolveActiveOrgId.mockReset();
   writeActiveOrgCookie.mockReset();
-  writeActiveProjectCookie.mockReset();
-  clearActiveProjectCookie.mockReset();
   refresh.mockReset();
-  listFindingsForProjects.mockReset();
-  listFindingsForProjects.mockResolvedValue([]);
-  listRemediationsForProjects.mockReset();
-  listRemediationsForProjects.mockResolvedValue([]);
+  listFindingsForExportForProjects.mockReset();
+  listFindingsForExportForProjects.mockResolvedValue({
+    findings: [],
+    truncatedProjectIds: [],
+  });
+  listRemediationsForFindings.mockReset();
+  listRemediationsForFindings.mockResolvedValue([]);
   listRequirementsForProjects.mockReset();
   listRequirementsForProjects.mockResolvedValue([]);
   listAlertsForProjects.mockReset();
   listAlertsForProjects.mockResolvedValue([]);
   deleteOrganization.mockReturnValue({ deleteMembershipIds: ["m-owner"] });
+  lookupGitHubUser.mockReset();
+  lookupGitHubUser.mockResolvedValue({
+    status: "found",
+    login: "bob",
+    id: "user-b",
+  });
+  actionAuthMocks.getGitHubAccessToken.mockReset();
+  actionAuthMocks.getGitHubAccessToken.mockResolvedValue("gho_inviter");
+  readActiveOrgCookie.mockReset();
+  readActiveOrgCookie.mockResolvedValue(null);
   actionAuthMocks.auth.mockResolvedValue({
     user: { id: "user-1", login: "alice" },
   });
@@ -219,6 +267,7 @@ describe("org lifecycle actions", () => {
       expect.anything(),
       "org-1",
       "user-1",
+      { evidenceTruncatedProjectIds: [], findingsTruncatedProjectIds: [] },
     );
   });
 
@@ -228,6 +277,13 @@ describe("org lifecycle actions", () => {
       error: "Sign in to export organization data.",
       json: null,
     });
+  });
+
+  it("rate-limits organization export per user", async () => {
+    exportOrgData.mockReturnValue({ organization: org, projects: [project] });
+    const result = await exportOrgDataAction("org-1");
+    expect(result.error).toBeNull();
+    expect(assertExportRateLimit).toHaveBeenCalledWith("user-1");
   });
 
   it("loads org rows with one set-based query per entity type", async () => {
@@ -254,14 +310,14 @@ describe("org lifecycle actions", () => {
     const result = await exportOrgDataAction("org-1");
     expect(result.error).toBeNull();
     const projectIds = ["p-0", "p-1", "p-2"];
-    expect(listFindingsForProjects).toHaveBeenCalledTimes(1);
-    expect(listFindingsForProjects).toHaveBeenCalledWith(
+    expect(listFindingsForExportForProjects).toHaveBeenCalledTimes(1);
+    expect(listFindingsForExportForProjects).toHaveBeenCalledWith(
       expect.anything(),
       projectIds,
     );
-    expect(listRemediationsForProjects).toHaveBeenCalledWith(
-      expect.anything(),
-      projectIds,
+    // One bounded remediation read per project, for its exported findings.
+    expect(listRemediationsForFindings).toHaveBeenCalledTimes(
+      projectIds.length,
     );
     expect(listRequirementsForProjects).toHaveBeenCalledWith(
       expect.anything(),
@@ -297,7 +353,7 @@ describe("org lifecycle actions", () => {
       error: expect.stringMatching(/limited to 50 projects/),
       json: null,
     });
-    expect(listFindingsForProjects).not.toHaveBeenCalled();
+    expect(listFindingsForExportForProjects).not.toHaveBeenCalled();
   });
 
   it("maps public export failures to their message", async () => {
@@ -319,7 +375,7 @@ describe("org lifecycle actions", () => {
       throw new Error("ECONNREFUSED 127.0.0.1:5432");
     });
     await expect(exportOrgDataAction("org-1")).resolves.toEqual({
-      error: "Something went wrong. Reference: aaaaaaaabbbb",
+      error: "The action could not be completed. Reference: aaaaaaaabbbb",
       json: null,
     });
   });
@@ -340,7 +396,7 @@ describe("org lifecycle actions", () => {
     formData.set("confirm", "DELETE");
     const result = await deleteOrgAction(initialActionState, formData);
     expect(result.ok ? null : result.message).toBeNull();
-    expect(result.message).toMatch(/Evidence history was retained/);
+    expect(result.message).toMatch(/including its evidence history/);
     expect(deleteOrganization).toHaveBeenCalledWith(
       expect.anything(),
       "org-1",
@@ -352,13 +408,13 @@ describe("org lifecycle actions", () => {
 });
 
 describe("switchOrgAction", () => {
-  it("switches org and activates a project in that org", async () => {
+  it("switches org and returns to the portfolio", async () => {
     const form = new FormData();
     form.set("orgId", "org-1");
-    await switchOrgAction(form);
+    await expect(switchOrgAction(form)).rejects.toThrow(/NEXT_REDIRECT/);
     expect(writeActiveOrgCookie).toHaveBeenCalledWith("org-1");
-    expect(writeActiveProjectCookie).toHaveBeenCalledWith("p1");
     expect(refresh).toHaveBeenCalled();
+    expect(redirect).toHaveBeenCalledWith("/projects");
   });
 
   it("rejects when unsigned", async () => {
@@ -374,7 +430,7 @@ describe("switchOrgAction", () => {
     await expect(switchOrgAction(form)).rejects.toThrow(/not a member/);
   });
 
-  it("clears the project cookie when the target org has no projects", async () => {
+  it("switches to an org with no projects and still returns to the portfolio", async () => {
     const emptyOrg: Organization = {
       id: "org-empty",
       name: "Empty",
@@ -396,10 +452,8 @@ describe("switchOrgAction", () => {
     getWorkspace.mockResolvedValue(fixtureWorkspace(db));
     const form = new FormData();
     form.set("orgId", "org-empty");
-    await switchOrgAction(form);
+    await expect(switchOrgAction(form)).rejects.toThrow(/NEXT_REDIRECT/);
     expect(writeActiveOrgCookie).toHaveBeenCalledWith("org-empty");
-    expect(writeActiveProjectCookie).not.toHaveBeenCalled();
-    expect(clearActiveProjectCookie).toHaveBeenCalled();
   });
 });
 
@@ -435,6 +489,95 @@ describe("org member management actions", () => {
     form.set("role", "member");
     const result = await inviteOrgMemberAction(initialActionState, form);
     expect(result.message).toMatch(/Invited @bob as member/);
+    expect(assertOrgInviteRateLimit).toHaveBeenCalledWith("user-1");
+  });
+
+  it("rejects a misspelled GitHub username when the inviter has a token", async () => {
+    actionAuthMocks.getGitHubAccessToken.mockResolvedValue("gho_inviter");
+    lookupGitHubUser.mockResolvedValue({ status: "not-found" });
+    const form = new FormData();
+    form.set("orgId", "org-1");
+    form.set("githubLogin", "bbo");
+    form.set("role", "member");
+    const result = await inviteOrgMemberAction(initialActionState, form);
+    expect(result.ok ? null : result.message).toMatch(
+      /No GitHub user "@bbo" — check the spelling/,
+    );
+    expect(lookupGitHubUser).toHaveBeenCalledWith("gho_inviter", "bbo");
+  });
+
+  it("binds the invite to the GitHub numeric id the login resolves to", async () => {
+    const upserted: unknown[] = [];
+    withOrgWrite.mockImplementation(async (fn) => {
+      const payload = await fn({
+        db: emptyWorkspaceSlice([ownerMembership]),
+        userId: "user-1",
+        githubLogin: "alice",
+        organizations: [org],
+      });
+      upserted.push(...(payload.upsertMemberships ?? []));
+      return payload.result;
+    });
+    const form = new FormData();
+    form.set("orgId", "org-1");
+    form.set("githubLogin", "@Bob");
+    form.set("role", "member");
+    await inviteOrgMemberAction(initialActionState, form);
+    expect(upserted).toEqual([
+      expect.objectContaining({ githubLogin: "bob", githubUserId: "user-b" }),
+    ]);
+  });
+
+  it("refuses an invite GitHub cannot verify right now", async () => {
+    lookupGitHubUser.mockResolvedValue({ status: "unverifiable" });
+    const form = new FormData();
+    form.set("orgId", "org-1");
+    form.set("githubLogin", "bob");
+    form.set("role", "member");
+    const result = await inviteOrgMemberAction(initialActionState, form);
+    expect(result.ok ? null : result.message).toMatch(
+      /Could not verify "@bob" with GitHub/,
+    );
+  });
+
+  it("refuses an invite without the inviter's GitHub token", async () => {
+    actionAuthMocks.getGitHubAccessToken.mockResolvedValue(null);
+    const form = new FormData();
+    form.set("orgId", "org-1");
+    form.set("githubLogin", "bob");
+    form.set("role", "member");
+    const result = await inviteOrgMemberAction(initialActionState, form);
+    expect(result.ok ? null : result.message).toMatch(
+      /Could not read your GitHub token/,
+    );
+    expect(lookupGitHubUser).not.toHaveBeenCalled();
+  });
+
+  it("names role changes on re-invite instead of saying Invited", async () => {
+    const bob = testMembership("member", {
+      id: "m-bob",
+      // Auth.js user id is the GitHub numeric id the lookup resolves to.
+      userId: "user-b",
+      githubLogin: "bob",
+    });
+    const db = emptyWorkspaceSlice([ownerMembership, bob]);
+    withOrgWrite.mockImplementation(async (fn) =>
+      invokeOrgWrite(
+        {
+          db,
+          userId: "user-1",
+          githubLogin: "alice",
+          organizations: [org],
+        },
+        fn,
+      ),
+    );
+    const form = new FormData();
+    form.set("orgId", "org-1");
+    form.set("githubLogin", "bob");
+    form.set("role", "admin");
+    const result = await inviteOrgMemberAction(initialActionState, form);
+    expect(result.message).toBe("Updated @bob role to admin.");
   });
 
   it("rejects owner role on invite", async () => {
@@ -506,6 +649,111 @@ describe("org member management actions", () => {
     form.set("membershipId", "m-invite");
     const result = await removeOrgMemberAction(initialActionState, form);
     expect(result.message).toBe("Invite revoked.");
+  });
+
+  it("lets a member leave the org", async () => {
+    const bob = testMembership("member", {
+      id: "m-bob",
+      userId: "user-2",
+      githubLogin: "bob",
+    });
+    const db = emptyWorkspaceSlice([ownerMembership, bob]);
+    withOrgWrite.mockImplementation(async (fn) =>
+      invokeOrgWrite(
+        {
+          db,
+          userId: "user-2",
+          githubLogin: "bob",
+          organizations: [org],
+        },
+        fn,
+      ),
+    );
+    actionAuthMocks.auth.mockResolvedValue({
+      user: { id: "user-2", login: "bob" },
+    });
+
+    const form = new FormData();
+    form.set("orgId", "org-1");
+    const result = await leaveOrgMemberAction(initialActionState, form);
+    expect(result.message).toBe("You left the organization.");
+  });
+
+  it("leaves the active org", async () => {
+    const bob = testMembership("member", {
+      id: "m-bob",
+      userId: "user-2",
+      githubLogin: "bob",
+    });
+    const db = emptyWorkspaceSlice([ownerMembership, bob]);
+    withOrgWrite.mockImplementation(async (fn) =>
+      invokeOrgWrite(
+        {
+          db,
+          userId: "user-2",
+          githubLogin: "bob",
+          organizations: [org],
+        },
+        fn,
+      ),
+    );
+    actionAuthMocks.auth.mockResolvedValue({
+      user: { id: "user-2", login: "bob" },
+    });
+    readActiveOrgCookie.mockResolvedValue("org-1");
+
+    const form = new FormData();
+    form.set("orgId", "org-1");
+    const result = await leaveOrgMemberAction(initialActionState, form);
+    expect(result.message).toBe("You left the organization.");
+  });
+
+  it("blocks the last owner and the last member from leaving", async () => {
+    const bob = testMembership("member", {
+      id: "m-bob",
+      userId: "user-2",
+      githubLogin: "bob",
+    });
+    const db = emptyWorkspaceSlice([ownerMembership, bob]);
+    withOrgWrite.mockImplementation(async (fn) =>
+      invokeOrgWrite(
+        {
+          db,
+          userId: "user-1",
+          githubLogin: "alice",
+          organizations: [org],
+        },
+        fn,
+      ),
+    );
+    const form = new FormData();
+    form.set("orgId", "org-1");
+    await expect(
+      leaveOrgMemberAction(initialActionState, form),
+    ).resolves.toEqual({
+      ok: false,
+      message: "You are the last owner — assign another owner before leaving.",
+    });
+
+    const soloDb = emptyWorkspaceSlice([ownerMembership]);
+    withOrgWrite.mockImplementation(async (fn) =>
+      invokeOrgWrite(
+        {
+          db: soloDb,
+          userId: "user-1",
+          githubLogin: "alice",
+          organizations: [org],
+        },
+        fn,
+      ),
+    );
+    await expect(
+      leaveOrgMemberAction(initialActionState, form),
+    ).resolves.toEqual({
+      ok: false,
+      message:
+        "You are the last member — delete the organization instead of leaving it.",
+    });
   });
 
   it("changes a member role", async () => {

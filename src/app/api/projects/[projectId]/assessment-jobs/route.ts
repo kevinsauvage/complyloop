@@ -1,11 +1,13 @@
 import { z } from "zod";
 
-import { entityIdSchema, parseInput } from "@/core/validate";
-import { recentAssessmentJobsForProject } from "@/server/assessment/assessment-jobs";
+import { entityIdSchema, parseInput } from "@/core/actions/validate";
+import {
+  publicAssessmentJobView,
+  recentAssessmentJobsForProject,
+} from "@/server/assessment/assessment-jobs";
+import { getSession } from "@/server/auth-session";
+import { assertJobPollRateLimit, RateLimitError } from "@/server/rate-limit";
 import { viewerCanViewProject } from "@/server/workspace/workspace";
-
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 const assessmentJobsParamsSchema = z.object({
   projectId: entityIdSchema,
@@ -28,6 +30,23 @@ export async function GET(
     return Response.json({ error: "Not found." }, { status: 404 });
   }
 
-  const jobs = await recentAssessmentJobsForProject(projectId);
+  // Polled every few seconds: throttle per user so a tight loop cannot hammer
+  // the DB.
+  const userId = (await getSession())?.user?.id;
+  if (userId) {
+    try {
+      await assertJobPollRateLimit(userId);
+    } catch (error) {
+      if (!(error instanceof RateLimitError)) throw error;
+      return Response.json(
+        { error: "Too many requests. Try again shortly." },
+        { status: 429 },
+      );
+    }
+  }
+
+  const jobs = (await recentAssessmentJobsForProject(projectId)).map(
+    publicAssessmentJobView,
+  );
   return Response.json({ jobs });
 }

@@ -5,16 +5,17 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type {
+  EvidenceRecord,
   Finding,
   Remediation,
 } from "@complyloop/analysis-core/contract/entities";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
-import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import { emptyWorkspaceSlice } from "@complyloop/db/types";
 
 import type { PatchCandidate } from "@/ai/verified-fix";
+import { testProject } from "@/test-fixtures/project";
 
 import {
+  generatePatchCandidateForFinding,
   latestPatchState,
   patchCandidateFromEvidence,
   persistPatchCandidate,
@@ -26,12 +27,59 @@ const { reportWarningMock } = vi.hoisted(() => ({
   reportWarningMock: vi.fn(),
 }));
 
+const withProjectFileWorkspaceMock = vi.hoisted(() => vi.fn());
+
+vi.mock("./single-file-source", () => ({
+  withProjectFileWorkspace: (...args: unknown[]) =>
+    withProjectFileWorkspaceMock(...args),
+}));
+
 vi.mock("../observability", () => ({
   reportWarning: reportWarningMock,
   reportError: vi.fn(),
-  reportDebug: vi.fn(),
-  reportInfo: vi.fn(),
 }));
+
+const mocks = vi.hoisted(() => ({
+  evidence: [] as EvidenceRecord[],
+  remediation: undefined as Remediation | undefined,
+  writtenEvidence: [] as EvidenceRecord[],
+  writtenRemediations: [] as Remediation[],
+}));
+
+vi.mock("@complyloop/db/repo/evidence", async () => {
+  const actual = await vi.importActual<
+    typeof import("@complyloop/db/repo/evidence")
+  >("@complyloop/db/repo/evidence");
+  return {
+    ...actual,
+    listEvidenceForFinding: async () => mocks.evidence,
+    insertEvidence: async (
+      _tx: unknown,
+      entry: Omit<EvidenceRecord, "id" | "at">,
+    ) => {
+      const record: EvidenceRecord = {
+        ...entry,
+        id: crypto.randomUUID(),
+        at: new Date().toISOString(),
+      };
+      mocks.writtenEvidence.push(record);
+      return record;
+    },
+  };
+});
+
+vi.mock("@complyloop/db/repo/remediations", async () => {
+  const actual = await vi.importActual<
+    typeof import("@complyloop/db/repo/remediations")
+  >("@complyloop/db/repo/remediations");
+  return {
+    ...actual,
+    getRemediationByFindingId: async () => mocks.remediation,
+    upsertRemediations: async (_tx: unknown, items: Remediation[]) => {
+      mocks.writtenRemediations.push(...items);
+    },
+  };
+});
 
 const tempDirs: string[] = [];
 
@@ -39,6 +87,10 @@ afterEach(() => {
   for (const dir of tempDirs.splice(0)) {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+  mocks.evidence = [];
+  mocks.remediation = undefined;
+  mocks.writtenEvidence.length = 0;
+  mocks.writtenRemediations.length = 0;
 });
 
 const control: Control = {
@@ -177,6 +229,53 @@ describe("runAiFixOnCheckout", () => {
     expect(result.complyLoop.passed).toBe(true);
   });
 
+  it("skips deterministic relocation for editable insert fixes", async () => {
+    const root = tempRoot('export const Hero = () => <img src="/x.png" />;\n');
+    const propose = vi.fn(async () => ({
+      description: "Add alt",
+      provenance: "ai" as const,
+      edits: [
+        {
+          path: "Footer.tsx",
+          oldText: '<img src="/x.png" />',
+          newText: '<img src="/x.png" alt="Hero" />',
+        },
+      ],
+    }));
+    const editable = finding({
+      kind: "insert_attribute",
+      attribute: "alt",
+      value: "",
+      editable: true,
+      span: { start: 0, end: 5 },
+    });
+    editable.checkId = "img-alt";
+
+    await runAiFixOnCheckout(root, editable, control, {
+      propose,
+      scan: () => [],
+    });
+    expect(propose).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails closed when a safe fix cannot be re-located", async () => {
+    const root = tempRoot(
+      "export const Hero = () => <p>No violation here</p>;\n",
+    );
+    const relocated = finding({
+      kind: "remove_attribute",
+      attribute: "role",
+      span: { start: 27, end: 56 },
+    });
+
+    await expect(
+      runAiFixOnCheckout(root, relocated, control, {
+        propose: vi.fn(),
+        scan: () => [],
+      }),
+    ).rejects.toThrow(/re-located/);
+  });
+
   it("fails with actionable copy when AI is unavailable and no deterministic fix exists", async () => {
     const root = tempRoot(
       'export const Footer = () => <footer role="contentinfo" />;\n',
@@ -193,6 +292,53 @@ describe("runAiFixOnCheckout", () => {
       }),
     ).rejects.toThrow(/isn't enabled for this workspace/);
     expect(propose).not.toHaveBeenCalled();
+  });
+});
+
+describe("generatePatchCandidateForFinding", () => {
+  it("works on the finding's file without cloning the repository", async () => {
+    const project = testProject();
+    const source = "export const Hero = () => <input autoFocus />;\n";
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "ai-fix-file-"));
+    tempDirs.push(root);
+    fs.writeFileSync(path.join(root, "Hero.tsx"), source, "utf8");
+    withProjectFileWorkspaceMock.mockImplementation(
+      async (
+        _project: unknown,
+        _filePath: string,
+        fn: (rootPath: string) => Promise<PatchCandidate>,
+      ) => fn(root),
+    );
+    const attributeStart = source.indexOf(" autoFocus");
+    const target = finding({
+      kind: "remove_attribute",
+      attribute: "autoFocus",
+      span: {
+        start: attributeStart,
+        end: attributeStart + " autoFocus".length,
+      },
+    });
+    target.checkId = "no-autofocus";
+    target.location = {
+      kind: "source",
+      filePath: "Hero.tsx",
+      line: 1,
+      column: 1,
+      snippet: source.trim(),
+      span: { start: source.indexOf("<input"), end: source.indexOf("/>") + 2 },
+    };
+
+    const candidate = await generatePatchCandidateForFinding(
+      project,
+      target,
+      control,
+      { aiAvailable: true },
+    );
+
+    expect(withProjectFileWorkspaceMock.mock.calls[0]?.[0]).toBe(project);
+    expect(withProjectFileWorkspaceMock.mock.calls[0]?.[1]).toBe("Hero.tsx");
+    expect(candidate.edits[0]?.path).toBe("Hero.tsx");
+    expect(candidate.edits[0]?.newText).toContain("<input />");
   });
 });
 
@@ -238,6 +384,32 @@ describe("latestPatchState", () => {
     });
   });
 
+  it("skips holes when scanning evidence backwards", () => {
+    const ready = {
+      kind: "ai_patch_ready" as const,
+      summary: "Patch ready",
+      detail: {
+        description: "Add alt",
+        provenance: "ai",
+        model: "minimax/minimax-m3",
+        edits: [
+          {
+            path: "Hero.tsx",
+            oldText: "<img />",
+            newText: '<img alt="Hero" />',
+          },
+        ],
+        complyLoopPassed: true,
+        remaining: [],
+      },
+    };
+    const sparse = [ready];
+    sparse.length = 2;
+    expect(patchCandidateFromEvidence(sparse as never)).toEqual(
+      patchCandidateFromEvidence([ready]),
+    );
+  });
+
   it("ignores malformed or non-passing patch evidence", () => {
     expect(
       patchCandidateFromEvidence([
@@ -262,7 +434,7 @@ describe("persistPatchCandidate", () => {
     projectId: "p1",
     controlId: "c1",
     assessmentId: "a1",
-    checkId: "img-alt",
+    checkId: "redundant-role",
     status: "open",
     kind: "violation",
     severity: "serious",
@@ -303,38 +475,34 @@ describe("persistPatchCandidate", () => {
     complyLoop: { passed: true, remaining: [] },
   };
 
-  it("records ready evidence and moves remediation to suggested", () => {
-    const db = emptyWorkspaceSlice();
-    db.findings.push(patchFinding);
-    db.remediations.push(remediation);
-    const payload: ProjectWritePayload = {};
+  const tx = {} as never;
 
-    persistPatchCandidate(db, patchFinding, candidate, payload);
+  it("records ready evidence and moves remediation to suggested", async () => {
+    mocks.evidence = [];
+    mocks.remediation = remediation;
 
-    expect(payload.evidence?.[0]?.kind).toBe("ai_patch_ready");
-    expect(payload.evidence?.[0]?.detail).toMatchObject({
+    await persistPatchCandidate(tx, patchFinding, candidate, "alice");
+
+    expect(mocks.writtenEvidence[0]?.kind).toBe("ai_patch_ready");
+    expect(mocks.writtenEvidence[0]?.actor).toBe("alice");
+    expect(mocks.writtenEvidence[0]?.detail).toMatchObject({
       provenance: "ai",
       model: "minimax/minimax-m3",
       complyLoopPassed: true,
     });
-    expect(payload.remediations?.[0]?.status).toBe("suggested");
-    expect(payload.remediations?.[0]?.suggestion).toMatchObject({
+    expect(mocks.writtenRemediations[0]?.status).toBe("suggested");
+    expect(mocks.writtenRemediations[0]?.suggestion).toMatchObject({
       provenance: "ai",
       proposedSnippet: '<img alt="Hero" />',
     });
-    // Loaded db is not mutated.
-    expect(db.remediations[0]?.status).toBe("detected");
-    expect(db.evidence).toHaveLength(0);
   });
 
-  it("warns and skips the suggestion when remediation already advanced", () => {
+  it("warns and skips the suggestion when remediation already advanced", async () => {
     reportWarningMock.mockClear();
-    const db = emptyWorkspaceSlice();
-    db.findings.push(patchFinding);
-    db.remediations.push({ ...remediation, status: "verified" });
-    const payload: ProjectWritePayload = {};
+    mocks.evidence = [];
+    mocks.remediation = { ...remediation, status: "verified" };
 
-    persistPatchCandidate(db, patchFinding, candidate, payload);
+    await persistPatchCandidate(tx, patchFinding, candidate, "alice");
 
     expect(reportWarningMock).toHaveBeenCalledWith(
       expect.stringContaining("already advanced"),
@@ -344,8 +512,67 @@ describe("persistPatchCandidate", () => {
         status: "verified",
       }),
     );
-    expect(payload.remediations).toBeUndefined();
-    expect(payload.evidence?.[0]?.kind).toBe("ai_patch_ready");
+    expect(mocks.writtenRemediations).toHaveLength(0);
+    expect(mocks.writtenEvidence[0]?.kind).toBe("ai_patch_ready");
+  });
+
+  it("skips byte-identical patch evidence already on the finding", async () => {
+    mocks.evidence = [];
+    mocks.remediation = remediation;
+    await persistPatchCandidate(tx, patchFinding, candidate, "alice");
+    expect(mocks.writtenEvidence).toHaveLength(1);
+    const detail = mocks.writtenEvidence[0]?.detail;
+
+    mocks.writtenEvidence.length = 0;
+    mocks.evidence = [
+      {
+        id: "e-ready",
+        at: "2026-01-01T00:00:00.000Z",
+        kind: "ai_patch_ready",
+        summary: "Patch ready",
+        projectId: "p1",
+        controlId: "c1",
+        findingId: "f1",
+        detail,
+      },
+    ];
+    await persistPatchCandidate(tx, patchFinding, candidate, "alice");
+    expect(mocks.writtenEvidence).toHaveLength(0);
+  });
+
+  it("refuses to store a patch that contains credential-shaped text", async () => {
+    reportWarningMock.mockClear();
+    mocks.evidence = [];
+    mocks.remediation = remediation;
+
+    await expect(
+      persistPatchCandidate(
+        tx,
+        patchFinding,
+        {
+          ...candidate,
+          edits: [
+            {
+              path: "Hero.tsx",
+              oldText: "<img />",
+              newText: '<img alt="Hero" data-key="secret: abc123def" />',
+            },
+          ],
+        },
+        "alice",
+      ),
+    ).rejects.toThrow(/looks like a credential/);
+    // Nothing was written: a redacted copy would be committed as-is later.
+    expect(mocks.writtenEvidence).toHaveLength(0);
+    expect(mocks.writtenRemediations).toHaveLength(0);
+  });
+
+  it("throws without a remediation row for the finding", async () => {
+    mocks.evidence = [];
+    mocks.remediation = undefined;
+    await expect(
+      persistPatchCandidate(tx, patchFinding, candidate, "alice"),
+    ).rejects.toThrow(/No remediation/);
   });
 });
 
@@ -367,5 +594,14 @@ describe("pullRequestUrlFromEvidence", () => {
 
   it("returns null when no PR evidence exists", () => {
     expect(pullRequestUrlFromEvidence([])).toBeNull();
+  });
+
+  it("ignores PR evidence without a URL string", () => {
+    expect(
+      pullRequestUrlFromEvidence([
+        { kind: "pull_request_prepared", detail: { prUrl: 42 } },
+        { kind: "pull_request_prepared", detail: {} },
+      ]),
+    ).toBeNull();
   });
 });

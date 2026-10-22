@@ -1,14 +1,13 @@
 import { z } from "zod";
 
-import { parseInput } from "@/core/validate";
+import { parseInput } from "@/core/actions/validate";
 import { publicErrorMessage } from "@/server/action-state";
 import { getSession } from "@/server/auth-session";
 import { getGitHubAccessToken } from "@/server/github/access-token";
 import { listAvailableRepos } from "@/server/github/github-connector";
+import { assertReposRateLimit, RateLimitError } from "@/server/rate-limit";
 import { projectCapabilities } from "@/server/workspace/project-capabilities";
 import { getWorkspace } from "@/server/workspace/workspace";
-
-export const dynamic = "force-dynamic";
 
 const githubReposQuerySchema = z.object({
   q: z
@@ -18,6 +17,13 @@ const githubReposQuerySchema = z.object({
     .transform((value) => {
       const trimmed = value?.trim();
       return trimmed && trimmed.length > 0 ? trimmed : undefined;
+    }),
+  page: z
+    .string()
+    .optional()
+    .transform((value) => {
+      const parsed = Number(value ?? "1");
+      return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 1;
     }),
 });
 
@@ -29,7 +35,7 @@ export async function GET(request: Request): Promise<Response> {
 
   const workspace = await getWorkspace();
   const caps = projectCapabilities(
-    workspace.project,
+    null,
     workspace.access,
     workspace.activeOrgId,
   );
@@ -38,6 +44,15 @@ export async function GET(request: Request): Promise<Response> {
       { error: "Not allowed to connect repos." },
       { status: 403 },
     );
+  }
+
+  // Typeahead fans out to GitHub across every installation: throttle per user
+  // before any token read or API call.
+  try {
+    await assertReposRateLimit(session.user.id);
+  } catch (error) {
+    if (!(error instanceof RateLimitError)) throw error;
+    return Response.json({ error: publicErrorMessage(error) }, { status: 429 });
   }
 
   let token: string | null;
@@ -62,6 +77,7 @@ export async function GET(request: Request): Promise<Response> {
       githubReposQuerySchema,
       {
         q: url.searchParams.get("q") ?? undefined,
+        page: url.searchParams.get("page") ?? undefined,
       },
       "Invalid repository search.",
     );
@@ -74,6 +90,7 @@ export async function GET(request: Request): Promise<Response> {
     const repos = await listAvailableRepos({
       accessToken: token,
       perPage,
+      page: query.page,
       q: query.q,
     });
     return Response.json({

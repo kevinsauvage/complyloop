@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 
-import { PageContent, PageHeader } from "@/components/page-primitives";
+import {
+  PageContent,
+  PageHeader,
+} from "@/components/primitives/page-primitives";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
@@ -18,7 +21,7 @@ export default function TermsPage() {
         <p className="text-xs text-muted-foreground">
           Last updated: 2026-09-10
         </p>
-        <div className="surface-panel rounded-2xl p-6 text-sm leading-relaxed text-foreground">
+        <div className="surface-panel rounded-xl p-6 text-sm leading-relaxed text-foreground">
           <h2 className="text-lg font-semibold">Using ComplyLoop</h2>
           <p className="mt-2">
             By using ComplyLoop you agree that the service analyzes source code

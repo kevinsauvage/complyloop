@@ -17,8 +17,8 @@ export function submitFirstValidatableForm(): boolean {
   return false;
 }
 
-/** Whether a control fails native validity or is marked aria-invalid. */
 export function isInvalidField(el: Element): boolean {
+  if (el.getAttribute("aria-invalid") === "true") return true;
   if (
     el instanceof HTMLInputElement ||
     el instanceof HTMLSelectElement ||
@@ -26,5 +26,5 @@ export function isInvalidField(el: Element): boolean {
   ) {
     return !el.checkValidity();
   }
-  return el.getAttribute("aria-invalid") === "true";
+  return false;
 }

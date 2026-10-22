@@ -14,9 +14,9 @@ import {
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
-  registerPlaywrightBrowserTeardown,
   withPlaywrightPage,
 } from "./custom-checks/playwright-page";
+import { registerPlaywrightBrowserTeardown } from "./custom-checks/playwright-test-teardown";
 
 registerPlaywrightBrowserTeardown();
 

@@ -14,28 +14,39 @@ Orientation for agents. **Do not duplicate** product principles, domain vocabula
 
 ## Doc map
 
-| Doc                                                                                       | Use when                                       |
-| ----------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| [`compliance-engineering-product-spec.md`](./docs/compliance-engineering-product-spec.md) | Product decisions, current scope               |
-| [`docs/ai/architecture.md`](./docs/ai/architecture.md)                                    | System shape, persistence, analysis            |
-| [`docs/ai/finding-flow.md`](./docs/ai/finding-flow.md)                                    | Finding page UX contract                       |
-| [`.cursor/rules/`](./.cursor/rules/)                                                      | Enforceable rules (domain, quality, AI, TS, …) |
+| Doc                                                                                       | Use when                                          |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| [`compliance-engineering-product-spec.md`](./docs/compliance-engineering-product-spec.md) | Product decisions, current scope                  |
+| [`docs/ai/architecture.md`](./docs/ai/architecture.md)                                    | System shape, persistence, analysis               |
+| [`docs/ai/finding-flow.md`](./docs/ai/finding-flow.md)                                    | Finding page UX contract                          |
+| [`docs/ai/platform-direction.md`](./docs/ai/platform-direction.md)                        | Direction, roadmap, open decisions (planned work) |
+| [`.cursor/rules/`](./.cursor/rules/)                                                      | Enforceable rules (domain, quality, AI, TS, …)    |
+| [`docs/prompts/`](./docs/prompts/README.md)                                               | Reusable task prompts (review, bug, quality, …)   |
+
+## Next.js reference — source of truth
+
+The bundled docs are the authority for Next.js behavior, APIs, conventions, and
+breaking changes. Before writing any Next.js code, read the relevant guide in
+[`node_modules/next/dist/docs/`](./node_modules/next/dist/docs/) (App Router lives
+under `01-app/`). They are version-matched to the installed `next` package — do
+not rely on training data or the online docs. When this repo and the bundled docs
+disagree, the docs win: change the repo.
 
 ## What this is
 
-Compliance engineering for **RGAA/WCAG** on React/Next.js/TypeScript — orgs, projects, continuous re-assessment. Product scope and success criteria: [`compliance-engineering-product-spec.md`](./docs/compliance-engineering-product-spec.md). Core loop and principles: [`.cursor/rules/product-context.mdc`](./.cursor/rules/product-context.mdc) (not repeated here).
+Compliance engineering for **RGAA/WCAG** on React/Next.js/TypeScript — orgs, projects, continuous re-assessment. Direction: a shared compliance and quality engineering platform (accessibility → eco-design → performance → security), see [`docs/ai/platform-direction.md`](./docs/ai/platform-direction.md); that document is planned work, not shipped behavior. Product scope and success criteria: [`compliance-engineering-product-spec.md`](./docs/compliance-engineering-product-spec.md). Core loop and principles: [`.cursor/rules/product-context.mdc`](./.cursor/rules/product-context.mdc) (not repeated here).
 
 ## Stack
 
-| Layer      | Tech                                                                  |
-| ---------- | --------------------------------------------------------------------- |
-| App        | Next.js 16, React 19, TypeScript strict, Tailwind 4, shadcn/ui        |
-| DB         | Postgres + Drizzle (`DATABASE_URL`); evidence insert-only             |
-| Auth       | Auth.js v5 + GitHub OAuth/App; ephemeral checkouts per job           |
-| Analysis   | AST + jsx-a11y + optional Playwright/axe when `runtimeBaseUrl` is set |
-| Jobs       | Vercel Cron → `POST /api/internal/jobs/run` (no worker process)      |
-| AI         | Vercel AI SDK, optional; **never sets statuses**                      |
-| Tests      | Vitest + RTL; Playwright e2e (`E2E_AUTH_ENABLED`)                     |
+| Layer    | Tech                                                                                                                    |
+| -------- | ----------------------------------------------------------------------------------------------------------------------- |
+| App      | Next.js 16, React 19, TypeScript strict, Tailwind 4, shadcn/ui                                                          |
+| DB       | Postgres + Drizzle (`DATABASE_URL`); evidence insert-only                                                               |
+| Auth     | Auth.js v5 + GitHub OAuth/App; ephemeral checkouts per job                                                              |
+| Analysis | AST + jsx-a11y + optional Playwright/axe when `runtimeBaseUrl` is set                                                   |
+| Jobs     | GH Actions `assessment-worker` via `repository_dispatch` + 15-min schedule backstop (no worker process, no Vercel Cron) |
+| AI       | Vercel AI SDK, optional; **never sets statuses**                                                                        |
+| Tests    | Vitest + RTL; Playwright e2e (`E2E_AUTH_ENABLED`)                                                                       |
 
 Record new stack decisions here and in `docs/ai/architecture.md`.
 
@@ -45,11 +56,15 @@ Record new stack decisions here and in `docs/ai/architecture.md`.
 npm run dev              # Dev server (Turbopack); transpiles analysis-core from source
 npm run build            # Production build; transpiles analysis-core from source
 npm run build:core       # Compile packages/analysis-core → dist (publish)
-npm run lint && npm run typecheck && npm run test && npm run build  # Definition of done
+npm run verify:gate      # Full gate: format + lint + typecheck + knip + test:coverage + worker:build + build (definition of done)
+npm run lint && npm run typecheck && npm run test && npm run build  # Definition of done (same as verify:gate)
 npx vitest run <touched-file>  # Targeted verify during work (fast loop; full gate at the end)
 npm run test:coverage    # Coverage gates (vitest.config.mts)
 npm run test:db          # Postgres persistence integration (needs DATABASE_URL)
 npm run db:migrate       # Apply migrations (tsx runs with --conditions=react-server so server-only imports resolve; keep the flag on every tsx script)
+npm run worker:drain     # Run queued assessment jobs locally (builds + runs executor)
+npm run ops:check        # Prod config sanity (DB + pending migrations + required env + queue depth)
+npm run playwright:install  # Chromium for runtime audits + e2e
 npm run test:e2e         # Playwright (after e2e:seed)
 ```
 
@@ -68,7 +83,7 @@ Module layout (packages, boundaries, data flow): [`docs/ai/architecture.md`](./d
 
 - Ask first: `drizzle/` SQL migrations, `src/core/` kernel, `packages/analysis-core/src/contract/`.
   Reason: evidence append-only, tenant isolation, and the analysis contract break silently when improvised around.
-- Never: edit generated output (`.next/`, `dist/`, `coverage/`); use raw `getDrizzle()` in actions (use `withProjectWrite` / `withOrgWrite`); add `@axe-core/playwright` or `ssrf-guard/node`; let AI set requirement/finding statuses.
+- Never: edit generated output (`.next/`, `dist/`, `coverage/`); use raw `getDrizzle()` in actions (use `withProjectTx` / `withOrgWrite`); add `@axe-core/playwright` or `ssrf-guard/node`; let AI set requirement/finding statuses.
   Reason: each has caused a real break (build rewrites, SSR crash, unverified compliance claims) — silent until production.
 - Multi-file change (>2 files) or architecture decision: output a plan (files / pattern / verification / `[ASSUMPTION]` items) and wait for approval before editing.
   Reason: wrong assumptions cost seconds in a plan, hours in a PR.
@@ -89,22 +104,53 @@ Route by task — never run the flagship model for everything. Verify with `npm 
 
 Keep the UI dependency surface from regrowing: do not add a new Radix/`ui/` primitive without 2+ consumers, and keep success/error toasts centralized (`useActionToast` / `action-state.ts`) rather than sprinkling new `sonner` calls.
 
+## Comments
+
+Avoid comments. Add one only when strictly necessary: a non-obvious constraint, workaround, or trade-off the code cannot express. Prefer clearer names and structure; never narrate what the code does, restate a type, or leave commented-out code.
+
 ## Server vs Client convention
 
-Async data-fetching components (`workspace-context`, `connect-project-panel`, `nav-attention-badges`, `dashboard-pipeline-section`, plus server `app-shell`/`badges`) live alongside client leaves in `src/components/` with no `"use client"` and no `*.server.tsx` rename. Rule: never add `"use client"` above a file importing `@/server/*` — put interactivity in a dedicated client leaf (`mobile-nav-sheet`, `pathname-focus`, `badge-with-description`) and pass server content as slots/children.
+Async data-fetching components (`workspace-context`, `connect-project-panel`, `project-nav-badges`, `dashboard-pipeline-section`, plus server `app-shell`/`badges`) live alongside client leaves in `src/components/` with no `"use client"` and no `*.server.tsx` rename. Rule: never add `"use client"` above a file importing `@/server/*` — put interactivity in a dedicated client leaf (`mobile-nav-sheet`, `pathname-focus`, `badge-with-description`) and pass server content as slots/children. Exception: Server Action modules (`@/server/actions/*`, `"use server"`) are meant to be imported by client components; importing them from a client leaf is fine. Every other `@/server/*` module is `server-only`.
 
 <!-- graft:start -->
 
 ## Graft — repo context graph
 
-Optional accelerator for a 800-file monorepo (not a substitute for reading the cited span).
-`graft/INDEX.md` lists concept nodes with exact `file:line` spans.
+This repo is indexed in `graft/`: small linked markdown nodes that explain each
+system and carry exact file:line spans, kept in sync with the code through git.
 
-- `graft ask "<question>" --source` → ranked code spans for understanding/editing.
-- `graft grep "<literal>"` → exhaustive occurrences (ranked results are top-N only).
-- `graft skeleton <file>` / `graft callers <symbol>` → cheap API surface / blast radius.
-- Source files always win over graph spans — never edit from a span without opening the file.
-- If a span is truncated, open the file at that exact range before editing.
-- If the graph looks stale, run `graft build` (deterministic, no key) before trusting spans.
+For ANY task here — understanding how something works, finding where code lives,
+or scoping a change — get context from the graph before grepping or opening
+source files. Re-ask freely (it's cheap) and reuse literal identifiers you
+already have (symbol, error string, file name) as the query. New to this repo?
+Run `graft map` first — a token-budgeted orientation (dir clusters, hubs,
+hotspots), no LLM, no key.
 
+- Run `graft ask "<your question>" --source` → ranked nodes with the relevant
+  code spans inlined (each hit's ≤8-line crux by default; `--full` for whole
+  definitions when the crux isn't enough). Match the tool to the task shape:
+  for understanding or editing, the top node IS the answer — cite its
+  `covers:` file:line spans and edit straight from `--source`. For
+  exhaustive tasks ("every occurrence / every caller of this pattern"), ranked
+  results are top-N, not complete — run `graft grep "<literal>"` instead
+  (exhaustive over indexed files, grouped by enclosing symbol), falling back
+  to raw `grep -rn` only for unindexed files.
+- `graft skeleton <file>` → every definition's signature + span, ~10× cheaper
+  than reading the file; use it to skim an API surface.
+- `graft callers <symbol>` gives precomputed, exact edges — who calls this.
+  Add `--direction out` for what it calls, or `--depth N` to walk
+  transitively for the full blast radius. For structural questions, skip
+  ranking and use this directly.
+- Or browse: `graft/INDEX.md` lists every node; follow the links.
+- Monorepos and folders of multiple repos rank fairly across sub-projects —
+  hits carry `[scope/]` labels naming which one they're from. Narrow with
+  `graft ask "<task>" --in <scope>/` once you know where you're working.
+
+If a returned span is truncated ("+N more lines"), open the file at that exact
+range before finalizing. Only open source files when a node genuinely lacks a
+needed detail, and then at the exact file:line the node points to — never
+re-read whole files.
+
+After big code changes, refresh the graph with `graft build` (deterministic,
+no API key, $0).
 <!-- graft:end -->

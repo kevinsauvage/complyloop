@@ -12,7 +12,7 @@ vi.mock("next/server", () => ({
   after: (...args: unknown[]) => afterFn(...args),
 }));
 
-vi.mock("@/server/assessment/assessment-job-inline", () => ({
+vi.mock("@/server/assessment/assessment-scheduler", () => ({
   scheduleAssessmentDrain: vi.fn(),
 }));
 

@@ -5,14 +5,9 @@ import { reportError, reportWarning } from "@/server/observability";
 import { GET } from "./route";
 
 const getDrizzle = vi.hoisted(() => vi.fn());
-const queuedAssessmentJobCount = vi.hoisted(() => vi.fn());
 
 vi.mock("@complyloop/db/postgres", () => ({
   getDrizzle: () => getDrizzle(),
-}));
-
-vi.mock("@/server/assessment/assessment-jobs", () => ({
-  queuedAssessmentJobCount: () => queuedAssessmentJobCount(),
 }));
 
 vi.mock("@/server/observability", () => ({
@@ -24,7 +19,6 @@ beforeEach(() => {
   vi.mocked(reportError).mockReset();
   vi.mocked(reportWarning).mockReset();
   getDrizzle.mockReset();
-  queuedAssessmentJobCount.mockReset();
 });
 
 describe("GET /api/health", () => {

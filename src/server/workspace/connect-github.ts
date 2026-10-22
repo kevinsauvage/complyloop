@@ -18,7 +18,6 @@ import { canOnProject } from "@/core/rbac";
 
 import { withRepoCheckout } from "../assessment/repo-checkout";
 import { normalizeGitHubFullName } from "../github/github";
-import { accessFromStore, resolveActiveProject } from "./project-visibility";
 
 /** Short filesystem-safe name from a GitHub `owner/repo` full name. */
 export function deriveProjectName(fullName: string): string {
@@ -112,8 +111,27 @@ interface ConnectGitHubRepoInput {
 }
 
 /**
- * Validates a GitHub repo via ephemeral clone, then records the project in the
- * store (no durable workspace on disk).
+ * Validates that the repository can be assessed (has source files and a
+ * supported root). Runs an ephemeral checkout, so callers must invoke it
+ * *before* taking the org write lock — a clone takes minutes and would pin a
+ * connection + advisory lock for the whole connect.
+ */
+export async function assertGitHubRepoAssessable(input: {
+  fullName: string;
+  accessToken: string;
+}): Promise<void> {
+  await withRepoCheckout(
+    { fullName: input.fullName, accessToken: input.accessToken },
+    async (rootPath) => {
+      assertAssessableRoot(rootPath);
+    },
+  );
+}
+
+/**
+ * Records a validated GitHub repo in the store (no durable workspace on disk).
+ * The caller must run `assertGitHubRepoAssessable` first, outside the write
+ * lock — the clone is the slow part and must not pin a transaction.
  */
 export async function connectGitHubRepo(
   db: WorkspaceSlice,
@@ -144,13 +162,8 @@ export async function connectGitHubRepo(
     return { project: existing, evidence: [] };
   }
 
-  await withRepoCheckout(
-    { fullName, accessToken: input.accessToken },
-    async (rootPath) => {
-      assertAssessableRoot(rootPath);
-    },
-  );
-
+  // Validation (ephemeral clone) is the caller's job, before it takes the
+  // org write lock: see `assertGitHubRepoAssessable`.
   const name = uniqueProjectName(db, deriveProjectName(fullName));
   const github: ProjectGitHubMeta = {
     fullName,
@@ -187,6 +200,7 @@ export async function connectGitHubRepo(
           source: project.source,
           sourceRef: project.sourceRef,
           fullName: project.github?.fullName,
+          orgId,
         },
       }),
     ],
@@ -195,8 +209,14 @@ export async function connectGitHubRepo(
 
 /**
  * Disconnects a GitHub project when the actor has `project.connect`.
- * Returns what to persist (scoped rows drop via the project FK cascade) plus
- * the next visible project id for the cookie. Does not mutate `db`.
+ * Returns what to persist (scoped rows drop via the project FK cascade).
+ * Does not mutate `db`.
+ *
+ * Retention: disconnecting drops the project's findings/remediations/
+ * requirements — only the `project_disconnected` evidence row survives
+ * (evidence is FK-less and retained by design; see docs/vercel.md §6). Its
+ * `orgId` is the only link left from that evidence to its org once the
+ * project row is gone: `deleteEvidenceForOrg` erases by it.
  */
 export function disconnectGitHubRepo(
   db: WorkspaceSlice,
@@ -205,7 +225,6 @@ export function disconnectGitHubRepo(
 ): {
   deleteProjectId: string;
   evidence: EvidenceRecord;
-  nextProjectId: string | null;
 } {
   const project = db.projects.find((candidate) => candidate.id === projectId);
   if (!project) {
@@ -232,15 +251,9 @@ export function disconnectGitHubRepo(
     detail: {
       source: "github",
       fullName,
+      orgId: project.orgId,
     },
   });
 
-  const remaining = db.projects.filter(
-    (candidate) => candidate.id !== projectId,
-  );
-  const nextProjectId =
-    resolveActiveProject(remaining, null, accessFromStore(db, userId))?.id ??
-    null;
-
-  return { deleteProjectId: projectId, evidence, nextProjectId };
+  return { deleteProjectId: projectId, evidence };
 }

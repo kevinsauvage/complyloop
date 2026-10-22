@@ -20,18 +20,26 @@ import type {
   Project,
 } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
+import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
 import { getDrizzle } from "@complyloop/db/postgres";
 import { listEvidenceForExport } from "@complyloop/db/repo/evidence";
+import { countFindingsByStatusForProject } from "@complyloop/db/repo/findings";
 
-import { parseReportViewParam, type ReportView } from "@/core/filter-params";
+import {
+  parseReportViewParam,
+  type ReportView,
+} from "@/core/filter-params/evidence";
+import { publicErrorMessage } from "@/server/action-state";
 
+import { assertExportRateLimit } from "../rate-limit";
 import { getProjectRuntime } from "../workspace/project-runtime";
 import {
   controlsInScope,
   findingsInScope,
   requirementsInScope,
+  scopedControlIds,
 } from "../workspace/project-scope";
-import { getWorkspace } from "../workspace/workspace";
+import { getWorkspace, requireProjectAccess } from "../workspace/workspace";
 import type { ReportInput } from "./report-model";
 
 export type ReportLoadResult =
@@ -43,17 +51,12 @@ const CONTROLS_BY_ID: ReadonlyMap<string, Control> = new Map(
 );
 
 /**
- * Framework resolved per preset id (catalog is static), so `displayControl` on
- * a list render does not re-scan the framework list for every finding row.
+ * Framework resolved per preset id. The catalog is static (<200 controls),
+ * so this is a direct lookup — no memo Map (the cached version saved nothing
+ * measurable and hid a second source of framework truth).
  */
-const FRAMEWORK_BY_PRESET: Map<string, Framework> = new Map();
-
-/** Resolves the framework named by the project's assessment preset. */
 export function frameworkForProject(project: Project): Framework {
   const presetId = projectDefaultPresetId(project);
-  const cached = FRAMEWORK_BY_PRESET.get(presetId);
-  if (cached) return cached;
-
   const frameworks = shippedCatalog().frameworks;
   const preset = presetById(presetId);
   const resolved =
@@ -63,28 +66,15 @@ export function frameworkForProject(project: Project): Framework {
   if (!resolved) {
     throw new Error("No compliance framework is configured.");
   }
-  FRAMEWORK_BY_PRESET.set(presetId, resolved);
   return resolved;
 }
 
-/** Themed controls cached per `frameworkId:controlId` (bounded, catalog-static). */
-const DISPLAY_CONTROLS: Map<string, Control> = new Map();
-
-/**
- * Catalog control themed for the project's framework. Uses once-built Maps so
- * list rendering is O(1) per finding instead of scanning/re-theming the catalog.
- */
+/** Catalog control themed for the project's framework (no memo Map — see `frameworkForProject`). */
 export function displayControl(controlId: string, project: Project): Control {
   const frameworkId = frameworkForProject(project).id;
-  const key = `${frameworkId}\u0000${controlId}`;
-  const cached = DISPLAY_CONTROLS.get(key);
-  if (cached) return cached;
-
   const control = CONTROLS_BY_ID.get(controlId);
   if (!control) throw new PublicError("Unknown control.");
-  const themed = controlForDisplay(control, frameworkId);
-  DISPLAY_CONTROLS.set(key, themed);
-  return themed;
+  return controlForDisplay(control, frameworkId);
 }
 
 export type ReportRuntimeSlice = {
@@ -96,11 +86,18 @@ export type ReportRuntimeSlice = {
   alerts?: ReadonlyArray<Alert>;
 };
 
-/** Builds report input for a project's current store snapshot. */
+/**
+ * `runtime.findings` are the open findings (capped); `counts` carries the
+ * exact totals the capped rows cannot.
+ */
 export function reportInputForProject(
   runtime: ReportRuntimeSlice,
   project: Project,
-  evidenceMeta?: { total: number; truncated: boolean },
+  counts: {
+    findingCounts: Record<FindingStatus, number>;
+    evidenceTotal: number;
+    evidenceTruncated: boolean;
+  },
 ): ReportInput {
   const findings = findingsInScope(runtime.findings, project);
   const findingIds = new Set(findings.map((finding) => finding.id));
@@ -114,31 +111,62 @@ export function reportInputForProject(
       findingIds.has(remediation.findingId),
     ),
     requirements: requirementsInScope(runtime.requirements, project),
+    findingCounts: counts.findingCounts,
     evidence: [...runtime.evidence],
-    evidenceTotal: evidenceMeta?.total ?? runtime.evidence.length,
-    evidenceTruncated: evidenceMeta?.truncated ?? false,
+    evidenceTotal: counts.evidenceTotal,
+    evidenceTruncated: counts.evidenceTruncated,
     exportedAt: new Date().toISOString(),
   };
 }
 
-/** Loads workspace, evidence, and report input for markdown/HTML export routes. */
+/** Loads the URL's project, evidence, and report input for the export routes. */
 export async function loadReportInput(
   request: Request,
+  projectId: string,
 ): Promise<ReportLoadResult> {
-  const { project } = await getWorkspace();
-  if (!project) {
+  const { userId } = await getWorkspace();
+  let project: Project;
+  try {
+    project = await requireProjectAccess(projectId, "project.view");
+  } catch {
     return {
       ok: false,
       response: new Response("No project connected.", { status: 404 }),
     };
   }
 
+  // Exports read up to 5,000 open findings + 5,000 evidence rows: throttle
+  // before the load.
+  if (userId) {
+    try {
+      await assertExportRateLimit(userId);
+    } catch (error) {
+      return {
+        ok: false,
+        response: new Response(publicErrorMessage(error), { status: 429 }),
+      };
+    }
+  }
+
   const view = parseReportViewParam(
     new URL(request.url).searchParams.get("view"),
   );
-  const [runtime, exported] = await Promise.all([
-    getProjectRuntime(project.id, { includeEvidence: false }),
-    listEvidenceForExport(await getDrizzle(), project.id),
+  const drizzle = await getDrizzle();
+  const scoped = scopedControlIds(project);
+  // Reports render open findings and per-status totals only: load the open
+  // rows (most severe first, capped) and count every status in SQL, instead
+  // of the project's whole finding history.
+  const [runtime, exported, findingCounts] = await Promise.all([
+    getProjectRuntime(project.id, {
+      includeEvidence: false,
+      findingStatuses: ["open"],
+    }),
+    listEvidenceForExport(drizzle, project.id),
+    countFindingsByStatusForProject(
+      drizzle,
+      project.id,
+      scoped ? [...scoped] : undefined,
+    ),
   ]);
 
   return {
@@ -148,7 +176,11 @@ export async function loadReportInput(
     input: reportInputForProject(
       { ...runtime, evidence: exported.records },
       project,
-      { total: exported.total, truncated: exported.truncated },
+      {
+        findingCounts,
+        evidenceTotal: exported.total,
+        evidenceTruncated: exported.truncated,
+      },
     ),
   };
 }

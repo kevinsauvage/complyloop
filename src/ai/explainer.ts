@@ -6,18 +6,19 @@ import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import type { Confidence } from "@complyloop/analysis-core/contract/statuses";
 
 import {
-  AI_MODEL,
+  AI_TEXT_MAX_CHARS,
   aiAvailable,
   aiCall,
   type AiCallOnError,
   confidenceSchema,
   findingPromptContext,
+  resolveAiModel,
 } from "./ai-call";
 
 const explanationSchema = z.object({
-  whyItFailed: z.string(),
-  impact: z.string(),
-  howToFix: z.string(),
+  whyItFailed: z.string().max(AI_TEXT_MAX_CHARS),
+  impact: z.string().max(AI_TEXT_MAX_CHARS),
+  howToFix: z.string().max(AI_TEXT_MAX_CHARS),
   confidence: confidenceSchema,
 });
 
@@ -55,7 +56,6 @@ export async function generateAiExplanation(
     prompt: [
       "You explain accessibility compliance findings to web developers.",
       ...findingPromptContext(finding, control),
-      `Automated check result: ${finding.reason}`,
       "Write whyItFailed, impact (who is affected and how), and howToFix (concrete code-level guidance for this exact snippet).",
       "Set confidence to high/medium/low for how sure you are about this explanation.",
       "Be concise and practical; no legal language.",
@@ -69,7 +69,7 @@ export async function generateAiExplanation(
     howToFix: object.howToFix,
     confidence,
     provenance: "ai",
-    model: AI_MODEL,
+    model: resolveAiModel(),
     generatedAt: new Date().toISOString(),
   };
 }

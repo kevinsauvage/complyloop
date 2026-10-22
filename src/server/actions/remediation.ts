@@ -3,52 +3,67 @@
 import { z } from "zod";
 
 import {
-  type EvidenceRecord,
   type Finding,
   type Remediation,
-  type Requirement,
 } from "@complyloop/analysis-core/contract/entities";
 import {
   type Dismissal,
   DISMISSAL_REASONS,
 } from "@complyloop/analysis-core/contract/finding-types";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
-import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
-import type { WorkspaceSlice } from "@complyloop/db/types";
-
+import type { DrizzleDb } from "@complyloop/db/postgres";
 import {
-  advanceRemediation,
-  canBulkApproveRemediation,
-} from "@/core/remediation-lifecycle";
+  insertEvidence,
+  insertEvidenceRecords,
+} from "@complyloop/db/repo/evidence";
+import {
+  listFindingsByIds,
+  upsertFindings,
+} from "@complyloop/db/repo/findings";
+import {
+  getRemediationByFindingId,
+  listRemediationsForFindings,
+} from "@complyloop/db/repo/remediations";
+import { upsertRemediations } from "@complyloop/db/repo/remediations";
+import { upsertRequirements } from "@complyloop/db/repo/requirements";
+
+import type { ActionState } from "@/core/actions/action-state";
 import {
   findingIdsField,
   optionalNoteSchema,
   parseForm,
-} from "@/core/validate";
+} from "@/core/actions/validate";
+import {
+  advanceRemediation,
+  canBulkApproveRemediation,
+} from "@/core/requirements/remediation-lifecycle";
 
-import type { ActionState } from "../action-state";
 import { runAction } from "../action-state";
-import { applyRequirementStatusRefresh } from "../assessment/assessment-status";
+import { refreshRequirementsForControls } from "../assessment/assessment-status";
 import {
   remediationEvidenceDetail,
   remediationEvidenceSummary,
 } from "../assessment/remediation-evidence";
-import {
-  appendEvidence,
-  cloneProjectRows,
-  type ProjectRows,
-  upsertFindingInRows,
-} from "../workspace/project-rows";
-import { findingById, remediationForFinding } from "../workspace/workspace";
-import { withProjectWrite } from "../workspace/workspace-write";
-import { runFindingAction } from "./define-action";
+import { assertRemediationRateLimit } from "../rate-limit";
+import { stampEvidenceActor } from "../workspace/project-rows";
+import { withProjectTx } from "../workspace/workspace-write";
+import { projectIdForFinding, runFindingAction } from "./define-action";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
-import { refresh, replaceRemediation, requireOnFindingProject } from "./shared";
+import { refresh } from "./shared";
+
+/** Upper bound on a bulk action: keeps one click to a bounded write set. */
+const BULK_FINDING_LIMIT = 100;
+
+function boundedFindingIds(emptyMessage: string) {
+  return findingIdsField(emptyMessage).refine(
+    (ids) => ids.length <= BULK_FINDING_LIMIT,
+    { error: `Select at most ${BULK_FINDING_LIMIT} findings at a time.` },
+  );
+}
 
 const bulkApproveInput = z.object({
-  findingIds: findingIdsField("Select at least one finding to approve."),
+  findingIds: boundedFindingIds("Select at least one finding to approve."),
 });
 
 const dismissFindingInput = z.object({
@@ -59,24 +74,42 @@ const dismissFindingInput = z.object({
 });
 
 const bulkDismissInput = z.object({
-  findingIds: findingIdsField("Select at least one finding to dismiss."),
+  findingIds: boundedFindingIds("Select at least one finding to dismiss."),
   reason: z.enum(DISMISSAL_REASONS, {
     error: "A dismissal reason is required.",
   }),
   note: optionalNoteSchema,
 });
 
-function approveRemediationInPayload(
-  payload: ProjectWritePayload,
+interface WriteContext {
+  tx: DrizzleDb;
+  actor: string | undefined;
+}
+
+async function loadRemediation(
+  tx: DrizzleDb,
+  findingId: string,
+): Promise<Remediation> {
+  const remediation = await getRemediationByFindingId(tx, findingId);
+  if (!remediation) throw new PublicError("No remediation for that finding.");
+  return remediation;
+}
+
+async function approveInTx(
+  ctx: WriteContext,
   finding: Finding,
   remediation: Remediation,
   options: { bulk?: boolean; approvalNote: string },
-): void {
-  replaceRemediation(
-    payload,
-    advanceRemediation(remediation, "approved", options.approvalNote),
-  );
-  appendEvidence(payload, {
+): Promise<void> {
+  // Approving a dismissed/resolved finding would put a closed finding back in
+  // the remediation loop without evidence that it is still open.
+  if (finding.status !== "open") {
+    throw new PublicError("Only open findings can be approved.");
+  }
+  await upsertRemediations(ctx.tx, [
+    advanceRemediation(remediation, "approved"),
+  ]);
+  await insertEvidence(ctx.tx, {
     kind: "remediation_approved",
     summary: remediationEvidenceSummary("approved", finding),
     projectId: finding.projectId,
@@ -85,18 +118,20 @@ function approveRemediationInPayload(
     detail: remediationEvidenceDetail({
       ...(options.bulk ? { bulk: true } : {}),
       ...(finding.fix ? { fix: { ...finding.fix } } : {}),
+      note: options.approvalNote,
     }),
+    actor: ctx.actor,
   });
 }
 
-function dismissFindingInRows(
-  rows: ProjectRows,
+async function dismissInTx(
+  ctx: WriteContext,
   finding: Finding,
   reason: Dismissal["reason"],
   note: string,
   at: string,
   options: { bulk?: boolean },
-): Finding {
+): Promise<Finding> {
   if (finding.status !== "open") {
     throw new PublicError("Only open findings can be dismissed.");
   }
@@ -105,8 +140,8 @@ function dismissFindingInRows(
     status: "dismissed",
     dismissal: { reason, note, at },
   };
-  upsertFindingInRows(rows, updated);
-  appendEvidence(rows, {
+  await upsertFindings(ctx.tx, [updated]);
+  await insertEvidence(ctx.tx, {
     kind: "finding",
     summary: `Finding dismissed (${reason}): ${finding.checkId} at ${formatLocationRef(finding.location)}`,
     projectId: finding.projectId,
@@ -115,66 +150,34 @@ function dismissFindingInRows(
     detail: options.bulk
       ? { event: "dismissed", reason, note, bulk: true }
       : { event: "dismissed", reason, note },
+    actor: ctx.actor,
   });
   return updated;
 }
 
 /**
- * Shared single/bulk dismiss core: clones rows once, dismisses each entry,
- * refreshes touched controls, and returns the persistable payload slice.
- * Callers keep their own guards (single throws on non-open; bulk skips).
+ * Re-derives the touched controls after a dismiss and writes the changed
+ * requirement rows plus the resulting evidence.
+ *
+ * A human dismiss is not an automated pass: force a no-scan audit context so
+ * standard controls resolve to unable_to_verify (not passed) and runtime/site
+ * controls stay unable_to_verify without an engine run. Human attribution
+ * lives on the "finding dismissed" evidence.
  */
-function dismissEntriesInWrite(
-  db: WorkspaceSlice,
-  project: Project,
-  entries: ReadonlyArray<{
-    finding: Finding;
-    reason: Dismissal["reason"];
-    note: string;
-  }>,
-  options: { bulk?: boolean; at: string },
-): {
-  findings: Finding[];
-  requirements: Requirement[];
-  evidence: EvidenceRecord[];
-} {
-  const rows = cloneProjectRows(
-    db.findings,
-    db.remediations,
-    db.requirements,
-    project.id,
+async function refreshAfterDismiss(
+  ctx: WriteContext,
+  project: Parameters<typeof refreshRequirementsForControls>[1],
+  controlIds: readonly string[],
+): Promise<void> {
+  const refreshed = await refreshRequirementsForControls(
+    ctx.tx,
+    project,
+    controlIds,
+    { runtimeRan: false, filesScanned: 0 },
   );
-  const controlIds = new Set<string>();
-  const findings: Finding[] = [];
-  for (const entry of entries) {
-    findings.push(
-      dismissFindingInRows(
-        rows,
-        entry.finding,
-        entry.reason,
-        entry.note,
-        options.at,
-        {
-          bulk: options.bulk,
-        },
-      ),
-    );
-    controlIds.add(entry.finding.controlId);
-  }
-  // A human dismiss is not an automated pass. Force a no-scan audit
-  // context so standard controls resolve to unable_to_verify (not passed)
-  // and runtime/site controls stay unable_to_verify without an engine run.
-  // Human attribution lives on the "finding dismissed" evidence above.
-  applyRequirementStatusRefresh(rows, project, {
-    controlIds: [...controlIds],
-    runtimeRan: false,
-    filesScanned: 0,
-  });
-  return {
-    findings,
-    requirements: rows.requirements,
-    evidence: rows.evidence,
-  };
+  await upsertRequirements(ctx.tx, refreshed.requirements);
+  stampEvidenceActor(refreshed.evidence, ctx.actor);
+  await insertEvidenceRecords(ctx.tx, refreshed.evidence);
 }
 
 export async function approveRemediationAction(
@@ -187,14 +190,14 @@ export async function approveRemediationAction(
   return runFindingAction(
     findingIdRaw,
     "project.remediate",
-    async ({ db, finding }) => {
-      const remediation = remediationForFinding(db, finding.id);
-      const payload: ProjectWritePayload = {};
-
-      approveRemediationInPayload(payload, finding, remediation, {
+    async (ctx) => {
+      if (ctx.userId) {
+        await assertRemediationRateLimit(ctx.userId, ctx.tx);
+      }
+      const remediation = await loadRemediation(ctx.tx, ctx.finding.id);
+      await approveInTx(ctx, ctx.finding, remediation, {
         approvalNote: "Approved by user",
       });
-      return payload;
     },
     "Remediation approved.",
   );
@@ -209,29 +212,52 @@ export async function bulkApproveRemediationsAction(
     const { findingIds } = parseForm(bulkApproveInput, formData);
     let approved = 0;
 
-    await withProjectWrite(async (workspace) => {
-      const { db } = workspace;
-      const payload: ProjectWritePayload = {};
+    // The schema guarantees one id; an empty one fails as "Unknown finding".
+    const [firstFindingId = ""] = findingIds;
+    const projectId = await projectIdForFinding(firstFindingId);
+    await withProjectTx(projectId, "project.remediate", async (ctx) => {
+      if (ctx.userId) {
+        await assertRemediationRateLimit(ctx.userId, ctx.tx);
+      }
+      // One IN query for findings + one for remediations instead of two round
+      // trips per id (bulk is capped at BULK_FINDING_LIMIT).
+      const findingsById = new Map(
+        (await listFindingsByIds(ctx.tx, findingIds)).map((finding) => [
+          finding.id,
+          finding,
+        ]),
+      );
+      const remediationsByFindingId = new Map(
+        (await listRemediationsForFindings(ctx.tx, findingIds)).map(
+          (remediation) => [remediation.findingId, remediation],
+        ),
+      );
       for (const findingId of findingIds) {
-        const finding = findingById(db, findingId);
-        requireOnFindingProject(workspace, finding, "project.remediate");
-        const remediation = remediationForFinding(db, findingId);
+        const finding = findingsById.get(findingId);
+        if (!finding || finding.projectId !== projectId) {
+          throw new PublicError("Unknown finding.");
+        }
+        if (finding.status !== "open") continue;
+        const remediation = remediationsByFindingId.get(findingId);
+        if (!remediation) {
+          throw new PublicError("No remediation for that finding.");
+        }
         if (
           !canBulkApproveRemediation(
             finding,
             remediation.status,
             remediation.suggestion,
           )
-        )
+        ) {
           continue;
+        }
 
-        approveRemediationInPayload(payload, finding, remediation, {
+        await approveInTx(ctx, finding, remediation, {
           bulk: true,
           approvalNote: "Approved in bulk",
         });
         approved += 1;
       }
-      return payload;
     });
 
     if (approved === 0) {
@@ -252,18 +278,20 @@ export async function dismissFindingAction(
   return runFindingAction(
     findingIdRaw,
     "project.remediate",
-    async ({ db, finding }) => {
+    async (ctx) => {
+      if (ctx.userId) {
+        await assertRemediationRateLimit(ctx.userId, ctx.tx);
+      }
       const { reason, note } = parseForm(dismissFindingInput, formData);
-      const project = db.projects.find(
-        (candidate) => candidate.id === finding.projectId,
+      await dismissInTx(
+        ctx,
+        ctx.finding,
+        reason,
+        note ?? "",
+        new Date().toISOString(),
+        {},
       );
-      if (!project) throw new PublicError("Unknown project.");
-      return dismissEntriesInWrite(
-        db,
-        project,
-        [{ finding, reason, note: note ?? "" }],
-        { at: new Date().toISOString() },
-      );
+      await refreshAfterDismiss(ctx, ctx.project, [ctx.finding.controlId]);
     },
     "Finding dismissed.",
   );
@@ -279,29 +307,36 @@ export async function bulkDismissFindingsAction(
     const at = new Date().toISOString();
     let dismissed = 0;
 
-    await withProjectWrite(async (workspace) => {
-      const { db } = workspace;
-      const project = workspace.project;
-      if (!project) throw new PublicError("Select a project first.");
-      const entries: Array<{
-        finding: Finding;
-        reason: Dismissal["reason"];
-        note: string;
-      }> = [];
-      for (const findingId of findingIds) {
-        const finding = findingById(db, findingId);
-        requireOnFindingProject(workspace, finding, "project.remediate");
-        if (finding.status !== "open") continue;
-        entries.push({ finding, reason, note: dismissalNote });
+    // The schema guarantees one id; an empty one fails as "Unknown finding".
+    const [firstFindingId = ""] = findingIds;
+    const projectId = await projectIdForFinding(firstFindingId);
+    await withProjectTx(projectId, "project.remediate", async (ctx) => {
+      if (ctx.userId) {
+        await assertRemediationRateLimit(ctx.userId, ctx.tx);
       }
-      if (entries.length === 0) {
+      const controlIds = new Set<string>();
+      const findingsById = new Map(
+        (await listFindingsByIds(ctx.tx, findingIds)).map((finding) => [
+          finding.id,
+          finding,
+        ]),
+      );
+      for (const findingId of findingIds) {
+        const finding = findingsById.get(findingId);
+        if (!finding || finding.projectId !== projectId) {
+          throw new PublicError("Unknown finding.");
+        }
+        if (finding.status !== "open") continue;
+        await dismissInTx(ctx, finding, reason, dismissalNote, at, {
+          bulk: true,
+        });
+        controlIds.add(finding.controlId);
+        dismissed += 1;
+      }
+      if (controlIds.size === 0) {
         throw new PublicError("No open findings were dismissed.");
       }
-      dismissed = entries.length;
-      return dismissEntriesInWrite(db, project, entries, {
-        bulk: true,
-        at,
-      });
+      await refreshAfterDismiss(ctx, ctx.project, [...controlIds]);
     });
 
     refresh(...COMPLIANCE_LOOP_ROUTES);

@@ -1,27 +1,28 @@
 "use server";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import type { ProjectWritePayload } from "@complyloop/db/repo/apply";
+import { getFindingById } from "@complyloop/db/repo/findings";
 
 import { aiAvailable } from "@/ai/ai-call";
 import { assertSourceLocatedFinding } from "@/ai/verified-fix";
-import { hasSafeDeterministicFix } from "@/core/remediation-lifecycle";
-import { parseEntityId } from "@/core/validate";
+import type { ActionState } from "@/core/actions/action-state";
+import { parseEntityId } from "@/core/actions/validate";
 
-import { type ActionState, runAction } from "../action-state";
+import { runAction } from "../action-state";
 import {
-  generatePatchCandidateOnCheckout,
+  generatePatchCandidateForFinding,
   persistPatchCandidate,
 } from "../assessment/ai-fix";
+import { getSession } from "../auth-session";
 import { assertAiRateLimit } from "../rate-limit";
 import {
   controlById,
-  getWorkspace,
   requireFinding,
+  requireProjectAccess,
 } from "../workspace/workspace";
-import { withFindingWrite } from "../workspace/workspace-write";
+import { withProjectTx } from "../workspace/workspace-write";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
-import { refresh, requireFindingContext } from "./shared";
+import { refresh } from "./shared";
 
 export async function generateAiFixAction(
   findingIdRaw: string,
@@ -32,11 +33,11 @@ export async function generateAiFixAction(
   void _formData;
   return runAction(async () => {
     const findingId = parseEntityId(findingIdRaw);
-    const preview = await getWorkspace();
+    // Light preview reads (single finding row + project guard) instead of the
+    // full tenancy load: checkout + AI run outside the write transaction below.
     const finding = await requireFinding(findingId);
-    const { project } = requireFindingContext(
-      preview,
-      finding,
+    const project = await requireProjectAccess(
+      finding.projectId,
       "project.remediate",
     );
     assertSourceLocatedFinding(finding);
@@ -50,26 +51,25 @@ export async function generateAiFixAction(
         "Connect a GitHub repository before generating a patch.",
       );
     }
-    if (!hasSafeDeterministicFix(finding) && preview.userId) {
-      await assertAiRateLimit(preview.userId);
-    }
+    // Rate-limit before any GitHub I/O: even a deterministic fix reads the
+    // file and re-scans it through `generatePatchCandidateForFinding`.
+    const sessionUserId = (await getSession())?.user?.id;
+    if (sessionUserId) await assertAiRateLimit(sessionUserId);
     const control = controlById(finding.controlId);
-    const candidate = await generatePatchCandidateOnCheckout(
+    // File read + AI + re-verify run outside any write lock (see P2-8 /
+    // remediation-verify.ts); the transaction below only persists the candidate.
+    const candidate = await generatePatchCandidateForFinding(
       project,
       finding,
       control,
       { aiAvailable: aiAvailable() },
     );
 
-    await withFindingWrite(
-      finding.id,
-      "project.remediate",
-      async ({ finding: liveFinding, db }) => {
-        const payload: ProjectWritePayload = {};
-        persistPatchCandidate(db, liveFinding, candidate, payload);
-        return payload;
-      },
-    );
+    await withProjectTx(finding.projectId, "project.remediate", async (ctx) => {
+      const live = await getFindingById(ctx.tx, finding.id);
+      if (!live) throw new PublicError("Unknown finding.");
+      await persistPatchCandidate(ctx.tx, live, candidate, ctx.actor);
+    });
     refresh(...COMPLIANCE_LOOP_ROUTES);
     return "Patch passed ComplyLoop and is ready for review.";
   });

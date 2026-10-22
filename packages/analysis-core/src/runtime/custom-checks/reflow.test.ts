@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
-  registerPlaywrightBrowserTeardown,
   withProbePage,
 } from "./playwright-page";
+import { registerPlaywrightBrowserTeardown } from "./playwright-test-teardown";
 import { isTwoDimensionalLayout } from "./reflow";
 import { REFLOW_VIEWPORT } from "./reflow";
 import { reflowViolation } from "./reflow";
@@ -70,6 +70,26 @@ describe("reflowViolation", () => {
             target: ["#wide"],
             html: '<div id="wide" style="width:800px">Wide content that cannot wrap.</div>',
           });
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "does not blame an over-wide element clipped by its section",
+    async () => {
+      await withProbePage(
+        `
+        <!doctype html><html lang="en"><body>
+          <section style="position:relative;overflow:hidden">
+            <div id="glow" style="position:absolute;top:0;right:-80px;width:384px;height:50px;background:#eee"></div>
+            <p>Hero copy that wraps normally.</p>
+          </section>
+        </body></html>
+      `,
+        async (page) => {
+          expect(await reflowViolation(page)).toBeNull();
         },
       );
     },

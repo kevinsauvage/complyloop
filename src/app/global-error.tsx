@@ -2,7 +2,7 @@
 
 import "./globals.css";
 
-import { ReportedError } from "@/components/reported-error";
+import { AppErrorCard } from "@/components/shell/app-error-card";
 
 export default function GlobalError({
   error,
@@ -15,13 +15,14 @@ export default function GlobalError({
     <html
       lang="en"
       data-scroll-behavior="smooth"
-      className="dark h-full antialiased"
+      className="h-full antialiased"
     >
       <body className="min-h-full bg-background p-6 text-foreground">
-        <ReportedError
+        <AppErrorCard
           error={error}
-          retry={retry}
-          tag="app_global_error_boundary"
+          onReset={retry}
+          reportTag="app_global_error_boundary"
+          title="The application could not be loaded"
           description="An unexpected error occurred while loading the application."
           className="mx-auto max-w-lg"
         />

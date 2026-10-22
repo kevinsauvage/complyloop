@@ -4,11 +4,13 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { buttonNameCheck } from "@complyloop/analysis-core/checks/families/names";
 import type {
   ProposedFix,
   SourceLocation,
 } from "@complyloop/analysis-core/contract/finding-types";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
+import { parseSource } from "@complyloop/analysis-core/parse";
 
 import { testFinding } from "@/test-fixtures/finding";
 
@@ -16,6 +18,7 @@ import type { ProjectRows } from "../workspace/project-rows";
 import {
   buildSuggestion,
   createFinding,
+  locateViolationInProject,
   mergeFix,
   reconcileControlFindings,
   sameInstance,
@@ -116,13 +119,14 @@ describe("createFinding analyzer evidence", () => {
 });
 
 describe("reconcileControlFindings", () => {
-  it("re-opens a dismissed finding when the same instance is re-detected", () => {
+  it("re-opens an accepted-risk dismissal on re-detection, keeping its first detection time", () => {
     const dismissed = testFinding({
       id: "f-dismissed",
       projectId: project.id,
       controlId: "ctl-img-alt",
       assessmentId: "a0",
       status: "dismissed",
+      detectedAt: "2026-01-01T00:00:00.000Z",
       dismissal: {
         reason: "accepted_risk",
         note: "Placeholder asset",
@@ -165,6 +169,12 @@ describe("reconcileControlFindings", () => {
       assessmentId: "a1",
       rootPath: "/tmp",
       rawForControl: [raw, { ...raw }],
+      openFindings: rows.findings.filter(
+        (finding) => finding.status === "open",
+      ),
+      dismissedFindings: rows.findings.filter(
+        (finding) => finding.status === "dismissed",
+      ),
       scopedFileSet: null,
       runtimeRan: false,
       onFindingResolved: () => {},
@@ -174,6 +184,8 @@ describe("reconcileControlFindings", () => {
     expect(dismissed.status).toBe("open");
     expect(dismissed.assessmentId).toBe("a1");
     expect(dismissed.dismissal).toBeUndefined();
+    // Not a new finding: a fresh date would revoke later requirement decisions.
+    expect(dismissed.detectedAt).toBe("2026-01-01T00:00:00.000Z");
     expect(
       rows.evidence.some(
         (record) =>
@@ -181,6 +193,131 @@ describe("reconcileControlFindings", () => {
           record.detail?.event === "re-detected",
       ),
     ).toBe(true);
+  });
+
+  it.each(["false_positive", "not_applicable"] as const)(
+    "keeps a %s dismissal while the same instance is still detected",
+    (reason) => {
+      const dismissed = testFinding({
+        id: "f-dismissed",
+        projectId: project.id,
+        controlId: "ctl-img-alt",
+        status: "dismissed",
+        dismissal: {
+          reason,
+          note: "Decorative",
+          at: "2026-01-02T00:00:00.000Z",
+        },
+        location: sourceLoc({
+          filePath: "Hero.tsx",
+          line: 1,
+          snippet: '<img src="/hero.png" />',
+        }),
+      });
+      const rows = emptyRows();
+      rows.findings.push(dismissed);
+      const moved = sourceLoc({
+        filePath: "Hero.tsx",
+        line: 4,
+        snippet: '<img src="/hero.png" />',
+      });
+
+      reconcileControlFindings({
+        rows,
+        project,
+        control: {
+          id: "ctl-img-alt",
+          frameworkId: "rgaa",
+          code: "RGAA 1.1",
+          secondaryCode: "WCAG 1.1.1",
+          title: "Images",
+          description: "Images have text alternatives",
+          checkId: "img-alt",
+        },
+        assessmentId: "a1",
+        rootPath: "/tmp",
+        rawForControl: [
+          {
+            checkId: "img-alt",
+            kind: "violation",
+            severity: "serious",
+            confidence: "high",
+            reason: "Missing alt",
+            location: moved,
+            fix: null,
+          },
+        ],
+        openFindings: [],
+        dismissedFindings: [dismissed],
+        scopedFileSet: null,
+        runtimeRan: false,
+        onFindingResolved: () => {},
+      });
+
+      expect(rows.findings).toHaveLength(1);
+      expect(dismissed.status).toBe("dismissed");
+      expect(dismissed.dismissal?.reason).toBe(reason);
+      // Tracks the instance as the code around it moves.
+      expect(dismissed.location).toEqual(moved);
+      expect(rows.evidence).toEqual([]);
+    },
+  );
+
+  it("updates kind/severity/confidence when an open finding is re-detected with a changed verdict", () => {
+    const existing = testFinding({
+      id: "f-open",
+      projectId: project.id,
+      controlId: "ctl-x",
+      assessmentId: "a0",
+      status: "open",
+      kind: "violation",
+      severity: "serious",
+      confidence: "high",
+      location: sourceLoc({
+        filePath: "A.tsx",
+        line: 3,
+        snippet: "<a>x</a>",
+      }),
+    });
+    const rows = emptyRows();
+    rows.findings.push(existing);
+    const raw = {
+      checkId: "non-text-contrast" as const,
+      kind: "warning" as const,
+      severity: "moderate" as const,
+      confidence: "medium" as const,
+      reason: "Chrome contrast",
+      location: sourceLoc({ filePath: "A.tsx", line: 3, snippet: "<a>x</a>" }),
+      fix: null,
+    };
+
+    reconcileControlFindings({
+      rows,
+      project,
+      control: {
+        id: "ctl-x",
+        frameworkId: "rgaa",
+        code: "RGAA 3.3",
+        secondaryCode: "WCAG 1.4.11",
+        title: "Non-text contrast",
+        description: "Controls remain visible",
+        checkId: "non-text-contrast",
+      },
+      assessmentId: "a1",
+      rootPath: "/tmp",
+      rawForControl: [raw],
+      openFindings: rows.findings.filter(
+        (finding) => finding.status === "open",
+      ),
+      dismissedFindings: [],
+      scopedFileSet: null,
+      runtimeRan: true,
+      onFindingResolved: () => {},
+    });
+
+    expect(existing.kind).toBe("warning");
+    expect(existing.severity).toBe("moderate");
+    expect(existing.confidence).toBe("medium");
   });
 
   it("keeps a dismissal when the re-detected snippet differs on the same line", () => {
@@ -233,6 +370,12 @@ describe("reconcileControlFindings", () => {
           fix: null,
         },
       ],
+      openFindings: rows.findings.filter(
+        (finding) => finding.status === "open",
+      ),
+      dismissedFindings: rows.findings.filter(
+        (finding) => finding.status === "dismissed",
+      ),
       scopedFileSet: null,
       runtimeRan: false,
       onFindingResolved: () => {},
@@ -242,6 +385,68 @@ describe("reconcileControlFindings", () => {
     expect(
       rows.findings.filter((finding) => finding.status === "open"),
     ).toHaveLength(1);
+  });
+
+  it("does not rewrite assessmentId when an open finding matches", () => {
+    const open = testFinding({
+      id: "f-open",
+      projectId: project.id,
+      controlId: "ctl-img-alt",
+      assessmentId: "a0",
+      status: "open",
+      location: sourceLoc({
+        filePath: "Hero.tsx",
+        line: 1,
+        snippet: '<img src="/hero.png" />',
+      }),
+    });
+    const rows = emptyRows();
+    rows.findings.push(open);
+    const raw = {
+      checkId: "img-alt" as const,
+      kind: "violation" as const,
+      severity: "serious" as const,
+      confidence: "high" as const,
+      reason: "Missing alt",
+      location: sourceLoc({
+        filePath: "Hero.tsx",
+        line: 1,
+        snippet: '<img src="/hero.png" />',
+      }),
+      fix: null,
+    };
+
+    reconcileControlFindings({
+      rows,
+      project,
+      control: {
+        id: "ctl-img-alt",
+        frameworkId: "rgaa",
+        code: "RGAA 1.1",
+        secondaryCode: "WCAG 1.1.1",
+        title: "Images",
+        description: "Images have text alternatives",
+        checkId: "img-alt",
+      },
+      assessmentId: "a1",
+      rootPath: "/tmp",
+      rawForControl: [raw],
+      openFindings: rows.findings.filter(
+        (finding) => finding.status === "open",
+      ),
+      dismissedFindings: rows.findings.filter(
+        (finding) => finding.status === "dismissed",
+      ),
+      scopedFileSet: null,
+      runtimeRan: false,
+      onFindingResolved: () => {},
+    });
+
+    // Still matched and open — but assessmentId stays write-once so steady
+    // runs are true no-ops for the persistence layer.
+    expect(open.status).toBe("open");
+    expect(open.assessmentId).toBe("a0");
+    expect(rows.findings).toHaveLength(1);
   });
 
   it("collapses duplicate DOM raw hits onto one open finding in a single pass", () => {
@@ -278,6 +483,12 @@ describe("reconcileControlFindings", () => {
       assessmentId: "a1",
       rootPath: "/tmp",
       rawForControl: [raw, { ...raw }, { ...raw }],
+      openFindings: rows.findings.filter(
+        (finding) => finding.status === "open",
+      ),
+      dismissedFindings: rows.findings.filter(
+        (finding) => finding.status === "dismissed",
+      ),
       scopedFileSet: null,
       runtimeRan: true,
       onFindingResolved: () => {},
@@ -328,6 +539,68 @@ describe("shouldResolveOpenFinding", () => {
         runtimeRan: true,
       }),
     ).toBe(true);
+  });
+
+  it("lets an untied audit close findings it reported for the same origin only", () => {
+    expect(
+      shouldResolveOpenFinding({
+        finding: domFinding,
+        scopedFileSet: null,
+        runtimeRan: false,
+        untiedRuntimeOrigin: "https://preview.example",
+      }),
+    ).toBe(true);
+    expect(
+      shouldResolveOpenFinding({
+        finding: domFinding,
+        scopedFileSet: null,
+        runtimeRan: false,
+        untiedRuntimeOrigin: "https://other.example",
+      }),
+    ).toBe(false);
+  });
+
+  it("never resolves a finding on a route the runtime scan failed", () => {
+    // Partial run: `/` rendered, `/checkout` timed out. The failed page proves
+    // nothing about the finding it used to report.
+    expect(
+      shouldResolveOpenFinding({
+        finding: testFinding({
+          location: {
+            kind: "dom",
+            url: "https://preview.example/checkout",
+            selector: "button",
+            snippet: "<button></button>",
+          },
+        }),
+        scopedFileSet: null,
+        runtimeRan: false,
+        runtimeScannedRoutes: new Set(["/"]),
+        runtimeFailedRoutes: new Set(["/checkout"]),
+      }),
+    ).toBe(false);
+    // The page that did render still resolves normally.
+    expect(
+      shouldResolveOpenFinding({
+        finding: domFinding,
+        scopedFileSet: null,
+        runtimeRan: false,
+        runtimeScannedRoutes: new Set(["/"]),
+        runtimeFailedRoutes: new Set(["/checkout"]),
+      }),
+    ).toBe(true);
+  });
+
+  it("never resolves across origins on an untied audit", () => {
+    expect(
+      shouldResolveOpenFinding({
+        finding: domFinding,
+        scopedFileSet: null,
+        runtimeRan: false,
+        runtimeScannedRoutes: new Set(["/"]),
+        untiedRuntimeOrigin: "https://other.example",
+      }),
+    ).toBe(false);
   });
 
   it("keeps a source finding outside the scoped file set", () => {
@@ -456,6 +729,48 @@ describe("sameInstance", () => {
       sameInstance(
         { location: sourceLoc({ filePath: "A.tsx", line: 1, snippet: "x" }) },
         { location: sourceLoc({ filePath: "B.tsx", line: 1, snippet: "x" }) },
+      ),
+    ).toBe(false);
+  });
+
+  it("matches across formatting-only changes (reflow, indentation, CRLF)", () => {
+    expect(
+      sameInstance(
+        {
+          location: sourceLoc({
+            filePath: "App.tsx",
+            line: 4,
+            snippet: '<img src="x" />',
+          }),
+        },
+        {
+          location: sourceLoc({
+            filePath: "App.tsx",
+            line: 20,
+            snippet: '<img\r\n    src="x"\r\n  />',
+          }),
+        },
+      ),
+    ).toBe(true);
+  });
+
+  it("stays case-sensitive on normalized snippets", () => {
+    expect(
+      sameInstance(
+        {
+          location: sourceLoc({
+            filePath: "App.tsx",
+            line: 4,
+            snippet: '<img src="x" />',
+          }),
+        },
+        {
+          location: sourceLoc({
+            filePath: "App.tsx",
+            line: 4,
+            snippet: '<IMG src="x" />',
+          }),
+        },
       ),
     ).toBe(false);
   });
@@ -608,5 +923,31 @@ describe("buildSuggestion", () => {
     expect(suggestion?.confidence).toBe("high");
     expect(suggestion?.description.length).toBeGreaterThan(0);
     expect(suggestion?.proposedSnippet).toContain("alt");
+  });
+});
+
+describe("locateViolationInProject", () => {
+  it("re-locates a stored span that drifted after the finding was recorded", () => {
+    const filePath = "Hero.tsx";
+    const original = `export const Hero = () => <button></button>;\n`;
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "locate-"));
+    tempDirs.push(root);
+
+    const [raw] = buttonNameCheck.run(parseSource(filePath, original));
+    if (!raw) throw new Error("expected a button-name finding");
+
+    // Prepend lines: the stored span offsets no longer point at the element.
+    fs.writeFileSync(path.join(root, filePath), `/* banner */\n\n${original}`);
+    const match = locateViolationInProject(root, {
+      checkId: raw.checkId,
+      location: raw.location,
+    });
+
+    expect(match?.location.kind).toBe("source");
+    if (match?.location.kind !== "source" || raw.location.kind !== "source") {
+      throw new Error("expected source locations");
+    }
+    expect(match.location.span.start).not.toBe(raw.location.span.start);
+    expect(mergeFix(raw.fix, match.fix)).toBeTruthy();
   });
 });

@@ -1,4 +1,5 @@
 import "@/test-fixtures/register-action-workspace-mock";
+import "@/test-fixtures/register-repo-mock";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -7,9 +8,9 @@ import type { WorkspaceSlice } from "@complyloop/db/types";
 
 import {
   actionWorkspaceMocks,
-  clearProjectWritePayloads,
-  mockProjectWrite,
-  projectWritePayload,
+  clearRecordedWrites,
+  mockProjectTx,
+  recordedWrites,
 } from "@/test-fixtures/action-workspace-mocks";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
@@ -18,11 +19,21 @@ import { testWorkspace } from "@/test-fixtures/workspace";
 
 import { createPullRequestAction } from "./pr";
 
-const { getWorkspace, withProjectWrite } = actionWorkspaceMocks;
+const { getWorkspace, withProjectTx } = actionWorkspaceMocks;
 const preparePullRequest = vi.hoisted(() => vi.fn());
 const getDrizzle = vi.hoisted(() => vi.fn());
 const listEvidenceForFinding = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
+const assertPrRateLimit = vi.hoisted(() => vi.fn());
+const getSession = vi.hoisted(() => vi.fn());
+
+vi.mock("../auth-session", () => ({
+  getSession: (...args: unknown[]) => getSession(...args),
+}));
+
+vi.mock("../rate-limit", () => ({
+  assertPrRateLimit: (...args: unknown[]) => assertPrRateLimit(...args),
+}));
 
 vi.mock("../github/pr", () => ({
   preparePullRequest: (...args: unknown[]) => preparePullRequest(...args),
@@ -80,12 +91,13 @@ function workspaceFor(
 }
 
 afterEach(() => {
-  clearProjectWritePayloads();
+  clearRecordedWrites();
   vi.clearAllMocks();
 });
 
 beforeEach(() => {
   getDrizzle.mockResolvedValue({});
+  getSession.mockResolvedValue({ user: { id: "user-1" } });
   listEvidenceForFinding.mockResolvedValue([
     {
       kind: "ai_patch_ready",
@@ -141,9 +153,10 @@ describe("createPullRequestAction", () => {
   it("records evidence when a PR is prepared", async () => {
     const workspace = workspaceFor("member");
     getWorkspace.mockResolvedValue(workspace);
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
     preparePullRequest.mockResolvedValue({
       branch: "fix/img-alt",
+      base: "main",
       prUrl: "https://github.com/acme/shop/pull/1",
       title: "fix: alt text",
       message: "Opened pull request.",
@@ -164,8 +177,9 @@ describe("createPullRequestAction", () => {
       message: "Opened pull request.",
       prUrl: "https://github.com/acme/shop/pull/1",
     });
+    expect(assertPrRateLimit).toHaveBeenCalledWith("user-1");
     expect(
-      projectWritePayload()?.evidence?.some(
+      recordedWrites()?.evidence?.some(
         (row) => row.kind === "pull_request_prepared",
       ),
     ).toBe(true);
@@ -179,9 +193,10 @@ describe("createPullRequestAction", () => {
       status: "suggested",
     };
     getWorkspace.mockResolvedValue(workspace);
-    mockProjectWrite(workspace);
+    mockProjectTx(workspace);
     preparePullRequest.mockResolvedValue({
       branch: "fix/img-alt",
+      base: "main",
       prUrl: "https://github.com/acme/shop/pull/1",
       title: "fix: alt text",
       message: "Opened draft pull request.",
@@ -197,12 +212,12 @@ describe("createPullRequestAction", () => {
       new FormData(),
     );
 
-    expect(projectWritePayload()?.remediations?.[0]?.status).toBe("approved");
-    expect(projectWritePayload()?.remediations?.[0]?.approvalAction).toBe(
+    expect(recordedWrites()?.remediations?.[0]?.status).toBe("approved");
+    expect(recordedWrites()?.remediations?.[0]?.approvalAction).toBe(
       "create_draft_pull_request",
     );
     expect(
-      projectWritePayload()?.evidence?.some(
+      recordedWrites()?.evidence?.some(
         (row) => row.kind === "remediation_approved",
       ),
     ).toBe(true);
@@ -249,12 +264,13 @@ describe("createPullRequestAction", () => {
     getWorkspace.mockResolvedValue(workspace);
     preparePullRequest.mockResolvedValue({
       branch: "fix/img-alt",
+      base: "main",
       prUrl: "https://github.com/acme/shop/pull/1",
       title: "fix: alt text",
       message: "Opened pull request.",
     });
-    withProjectWrite.mockRejectedValueOnce(new Error("db write failed"));
-    mockProjectWrite(workspace);
+    withProjectTx.mockRejectedValueOnce(new Error("db write failed"));
+    mockProjectTx(workspace);
 
     const first = await createPullRequestAction(
       "f1",
@@ -273,7 +289,7 @@ describe("createPullRequestAction", () => {
       prUrl: "https://github.com/acme/shop/pull/1",
     });
     expect(
-      projectWritePayload()?.evidence?.some(
+      recordedWrites()?.evidence?.some(
         (row) => row.kind === "pull_request_prepared",
       ),
     ).toBe(true);

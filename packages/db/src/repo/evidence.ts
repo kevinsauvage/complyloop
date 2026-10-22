@@ -1,22 +1,23 @@
 import type { SQL } from "drizzle-orm";
 import {
   and,
-  asc,
   count,
   desc,
   eq,
   gte,
   ilike,
-  inArray,
   isNull,
   lte,
   or,
+  sql,
 } from "drizzle-orm";
 
-import type {
-  EvidenceKind,
-  EvidenceRecord,
+import {
+  EVIDENCE_KINDS,
+  type EvidenceKind,
+  type EvidenceRecord,
 } from "@complyloop/analysis-core/contract/entities";
+import { isOneOf } from "@complyloop/analysis-core/contract/literal-sets";
 import { DEFAULT_PAGE_SIZE } from "@complyloop/analysis-core/contract/project-types";
 
 import type { DrizzleDb } from "../postgres.ts";
@@ -32,7 +33,13 @@ export const WORKSPACE_EVIDENCE_LIMIT = 100;
  */
 export const EVIDENCE_EXPORT_LIMIT = 5_000;
 
-/** How many rows an export should take, and whether the table was larger. */
+/**
+ * Safety cap on per-finding evidence reads (finding detail timeline). Real
+ * timelines hold dozens of rows (decisions, scan refs, AI suggestions); the
+ * cap only bounds pathological growth. Served by `evidence_finding_at_idx`.
+ */
+export const FINDING_EVIDENCE_LIMIT = 500;
+
 export function evidenceExportWindow(
   total: number,
   limit: number,
@@ -63,6 +70,37 @@ export async function insertEvidenceRecords(
   await tx.insert(evidence).values(records.map(evidenceToRow));
 }
 
+/**
+ * Tenant erasure: deletes every evidence row for an org's projects. The
+ * append-only trigger forbids DELETE unless the transaction-scoped
+ * `complyloop.allow_evidence_erase` flag is set — this helper is the only
+ * writer allowed to set it (SET LOCAL, so the bypass dies with the
+ * transaction). Callers must be owner-gated (org deletion); project
+ * disconnect and all other paths keep audit retention.
+ */
+export async function deleteEvidenceForOrg(
+  tx: DrizzleDb,
+  orgId: string,
+): Promise<number> {
+  await tx.execute(
+    sql`SELECT set_config('complyloop.allow_evidence_erase', 'on', true)`,
+  );
+  // A disconnected project's row is gone but its evidence is retained, so the
+  // org link survives only as `detail.orgId` on its connect/disconnect rows.
+  const deleted = await tx.execute(sql`
+    DELETE FROM evidence
+    WHERE project_id IN (SELECT id FROM projects WHERE org_id = ${orgId})
+       OR project_id IN (
+         SELECT project_id FROM evidence
+         WHERE kind IN ('project_connected', 'project_disconnected')
+           AND detail->>'orgId' = ${orgId}
+           AND project_id IS NOT NULL
+       )
+    RETURNING id
+  `);
+  return Array.isArray(deleted) ? deleted.length : 0;
+}
+
 /** Text/date/author narrowing for the evidence page. */
 export interface EvidenceFilter {
   kind?: EvidenceKind;
@@ -81,7 +119,7 @@ export function escapeLikeLiteral(value: string): string {
   return value.replace(/[\\%_]/g, (match) => `\\${match}`);
 }
 
-/** Pure WHERE-clause builder — unit-testable without a database. */
+/** Pure — unit-testable without a database. */
 export function evidenceFilterConditions(
   projectId: string,
   filter: EvidenceFilter = {},
@@ -147,7 +185,9 @@ export async function countEvidenceKindsForProject(
     .groupBy(evidence.kind);
   const counts = new Map<EvidenceKind, number>();
   for (const row of rows) {
-    counts.set(row.kind as EvidenceKind, Number(row.value ?? 0));
+    if (isOneOf(EVIDENCE_KINDS, row.kind)) {
+      counts.set(row.kind, Number(row.value ?? 0));
+    }
   }
   return counts;
 }
@@ -164,7 +204,7 @@ export async function listEvidencePageForProject(
     .select()
     .from(evidence)
     .where(evidenceProjectFilter(projectId, filter ?? {}))
-    .orderBy(desc(evidence.at))
+    .orderBy(desc(evidence.at), desc(evidence.id))
     .limit(pageSize)
     .offset(sqlPageOffset(page, pageSize));
   return rows.map(rowToEvidence);
@@ -192,7 +232,7 @@ export async function listEvidenceForExport(
     .select()
     .from(evidence)
     .where(eq(evidence.projectId, projectId))
-    .orderBy(desc(evidence.at))
+    .orderBy(desc(evidence.at), desc(evidence.id))
     .limit(take);
   return {
     records: rows.reverse().map(rowToEvidence),
@@ -202,28 +242,57 @@ export async function listEvidenceForExport(
   };
 }
 
+export interface OrgEvidenceExport {
+  /** Oldest-first across the org (each project's window is oldest-first). */
+  records: EvidenceRecord[];
+  total: number;
+  limitPerProject: number;
+  /** Project ids whose evidence exceeded the per-project cap. */
+  truncatedProjectIds: string[];
+}
+
+/**
+ * Bounded evidence for org exports: the per-project newest-`limit` window
+ * (same semantics as the single-project export), merged oldest-first. The
+ * previous unlimited loader could materialize hundreds of MB for long-lived
+ * orgs; callers surface `truncatedProjectIds` in the export payload.
+ */
+export async function listEvidenceForExportForProjects(
+  drizzle: DrizzleDb,
+  projectIds: readonly string[],
+  limitPerProject: number = EVIDENCE_EXPORT_LIMIT,
+): Promise<OrgEvidenceExport> {
+  const pages = await Promise.all(
+    projectIds.map(async (projectId) => ({
+      projectId,
+      page: await listEvidenceForExport(drizzle, projectId, limitPerProject),
+    })),
+  );
+  const records = pages
+    .flatMap(({ page }) => page.records)
+    .sort((a, b) =>
+      a.at < b.at ? -1 : a.at > b.at ? 1 : a.id.localeCompare(b.id),
+    );
+  return {
+    records,
+    total: pages.reduce((sum, { page }) => sum + page.total, 0),
+    limitPerProject,
+    truncatedProjectIds: pages
+      .filter(({ page }) => page.truncated)
+      .map(({ projectId }) => projectId),
+  };
+}
+
 export async function listEvidenceForFinding(
   drizzle: DrizzleDb,
   findingId: string,
+  limit: number = FINDING_EVIDENCE_LIMIT,
 ): Promise<EvidenceRecord[]> {
   const rows = await drizzle
     .select()
     .from(evidence)
     .where(eq(evidence.findingId, findingId))
-    .orderBy(desc(evidence.at));
-  return rows.map(rowToEvidence);
-}
-
-/** All evidence for many projects, oldest-first (org export). */
-export async function listAllEvidenceForProjects(
-  drizzle: DrizzleDb,
-  projectIds: readonly string[],
-): Promise<EvidenceRecord[]> {
-  if (projectIds.length === 0) return [];
-  const rows = await drizzle
-    .select()
-    .from(evidence)
-    .where(inArray(evidence.projectId, [...projectIds]))
-    .orderBy(asc(evidence.at));
+    .orderBy(desc(evidence.at), desc(evidence.id))
+    .limit(limit);
   return rows.map(rowToEvidence);
 }

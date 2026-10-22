@@ -1,85 +1,51 @@
 import { describe, expect, it } from "vitest";
 
-import { implicitRoles, isFocusable } from "./a11y-model";
-import { type JsxTagNode, parseSource, visitJsxTags } from "./parse";
+import { isNativeInteractive } from "./a11y-model.ts";
+import { type JsxTagNode, parseSource, visitJsxTags } from "./parse.ts";
 
-function firstTag(jsx: string): JsxTagNode {
-  const parsed = parseSource("test.tsx", jsx);
+function firstTag(code: string): JsxTagNode {
+  const source = parseSource("test.tsx", `const A = () => (${code});`);
   let found: JsxTagNode | undefined;
-  visitJsxTags(parsed.sourceFile, (node) => {
-    if (!found) found = node;
+  visitJsxTags(source.sourceFile, (node) => {
+    found ??= node;
   });
-  if (!found) throw new Error("expected a JSX tag");
+  if (!found) throw new Error(`no JSX tag in ${code}`);
   return found;
 }
 
-describe("isFocusable", () => {
-  it("treats native widgets as focusable", () => {
-    expect(isFocusable(firstTag(`const A = () => <button>x</button>;`))).toBe(
-      true,
-    );
-    expect(isFocusable(firstTag(`const A = () => <a href="/x">x</a>;`))).toBe(
-      true,
-    );
-    expect(isFocusable(firstTag(`const A = () => <input />;`))).toBe(true);
-    expect(isFocusable(firstTag(`const A = () => <select />;`))).toBe(true);
-    expect(isFocusable(firstTag(`const A = () => <textarea />;`))).toBe(true);
-    expect(isFocusable(firstTag(`const A = () => <summary>x</summary>;`))).toBe(
-      true,
-    );
+function isInteractive(code: string): boolean {
+  return isNativeInteractive(firstTag(code));
+}
+
+describe("isNativeInteractive", () => {
+  it("recognizes native widgets", () => {
+    expect(isInteractive("<button type='button'>OK</button>")).toBe(true);
+    expect(isInteractive("<a href='/x'>link</a>")).toBe(true);
+    expect(isInteractive("<input type='text' />")).toBe(true);
+    expect(isInteractive("<input list='cities' />")).toBe(true);
+    expect(isInteractive("<select />")).toBe(true);
+    expect(isInteractive("<select multiple />")).toBe(true);
+    expect(isInteractive("<textarea />")).toBe(true);
   });
 
-  it("does not treat a link without href as focusable", () => {
-    expect(isFocusable(firstTag(`const A = () => <a>x</a>;`))).toBe(false);
+  it("rejects anchors without href and non-widgets", () => {
+    expect(isInteractive("<a>no href</a>")).toBe(false);
+    expect(isInteractive("<div>text</div>")).toBe(false);
+    expect(isInteractive("<Foo />")).toBe(false);
+    expect(isInteractive("<div {...props} />")).toBe(false);
   });
 
-  it("does not treat disabled widgets as focusable", () => {
-    expect(
-      isFocusable(firstTag(`const A = () => <button disabled>x</button>;`)),
-    ).toBe(false);
-    expect(
-      isFocusable(firstTag(`const A = () => <input aria-disabled="true" />;`)),
-    ).toBe(false);
+  it("honors size constraints on select", () => {
+    expect(isInteractive("<select size={2} />")).toBe(true);
+    expect(isInteractive("<select size={1} />")).toBe(true);
   });
 
-  it("treats explicit widget roles and contentEditable as focusable", () => {
-    expect(
-      isFocusable(firstTag(`const A = () => <div role="button">x</div>;`)),
-    ).toBe(true);
-    expect(
-      isFocusable(firstTag(`const A = () => <div contentEditable>x</div>;`)),
-    ).toBe(true);
-  });
-
-  it("treats media widgets and tabindex >= 0 as focusable", () => {
-    expect(isFocusable(firstTag(`const A = () => <video />;`))).toBe(true);
-    expect(isFocusable(firstTag(`const A = () => <audio />;`))).toBe(true);
-    expect(
-      isFocusable(firstTag(`const A = () => <div tabIndex={0}>x</div>;`)),
-    ).toBe(true);
-    expect(
-      isFocusable(firstTag(`const A = () => <div tabIndex={-1}>x</div>;`)),
-    ).toBe(false);
-  });
-
-  it("does not treat generic elements as focusable", () => {
-    expect(isFocusable(firstTag(`const A = () => <div>x</div>;`))).toBe(false);
-    expect(isFocusable(firstTag(`const A = () => <span>x</span>;`))).toBe(
-      false,
-    );
-  });
-});
-
-describe("implicitRoles", () => {
-  it("reads implicit roles from aria-query element tables", () => {
-    expect(
-      implicitRoles(firstTag(`const A = () => <button>x</button>;`)),
-    ).toContain("button");
-    expect(
-      implicitRoles(firstTag(`const A = () => <a href="/x">x</a>;`)),
-    ).toContain("link");
-    expect(
-      implicitRoles(firstTag(`const A = () => <div>x</div>;`)),
-    ).not.toContain("button");
+  it("maps JSX attribute names and boolean initializers", () => {
+    expect(isInteractive("<div tabIndex={0} />")).toBe(false);
+    expect(isInteractive("<div contentEditable />")).toBe(false);
+    expect(isInteractive("<video autoPlay src='/x.mp4' />")).toBe(true);
+    expect(isInteractive("<video src='/x.mp4' />")).toBe(true);
+    expect(isInteractive("<audio src='/x.mp3' />")).toBe(true);
+    expect(isInteractive("<input disabled={true} />")).toBe(true);
   });
 });

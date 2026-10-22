@@ -12,6 +12,7 @@ node_modules/
 
 # testing
 /coverage
+/.vitest
 /e2e/.auth/
 /test-results/
 /playwright-report/

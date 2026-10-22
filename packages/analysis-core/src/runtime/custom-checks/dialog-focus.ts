@@ -36,7 +36,10 @@ export async function dialogFocusViolations(
         const open =
           e.tagName === "DIALOG"
             ? (e as unknown as { open: boolean }).open
-            : !e.hidden && e.getAttribute("aria-hidden") !== "true";
+            : !e.hidden &&
+              e.getAttribute("aria-hidden") !== "true" &&
+              e.getClientRects().length > 0 &&
+              getComputedStyle(e).visibility !== "hidden";
         if (open) {
           const sel = e.id
             ? `#${e.id}`

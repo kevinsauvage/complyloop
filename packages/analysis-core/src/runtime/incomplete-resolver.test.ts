@@ -1,0 +1,259 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  chromiumExecutableAvailable,
+  PLAYWRIGHT_TEST_TIMEOUT_MS,
+  withProbePage,
+} from "./custom-checks/playwright-page";
+import { registerPlaywrightBrowserTeardown } from "./custom-checks/playwright-test-teardown";
+import type { AxeViolationLike } from "./findings";
+import { resolveIncompleteResults } from "./incomplete-resolver";
+
+registerPlaywrightBrowserTeardown();
+
+function incompleteFor(id: string, ...targets: string[]): AxeViolationLike {
+  return {
+    id,
+    impact: null,
+    description: "d",
+    help: "h",
+    nodes: targets.map((target) => ({ html: "<x>", target: [target] })),
+  };
+}
+
+describe("resolveIncompleteResults: color-contrast", () => {
+  it.skipIf(!chromiumExecutableAvailable())(
+    "drops text that clears the ratio over a gradient axe could not read",
+    async () => {
+      await withProbePage(
+        `<!doctype html><body style="margin:0">
+          <div style="background:linear-gradient(90deg,#0b1020,#1b2a4a);padding:30px">
+            <p id="ok" style="margin:0;color:#ffffff;font:20px sans-serif">Readable over a dark gradient</p>
+          </div></body>`,
+        async (page) => {
+          const result = await resolveIncompleteResults(page, [
+            incompleteFor("color-contrast", "#ok"),
+          ]);
+          expect(result.incomplete).toEqual([]);
+          expect(result.confirmed).toEqual([]);
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "confirms a failure when the text is too close to the gradient behind it",
+    async () => {
+      await withProbePage(
+        `<!doctype html><body style="margin:0">
+          <div style="background:linear-gradient(90deg,#e8e8e8,#f4f4f4);padding:30px">
+            <p id="bad" style="margin:0;color:#d0d0d0;font:20px sans-serif">Pale on pale</p>
+          </div></body>`,
+        async (page) => {
+          const result = await resolveIncompleteResults(page, [
+            incompleteFor("color-contrast", "#bad"),
+          ]);
+          expect(result.incomplete).toEqual([]);
+          expect(result.confirmed).toHaveLength(1);
+          expect(result.confirmed[0]?.impact).toBe("serious");
+          expect(result.confirmed[0]?.nodes[0]?.failureSummary).toMatch(
+            /rendered background/,
+          );
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "does not stretch the sample over visually-hidden text inside the element",
+    async () => {
+      await withProbePage(
+        `<!doctype html><body style="margin:0;background:#0b1020;color:#cfd2dc;font:16px sans-serif">
+          <p style="margin:40px">Neighbour text in the same colour as the link, then
+            <a id="l" href="#x" style="color:#cfd2dc;text-decoration:underline">Policy<span style="position:absolute;left:0;top:0;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">(opens in a new tab)</span></a>.
+          </p></body>`,
+        async (page) => {
+          const result = await resolveIncompleteResults(page, [
+            incompleteFor("color-contrast", "#l"),
+          ]);
+          // Only the link's own glyph area is sampled: dark page, light text.
+          expect(result.incomplete).toEqual([]);
+          expect(result.confirmed).toEqual([]);
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "ignores the backdrop that shows in a pill's rounded corners",
+    async () => {
+      await withProbePage(
+        `<!doctype html><body style="margin:0;background:#ffffff">
+          <span id="pill" style="display:inline-block;margin:30px;padding:10px 40px;border-radius:9999px;background:#1b1b1b;color:#ffffff;font:14px sans-serif">New</span>
+          </body>`,
+        async (page) => {
+          // The white page behind the corners is invisible to the text: only the
+          // dark pill behind the glyphs counts.
+          const result = await resolveIncompleteResults(page, [
+            incompleteFor("color-contrast", "#pill"),
+          ]);
+          expect(result.incomplete).toEqual([]);
+          expect(result.confirmed).toEqual([]);
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "keeps text that passes on most of the background but fails on part of it",
+    async () => {
+      await withProbePage(
+        `<!doctype html><body style="margin:0">
+          <div style="background:linear-gradient(90deg,#000000 0 70%,#808080 70% 100%);padding:30px;width:700px;box-sizing:border-box">
+            <p id="mixed" style="margin:0;color:#ffffff;font:20px sans-serif;text-align:justify;text-align-last:justify">White over mostly black, a gray corner</p>
+          </div></body>`,
+        async (page) => {
+          const result = await resolveIncompleteResults(page, [
+            incompleteFor("color-contrast", "#mixed"),
+          ]);
+          expect(result.confirmed).toEqual([]);
+          expect(result.incomplete[0]?.nodes).toHaveLength(1);
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "uses the relaxed 3:1 ratio for large text",
+    async () => {
+      await withProbePage(
+        `<!doctype html><body style="margin:0;background:#ffffff">
+          <h1 id="big" style="margin:20px;color:#8a8a8a;font:700 40px sans-serif">Large heading</h1>
+          </body>`,
+        async (page) => {
+          const result = await resolveIncompleteResults(page, [
+            incompleteFor("color-contrast", "#big"),
+          ]);
+          // #8a8a8a on white is ~3.4:1: fails 4.5 but passes the 3:1 large-text bar.
+          expect(result.incomplete).toEqual([]);
+          expect(result.confirmed).toEqual([]);
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "measures an element far below the fold on a smooth-scrolling page",
+    async () => {
+      await withProbePage(
+        `<!doctype html><html style="scroll-behavior:smooth"><body style="margin:0;background:#0b1020">
+          <div style="height:3000px"></div>
+          <p id="far" style="margin:0;color:#ffffff;font:20px sans-serif">Far below the fold</p>
+          <div style="height:800px"></div></body></html>`,
+        async (page) => {
+          const result = await resolveIncompleteResults(page, [
+            incompleteFor("color-contrast", "#far"),
+          ]);
+          expect(result.incomplete).toEqual([]);
+          expect(result.confirmed).toEqual([]);
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "reports that measuring touched the page, but not for a heading-only pass",
+    async () => {
+      await withProbePage(
+        `<!doctype html><body style="background:#0b1020"><h1 id="a">T</h1><p id="p" style="color:#fff">Hello there</p></body>`,
+        async (page) => {
+          const contrast = await resolveIncompleteResults(page, [
+            incompleteFor("color-contrast", "#p"),
+          ]);
+          expect(contrast.touchedPage).toBe(true);
+          const heading = await resolveIncompleteResults(page, [
+            incompleteFor("heading-order", "#a"),
+          ]);
+          expect(heading.touchedPage).toBe(false);
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "keeps a node it cannot locate",
+    async () => {
+      await withProbePage(
+        `<!doctype html><body><p>x</p></body>`,
+        async (page) => {
+          const result = await resolveIncompleteResults(page, [
+            incompleteFor("color-contrast", "#missing"),
+          ]);
+          expect(result.incomplete[0]?.nodes).toHaveLength(1);
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+});
+
+describe("resolveIncompleteResults: heading-order", () => {
+  it.skipIf(!chromiumExecutableAvailable())(
+    "drops headings that follow the previous level and confirms a real skip",
+    async () => {
+      await withProbePage(
+        `<!doctype html><body>
+          <h1 id="a">Title</h1><h2 id="b">Section</h2><h3 id="c">Sub</h3>
+          <h2 id="d">Next</h2><h4 id="e">Skipped</h4></body>`,
+        async (page) => {
+          const result = await resolveIncompleteResults(page, [
+            incompleteFor("heading-order", "#a", "#b", "#c", "#d", "#e"),
+          ]);
+          expect(result.incomplete).toEqual([]);
+          expect(result.confirmed).toHaveLength(1);
+          expect(result.confirmed[0]?.nodes.map((n) => n.target[0])).toEqual([
+            "#e",
+          ]);
+          expect(result.confirmed[0]?.impact).toBe("moderate");
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it.skipIf(!chromiumExecutableAvailable())(
+    "ignores hidden headings when judging the sequence",
+    async () => {
+      await withProbePage(
+        `<!doctype html><body>
+          <h1 id="a">Title</h1><h4 hidden>Hidden</h4><h2 id="b">Section</h2></body>`,
+        async (page) => {
+          const result = await resolveIncompleteResults(page, [
+            incompleteFor("heading-order", "#a", "#b"),
+          ]);
+          expect(result.incomplete).toEqual([]);
+          expect(result.confirmed).toEqual([]);
+        },
+      );
+    },
+    PLAYWRIGHT_TEST_TIMEOUT_MS,
+  );
+
+  it("passes other rules through untouched", async () => {
+    const rule = incompleteFor("aria-valid-attr-value", "#x");
+    const result = await resolveIncompleteResults({} as never, [rule]);
+    expect(result).toEqual({
+      incomplete: [rule],
+      confirmed: [],
+      touchedPage: false,
+    });
+  });
+});

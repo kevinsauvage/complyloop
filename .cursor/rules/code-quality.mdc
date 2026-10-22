@@ -22,7 +22,7 @@ alwaysApply: true
 ## Hygiene
 
 - No dead code, commented-out code, unused exports, or leftover `console.log`.
-- Comments explain *why* (intent, trade-offs, constraints), never *what* the code does. No narration comments.
+- Avoid comments; add one only when strictly necessary, to explain *why* (non-obvious constraint, workaround, trade-off), never *what* the code does. No narration comments.
 - Fail loud: never swallow errors in empty `catch` blocks; either handle meaningfully or rethrow with context.
 - No `any` (ESLint enforces this); no `as` casts to silence the compiler — fix the types instead.
 

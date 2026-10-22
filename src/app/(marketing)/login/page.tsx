@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Route } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { isGitHubAuthConfigured } from "@/auth";
-import { SignInWithGitHubButton } from "@/components/sign-in-with-github-button";
+import { isProductionRuntime } from "@/auth-secret";
+import { SignInWithGitHubButton } from "@/components/shell/sign-in-with-github-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,25 +15,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getSession } from "@/server/auth-session";
+import { isGitHubAppConfigured } from "@/server/github/github-connector";
+
+import { authErrorCopy } from "./auth-error-copy";
 
 export const metadata: Metadata = {
   title: "Sign in",
   description:
     "Sign in to ComplyLoop with GitHub to access your compliance dashboard.",
 };
-
-const AUTH_ERROR_COPY: Record<string, string> = {
-  AccessDenied:
-    "You denied GitHub access. Retry and approve access to continue.",
-  OAuthAccountNotLinked:
-    "This GitHub account is already linked to another sign-in method. Use the original method or contact your administrator.",
-  Verification:
-    "The sign-in attempt expired or was already used. Please try again.",
-  Configuration: "Sign-in is misconfigured — contact your administrator.",
-};
-
-const FALLBACK_AUTH_ERROR_COPY =
-  "Sign-in with GitHub failed. Please try again — if it keeps failing, contact your administrator.";
 
 export default async function LoginPage({
   searchParams,
@@ -48,27 +39,29 @@ export default async function LoginPage({
     params.callbackUrl.startsWith("/") &&
     !params.callbackUrl.startsWith("//")
       ? params.callbackUrl
-      : "/dashboard";
-  const authError =
-    typeof params.error === "string" && params.error.length > 0
-      ? params.error
-      : null;
+      : "/projects";
+  const authErrorCopyText = authErrorCopy(
+    typeof params.error === "string" ? params.error : null,
+  );
 
   if (isGitHubAuthConfigured()) {
     const session = await getSession();
     if (session?.user) {
-      redirect(callbackUrl);
+      redirect(callbackUrl as Route);
     }
   }
 
-  return (
-    <div className="relative flex min-h-[calc(100vh-8rem)] items-center justify-center px-4 py-16 sm:px-6">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_0%,color-mix(in_oklch,var(--signal)_18%,transparent),transparent)]"
-      />
+  // A fresh sign-in with missing prod App config throws inside the jwt
+  // callback and never reaches the Configuration copy above — surface it
+  // proactively instead of letting the button explode.
+  const showConfigurationError =
+    isProductionRuntime() &&
+    isGitHubAuthConfigured() &&
+    !isGitHubAppConfigured();
 
-      <Card className="relative w-full max-w-md border-border/80 bg-card/90 card-sheen backdrop-blur-sm">
+  return (
+    <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center px-4 py-16 sm:px-6">
+      <Card className="w-full max-w-md border-border/80 shadow-none">
         <CardHeader className="text-center">
           <CardTitle level={1} className="text-2xl">
             Sign in to ComplyLoop
@@ -79,10 +72,15 @@ export default async function LoginPage({
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          {authError ? (
+          {authErrorCopyText ? (
+            <Alert variant="destructive">
+              <AlertDescription>{authErrorCopyText}</AlertDescription>
+            </Alert>
+          ) : null}
+          {showConfigurationError ? (
             <Alert variant="destructive">
               <AlertDescription>
-                {AUTH_ERROR_COPY[authError] ?? FALLBACK_AUTH_ERROR_COPY}
+                {authErrorCopy("Configuration")}
               </AlertDescription>
             </Alert>
           ) : null}

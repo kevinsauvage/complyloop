@@ -1,11 +1,12 @@
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import type { Remediation } from "@complyloop/analysis-core/contract/entities";
+import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses";
 
 import type { DrizzleDb } from "../postgres.ts";
 import { findings, remediations } from "../schema.ts";
 import { remediationToRow } from "./mappers.ts";
-import { type StaleWriteOptions, upsertPayloadRows } from "./upsert-guard.ts";
+import { upsertPayloadRows } from "./upsert-guard.ts";
 
 export async function getRemediationByFindingId(
   drizzle: DrizzleDb,
@@ -19,61 +20,74 @@ export async function getRemediationByFindingId(
   return rows[0]?.payload;
 }
 
+export interface ListRemediationsOptions {
+  /**
+   * Restrict to remediations whose finding has one of these statuses. Keeps
+   * the remediation load consistent with a status-scoped findings load
+   * (pages), instead of loading history remediations nothing renders. Omit
+   * for all (writes, reports, exports).
+   */
+  findingStatuses?: readonly FindingStatus[];
+}
+
 export async function listRemediationsForProject(
   drizzle: DrizzleDb,
   projectId: string,
+  options: ListRemediationsOptions = {},
 ): Promise<Remediation[]> {
   // Join through findings in one query instead of loading every finding id and
   // passing an unbounded IN list (which grows with history).
+  const { findingStatuses } = options;
+  // An empty status list means "no findings match" (same as findings reads) —
+  // never "no filter", which would load the project's whole history.
+  if (findingStatuses && findingStatuses.length === 0) return [];
+  const where =
+    findingStatuses && findingStatuses.length > 0
+      ? and(
+          eq(findings.projectId, projectId),
+          inArray(findings.status, [...findingStatuses]),
+        )
+      : eq(findings.projectId, projectId);
   const rows = await drizzle
     .select({ payload: remediations.payload })
     .from(remediations)
     .innerJoin(findings, eq(remediations.findingId, findings.id))
-    .where(eq(findings.projectId, projectId));
+    .where(where);
   return rows.map((row) => row.payload);
 }
 
-export async function listRemediationsForProjects(
+/**
+ * Remediations for exactly the findings on a rendered page (the findings-list
+ * fast path): one small IN query instead of the whole project map, so the
+ * page never loads remediation history it does not render.
+ */
+export async function listRemediationsForFindings(
   drizzle: DrizzleDb,
-  projectIds: readonly string[],
+  findingIds: readonly string[],
 ): Promise<Remediation[]> {
-  if (projectIds.length === 0) return [];
+  if (findingIds.length === 0) return [];
   const rows = await drizzle
     .select({ payload: remediations.payload })
     .from(remediations)
-    .innerJoin(findings, eq(remediations.findingId, findings.id))
-    .where(inArray(findings.projectId, [...projectIds]));
+    .where(inArray(remediations.findingId, [...findingIds]));
   return rows.map((row) => row.payload);
 }
 
 export async function upsertRemediations(
   tx: DrizzleDb,
   items: ReadonlyArray<Remediation>,
-  options: StaleWriteOptions = {},
 ): Promise<void> {
-  await upsertPayloadRows(
-    items,
-    options.loadedUpdatedAtById,
-    async (ids) => {
-      const rows = await tx
-        .select({ id: remediations.id, payload: remediations.payload })
-        .from(remediations)
-        .where(inArray(remediations.id, [...ids]));
-      return new Map(rows.map((row) => [row.id, row.payload.updatedAt]));
-    },
-    remediationToRow,
-    async (rows) => {
-      await tx
-        .insert(remediations)
-        .values(rows)
-        .onConflictDoUpdate({
-          target: remediations.id,
-          set: {
-            findingId: sql`excluded.finding_id`,
-            status: sql`excluded.status`,
-            payload: sql`excluded.payload`,
-          },
-        });
-    },
-  );
+  await upsertPayloadRows(items, remediationToRow, async (rows) => {
+    await tx
+      .insert(remediations)
+      .values(rows)
+      .onConflictDoUpdate({
+        target: remediations.id,
+        set: {
+          findingId: sql`excluded.finding_id`,
+          status: sql`excluded.status`,
+          payload: sql`excluded.payload`,
+        },
+      });
+  });
 }

@@ -9,7 +9,7 @@ import type { Requirement } from "@complyloop/analysis-core/contract/entities";
 
 import type { DrizzleDb } from "../postgres.ts";
 import { upsertAlerts } from "../repo/alerts.ts";
-import { type ProjectSlice, snapshotProjectSlice } from "../repo/apply.ts";
+import { projectScopedSlice, type ProjectSlice } from "../repo/apply.ts";
 import { insertAssessment } from "../repo/assessments.ts";
 import { upsertFindings } from "../repo/findings.ts";
 import { upsertRemediations } from "../repo/remediations.ts";
@@ -46,9 +46,18 @@ export async function insertProjectSliceFixture(
   const userId = `user-slice-${suffix}`;
   const githubLogin = `login-slice-${suffix}`;
 
+  // Tenancy loaders (`listOrganizationsForUser`, `listMembershipsForOrgs`)
+  // read the contract entity back out of the `payload` column (see
+  // `organizationToRow` / `membershipToRow`), so fixtures must store full
+  // entity payloads — `'{}'` rows resolve to no orgs / no access.
   await drizzle.execute(sql`
     INSERT INTO organizations (id, slug, payload)
-    VALUES (${orgId}, ${`slug-slice-${suffix}`}, '{}'::jsonb)
+    VALUES (${orgId}, ${`slug-slice-${suffix}`}, ${JSON.stringify({
+      id: orgId,
+      name: `slice-org-${suffix}`,
+      slug: `slug-slice-${suffix}`,
+      createdAt: "2026-01-01T00:00:00.000Z",
+    })}::jsonb)
   `);
   await drizzle.execute(sql`
     INSERT INTO memberships (id, org_id, user_id, github_login, role, payload)
@@ -58,7 +67,14 @@ export async function insertProjectSliceFixture(
       ${userId},
       ${githubLogin},
       'owner',
-      '{}'::jsonb
+      ${JSON.stringify({
+        id: `mem-slice-${suffix}`,
+        orgId,
+        role: "owner",
+        userId,
+        githubLogin,
+        createdAt: "2026-01-01T00:00:00.000Z",
+      })}::jsonb
     )
   `);
   await drizzle.execute(sql`
@@ -219,12 +235,16 @@ export async function loadProjectSlice(
           .from(remediations)
           .where(inArray(remediations.findingId, findingIds));
 
-  return snapshotProjectSlice(
-    requirementRows.map((row) => row.payload),
-    findingRows.map((row) => row.payload),
-    remediationRows.map((row) => row.payload),
-    alertRows.map((row) => row.payload),
-    projectId,
+  return structuredClone(
+    projectScopedSlice(
+      {
+        requirements: requirementRows.map((row) => row.payload),
+        findings: findingRows.map((row) => row.payload),
+        remediations: remediationRows.map((row) => row.payload),
+        alerts: alertRows.map((row) => row.payload),
+      },
+      projectId,
+    ),
   );
 }
 

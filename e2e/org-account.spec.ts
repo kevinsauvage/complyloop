@@ -56,10 +56,12 @@ test.describe("organization account", () => {
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toMatch(/complyloop-.*\.json/);
 
+    // Success is toast-only (Sonner toasts carry no role="status"; the
+    // inline status element was removed when export moved to announceResult).
     await expect(
-      page.getByRole("status").filter({
-        hasText: /Exported E2E Workspace data as JSON/i,
-      }),
+      page
+        .locator("[data-sonner-toast]")
+        .filter({ hasText: /Exported E2E Workspace data as JSON/i }),
     ).toBeVisible();
   });
 
@@ -100,12 +102,12 @@ test.describe("organization account", () => {
 
     await expect(
       page
-        .getByText(/Organization deleted\. Evidence history was retained/i)
+        .getByText(/Organization deleted, including its evidence history/i)
         .first(),
     ).toBeVisible({ timeout: 15_000 });
 
-    // Cookie should fall back to the seeded workspace so later owner tests keep
-    // the connected sample project.
+    // The active-org cookie falls back to the seeded workspace so later owner
+    // tests keep the connected sample project.
     await page.goto("/org");
     await expect(page.getByText(/Settings for E2E Workspace/)).toBeVisible();
   });

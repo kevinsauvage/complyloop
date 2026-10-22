@@ -13,34 +13,43 @@ const claimNextAssessmentJob = vi.hoisted(() => vi.fn());
 const completeAssessmentJob = vi.hoisted(() => vi.fn());
 const failAssessmentJob = vi.hoisted(() => vi.fn());
 const refreshAssessmentJobLease = vi.hoisted(() => vi.fn());
+const updateAssessmentJobStage = vi.hoisted(() => vi.fn());
 const loadProjectDb = vi.hoisted(() => vi.fn());
-const runAssessment = vi.hoisted(() => vi.fn());
+const scanAssessment = vi.hoisted(() => vi.fn());
+const reconcileAssessment = vi.hoisted(() => vi.fn());
+const loadProjectRuntime = vi.hoisted(() => vi.fn());
 const withProjectCheckout = vi.hoisted(() => vi.fn());
 const reportError = vi.hoisted(() => vi.fn());
 const reportWarning = vi.hoisted(() => vi.fn());
-const reportInfo = vi.hoisted(() => vi.fn());
 const reportEvent = vi.hoisted(() => vi.fn());
 const pruneRateLimitBuckets = vi.hoisted(() => vi.fn());
-const resolveProjectGitHubToken = vi.hoisted(() => vi.fn());
-const postPullRequestCheckRun = vi.hoisted(() => vi.fn());
 const applyAssessmentPayload = vi.hoisted(() => vi.fn());
 const listAlertsForProject = vi.hoisted(() => vi.fn());
 const insertEvidence = vi.hoisted(() => vi.fn());
 const acquireNamedPostgresAdvisoryLock = vi.hoisted(() => vi.fn());
 const transaction = vi.hoisted(() => vi.fn());
+const runRemediationVerifyJob = vi.hoisted(() => vi.fn());
 
-vi.mock("./assessment-jobs", async () => {
-  const actual = await vi.importActual<typeof import("./assessment-jobs")>(
-    "./assessment-jobs",
+vi.mock("./remediation-verify-worker", () => ({
+  runRemediationVerifyJob: (...args: unknown[]) =>
+    runRemediationVerifyJob(...args),
+}));
+
+vi.mock("./assessment-job-lease", async () => {
+  const actual = await vi.importActual<typeof import("./assessment-job-lease")>(
+    "./assessment-job-lease",
   );
   return {
     ...actual,
     claimNextAssessmentJob: (...args: unknown[]) =>
       claimNextAssessmentJob(...args),
-    completeAssessmentJob: (...args: unknown[]) => completeAssessmentJob(...args),
+    completeAssessmentJob: (...args: unknown[]) =>
+      completeAssessmentJob(...args),
     failAssessmentJob: (...args: unknown[]) => failAssessmentJob(...args),
     refreshAssessmentJobLease: (...args: unknown[]) =>
       refreshAssessmentJobLease(...args),
+    updateAssessmentJobStage: (...args: unknown[]) =>
+      updateAssessmentJobStage(...args),
   };
 });
 
@@ -60,7 +69,6 @@ vi.mock("@complyloop/db/repo/apply", async () => {
     ...actual,
     applyAssessmentPayload: (...args: unknown[]) =>
       applyAssessmentPayload(...args),
-    buildAssessmentApplyPayload: (input: unknown) => input,
   };
 });
 
@@ -81,9 +89,22 @@ vi.mock("../workspace/db", async () => {
   };
 });
 
-vi.mock("./assessment", () => ({
-  runAssessment: (...args: unknown[]) => runAssessment(...args),
+vi.mock("./assessment-scan", () => ({
+  scanAssessment: (...args: unknown[]) => scanAssessment(...args),
 }));
+vi.mock("./assessment", () => ({
+  reconcileAssessment: (...args: unknown[]) => reconcileAssessment(...args),
+}));
+
+vi.mock("@complyloop/db/workspace-load", async () => {
+  const actual = await vi.importActual<
+    typeof import("@complyloop/db/workspace-load")
+  >("@complyloop/db/workspace-load");
+  return {
+    ...actual,
+    loadProjectRuntime: (...args: unknown[]) => loadProjectRuntime(...args),
+  };
+});
 
 vi.mock("./repo-checkout", () => ({
   withProjectCheckout: (
@@ -96,7 +117,6 @@ vi.mock("./repo-checkout", () => ({
 vi.mock("../observability", () => ({
   reportError: (...args: unknown[]) => reportError(...args),
   reportWarning: (...args: unknown[]) => reportWarning(...args),
-  reportInfo: (...args: unknown[]) => reportInfo(...args),
   reportEvent: (...args: unknown[]) => reportEvent(...args),
 }));
 
@@ -104,25 +124,11 @@ vi.mock("../rate-limit", () => ({
   pruneRateLimitBuckets: (...args: unknown[]) => pruneRateLimitBuckets(...args),
 }));
 
-vi.mock("../github/github-access", () => ({
-  resolveProjectGitHubToken: (...args: unknown[]) =>
-    resolveProjectGitHubToken(...args),
-}));
-
-vi.mock("../github/github-checks", () => ({
-  postPullRequestCheckRun: (...args: unknown[]) =>
-    postPullRequestCheckRun(...args),
-  summarizeAssessmentForCheckRun: () => ({
-    conclusion: "success" as const,
-    title: "ok",
-    summary: "ok",
-  }),
-}));
-
-import { ASSESSMENT_JOB_HEARTBEAT_MS } from "./assessment-jobs";
+import { ASSESSMENT_JOB_HEARTBEAT_MS } from "./assessment-job-lease";
 import {
   processNextAssessmentJob,
   settleRunningAssessmentJob,
+  shouldCollectAlerts,
 } from "./assessment-worker";
 
 const project = testProject({
@@ -183,16 +189,79 @@ function assessmentRun(
 }
 
 beforeEach(() => {
-  transaction.mockImplementation(async (fn: (tx: object) => unknown) => fn({}));
+  transaction.mockImplementation(async (fn: (tx: object) => unknown) =>
+    fn(stubTx("running")),
+  );
   acquireNamedPostgresAdvisoryLock.mockResolvedValue(undefined);
   listAlertsForProject.mockResolvedValue([]);
+  // Defaults for the apply path: a scan ran, fresh rows loaded, and reconcile
+  // produced a run. Tests override these when they assert on the payload.
+  scanAssessment.mockResolvedValue(undefined);
+  reconcileAssessment.mockResolvedValue(
+    assessmentRun({ id: "a1", projectId: "p1", snapshot: { fileHashes: {} } }),
+  );
+  loadProjectRuntime.mockResolvedValue({
+    requirements: [],
+    assessments: [],
+    findings: [],
+    remediations: [],
+    alerts: [],
+  });
 });
+
+/** Minimal tx stub: the apply re-checks the job status inside the transaction. */
+function stubTx(jobStatus: string) {
+  return {
+    select: () => ({
+      from: () => ({
+        where: async () => [{ status: jobStatus }],
+      }),
+    }),
+  };
+}
 
 afterEach(() => {
   vi.clearAllMocks();
 });
 
 describe("settleRunningAssessmentJob", () => {
+  it("routes a verify_remediation job to the remediation verify handler", async () => {
+    runRemediationVerifyJob.mockResolvedValue(undefined);
+    completeAssessmentJob.mockResolvedValue(undefined);
+
+    const verifyJob = job({
+      trigger: "verify_remediation",
+      payload: { findingId: "f1" },
+    });
+    await expect(settleRunningAssessmentJob(verifyJob)).resolves.toEqual({
+      kind: "succeeded",
+      jobId: "job-1",
+    });
+    expect(runRemediationVerifyJob).toHaveBeenCalledWith("f1");
+    // The verify path must not run the assessment pipeline.
+    expect(scanAssessment).not.toHaveBeenCalled();
+  });
+
+  it("fails a verify_remediation job that carries no findingId", async () => {
+    failAssessmentJob.mockResolvedValue("failed");
+
+    await expect(
+      settleRunningAssessmentJob(job({ trigger: "verify_remediation" })),
+    ).resolves.toEqual({ kind: "failed", jobId: "job-1" });
+    expect(runRemediationVerifyJob).not.toHaveBeenCalled();
+  });
+
+  it("retries a verify_remediation job when the re-audit throws", async () => {
+    runRemediationVerifyJob.mockRejectedValue(new Error("browser died"));
+    failAssessmentJob.mockResolvedValue("queued");
+
+    await expect(
+      settleRunningAssessmentJob(
+        job({ trigger: "verify_remediation", payload: { findingId: "f1" } }),
+      ),
+    ).resolves.toEqual({ kind: "retrying", jobId: "job-1" });
+  });
+
   it("runs an already-running job to completion without claiming", async () => {
     const db = projectDb();
     loadProjectDb.mockResolvedValue(db);
@@ -200,7 +269,7 @@ describe("settleRunningAssessmentJob", () => {
       async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
         fn("/tmp/checkout"),
     );
-    runAssessment.mockResolvedValue(
+    scanAssessment.mockResolvedValue(
       assessmentRun({
         id: "a1",
         projectId: "p1",
@@ -220,6 +289,32 @@ describe("settleRunningAssessmentJob", () => {
     );
   });
 
+  it("stamps checkout and apply stages on the job payload", async () => {
+    loadProjectDb.mockResolvedValue(projectDb());
+    withProjectCheckout.mockImplementation(
+      async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
+        fn("/tmp/checkout"),
+    );
+    scanAssessment.mockResolvedValue(
+      assessmentRun({
+        id: "a1",
+        projectId: "p1",
+        snapshot: { fileHashes: {} },
+      }),
+    );
+    completeAssessmentJob.mockResolvedValue(undefined);
+    updateAssessmentJobStage.mockResolvedValue(true);
+
+    await expect(settleRunningAssessmentJob(job())).resolves.toEqual({
+      kind: "succeeded",
+      jobId: "job-1",
+    });
+    // In-scan stages (changedetection/ast/…) ride scanAssessment's onStage hook
+    // (covered in assessment.test.ts); the worker owns checkout + apply.
+    expect(updateAssessmentJobStage).toHaveBeenCalledWith("job-1", "checkout");
+    expect(updateAssessmentJobStage).toHaveBeenCalledWith("job-1", "apply");
+  });
+
   it("reports a terminal failure and records failure evidence", async () => {
     loadProjectDb.mockResolvedValue(projectDb());
     withProjectCheckout.mockRejectedValue(new Error("clone failed"));
@@ -235,6 +330,252 @@ describe("settleRunningAssessmentJob", () => {
         detail: expect.objectContaining({ phase: "failed" }),
       }),
     );
+  });
+
+  it("records failure evidence without posting anywhere on terminal failure", async () => {
+    loadProjectDb.mockResolvedValue(projectDb());
+    withProjectCheckout.mockRejectedValue(new Error("clone failed"));
+    failAssessmentJob.mockResolvedValue("failed");
+
+    await expect(
+      settleRunningAssessmentJob(
+        job({
+          attempts: 3,
+          trigger: "webhook",
+          payload: { ref: "a".repeat(40), eventName: "push" },
+        }),
+      ),
+    ).resolves.toEqual({ kind: "failed", jobId: "job-1" });
+    expect(insertEvidence).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        kind: "assessment_job",
+        detail: expect.objectContaining({ phase: "failed" }),
+      }),
+    );
+  });
+
+  it("retries a failed scan without recording a terminal verdict", async () => {
+    loadProjectDb.mockResolvedValue(projectDb());
+    withProjectCheckout.mockRejectedValue(new Error("clone failed"));
+
+    failAssessmentJob.mockResolvedValue("retrying");
+    await expect(
+      settleRunningAssessmentJob(
+        job({
+          attempts: 1,
+          trigger: "webhook",
+          payload: { ref: "a".repeat(40), eventName: "push" },
+        }),
+      ),
+    ).resolves.toEqual({ kind: "retrying", jobId: "job-1" });
+    expect(insertEvidence).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        kind: "assessment_job",
+        detail: expect.objectContaining({ phase: "retrying" }),
+      }),
+    );
+  });
+
+  it("completes with the renewed lease after a heartbeat renewal", async () => {
+    vi.useFakeTimers();
+    try {
+      loadProjectDb.mockResolvedValue(projectDb());
+      withProjectCheckout.mockImplementation(
+        async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
+          fn("/tmp/checkout"),
+      );
+      let resolveRun!: (value: unknown) => void;
+      scanAssessment.mockReturnValue(
+        new Promise((resolve) => {
+          resolveRun = resolve;
+        }),
+      );
+      const renewedLease = "2026-01-01T02:00:00.000Z";
+      refreshAssessmentJobLease.mockResolvedValue(renewedLease);
+      completeAssessmentJob.mockResolvedValue(undefined);
+
+      const pending = settleRunningAssessmentJob(job());
+      await vi.advanceTimersByTimeAsync(ASSESSMENT_JOB_HEARTBEAT_MS + 1);
+      resolveRun(
+        assessmentRun({
+          id: "a1",
+          projectId: "p1",
+          snapshot: { fileHashes: {} },
+        }),
+      );
+
+      await expect(pending).resolves.toEqual({
+        kind: "succeeded",
+        jobId: "job-1",
+      });
+      // The claim-time lease would no-op the guarded complete and the job
+      // would be re-run by lease recovery — the renewed lease must win.
+      expect(completeAssessmentJob).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "job-1", leaseExpiresAt: renewedLease }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("skips an overlapping heartbeat tick instead of cancelling a healthy run", async () => {
+    vi.useFakeTimers();
+    try {
+      loadProjectDb.mockResolvedValue(projectDb());
+      withProjectCheckout.mockImplementation(
+        async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
+          fn("/tmp/checkout"),
+      );
+      let resolveRun!: (value: unknown) => void;
+      scanAssessment.mockReturnValue(
+        new Promise((resolve) => {
+          resolveRun = resolve;
+        }),
+      );
+      // A renew that never settles: a second tick must be skipped rather than
+      // fired with a stale `expectedLease` (which the exact-match guard would
+      // read as a remote cancel).
+      refreshAssessmentJobLease.mockReturnValue(new Promise(() => {}));
+      completeAssessmentJob.mockResolvedValue(undefined);
+
+      const pending = settleRunningAssessmentJob(job());
+      await vi.advanceTimersByTimeAsync(ASSESSMENT_JOB_HEARTBEAT_MS * 2 + 1);
+      expect(refreshAssessmentJobLease).toHaveBeenCalledTimes(1);
+
+      resolveRun(
+        assessmentRun({
+          id: "a1",
+          projectId: "p1",
+          snapshot: { fileHashes: {} },
+        }),
+      );
+      await expect(pending).resolves.toEqual({
+        kind: "succeeded",
+        jobId: "job-1",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("fails with the renewed lease when the run throws after a renewal", async () => {
+    vi.useFakeTimers();
+    try {
+      loadProjectDb.mockResolvedValue(projectDb());
+      const renewedLease = "2026-01-01T02:00:00.000Z";
+      refreshAssessmentJobLease.mockResolvedValue(renewedLease);
+      let rejectCheckout!: (reason: unknown) => void;
+      withProjectCheckout.mockReturnValue(
+        new Promise((_resolve, reject) => {
+          rejectCheckout = reject;
+        }),
+      );
+      failAssessmentJob.mockResolvedValue("failed");
+
+      const pending = settleRunningAssessmentJob(job({ attempts: 3 }));
+      await vi.advanceTimersByTimeAsync(ASSESSMENT_JOB_HEARTBEAT_MS + 1);
+      rejectCheckout(new Error("clone failed"));
+
+      await expect(pending).resolves.toEqual({
+        kind: "failed",
+        jobId: "job-1",
+      });
+      expect(failAssessmentJob).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "job-1", leaseExpiresAt: renewedLease }),
+        expect.any(Error),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("records retrying evidence when the job will retry", async () => {
+    loadProjectDb.mockResolvedValue(projectDb());
+    withProjectCheckout.mockRejectedValue(new Error("clone failed"));
+    failAssessmentJob.mockResolvedValue("queued");
+
+    await expect(settleRunningAssessmentJob(job())).resolves.toEqual({
+      kind: "retrying",
+      jobId: "job-1",
+    });
+    expect(insertEvidence).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        kind: "assessment_job",
+        detail: expect.objectContaining({ phase: "retrying" }),
+      }),
+    );
+  });
+
+  it("records superseded SHAs on the completion evidence", async () => {
+    loadProjectDb.mockResolvedValue(projectDb());
+    withProjectCheckout.mockImplementation(
+      async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
+        fn("/tmp/checkout"),
+    );
+    scanAssessment.mockResolvedValue(
+      assessmentRun({
+        id: "a1",
+        projectId: "p1",
+        snapshot: { fileHashes: {} },
+      }),
+    );
+    completeAssessmentJob.mockResolvedValue(undefined);
+
+    await expect(
+      settleRunningAssessmentJob(
+        job({
+          trigger: "webhook",
+          payload: {
+            ref: "abc123",
+            eventName: "push",
+            supersededRefs: ["def456"],
+          },
+        }),
+      ),
+    ).resolves.toEqual({ kind: "succeeded", jobId: "job-1" });
+    expect(insertEvidence).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        kind: "assessment_job",
+        detail: expect.objectContaining({
+          phase: "completed",
+          supersededRefs: ["def456"],
+        }),
+      }),
+    );
+  });
+
+  it("discards the run when the job is cancelled mid-apply", async () => {
+    loadProjectDb.mockResolvedValue(projectDb());
+    withProjectCheckout.mockImplementation(
+      async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
+        fn("/tmp/checkout"),
+    );
+    scanAssessment.mockResolvedValue(
+      assessmentRun({
+        id: "a1",
+        projectId: "p1",
+        snapshot: { fileHashes: {} },
+      }),
+    );
+    // The apply-time re-check sees the job already left `running`: the
+    // transaction rolls back and the worker reports cancellation.
+    transaction.mockImplementationOnce(async (fn: (tx: object) => unknown) =>
+      fn(stubTx("cancelled")),
+    );
+
+    await expect(settleRunningAssessmentJob(job())).resolves.toEqual({
+      kind: "cancelled",
+      jobId: "job-1",
+    });
+    expect(applyAssessmentPayload).not.toHaveBeenCalled();
+    expect(insertEvidence).not.toHaveBeenCalled();
+    expect(completeAssessmentJob).not.toHaveBeenCalled();
+    expect(failAssessmentJob).not.toHaveBeenCalled();
+    expect(reportError).not.toHaveBeenCalled();
   });
 });
 
@@ -256,7 +597,7 @@ describe("processNextAssessmentJob", () => {
       async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
         fn("/tmp/checkout"),
     );
-    runAssessment.mockResolvedValue(
+    scanAssessment.mockResolvedValue(
       assessmentRun({
         id: "a1",
         projectId: "p1",
@@ -269,13 +610,14 @@ describe("processNextAssessmentJob", () => {
       kind: "succeeded",
       jobId: "job-1",
     });
-    expect(runAssessment).toHaveBeenCalledWith(
+    expect(scanAssessment).toHaveBeenCalledWith(
       expect.objectContaining({
         project: expect.objectContaining({ id: "p1" }),
       }),
       {
         rootPath: "/tmp/checkout",
         authoritative: true,
+        onStage: expect.any(Function),
       },
     );
     expect(applyAssessmentPayload).toHaveBeenCalled();
@@ -306,7 +648,7 @@ describe("processNextAssessmentJob", () => {
           fn("/tmp/checkout"),
       );
       let resolveRun!: (value: unknown) => void;
-      runAssessment.mockReturnValue(
+      scanAssessment.mockReturnValue(
         new Promise((resolve) => {
           resolveRun = resolve;
         }),
@@ -356,30 +698,39 @@ describe("processNextAssessmentJob", () => {
       async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
         fn("/tmp/checkout"),
     );
-    runAssessment.mockImplementation(
+    loadProjectRuntime.mockResolvedValue({
+      requirements: [],
+      assessments: [],
+      findings: [testFinding()],
+      remediations: [
+        testRemediation({
+          status: "approved",
+          approvalAction: "create_draft_pull_request",
+        }),
+      ],
+      alerts: [],
+    });
+    // Reconcile on the fresh rows: the mock mirrors the real contract by
+    // returning the same rows with the remediation advanced (the baseline
+    // passed to apply stays the pre-reconcile `approved` copy).
+    reconcileAssessment.mockImplementation(
       async (input: {
         findings: WorkspaceSlice["findings"];
         remediations: WorkspaceSlice["remediations"];
         requirements: WorkspaceSlice["requirements"];
-      }) => {
-        input.remediations[0] = {
-          ...input.remediations[0]!,
-          status: "verified",
-        };
-        return assessmentRun(
-          {
-            id: "a1",
-            projectId: "p1",
-            snapshot: { fileHashes: {} },
-          },
+      }) =>
+        assessmentRun(
+          { id: "a1", projectId: "p1", snapshot: { fileHashes: {} } },
           {
             findings: input.findings,
-            remediations: input.remediations,
+            remediations: input.remediations.map((remediation) => ({
+              ...remediation,
+              status: "verified" as const,
+            })),
             requirements: input.requirements,
             evidence: [],
           },
-        );
-      },
+        ),
     );
     completeAssessmentJob.mockResolvedValue(undefined);
 
@@ -387,13 +738,14 @@ describe("processNextAssessmentJob", () => {
       kind: "succeeded",
       jobId: "job-1",
     });
-    expect(runAssessment).toHaveBeenCalledWith(
+    expect(scanAssessment).toHaveBeenCalledWith(
       expect.objectContaining({
         project: expect.objectContaining({ id: "p1" }),
       }),
       {
         rootPath: "/tmp/checkout",
         authoritative: true,
+        onStage: expect.any(Function),
       },
     );
     expect(applyAssessmentPayload).toHaveBeenCalledWith(
@@ -403,7 +755,7 @@ describe("processNextAssessmentJob", () => {
         evidence: [],
       }),
       expect.objectContaining({
-        loadedSlice: expect.objectContaining({
+        baseline: expect.objectContaining({
           requirements: [],
           findings: [expect.objectContaining({ id: "f1" })],
           remediations: expect.arrayContaining([
@@ -477,7 +829,7 @@ describe("processNextAssessmentJob", () => {
       async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
         fn("/tmp/checkout"),
     );
-    runAssessment.mockResolvedValue(
+    reconcileAssessment.mockResolvedValue(
       assessmentRun(
         {
           id: "a1",
@@ -547,7 +899,7 @@ describe("processNextAssessmentJob", () => {
       async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
         fn("/tmp/checkout"),
     );
-    runAssessment.mockResolvedValue(
+    reconcileAssessment.mockResolvedValue(
       assessmentRun(
         {
           id: "a1",
@@ -608,14 +960,13 @@ describe("processNextAssessmentJob", () => {
     );
   });
 
-  it("posts a PR check run for webhook jobs with a head sha", async () => {
+  it("treats a legacy non-push webhook job as non-authoritative", async () => {
     const db = projectDb();
     claimNextAssessmentJob.mockResolvedValue(
       job({
         trigger: "webhook",
         payload: {
           eventName: "pull_request",
-          pullRequestHeadSha: "abc123",
         },
       }),
     );
@@ -624,7 +975,7 @@ describe("processNextAssessmentJob", () => {
       async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
         fn("/tmp/checkout"),
     );
-    runAssessment.mockResolvedValue(
+    scanAssessment.mockResolvedValue(
       assessmentRun({
         id: "a1",
         projectId: "p1",
@@ -632,33 +983,64 @@ describe("processNextAssessmentJob", () => {
       }),
     );
     completeAssessmentJob.mockResolvedValue(undefined);
-    resolveProjectGitHubToken.mockResolvedValue("ghs_token");
-    postPullRequestCheckRun.mockResolvedValue({ ok: true });
 
     await expect(processNextAssessmentJob()).resolves.toEqual({
       kind: "succeeded",
       jobId: "job-1",
     });
-    // A PR-head scan is a preview: it posts the Check Run but must not
+    // A legacy non-push webhook row runs the same analysis but must not
     // persist any project compliance state.
-    expect(runAssessment).toHaveBeenCalledWith(
+    expect(scanAssessment).toHaveBeenCalledWith(
       expect.objectContaining({
         project: expect.objectContaining({ id: "p1" }),
       }),
       {
         rootPath: "/tmp/checkout",
         authoritative: false,
+        onStage: expect.any(Function),
       },
     );
     expect(applyAssessmentPayload).not.toHaveBeenCalled();
     expect(insertEvidence).not.toHaveBeenCalled();
-    expect(postPullRequestCheckRun).toHaveBeenCalledWith(
-      expect.objectContaining({
-        fullName: "acme/shop",
-        headSha: "abc123",
-        token: "ghs_token",
+  });
+
+  it("runs a deployment_status job authoritatively against its runtime target", async () => {
+    const db = projectDb();
+    const runtimeTarget = {
+      url: "https://app-abc123.vercel.app",
+      sha: "a".repeat(40),
+    };
+    claimNextAssessmentJob.mockResolvedValue(
+      job({
+        trigger: "webhook",
+        payload: {
+          ref: "a".repeat(40),
+          eventName: "deployment_status",
+          runtimeTarget,
+        },
       }),
     );
+    loadProjectDb.mockResolvedValue(db);
+    withProjectCheckout.mockImplementation(
+      async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
+        fn("/tmp/checkout"),
+    );
+    scanAssessment.mockResolvedValue(
+      assessmentRun({
+        id: "a1",
+        projectId: "p1",
+        snapshot: { fileHashes: {} },
+      }),
+    );
+    completeAssessmentJob.mockResolvedValue(undefined);
+
+    await processNextAssessmentJob();
+
+    expect(scanAssessment).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ authoritative: true, runtimeTarget }),
+    );
+    expect(applyAssessmentPayload).toHaveBeenCalled();
   });
 
   it("treats a default-branch webhook push as authoritative and persists", async () => {
@@ -674,7 +1056,7 @@ describe("processNextAssessmentJob", () => {
       async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
         fn("/tmp/checkout"),
     );
-    runAssessment.mockResolvedValue(
+    scanAssessment.mockResolvedValue(
       assessmentRun({
         id: "a1",
         projectId: "p1",
@@ -687,47 +1069,18 @@ describe("processNextAssessmentJob", () => {
       kind: "succeeded",
       jobId: "job-1",
     });
-    expect(runAssessment).toHaveBeenCalledWith(
+    expect(scanAssessment).toHaveBeenCalledWith(
       expect.objectContaining({
         project: expect.objectContaining({ id: "p1" }),
       }),
       {
         rootPath: "/tmp/checkout",
         authoritative: true,
+        onStage: expect.any(Function),
       },
     );
     expect(applyAssessmentPayload).toHaveBeenCalled();
     expect(insertEvidence).toHaveBeenCalled();
-  });
-
-  it("warns when a PR check cannot be posted", async () => {
-    const db = projectDb();
-    claimNextAssessmentJob.mockResolvedValue(
-      job({
-        trigger: "webhook",
-        payload: { pullRequestHeadSha: "abc123" },
-      }),
-    );
-    loadProjectDb.mockResolvedValue(db);
-    withProjectCheckout.mockImplementation(
-      async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
-        fn("/tmp/checkout"),
-    );
-    runAssessment.mockResolvedValue(
-      assessmentRun({
-        id: "a1",
-        projectId: "p1",
-        snapshot: { fileHashes: {} },
-      }),
-    );
-    completeAssessmentJob.mockResolvedValue(undefined);
-    resolveProjectGitHubToken.mockResolvedValue(null);
-
-    await processNextAssessmentJob();
-    expect(reportWarning).toHaveBeenCalledWith(
-      expect.stringMatching(/GitHub token unavailable/),
-      expect.objectContaining({ code: "github_token_missing" }),
-    );
   });
 
   it("retries when the project vanished before its job ran", async () => {
@@ -749,7 +1102,7 @@ describe("processNextAssessmentJob", () => {
       async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
         fn("/tmp/checkout"),
     );
-    runAssessment.mockResolvedValue({
+    reconcileAssessment.mockResolvedValue({
       assessment: { id: "a1", projectId: "p1" },
       evidence: [],
       findings: [],
@@ -763,59 +1116,6 @@ describe("processNextAssessmentJob", () => {
       jobId: "job-1",
     });
     expect(completeAssessmentJob).not.toHaveBeenCalled();
-  });
-
-  it("warns when the posted PR check fails", async () => {
-    const db = projectDb();
-    db.findings = [
-      testFinding({ id: "f-open", projectId: "p1", controlId: "c1" }),
-    ];
-    db.requirements = [
-      {
-        id: "r1",
-        projectId: "p1",
-        controlId: "c1",
-        status: "failed",
-        determination: "automated",
-        updatedAt: "2026-01-01T00:00:00.000Z",
-      },
-    ];
-    claimNextAssessmentJob.mockResolvedValue(
-      job({
-        trigger: "webhook",
-        payload: {
-          eventName: "pull_request",
-          pullRequestHeadSha: "abc123",
-        },
-      }),
-    );
-    loadProjectDb.mockResolvedValue(db);
-    withProjectCheckout.mockImplementation(
-      async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
-        fn("/tmp/checkout"),
-    );
-    runAssessment.mockResolvedValue(
-      assessmentRun(
-        {
-          id: "a1",
-          projectId: "p1",
-          snapshot: { fileHashes: {} },
-        },
-        { evidence: [], findings: db.findings, requirements: db.requirements },
-      ),
-    );
-    completeAssessmentJob.mockResolvedValue(undefined);
-    resolveProjectGitHubToken.mockResolvedValue("ghs_token");
-    postPullRequestCheckRun.mockResolvedValue({ ok: false, error: "nope" });
-
-    await expect(processNextAssessmentJob()).resolves.toEqual({
-      kind: "succeeded",
-      jobId: "job-1",
-    });
-    expect(reportWarning).toHaveBeenCalledWith(
-      "Pull-request Check Run could not be posted.",
-      expect.objectContaining({ code: "github_check_run_failed" }),
-    );
   });
 
   it("warns when failure evidence cannot be recorded", async () => {
@@ -836,5 +1136,47 @@ describe("processNextAssessmentJob", () => {
         code: "assessment_job_failure_evidence_failed",
       }),
     );
+  });
+});
+
+describe("shouldCollectAlerts", () => {
+  const deployed = { lastDeployment: { url: "https://d.example", sha: "a" } };
+  const push = job({ trigger: "webhook", payload: { eventName: "push" } });
+  const deploy = job({
+    trigger: "webhook",
+    payload: { eventName: "deployment_status" },
+  });
+
+  it("alerts from a push run when the project does not report deployments", () => {
+    expect(shouldCollectAlerts(push, {}, { runtime: { tied: false } })).toBe(
+      true,
+    );
+  });
+
+  it("defers a push run's alerts to the commit-tied deployment run", () => {
+    expect(
+      shouldCollectAlerts(push, deployed, { runtime: { tied: false } }),
+    ).toBe(false);
+  });
+
+  it("alerts from a deployment run and from a tied push run", () => {
+    expect(
+      shouldCollectAlerts(deploy, deployed, { runtime: { tied: true } }),
+    ).toBe(true);
+    expect(
+      shouldCollectAlerts(push, deployed, { runtime: { tied: true } }),
+    ).toBe(true);
+  });
+
+  it("never alerts outside webhook runs", () => {
+    expect(
+      shouldCollectAlerts(
+        job({ trigger: "manual" }),
+        {},
+        {
+          runtime: { tied: true },
+        },
+      ),
+    ).toBe(false);
   });
 });

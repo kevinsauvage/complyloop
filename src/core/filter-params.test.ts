@@ -1,0 +1,67 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  findingDetailHref,
+  findingsListHref,
+  hasActiveFindingFilters,
+} from "@/core/filter-params/findings";
+import {
+  pageSliceFromQuery,
+  paginateSlice,
+  parsePageParam,
+} from "@/core/filter-params/pagination";
+
+/**
+ * Filter-param helpers: pagination clamping and href shape — the boundary
+ * behavior list pages rely on.
+ */
+describe("filter-params helpers", () => {
+  it("parses page params with a floor of 1", () => {
+    expect(parsePageParam(undefined)).toBe(1);
+    expect(parsePageParam("3")).toBe(3);
+    expect(parsePageParam("2.9")).toBe(2);
+    expect(parsePageParam(["2"])).toBe(2);
+    expect(parsePageParam("0")).toBe(1);
+    expect(parsePageParam("-2")).toBe(1);
+    expect(parsePageParam("bogus")).toBe(1);
+  });
+
+  it("clamps paginated slices to the last page", () => {
+    const items = ["a", "b", "c"];
+    const first = paginateSlice(items, 1, 2);
+    expect(first.items).toEqual(["a", "b"]);
+    expect(first.hasNext).toBe(true);
+    expect(first.hasPrev).toBe(false);
+    const clamped = paginateSlice(items, 99, 2);
+    expect(clamped.page).toBe(2);
+    expect(clamped.items).toEqual(["c"]);
+    expect(clamped.hasNext).toBe(false);
+    expect(clamped.hasPrev).toBe(true);
+  });
+
+  it("passes query slices through untouched", () => {
+    const slice = pageSliceFromQuery(["a"], 1, 3, 2);
+    expect(slice.items).toEqual(["a"]);
+    expect(slice.total).toBe(3);
+    expect(slice.totalPages).toBe(2);
+  });
+
+  it("builds findings hrefs with list context", () => {
+    expect(findingsListHref("p1")).toBe("/projects/p1/findings");
+    expect(findingsListHref("p1", { tab: "resolved" })).toContain(
+      "tab=resolved",
+    );
+    const detail = findingDetailHref("p1", "f-1", {
+      tab: "open",
+      page: 2,
+    });
+    expect(detail.startsWith("/projects/p1/findings/f-1?")).toBe(true);
+    expect(detail).toContain("page=2");
+  });
+
+  it("detects active finding filters", () => {
+    expect(hasActiveFindingFilters({})).toBe(false);
+    expect(hasActiveFindingFilters({ q: "alt" })).toBe(true);
+    expect(hasActiveFindingFilters({ severity: "serious" })).toBe(true);
+  });
+});

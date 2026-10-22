@@ -21,7 +21,6 @@ function versionFromPackageJson(pkgJsonPath: string): string | undefined {
   }
 }
 
-/** html-validate semver when the package is installed. */
 export function htmlValidatePackageVersion(): string | undefined {
   return versionFromPackageJson("html-validate/package.json");
 }

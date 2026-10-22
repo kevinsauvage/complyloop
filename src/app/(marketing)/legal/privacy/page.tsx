@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 
-import { PageContent, PageHeader } from "@/components/page-primitives";
+import {
+  PageContent,
+  PageHeader,
+} from "@/components/primitives/page-primitives";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
@@ -19,7 +22,7 @@ export default function PrivacyPage() {
         <p className="text-xs text-muted-foreground">
           Last updated: 2026-09-10
         </p>
-        <div className="surface-panel flex flex-col gap-6 rounded-2xl p-6 text-sm leading-relaxed text-foreground">
+        <div className="surface-panel flex flex-col gap-6 rounded-xl p-6 text-sm leading-relaxed text-foreground">
           <section>
             <h2 className="text-lg font-semibold text-foreground">
               What we store
@@ -44,10 +47,10 @@ export default function PrivacyPage() {
             <h2 className="text-lg font-semibold text-foreground">Retention</h2>
             <p className="mt-2">
               Evidence is append-only and retained for audit history.
-              Disconnecting a GitHub project or deleting an organization removes
-              project-scoped mutable records (requirements, assessments,
-              findings, remediations, alerts); evidence rows remain unless an
-              operator purges them outside the app role.
+              Disconnecting a GitHub project removes project-scoped mutable
+              records (requirements, assessments, findings, remediations,
+              alerts) while its evidence rows remain. Deleting an organization
+              erases everything, including its evidence history.
             </p>
           </section>
           <section>
@@ -69,11 +72,15 @@ export default function PrivacyPage() {
             </h2>
             <p className="mt-2">
               Optional AI features send finding context to the configured AI
-              gateway when{" "}
+              gateway only when both{" "}
               <code className="font-mono text-xs text-foreground">
                 AI_GATEWAY_API_KEY
               </code>{" "}
-              is set. Error reporting may send diagnostics to Sentry when a
+              and{" "}
+              <code className="font-mono text-xs text-foreground">
+                AI_MODEL
+              </code>{" "}
+              are set. Error reporting may send diagnostics to Sentry when a
               Sentry DSN is configured (
               <code className="font-mono text-xs text-foreground">
                 SENTRY_DSN

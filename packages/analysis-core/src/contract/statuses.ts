@@ -38,6 +38,19 @@ export type FindingKind = "violation" | "warning";
 
 export type Severity = "critical" | "serious" | "moderate" | "minor";
 
+/**
+ * Canonical severity rank (lower sorts first). Single source for the findings
+ * list order, the queue, and the `findings.severity_rank` denormalized column
+ * (see `packages/db/src/schema.ts`): SQL `ORDER BY severity_rank, id` and the
+ * JS fallback sort implement the same order, so paged and full loads agree.
+ */
+export const SEVERITY_RANK: Record<Severity, number> = {
+  critical: 0,
+  serious: 1,
+  moderate: 2,
+  minor: 3,
+};
+
 export type Confidence = "high" | "medium" | "low";
 
 export type ExplanationProvenance = "deterministic" | "ai";

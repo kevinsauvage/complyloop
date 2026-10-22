@@ -67,18 +67,3 @@ export function stampEvidenceActor(
   if (!actor) return;
   for (const record of records ?? []) record.actor ??= actor;
 }
-
-/** Insert-or-replace one finding in a scratch row set (shared findIndex/push). */
-export function upsertFindingInRows(
-  rows: { findings: Finding[] },
-  updated: Finding,
-): void {
-  const index = rows.findings.findIndex(
-    (candidate) => candidate.id === updated.id,
-  );
-  if (index >= 0) {
-    rows.findings[index] = updated;
-  } else {
-    rows.findings.push(updated);
-  }
-}

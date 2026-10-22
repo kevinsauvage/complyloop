@@ -3,9 +3,11 @@ import fs from "node:fs";
 import { type Browser, chromium } from "playwright-core";
 import { afterAll, describe, expect, it } from "vitest";
 
+import type { CheckId } from "../check-registry";
+import type { RawFinding } from "../types";
+import { runAxeOnPage } from "./axe-page";
 import { runThemeSensitiveCustomChecks } from "./custom-checks/index";
 import type { AxeViolationLike } from "./findings";
-import { runAxeOnPage } from "./scan";
 import {
   conditionLabel,
   conditionSpecificFindings,
@@ -21,6 +23,23 @@ function violation(id: string, target: string): AxeViolationLike {
     description: `${id} on ${target}`,
     help: "help",
     nodes: [{ html: `<div>${id}</div>`, target: [target] }],
+  };
+}
+
+function customFinding(checkId: CheckId, selector: string): RawFinding {
+  return {
+    checkId,
+    kind: "violation",
+    severity: "serious",
+    confidence: "high",
+    reason: `${checkId} at ${selector}`,
+    location: {
+      kind: "dom",
+      url: "https://app.example/",
+      selector,
+      snippet: "<button>Go</button>",
+    },
+    fix: null,
   };
 }
 
@@ -106,6 +125,31 @@ describe("browser conditions", () => {
     expect(conditionLabel("light")).toBe("light");
     expect(conditionLabel("more-contrast")).toBe("prefers-contrast: more");
   });
+
+  it("fails loud on unknown conditions instead of guessing", () => {
+    expect(() => conditionLabel("bogus" as never)).toThrow(
+      /Unhandled browser condition/,
+    );
+    expect(() => emulationForCondition("bogus" as never)).toThrow(
+      /Unhandled browser condition/,
+    );
+  });
+
+  it("drops condition findings already present in the baseline", () => {
+    const baseline: RawFinding[] = [customFinding("focus-visible", "#shared")];
+    const condition: RawFinding[] = [customFinding("focus-visible", "#shared")];
+    expect(conditionSpecificFindings(baseline, condition, "dark")).toEqual([]);
+  });
+
+  it("keeps novel condition findings with a condition prefix", () => {
+    const baseline: RawFinding[] = [];
+    const condition: RawFinding[] = [
+      customFinding("focus-visible", "#dark-only"),
+    ];
+    const result = conditionSpecificFindings(baseline, condition, "dark");
+    expect(result).toHaveLength(1);
+    expect(result[0]?.reason).toContain("[dark only]");
+  });
 });
 
 /** Skip when Playwright's bundled Chromium is not installed. */
@@ -139,7 +183,7 @@ describe("dark color-scheme condition (Playwright)", () => {
             .btn { border-color: #222; background: #000; color: #fff; }
           }
         </style></head><body>
-          <button class="btn">OK</button>
+          <button class="btn" aria-label="OK" style="width:40px;height:40px"></button>
         </body></html>
       `);
 

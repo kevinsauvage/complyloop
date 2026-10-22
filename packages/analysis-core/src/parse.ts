@@ -52,7 +52,6 @@ function jsxIndexFor(sourceFile: ts.SourceFile): JsxIndex {
   return index;
 }
 
-/** Visits every JSX opening/self-closing tag once, in source order. */
 export function visitJsxTags(
   sourceFile: ts.SourceFile,
   visit: (node: JsxTagNode) => void,

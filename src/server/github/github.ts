@@ -10,11 +10,15 @@ import type { GitHubRepoSummary } from "./github-types";
 
 export type { GitHubRepoSummary } from "./github-types";
 
+/** Bound every GitHub REST call so a stalled upstream cannot hang a handler. */
+const GITHUB_REQUEST_TIMEOUT_MS = 15_000;
+
 /** Authenticated Octokit client for server-side GitHub REST calls. */
 export function createOctokit(accessToken: string): Octokit {
   return new Octokit({
     auth: accessToken,
     userAgent: "ComplyLoop",
+    request: { timeout: GITHUB_REQUEST_TIMEOUT_MS },
     // Test / GitHub Enterprise Server override; defaults to api.github.com.
     ...(githubApiBaseUrl() ? { baseUrl: githubApiBaseUrl() } : {}),
   });
@@ -49,6 +53,17 @@ type GitHubRepoApiShape = {
   updated_at?: string | null;
   html_url: string;
   clone_url: string;
+  /**
+   * Effective permissions of the credential that loaded the repo. GitHub omits
+   * it for some installation listings, so absent reads as "cannot push".
+   */
+  permissions?: {
+    admin?: boolean;
+    maintain?: boolean;
+    push?: boolean;
+    pull?: boolean;
+    triage?: boolean;
+  } | null;
 };
 
 /** Maps a GitHub REST repo payload into our connect picker summary. */
@@ -65,6 +80,8 @@ export function mapGitHubRepo(
     updatedAt: repo.updated_at ?? "",
     htmlUrl: repo.html_url,
     cloneUrl: repo.clone_url,
+    canPush:
+      repo.permissions?.push === true || repo.permissions?.admin === true,
     ...(installationId != null ? { installationId } : {}),
   };
 }
@@ -128,4 +145,38 @@ export function redactCloneUrl(text: string): string {
 /** GitHub full names are case-insensitive; normalize for map keys and equality. */
 export function normalizeGitHubFullName(fullName: string): string {
   return fullName.trim().toLowerCase();
+}
+
+export type GitHubUserLookup =
+  | { status: "found"; login: string; id: string }
+  | { status: "not-found" }
+  | { status: "unverifiable" };
+
+/**
+ * Resolves a GitHub username to its numeric account id (invites bind to the
+ * id, not the recyclable login). 404 → `not-found`; any other transport/API
+ * failure → `unverifiable`, which the caller must treat as "cannot invite
+ * now": an invite with no id could never be claimed.
+ */
+export async function lookupGitHubUser(
+  accessToken: string,
+  login: string,
+): Promise<GitHubUserLookup> {
+  const octokit = createOctokit(accessToken);
+  try {
+    const { data } = await octokit.rest.users.getByUsername({
+      username: login.trim().replace(/^@/, ""),
+    });
+    return { status: "found", login: data.login, id: String(data.id) };
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "status" in error &&
+      (error as { status: unknown }).status === 404
+    ) {
+      return { status: "not-found" };
+    }
+    return { status: "unverifiable" };
+  }
 }

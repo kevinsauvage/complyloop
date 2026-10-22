@@ -1,3 +1,4 @@
+import { isOneOf } from "@complyloop/analysis-core/contract/literal-sets";
 import {
   ORG_ROLES,
   type OrgMembership,
@@ -9,6 +10,8 @@ export type Permission =
   | "project.view"
   | "project.assess"
   | "project.remediate"
+  /** Record compliance decisions: requirement exceptions and human passes. */
+  | "project.decide"
   | "project.connect"
   | "org.manage_members";
 
@@ -19,6 +22,7 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "project.view",
     "project.assess",
     "project.remediate",
+    "project.decide",
     "project.connect",
     "org.manage_members",
   ],
@@ -26,6 +30,7 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "project.view",
     "project.assess",
     "project.remediate",
+    "project.decide",
     "project.connect",
     "org.manage_members",
   ],
@@ -39,7 +44,7 @@ export function roleHasPermission(
 }
 
 export function isOrgRole(value: unknown): value is OrgRole {
-  return typeof value === "string" && ORG_ROLES.some((role) => role === value);
+  return isOneOf(ORG_ROLES, value);
 }
 
 export function canInOrg(

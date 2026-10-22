@@ -1,6 +1,5 @@
 import type { AccessibilityCheck } from "../types.ts";
 import {
-  bothColorsCheck,
   crypticContentAltCheck,
   dirChangeCheck,
   langChangeCheck,
@@ -99,7 +98,6 @@ export const allChecks: AccessibilityCheck[] = [
   statusLiveCheck,
   accessibleAuthCheck,
   draggingCheck,
-  bothColorsCheck,
   redundantEntryCheck,
   tableSummaryCheck,
   imageDetailedDescriptionCheck,
@@ -127,7 +125,20 @@ export const allChecks: AccessibilityCheck[] = [
  * id change — otherwise a re-assessment at an unchanged git HEAD reuses prior
  * findings and the new behavior never runs on unchanged sources.
  */
-export const ANALYSIS_ENGINE_VERSION = "2026.09.10.1";
+/**
+ * Behavior version of the shipped AST engine. Bump when a change alters
+ * findings for unchanged source (check removed/added, verdict or severity
+ * changed) so `checkRegistrySignature()` invalidates reused scans and the next
+ * run re-derives. 2026.09.24.1: retired `both-colors`, captcha-alternative
+ * downgraded to a warning, status-live toaster heuristic removed.
+ * 2026.10.19.1: false-positive fixes (test files skipped, heading `as`,
+ * custom-component list parents, template-literal label ids, invisible
+ * reCAPTCHA, shared new-tab hints, carousel/animation heuristics, jsx-a11y
+ * dialog/scrollable-region patterns).
+ * 2026.10.19.2: root <li> and <Link {...props}/> wrappers are not judged,
+ * loading spinners and project-defined animate-* classes are not motion.
+ */
+export const ANALYSIS_ENGINE_VERSION = "2026.10.20.1";
 
 /**
  * Stable signature of the shipped AST engine: behavior version + check id set.

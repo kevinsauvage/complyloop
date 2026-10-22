@@ -1,96 +1,46 @@
 import "server-only";
 
-import { checkRegistrySignature } from "@complyloop/analysis-core/checks/registry";
+import {
+  isCompositionSensitiveCheck,
+  isPackageTwinSourceCheck,
+  isRegisteredCheck,
+  isRuntimeOnlyCheck,
+} from "@complyloop/analysis-core/check-authority";
 import {
   type Assessment,
   type EvidenceRecord,
-  type FileChange,
   type Finding,
   type Remediation,
   type Requirement,
 } from "@complyloop/analysis-core/contract/entities";
-import type { AssessmentEngines } from "@complyloop/analysis-core/contract/finding-types";
-import { isSourceLocation } from "@complyloop/analysis-core/contract/location";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 import { REQUIREMENT_STATUSES } from "@complyloop/analysis-core/contract/statuses";
-import { mergeRawFindings } from "@complyloop/analysis-core/merge-findings";
-import {
-  type RuntimePageScanner,
-  scanRuntime,
-} from "@complyloop/analysis-core/runtime/scan";
-import { DEFAULT_THEME_CONDITIONS } from "@complyloop/analysis-core/runtime/theme-conditions";
+import { type RuntimePageScanner } from "@complyloop/analysis-core/runtime/scan";
 import type { DnsLookup } from "@complyloop/analysis-core/runtime/url-safety";
-import { scanChangedFiles, scanProject } from "@complyloop/analysis-core/scan";
 import type { RawFinding } from "@complyloop/analysis-core/types";
 
-import { countByStatus, latestAssessmentFor } from "@/core/assessment-helpers";
-import { advanceRemediation } from "@/core/remediation-lifecycle";
+import { countByStatus } from "@/core/assessment/assessment-helpers";
+import type { AssessmentJobStage } from "@/core/assessment/assessment-jobs";
 
-import { reportEvent, reportWarning } from "../observability";
+import { reportEvent } from "../observability";
+import { appendEvidence } from "../workspace/project-rows";
 import {
   assertAssessableCatalog,
   requirementsInScope,
 } from "../workspace/project-scope";
+import { verifyRemediationOnResolve } from "./assessment-auto-verify";
 import { reconcileControlFindings } from "./assessment-findings";
 import {
-  appendEvidence,
+  type AssessmentScanResult,
+  createStageTimer,
+  scanAssessment,
+} from "./assessment-scan";
+import {
   type AssessmentPipelineInput,
   createAssessmentScratch,
-  type ProjectRows,
-} from "./assessment-pipeline";
+} from "./assessment-scratch";
 import { applyRequirementStatusRefresh } from "./assessment-status";
-import { detectChanges, readRepoHead, summarizeChanges } from "./monitor";
-import {
-  remediationEvidenceDetail,
-  remediationEvidenceSummary,
-} from "./remediation-evidence";
-
-interface RuntimeScanEngineInput {
-  pagesScanned: number;
-  siteLevelChecksRan?: boolean;
-  htmlValidateRan?: boolean;
-  linkCheckRan?: boolean;
-  error?: string;
-}
-
-/**
- * AST checks whose verdict can depend on files beyond the one scanned
- * (document order, cross-node structure, id uniqueness). A scoped re-scan of
- * only changed files cannot confirm or clear these — any run assessing them
- * (or any run that deleted a file) must scan the full tree.
- */
-const STRUCTURAL_CHECK_IDS: ReadonlySet<string> = new Set([
-  "heading-order",
-  "list-structure",
-  "duplicate-id",
-]);
-
-function buildAssessmentEngines(
-  runtimeConfigured: boolean,
-  runtimeRan: boolean,
-  runtimeResult: RuntimeScanEngineInput,
-): AssessmentEngines {
-  const scanFeatures: Array<
-    NonNullable<AssessmentEngines["scanFeatures"]>[number]
-  > = [];
-  if (runtimeRan) {
-    if (runtimeResult.siteLevelChecksRan) scanFeatures.push("site_level");
-    if (runtimeResult.htmlValidateRan) scanFeatures.push("html_validate");
-    if (runtimeResult.linkCheckRan) scanFeatures.push("link_check");
-    if (runtimeConfigured) scanFeatures.push("theme_conditions");
-  }
-
-  return {
-    ast: true,
-    runtime: runtimeRan,
-    runtimePagesScanned: runtimeResult.pagesScanned,
-    scanFeatures: scanFeatures.length > 0 ? scanFeatures : undefined,
-    themeConditions: runtimeConfigured
-      ? [...DEFAULT_THEME_CONDITIONS]
-      : undefined,
-    runtimeError: runtimeResult.error,
-  };
-}
+import { summarizeChanges } from "./monitor";
 
 export interface RunAssessmentOptions {
   /** Absolute path of the current ephemeral (or test) checkout to scan. */
@@ -100,6 +50,12 @@ export interface RunAssessmentOptions {
   /** Injected DNS lookup for runtime SSRF checks in tests. */
   runtimeLookup?: DnsLookup;
   /**
+   * Deployment to audit, with the commit it serves (`deployment_status` jobs).
+   * Absent → the project's static `runtimeBaseUrl`, which is not tied to any
+   * commit.
+   */
+  runtimeTarget?: { url: string; sha: string };
+  /**
    * When false this is a preview scan (e.g. a pull-request head) and must not
    * derive persistent compliance decisions: finding resolution stays
    * in-memory for the check summary but remediation auto-verification is
@@ -108,6 +64,13 @@ export interface RunAssessmentOptions {
   authoritative?: boolean;
   /** Test override; production uses the shipped catalog. */
   controls?: readonly Control[];
+  /**
+   * Stage hook for worker progress reporting. Called synchronously at each
+   * pipeline stage boundary with the stage the run is entering — the worker
+   * passes a fire-and-forget job-payload writer. Must never throw: a progress
+   * callback failure must not fail the assessment (guarded at the call site).
+   */
+  onStage?: (stage: AssessmentJobStage) => void;
 }
 
 export interface AssessmentRunResult {
@@ -120,171 +83,49 @@ export interface AssessmentRunResult {
   stageMs: Record<string, number>;
 }
 
-/** Re-scan scope proof for draft-PR auto-verification. */
-export interface DraftPrVerifyScope {
-  /**
-   * Files this run re-scanned (`null` after a full-tree scan). A resolve only
-   * counts as fix-confirmed when the finding's file is among them.
-   */
-  scopedFileSet: Set<string> | null;
-  /** True when sources were reused without any scan — nothing was re-checked. */
-  sourcesUnchanged: boolean;
-}
-
-/** Exported for unit tests of the re-scan scope guard. */
-export function verifyDraftPrRemediation(
-  rows: ProjectRows,
-  finding: Finding,
-  assessmentId: string,
-  scope: DraftPrVerifyScope,
-): void {
-  if (!isSourceLocation(finding.location)) return;
-  const remediationIndex = rows.remediations.findIndex(
-    (candidate) => candidate.findingId === finding.id,
-  );
-  const remediation = rows.remediations[remediationIndex];
-  if (!remediation || remediation.status !== "approved") return;
-  if (remediation.approvalAction !== "create_draft_pull_request") return;
-
-  // A reconcile resolve is only a confirmed fix when the finding's location
-  // was actually re-scanned this run: full scans re-check the whole tree,
-  // scoped scans must include the finding's file. Otherwise the resolve may
-  // come from an identity mismatch — skip auto-verify instead of advancing.
-  if (scope.sourcesUnchanged) {
-    reportWarning(
-      "Skipping draft-PR auto-verify: sources unchanged, finding was not re-scanned",
-      {
-        code: "draft_pr_verify_scope_unproven",
-        projectId: finding.projectId,
-        findingId: finding.id,
-        assessmentId,
-      },
-    );
-    return;
-  }
-  if (
-    scope.scopedFileSet !== null &&
-    !scope.scopedFileSet.has(finding.location.filePath)
-  ) {
-    reportWarning(
-      "Skipping draft-PR auto-verify: finding file outside the re-scanned scope",
-      {
-        code: "draft_pr_verify_scope_unproven",
-        projectId: finding.projectId,
-        findingId: finding.id,
-        assessmentId,
-        filePath: finding.location.filePath,
-      },
-    );
-    return;
-  }
-
-  const implemented = advanceRemediation(
-    remediation,
-    "implemented",
-    "No longer detected by deterministic reassessment after draft PR approval",
-  );
-  const verified = advanceRemediation(
-    implemented,
-    "verified",
-    "Verified by deterministic reassessment",
-  );
-  rows.remediations[remediationIndex] = verified;
-  const detail = remediationEvidenceDetail({
-    determination: "automated",
-    method: "deterministic_reassessment",
-  });
-  appendEvidence(rows, {
-    kind: "remediation_implemented",
-    summary: remediationEvidenceSummary("implemented", finding),
-    projectId: finding.projectId,
-    controlId: finding.controlId,
-    findingId: finding.id,
-    assessmentId,
-    detail,
-  });
-  appendEvidence(rows, {
-    kind: "remediation_verified",
-    summary: remediationEvidenceSummary("verified", finding),
-    projectId: finding.projectId,
-    controlId: finding.controlId,
-    findingId: finding.id,
-    assessmentId,
-    detail,
-  });
-}
+/** Re-scan scope proof for auto-verification on resolve. */
 
 /**
- * Runs assessment against a checkout. Takes the narrow pipeline input
- * (project + project-scoped rows — never the full tenancy `WorkspaceSlice`).
- * Reads the input but never mutates it — all writes live on an
- * assessment-owned scratch (see `assessment-pipeline.ts`) and are returned
- * for `applyAssessmentPayload` (or test materialization).
- *
- * Stage sequence: (1) scratch → (2) change detection → (3) AST scan →
- * (4) runtime scan → (5) merge → (6) reconcile findings → (7) refresh
- * statuses → (8) build assessment record.
+ * Reconcile phase: fold a scan into project rows — match / create / resolve
+ * findings, refresh requirement statuses, and build the assessment record plus
+ * its evidence. Mutates an assessment-owned scratch cloned from `input`, which
+ * the caller must have loaded under the project write lock; the returned rows
+ * are what `applyAssessmentPayload` persists, so state and evidence always
+ * agree.
  */
-export async function runAssessment(
+export async function reconcileAssessment(
   input: AssessmentPipelineInput,
+  scan: AssessmentScanResult,
   options: RunAssessmentOptions,
 ): Promise<AssessmentRunResult> {
   const { project } = input;
   const projectId = project.id;
   const { rootPath } = options;
+  const {
+    assessmentId,
+    startedAt,
+    snapshot,
+    changes,
+    changeContext,
+    previousGitHead,
+    sourcesUnchanged,
+    scopedFileSet,
+    rawFindings,
+    filesScanned,
+    scanMode,
+    engines,
+    runtime,
+    stageMs,
+  } = scan;
 
-  // — Stage 1: scratch rows (clone + clear expired exceptions). —
+  // — Reconcile stage 1: scratch rows (clone + clear expired exceptions). —
   const rows = createAssessmentScratch(input);
-
-  const startedAt = new Date().toISOString();
-
-  // Wall-clock ms per stage, persisted on the completion evidence (detail
-  // `stageMs`) so production slowness is attributable without guessing.
-  const stageMs: Record<string, number> = {};
-  async function timed<T>(label: string, fn: () => Promise<T> | T): Promise<T> {
-    const start = Date.now();
-    // Start-of-stage marker: completion timings are reported at the end, so a
-    // killed function (Vercel timeout) leaves nothing — the last progress
-    // line names the stall instead.
-    console.info(`[progress] assessment stage ${label} started`);
-    try {
-      return await fn();
-    } finally {
-      stageMs[label] = Date.now() - start;
-    }
-  }
-
-  // — Stage 2: change detection (snapshot + changed files). —
-  const previous = latestAssessmentFor(input.assessments, projectId);
+  const timed = createStageTimer(stageMs, options.onStage, projectId);
   const scoped = assertAssessableCatalog(project, options.controls);
-  // Reuse prior AST findings only when the commit, control scope, and engine
-  // behavior version/check set are all unchanged. Any difference forces a real
-  // scan so new/changed checks (or a bumped ANALYSIS_ENGINE_VERSION) are not
-  // silently missed.
-  const snapshotKey = `${checkRegistrySignature()}#${scoped
-    .map((control) => control.id)
-    .sort()
-    .join(",")}`;
-  const head = readRepoHead(rootPath);
-  const sourcesUnchanged =
-    previous?.snapshot?.gitHead !== undefined &&
-    head !== undefined &&
-    previous.snapshot.gitHead === head &&
-    previous.snapshot.controlScopeKey === snapshotKey;
-
-  const { snapshot, changes } = await timed("changedetection", () => {
-    if (sourcesUnchanged && previous?.snapshot) {
-      return {
-        snapshot: { ...previous.snapshot },
-        changes: [] as FileChange[],
-      };
-    }
-    const detected = detectChanges(rootPath, previous?.snapshot);
-    return { snapshot: detected.snapshot, changes: detected.changes };
-  });
-  snapshot.controlScopeKey = snapshotKey;
-  const changeContext =
-    changes.length > 0 ? summarizeChanges(changes) : undefined;
+  // Authority requires both a tied deployment and full route coverage: a
+  // partial audit must not pass runtime-only requirements or confirm
+  // applicability for pages it never rendered.
+  const runtimeAuthoritative = runtime.tied && runtime.complete;
 
   if (changes.length > 0) {
     appendEvidence(rows, {
@@ -293,141 +134,62 @@ export async function runAssessment(
       projectId,
       detail: {
         files: changes.map((change) => change.filePath),
-        previousGitHead: previous?.snapshot?.gitHead,
+        previousGitHead,
         gitHead: snapshot.gitHead,
       },
     });
   }
 
-  const changedJsx = changes
-    .map((change) => change.filePath)
-    .filter((filePath) => /\.(tsx|jsx)$/i.test(filePath));
-  // Files the previous snapshot knew but the current tree no longer has.
-  // `changes` already lists them (detectChanges adds missing paths), but the
-  // resolve scope must name them explicitly: a deleted file is never scanned,
-  // so its findings only clear when the file is in the invalidation set.
-  const deletedFiles = previous?.snapshot
-    ? Object.keys(previous.snapshot.fileHashes).filter(
-        (filePath) => snapshot.fileHashes[filePath] === undefined,
-      )
-    : [];
-  const deletedJsx = deletedFiles.filter((filePath) =>
-    /\.(tsx|jsx)$/i.test(filePath),
-  );
-  const hasDeletion = deletedFiles.length > 0;
-  const hasStructuralChecks = scoped.some(
-    (control) =>
-      control.checkId !== null && STRUCTURAL_CHECK_IDS.has(control.checkId),
-  );
-  // Structural verdicts can shift with any cross-file change and deletions
-  // invalidate per-file assumptions outright — both force a full-tree scan
-  // with an unbounded resolve scope instead of a scoped re-scan.
-  const forceFullScan = hasDeletion || hasStructuralChecks;
-  const useScoped =
-    Boolean(previous?.snapshot) && changedJsx.length > 0 && !forceFullScan;
-
-  // — Stage 3: AST scan (full / scoped / reuse when sources unchanged). —
-  const { astFindings, filesScanned, scanMode } = await timed("ast", () => {
-    if (sourcesUnchanged) {
-      // Sources, scope, and engine set are identical to the last run: keep the
-      // existing AST findings and skip the full-tree scan. Runtime checks still
-      // run and reconcile their own findings below.
-      return {
-        astFindings: [] as RawFinding[],
-        filesScanned: previous?.filesScanned ?? 0,
-        scanMode: "scoped" as const,
-      };
-    }
-    if (useScoped) {
-      const scopedScan = scanChangedFiles(rootPath, changedJsx);
-      return {
-        astFindings: scopedScan.findings,
-        filesScanned: scopedScan.filesScanned,
-        scanMode: scopedScan.scanMode,
-      };
-    }
-    const fullScan = scanProject(rootPath);
-    return {
-      astFindings: fullScan.findings,
-      filesScanned: fullScan.filesScanned,
-      scanMode: fullScan.scanMode,
-    };
-  });
-  const scopedFileSet = sourcesUnchanged
-    ? new Set<string>()
-    : useScoped
-      ? new Set([...changedJsx, ...deletedJsx])
-      : null;
-
-  // — Stage 4: runtime scan (only when a preview URL is configured). —
-  const runtimeConfigured = Boolean(project.runtimeBaseUrl?.trim());
-  const runtimeResult = await timed("runtime", () =>
-    runtimeConfigured
-      ? scanRuntime({
-          runtimeBaseUrl: project.runtimeBaseUrl,
-          runtimeRoutes: project.runtimeRoutes,
-          browserConditions: DEFAULT_THEME_CONDITIONS,
-          scanner: options.runtimeScanner,
-          lookup: options.runtimeLookup,
-        })
-      : Promise.resolve({ findings: [], pagesScanned: 0 }),
-  );
-  const runtimeRan =
-    runtimeConfigured &&
-    runtimeResult.error === undefined &&
-    runtimeResult.pagesScanned > 0;
-  if (runtimeConfigured && !runtimeRan) {
-    // A failed runtime sub-scan does not fail the job, so without this the
-    // classified cause only lands in evidence — invisible in Vercel logs and
-    // Sentry. Origin only, never the full URL (preview tokens).
-    let previewOrigin: string | undefined;
-    try {
-      previewOrigin = new URL(project.runtimeBaseUrl as string).origin;
-    } catch {
-      previewOrigin = undefined;
-    }
-    reportWarning("runtime scan did not run", {
-      code: "assessment_runtime_skipped",
-      projectId,
-      error: runtimeResult.error ?? "no pages",
-      pagesScanned: runtimeResult.pagesScanned,
-      previewOrigin,
-    });
-  }
-
-  const engines = buildAssessmentEngines(
-    runtimeConfigured,
-    runtimeRan,
-    runtimeResult,
-  );
-
-  // — Stage 5: merge AST + runtime findings (dedupe, authority). —
   // — Stage 6: reconcile per-control findings (match / create / resolve). —
   // — Stage 7: refresh requirement statuses + summarize. —
   // Timed together: all three are in-memory row work with no I/O boundary.
-  const assessmentId = crypto.randomUUID();
   const summary = await timed("reconcile", () => {
-    const rawFindings = mergeRawFindings(
-      astFindings,
-      runtimeResult.findings,
-      runtimeRan,
-    );
     // Shared for the whole run: many new findings share a source file, so the
     // suggestion builder should read each file once (see buildSuggestion).
     const fileTextCache = new Map<string, string>();
+    // Indexed once per run (O(findings + controls)): the per-control loop
+    // below used to re-filter all findings twice per control plus raw hits
+    // once per control — O(C×F)×3 on a hot loop that also writes evidence.
+    // Rows created mid-pass are control-scoped, so upfront slices stay exact.
+    const openByControl = new Map<string, Finding[]>();
+    const dismissedByControl = new Map<string, Finding[]>();
+    const resolvedByControl = new Map<string, Finding[]>();
+    for (const finding of rows.findings) {
+      if (finding.projectId !== project.id) continue;
+      const target =
+        finding.status === "open"
+          ? openByControl
+          : finding.status === "dismissed"
+            ? dismissedByControl
+            : resolvedByControl;
+      const list = target.get(finding.controlId) ?? [];
+      list.push(finding);
+      target.set(finding.controlId, list);
+    }
+    const rawByCheckId = new Map<string, RawFinding[]>();
+    for (const raw of rawFindings) {
+      const list = rawByCheckId.get(raw.checkId) ?? [];
+      list.push(raw);
+      rawByCheckId.set(raw.checkId, list);
+    }
     for (const control of scoped) {
-      if (control.checkId === null) continue;
+      const checkId = control.checkId;
+      if (checkId === null) continue;
       reconcileControlFindings({
         rows,
         project,
         control,
         assessmentId,
         rootPath,
-        rawForControl: rawFindings.filter(
-          (raw) => raw.checkId === control.checkId,
-        ),
+        rawForControl: rawByCheckId.get(checkId) ?? [],
+        openFindings: openByControl.get(control.id) ?? [],
+        dismissedFindings: dismissedByControl.get(control.id) ?? [],
+        resolvedFindings: resolvedByControl.get(control.id) ?? [],
         scopedFileSet,
-        runtimeRan,
+        runtimeRan: runtimeAuthoritative,
+        runtimeScannedRoutes: new Set(runtime.scannedRoutes),
+        runtimeFailedRoutes: new Set(runtime.failedRoutes),
+        untiedRuntimeOrigin: runtime.tied ? undefined : runtime.auditedOrigin,
         fileTextCache,
         // A preview scan (PR head / feature branch) must not derive the
         // persistent compliance decision: never auto-verify an approved
@@ -436,19 +198,70 @@ export async function runAssessment(
           options.authoritative === false
             ? () => {}
             : (finding) =>
-                verifyDraftPrRemediation(rows, finding, assessmentId, {
+                verifyRemediationOnResolve(rows, finding, assessmentId, {
                   scopedFileSet,
                   sourcesUnchanged,
+                  rootPath,
+                  // Merge authority: when a runtime audit ran, AST findings for
+                  // these ids are dropped without any proof of a fix.
+                  runtimeOwnsCheck:
+                    runtime.tied &&
+                    (isCompositionSensitiveCheck(checkId) ||
+                      isRuntimeOnlyCheck(checkId) ||
+                      isPackageTwinSourceCheck(checkId)),
                 }),
+      });
+    }
+    // Orphan reconcile: a preset/scope change can drop controls the previous
+    // run assessed, and a check can be retired from the engine entirely. In
+    // both cases the per-control loop (which skips manual controls) can never
+    // resolve their open findings, so they would sit open forever. Resolve
+    // with provenance; remediations are left untouched (no confirmed fix, so
+    // no auto-verify). Preview runs build rows discarded on apply, so this is
+    // safe to do unconditionally in-memory.
+    const scopedControlIds = new Set(scoped.map((control) => control.id));
+    for (const finding of rows.findings) {
+      if (finding.projectId !== project.id || finding.status !== "open") {
+        continue;
+      }
+      const controlScoped = scopedControlIds.has(finding.controlId);
+      const checkRegistered = isRegisteredCheck(finding.checkId);
+      if (controlScoped && checkRegistered) continue;
+      const retired = !checkRegistered;
+      finding.status = "resolved";
+      finding.resolvedNote = retired
+        ? "Check retired from the assessment engine; no longer evaluated."
+        : "Control removed from the assessment scope; no longer evaluated.";
+      appendEvidence(rows, {
+        kind: "finding",
+        summary: retired
+          ? `${finding.checkId}: check retired — finding closed`
+          : `${finding.checkId}: control ${finding.controlId} out of scope — finding closed`,
+        projectId,
+        controlId: finding.controlId,
+        findingId: finding.id,
+        assessmentId,
+        detail: {
+          event: "resolved",
+          reason: retired ? "check_retired" : "control_out_of_scope",
+        },
       });
     }
     applyRequirementStatusRefresh(rows, project, {
       assessmentId,
       changeContext,
-      runtimeRan,
-      siteLevelChecksRan: runtimeResult.siteLevelChecksRan,
-      htmlValidateRan: runtimeResult.htmlValidateRan,
-      applicabilityFacts: runtimeResult.applicabilityFacts,
+      // Untied runtime results are advisory: they must not pass runtime-only
+      // requirements or confirm applicability for a commit they never saw.
+      runtimeRan: runtimeAuthoritative,
+      siteLevelChecksRan: runtimeAuthoritative
+        ? runtime.siteLevelChecksRan
+        : undefined,
+      htmlValidateRan: runtimeAuthoritative
+        ? runtime.htmlValidateRan
+        : undefined,
+      applicabilityFacts: runtimeAuthoritative
+        ? runtime.applicabilityFacts
+        : undefined,
       filesScanned,
       controls: options.controls,
     });
@@ -470,10 +283,10 @@ export async function runAssessment(
     changesSincePrevious: changes,
   };
 
-  const engineSummary = runtimeConfigured
-    ? runtimeRan
-      ? `; runtime ${runtimeResult.pagesScanned} page(s)`
-      : `; runtime skipped (${runtimeResult.error ?? "no pages"})`
+  const engineSummary = runtime.configured
+    ? runtime.ran
+      ? `; runtime ${runtime.pagesScanned} page(s)${runtime.tied ? "" : " (not tied to the scanned commit — advisory)"}`
+      : `; runtime skipped (${runtime.error ?? "no pages"})`
     : "";
 
   appendEvidence(rows, {
@@ -507,4 +320,18 @@ export async function runAssessment(
     requirements: rows.requirements,
     stageMs,
   };
+}
+
+/**
+ * Full run = scan then reconcile. Kept as the single entry point for callers
+ * that already hold the rows (tests, offline verification). The worker scans
+ * once and lets `applyAuthoritativeAssessment` reconcile on rows it loads
+ * fresh under the write lock, so a slow scan can never reconcile a stale slice.
+ */
+export async function runAssessment(
+  input: AssessmentPipelineInput,
+  options: RunAssessmentOptions,
+): Promise<AssessmentRunResult> {
+  const scan = await scanAssessment(input, options);
+  return reconcileAssessment(input, scan, options);
 }

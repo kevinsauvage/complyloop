@@ -51,8 +51,9 @@ describe("parseCssColor", () => {
 
   it("converts a saturated lab() red near sRGB red", () => {
     // CSS Color 4 spec example: this lab triple displays as red.
-    const [r, g, b] =
-      parseCssColor("lab(52.2319% 80.1093 67.2201)")?.rgb ?? [0, 0, 0];
+    const [r, g, b] = parseCssColor("lab(52.2319% 80.1093 67.2201)")?.rgb ?? [
+      0, 0, 0,
+    ];
     expect(r).toBeGreaterThan(200);
     expect(g).toBeLessThan(100);
     expect(b).toBeLessThan(100);

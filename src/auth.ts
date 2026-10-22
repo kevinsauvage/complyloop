@@ -1,44 +1,18 @@
 import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
 
+import { resolveAuthSecret } from "@/auth-secret";
 import {
-  isProductionRuntime,
-  resolveAuthSecret,
-} from "@/auth-secret";
-import { assertProductionGitHubApp } from "@/server/github/github-app";
+  assertProductionGitHubAuth,
+  isGitHubAuthConfigured,
+} from "@/server/github/auth-config";
 import {
   clearStoredGitHubToken,
   storeUserGitHubToken,
 } from "@/server/github/github-tokens";
 import { ensurePersonalOrgProvisioned } from "@/server/workspace/personal-org";
 
-/** True when GitHub OAuth env vars are present — otherwise sign-in is hidden. */
-export function isGitHubAuthConfigured(): boolean {
-  return Boolean(
-    process.env.AUTH_SECRET &&
-    process.env.AUTH_GITHUB_ID &&
-    process.env.AUTH_GITHUB_SECRET,
-  );
-}
-
-/**
- * Fail loud when serving in production without AUTH_URL.
- * Skips the Next.js production-build phase so `next build` still works.
- */
-function assertProductionAuthUrl(): void {
-  if (!isProductionRuntime()) return;
-  if (!isGitHubAuthConfigured()) return;
-  if (!process.env.AUTH_URL) {
-    throw new Error(
-      "AUTH_URL is required in production when GitHub auth is configured (see docs/vercel.md).",
-    );
-  }
-}
-
-function assertProductionGitHubAuth(): void {
-  assertProductionAuthUrl();
-  assertProductionGitHubApp();
-}
+export { isGitHubAuthConfigured };
 
 const githubConfigured = isGitHubAuthConfigured();
 const authSecret = resolveAuthSecret();
@@ -56,6 +30,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     : [],
   secret: authSecret,
   trustHost: true,
+  // Explicit session lifetimes (not NextAuth defaults): 30-day sessions with
+  // a daily refresh so active users keep a sliding window without re-login.
+  session: { maxAge: 30 * 24 * 60 * 60, updateAge: 24 * 60 * 60 },
   events: {
     async signIn(message) {
       // Without a DB adapter, Auth.js mints a random UUID as `user.id`. Identity

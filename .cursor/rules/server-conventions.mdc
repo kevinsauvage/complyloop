@@ -7,12 +7,12 @@ alwaysApply: false
 # Server Conventions
 
 - Server Actions: one domain file under `actions/` — no barrel re-exports. Shared helpers live in `actions/shared.ts`.
-- Authorize before mutating (`assertProjectPermission`, `requireOnActive`, `requireOnFindingProject`).
+- Authorize before mutating (`assertProjectPermission`, `requireFinding`, `requireRemediationForFinding`).
 - User-facing failures: throw `PublicError`. Unexpected errors: `reportError` / `reportWarning` from `observability.ts`.
-- Evidence is insert-only — never UPDATE/DELETE evidence rows (DB trigger enforces this).
+- Evidence is insert-only — never UPDATE/DELETE evidence rows (DB trigger enforces this). Sole exception: org deletion erases the org's evidence through `deleteEvidenceForOrg` (transaction-scoped `complyloop.allow_evidence_erase` flag); never add another delete path.
 - Status changes go through core helpers (`advanceRemediation`, requirement-status transitions) — actions must not invent statuses.
 - Never log or return raw GitHub tokens. Source trees are ephemeral temp clones (`repo-checkout.ts`).
-- Long assessments: durable jobs + worker (`assessment-jobs`, `assessment-worker`), not long-running request handlers — no exceptions. `runAssessmentAction` only enqueues and schedules the drain in `after()`; the scan always runs in the worker route (or inline on the dev/e2e path). The rule forbids *new* long-running request handlers.
+- Long assessments: durable jobs + worker (`assessment-jobs`, `assessment-worker`), not long-running request handlers — no exceptions. `runAssessmentAction` only enqueues and schedules the drain in `after()`; the scan always runs in the GitHub Actions worker (or inline on the dev/e2e path). The rule forbids *new* long-running request handlers.
 - Webhook deliveries are idempotent by `x-github-delivery`.
 
 ## Verification loop

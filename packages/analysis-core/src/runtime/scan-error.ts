@@ -14,15 +14,6 @@ const PATTERNS: RuntimeScanErrorPattern[] = [
     message: TOO_MANY_REDIRECTS_MESSAGE,
   },
   {
-    // Vercel file tracing omits sparticuz's non-JS `bin/` assets unless
-    // `outputFileTracingIncludes` covers the scanning route (see
-    // next.config.ts). Actionable on purpose: the fix is in the bundle, not
-    // the preview URL. Must precede the generic sparticuz pattern below.
-    test: (raw) => /@sparticuz\/chromium\/bin/.test(raw),
-    message:
-      "The serverless browser package is incomplete in this deployment (missing @sparticuz/chromium binaries). The deploy needs outputFileTracingIncludes for the scanning route — redeploy after fixing the bundle, not the preview URL.",
-  },
-  {
     // `resolveAxeMinJsPath` loads `axe-core/axe.min.js` from disk via
     // `require.resolve` (the `source` string breaks under Next/webpack), so
     // file tracing omits it unless `outputFileTracingIncludes` covers it
@@ -77,9 +68,7 @@ const PATTERNS: RuntimeScanErrorPattern[] = [
   },
   {
     test: (raw) =>
-      /sparticuz-launch|Executable doesn't exist/i.test(raw) ||
-      /browserType\.launch/i.test(raw) ||
-      /sparticuz/i.test(raw),
+      /Executable doesn't exist/i.test(raw) || /browserType\.launch/i.test(raw),
     message: "Could not start the browser used for preview audits.",
   },
 ];

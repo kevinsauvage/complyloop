@@ -1,57 +1,82 @@
 import "server-only";
 
-import type { Finding } from "@complyloop/analysis-core/contract/entities";
+import type { AssessmentJobStage } from "@/core/assessment/assessment-jobs";
 
-import { postAssessmentCheckRun } from "../github/github-connector";
 import { reportError, reportEvent, reportWarning } from "../observability";
 import { loadProjectDb } from "../workspace/db";
-import { type AssessmentRunResult, runAssessment } from "./assessment";
 import {
   ASSESSMENT_JOB_HEARTBEAT_MS,
-  type AssessmentJob,
   claimNextAssessmentJob,
   completeAssessmentJob,
   failAssessmentJob,
   refreshAssessmentJobLease,
+  updateAssessmentJobStage,
+} from "./assessment-job-lease";
+import {
+  type AssessmentJob,
+  AssessmentJobCancelledError,
 } from "./assessment-jobs";
 import {
   applyAuthoritativeAssessment,
   recordAssessmentFailureEvidence,
-  snapshotPipelineSlice,
   toPipelineInput,
 } from "./assessment-pipeline";
+import { scanAssessment } from "./assessment-scan";
 import { withProjectCheckout } from "./repo-checkout";
 
-function openViolationCount(findings: ReadonlyArray<Finding>): number {
-  return findings.filter(
-    (finding) => finding.status === "open" && finding.kind === "violation",
-  ).length;
+/**
+ * Explicit scan authority: only a manual assessment, a webhook push of the
+ * default branch or a successful default-branch deployment may derive the
+ * persistent compliance state. Anything else — unknown events or malformed
+ * payloads that slipped past the claim gate — is non-authoritative and must
+ * not resolve findings, flip statuses, or auto-verify remediations. Fail
+ * closed.
+ */
+export function resolveJobAuthoritative(job: AssessmentJob): boolean {
+  if (job.trigger === "manual") return true;
+  if (job.trigger !== "webhook") return false;
+  return (
+    job.payload.eventName === "push" ||
+    job.payload.eventName === "deployment_status"
+  );
 }
 
-function failedRequirementCount(
-  requirements: AssessmentRunResult["requirements"],
-): number {
-  return requirements.filter((requirement) => requirement.status === "failed")
-    .length;
+/**
+ * Regression alerts come from webhook runs. When the project reports its
+ * deployments, a push run is untied by construction (the build is still
+ * running), so alerting from it would announce regressions the commit-tied
+ * run of the same push corrects a minute later. That run alerts instead.
+ */
+export function shouldCollectAlerts(
+  job: AssessmentJob,
+  project: { lastDeployment?: unknown },
+  scan: { runtime: { tied: boolean } },
+): boolean {
+  if (job.trigger !== "webhook") return false;
+  const deferToDeployment =
+    job.payload.eventName === "push" &&
+    project.lastDeployment !== undefined &&
+    !scan.runtime.tied;
+  return !deferToDeployment;
 }
 
 async function runClaimedAssessmentJob(
   job: AssessmentJob,
+  onLeaseRenewed?: (leaseExpiresAt: string) => void,
 ): Promise<{ cancelled: boolean }> {
   // Pipeline shape: load → run → apply. Status/finding derivation lives in
   // `runAssessment`; persistence (locks, alerts, evidence) lives in
   // `assessment-pipeline.ts`. This function only wires the two together plus
-  // the ephemeral checkout and the PR Check Run post.
+  // the ephemeral checkout.
   const db = await loadProjectDb(job.projectId);
   const pipelineInput = toPipelineInput(db, job.projectId);
   const { project } = pipelineInput;
-  const loadedSlice = snapshotPipelineSlice(pipelineInput);
 
   // Only the default branch (or an explicit manual assessment) is
-  // authoritative for the project's compliance state. A webhook pull-request
-  // scan assesses a proposed change: it posts a Check Run but must not
-  // resolve findings, flip statuses, or auto-verify remediations.
-  const authoritative = !job.payload.pullRequestHeadSha;
+  // authoritative for the project's compliance state. Anything else runs the
+  // same analysis but persists nothing and never resolves findings, flips
+  // statuses, or auto-verifies remediations.
+  const authoritative = resolveJobAuthoritative(job);
 
   // Lease heartbeat: long scans (large clone + Playwright) must never expire
   // mid-run and get double-executed by lease recovery. A heartbeat that finds
@@ -59,9 +84,15 @@ async function runClaimedAssessmentJob(
   // caller skips complete/fail/evidence instead of resurrecting the job.
   let expectedLease = job.leaseExpiresAt;
   let cancelledRemotely = false;
+  let renewInFlight = false;
   const heartbeat =
     expectedLease && job.startedAt
       ? setInterval(() => {
+          // Skip a tick while a renew is still in flight: overlapping renews
+          // carry a stale `expectedLease`, which the exact-match guard reads as
+          // a remote cancel — discarding a healthy long run.
+          if (renewInFlight) return;
+          renewInFlight = true;
           void (async () => {
             try {
               const renewed = await refreshAssessmentJobLease({
@@ -71,6 +102,7 @@ async function runClaimedAssessmentJob(
               });
               if (renewed) {
                 expectedLease = renewed;
+                onLeaseRenewed?.(renewed);
               } else {
                 cancelledRemotely = true;
                 clearInterval(heartbeat ?? undefined);
@@ -81,6 +113,8 @@ async function runClaimedAssessmentJob(
                 jobId: job.id,
                 error: error instanceof Error ? error.message : String(error),
               });
+            } finally {
+              renewInFlight = false;
             }
           })();
         }, ASSESSMENT_JOB_HEARTBEAT_MS)
@@ -89,75 +123,81 @@ async function runClaimedAssessmentJob(
   if (heartbeat && typeof heartbeat.unref === "function") heartbeat.unref();
 
   try {
-    // Wall-clock attribution: clone/quota/cleanup (checkout) vs scan vs
-    // apply, so production slowness lands on a stage instead of a guess.
-    // checkoutMs is derived (total − scan − apply) to avoid hooks inside
-    // the checkout helper; the in-scan split lives on the run's evidence.
+    // Wall-clock attribution: clone/quota/fetch (checkout) vs scan vs apply,
+    // so production slowness lands on a stage instead of a guess. checkoutMs
+    // is measured at the checkout-callback boundary (no hooks inside the
+    // checkout helper); the in-scan split lives on the run's evidence.
+    // Each boundary also stamps the job payload stage (best effort) so the
+    // Pipeline UI and crash forensics can see what the run was doing.
+    const reportStage = (stage: AssessmentJobStage): void => {
+      void updateAssessmentJobStage(job.id, stage);
+    };
     const checkoutStart = Date.now();
+    let checkoutMs = 0;
     let scanMs = 0;
     let applyMs = 0;
+    let applyCancelled = false;
+    reportStage("checkout");
     const result = await withProjectCheckout(
       project,
       async (rootPath) => {
+        checkoutMs = Date.now() - checkoutStart;
         const scanStart = Date.now();
-        const run = await runAssessment(pipelineInput, {
+        // Scan only: the reconcile runs inside the apply transaction, on rows
+        // loaded there under the project lock. This is what keeps the audit
+        // trail consistent when a user edits a finding during the scan.
+        const scan = await scanAssessment(pipelineInput, {
           rootPath,
           authoritative,
+          runtimeTarget: job.payload.runtimeTarget,
+          onStage: reportStage,
         });
         scanMs = Date.now() - scanStart;
-        const { assessment } = run;
         const trigger = job.payload.eventName ?? "manual assessment";
 
         // A cancel that lands mid-run discards the results: nothing is
-        // persisted and no Check Run is posted, so "cancel" always means
-        // "saves nothing".
+        // persisted, so "cancel" always means "saves nothing".
         if (authoritative && !cancelledRemotely) {
           const applyStart = Date.now();
-          await applyAuthoritativeAssessment({
-            project,
-            job,
-            run,
-            loadedSlice,
-            collectAlerts: job.trigger === "webhook",
-            trigger,
-          });
-          applyMs = Date.now() - applyStart;
+          reportStage("apply");
+          try {
+            await applyAuthoritativeAssessment({
+              project,
+              job,
+              scan,
+              rootPath,
+              collectAlerts: shouldCollectAlerts(job, project, scan),
+              trigger,
+            });
+          } catch (error) {
+            if (!(error instanceof AssessmentJobCancelledError)) throw error;
+            // The cancel landed mid-apply: the apply transaction rolled back,
+            // so the contract above still holds.
+            applyCancelled = true;
+            return null;
+          } finally {
+            applyMs = Date.now() - applyStart;
+          }
         }
 
-        return {
-          project,
-          assessment,
-          openViolations: openViolationCount(run.findings),
-          failedRequirements: failedRequirementCount(run.requirements),
-        };
+        return true as const;
       },
       job.payload.ref,
     );
+    if (result === null || applyCancelled) {
+      return { cancelled: true };
+    }
     const totalMs = Date.now() - checkoutStart;
     reportEvent("assessment stage timings", {
       code: "assessment_stage_timing",
       projectId: project.id,
       jobId: job.id,
-      checkoutMs: Math.max(totalMs - scanMs - applyMs, 0),
+      checkoutMs,
       scanMs,
       applyMs,
       totalMs,
     });
 
-    if (
-      !cancelledRemotely &&
-      job.trigger === "webhook" &&
-      job.payload.pullRequestHeadSha
-    ) {
-      await postAssessmentCheckRun({
-        project: result.project,
-        jobId: job.id,
-        headSha: job.payload.pullRequestHeadSha,
-        openViolations: result.openViolations,
-        failedRequirements: result.failedRequirements,
-        assessmentId: result.assessment.id,
-      });
-    }
     return { cancelled: cancelledRemotely };
   } finally {
     if (heartbeat) clearInterval(heartbeat);
@@ -177,6 +217,57 @@ export type RunningAssessmentJobResult = Exclude<
 >;
 
 /**
+ * Executes a claimed `verify_remediation` job: re-audit one finding's
+ * implemented remediation on the worker and apply the verdict. Much shorter
+ * than an assessment (no checkout, no full pipeline), and its single browser
+ * re-audit is far below the lease, so it needs no heartbeat. The handler is
+ * reached through dynamic `import()` so the scan stack never enters this
+ * module's static graph.
+ */
+async function settleRunningVerifyJob(
+  job: AssessmentJob,
+): Promise<RunningAssessmentJobResult> {
+  const findingId = job.payload.findingId;
+  reportEvent("remediation verify job claimed", {
+    code: "remediation_verify_job_claimed",
+    jobId: job.id,
+    projectId: job.projectId,
+    findingId,
+    attempts: job.attempts,
+  });
+  if (!findingId) {
+    await failAssessmentJob(job, new Error("Verify job missing findingId."));
+    return { kind: "failed", jobId: job.id };
+  }
+  try {
+    const { runRemediationVerifyJob } =
+      await import("./remediation-verify-worker");
+    await runRemediationVerifyJob(findingId);
+    await completeAssessmentJob(job);
+    reportEvent("remediation verify job completed", {
+      code: "remediation_verify_job_succeeded",
+      jobId: job.id,
+      projectId: job.projectId,
+      findingId,
+    });
+    return { kind: "succeeded", jobId: job.id };
+  } catch (error) {
+    const status = await failAssessmentJob(job, error);
+    reportError(error, {
+      code:
+        status === "failed"
+          ? "remediation_verify_job_failed"
+          : "remediation_verify_job_retrying",
+      jobId: job.id,
+      projectId: job.projectId,
+      findingId,
+      attempts: job.attempts,
+    });
+    return { kind: status === "failed" ? "failed" : "retrying", jobId: job.id };
+  }
+}
+
+/**
  * Executes an already-`running` job to a terminal state: run the scan, then
  * complete, cancel, or fail it. Shared by the claim loop below, so worker
  * runs have identical persistence, cancellation, and retry semantics no
@@ -185,6 +276,9 @@ export type RunningAssessmentJobResult = Exclude<
 export async function settleRunningAssessmentJob(
   job: AssessmentJob,
 ): Promise<RunningAssessmentJobResult> {
+  if (job.trigger === "verify_remediation") {
+    return settleRunningVerifyJob(job);
+  }
   reportEvent("assessment job claimed", {
     code: "assessment_job_claimed",
     jobId: job.id,
@@ -192,8 +286,17 @@ export async function settleRunningAssessmentJob(
     trigger: job.trigger,
     attempts: job.attempts,
   });
+  // The completion/failure guards below match on the claim-time
+  // (startedAt, leaseExpiresAt) pair, so they must see the *current* lease:
+  // every heartbeat renewal reports through `onLeaseRenewed` and settle
+  // completes/fails with that value. Completing with the stale claim-time
+  // lease would no-op on any scan longer than one heartbeat interval and
+  // the job would be re-run by lease recovery.
+  let effectiveJob = job;
   try {
-    const outcome = await runClaimedAssessmentJob(job);
+    const outcome = await runClaimedAssessmentJob(job, (leaseExpiresAt) => {
+      effectiveJob = { ...job, leaseExpiresAt };
+    });
     if (outcome.cancelled) {
       // The user cancelled mid-run: the heartbeat already saw the job leave
       // `running`. Skip complete/fail/evidence — the complete/fail lease
@@ -206,7 +309,7 @@ export async function settleRunningAssessmentJob(
       });
       return { kind: "cancelled", jobId: job.id };
     }
-    await completeAssessmentJob(job);
+    await completeAssessmentJob(effectiveJob);
     reportEvent("assessment job completed", {
       code: "assessment_job_succeeded",
       jobId: job.id,
@@ -214,17 +317,16 @@ export async function settleRunningAssessmentJob(
     });
     return { kind: "succeeded", jobId: job.id };
   } catch (error) {
-    const status = await failAssessmentJob(job, error);
-    if (status === "failed") {
-      // Failure evidence serializes with concurrent applies via the project
-      // write lock (see assessment-pipeline.ts). Bookkeeping never masks
-      // the original job failure.
-      await recordAssessmentFailureEvidence({
-        projectId: job.projectId,
-        job,
-        error,
-      });
-    }
+    const status = await failAssessmentJob(effectiveJob, error);
+    // Failure evidence serializes with concurrent applies via the project
+    // write lock (see assessment-pipeline.ts). Bookkeeping never masks
+    // the original job failure.
+    await recordAssessmentFailureEvidence({
+      projectId: effectiveJob.projectId,
+      job: effectiveJob,
+      error,
+      phase: status === "failed" ? "failed" : "retrying",
+    });
     reportError(error, {
       code:
         status === "failed"
@@ -238,11 +340,40 @@ export async function settleRunningAssessmentJob(
   }
 }
 
-/** Claims and processes a single job; safe to run concurrently on many workers. */
-export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult> {
+/** Claims and processes a single job; safe to run concurrently on many workers. */ export async function processNextAssessmentJob(): Promise<AssessmentWorkerResult> {
   const job = await claimNextAssessmentJob();
   if (!job) {
     return { kind: "idle" };
   }
   return settleRunningAssessmentJob(job);
+}
+
+/**
+ * Long-lived executor teardown (GitHub Actions drain script): close the
+ * cached browser and the DB pool so the process can exit after the batch
+ * summary prints. Serverless invocations never call this — the container
+ * dies with the request, and this module is never statically reached from a
+ * Vercel route. Best-effort and never throws; the caller still exits with
+ * its own code.
+ */
+export async function closeAssessmentWorker(): Promise<void> {
+  try {
+    const { closeRuntimeBrowser } =
+      await import("@complyloop/analysis-core/runtime/browser");
+    await closeRuntimeBrowser();
+  } catch (error) {
+    reportWarning("Assessment worker browser close failed.", {
+      code: "assessment_worker_teardown_failed",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+  try {
+    const { closeDrizzle } = await import("@complyloop/db/postgres");
+    await closeDrizzle();
+  } catch (error) {
+    reportWarning("Assessment worker DB close failed.", {
+      code: "assessment_worker_teardown_failed",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
