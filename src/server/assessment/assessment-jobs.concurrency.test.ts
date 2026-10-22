@@ -5,9 +5,9 @@ import { closeDrizzle, getDrizzle } from "@complyloop/db/postgres";
 
 import {
   claimNextAssessmentJob,
-  enqueueAssessmentJob,
   releaseInFlightAssessmentJobs,
-} from "./assessment-jobs";
+} from "./assessment-job-lease";
+import { enqueueAssessmentJob } from "./assessment-jobs";
 
 /** Opt-in: needs a migrated Postgres (`DATABASE_URL`). Run via `npm run test:db`. */
 const enabled = Boolean(process.env.DATABASE_URL?.trim());

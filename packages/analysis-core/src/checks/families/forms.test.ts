@@ -36,7 +36,7 @@ describe("input-label", () => {
       ),
     );
     expect(findings).toHaveLength(1);
-    expect(findings[0].fix).toMatchObject({
+    expect(findings[0]!.fix).toMatchObject({
       attribute: "aria-label",
       value: "Work email",
     });

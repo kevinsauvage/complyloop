@@ -5,9 +5,9 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import type { CheckId } from "../check-registry";
 import type { RawFinding } from "../types";
+import { runAxeOnPage } from "./axe-page";
 import { runThemeSensitiveCustomChecks } from "./custom-checks/index";
 import type { AxeViolationLike } from "./findings";
-import { runAxeOnPage } from "./scan";
 import {
   conditionLabel,
   conditionSpecificFindings,

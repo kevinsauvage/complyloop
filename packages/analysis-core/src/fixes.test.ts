@@ -25,7 +25,7 @@ describe("applyFix", () => {
 
   it("inserts an attribute into a non-self-closing element and passes the re-check", () => {
     const source = `const A = () => <button><svg /></button>;`;
-    const [finding] = buttonNameCheck.run(parseSource("a.tsx", source));
+    const finding = buttonNameCheck.run(parseSource("a.tsx", source))[0]!;
     if (finding.fix?.kind !== "insert_attribute")
       throw new Error("expected an insert fix");
 
@@ -49,7 +49,7 @@ describe("applyFix", () => {
 
   it("removes an attribute and passes the autoplay re-check", () => {
     const source = `const A = () => <video src="/x.mp4" autoPlay />;`;
-    const [finding] = autoplayMediaCheck.run(parseSource("a.tsx", source));
+    const finding = autoplayMediaCheck.run(parseSource("a.tsx", source))[0]!;
     if (!finding.fix) throw new Error("expected a fix");
 
     const fixed = applyFix(source, finding.fix);
@@ -59,7 +59,7 @@ describe("applyFix", () => {
 
   it("previews the fixed line without mutating the source", () => {
     const source = `const A = () => <button></button>;`;
-    const [finding] = buttonNameCheck.run(parseSource("a.tsx", source));
+    const finding = buttonNameCheck.run(parseSource("a.tsx", source))[0]!;
     if (!finding.fix) throw new Error("expected a fix");
 
     const preview = previewFixedLine(

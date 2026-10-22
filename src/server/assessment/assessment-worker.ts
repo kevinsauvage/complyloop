@@ -4,22 +4,24 @@ import type { AssessmentJobStage } from "@/core/assessment/assessment-jobs";
 
 import { reportError, reportEvent, reportWarning } from "../observability";
 import { loadProjectDb } from "../workspace/db";
-import { scanAssessment } from "./assessment";
 import {
   ASSESSMENT_JOB_HEARTBEAT_MS,
-  type AssessmentJob,
-  AssessmentJobCancelledError,
   claimNextAssessmentJob,
   completeAssessmentJob,
   failAssessmentJob,
   refreshAssessmentJobLease,
   updateAssessmentJobStage,
+} from "./assessment-job-lease";
+import {
+  type AssessmentJob,
+  AssessmentJobCancelledError,
 } from "./assessment-jobs";
 import {
   applyAuthoritativeAssessment,
   recordAssessmentFailureEvidence,
   toPipelineInput,
 } from "./assessment-pipeline";
+import { scanAssessment } from "./assessment-scan";
 import { withProjectCheckout } from "./repo-checkout";
 
 /**
@@ -357,7 +359,7 @@ export async function settleRunningAssessmentJob(
 export async function closeAssessmentWorker(): Promise<void> {
   try {
     const { closeRuntimeBrowser } =
-      await import("@complyloop/analysis-core/runtime/scan");
+      await import("@complyloop/analysis-core/runtime/browser");
     await closeRuntimeBrowser();
   } catch (error) {
     reportWarning("Assessment worker browser close failed.", {

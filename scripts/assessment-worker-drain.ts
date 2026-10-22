@@ -18,7 +18,7 @@
  */
 import path from "node:path";
 
-import { releaseInFlightAssessmentJobs } from "../src/server/assessment/assessment-jobs";
+import { releaseInFlightAssessmentJobs } from "../src/server/assessment/assessment-job-lease";
 import {
   ASSESSMENT_DRAIN_DEFAULTS,
   type AssessmentWorkerResult,

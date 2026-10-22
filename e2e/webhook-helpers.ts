@@ -79,10 +79,11 @@ export async function waitForJobSuccess(options: {
       const rows = await sql<
         Array<{ status: string; error: string | null }>
       >`SELECT status, error FROM assessment_jobs WHERE id = ${jobId}`;
-      if (rows.length === 0) {
+      const [row] = rows;
+      if (!row) {
         throw new Error(`Assessment job ${jobId} not found.`);
       }
-      const { status, error } = rows[0];
+      const { status, error } = row;
       if (status === "succeeded") return;
       if (status === "failed" || status === "cancelled") {
         throw new Error(

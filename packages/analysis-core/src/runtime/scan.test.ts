@@ -4,6 +4,8 @@ import { type Browser, chromium, type Page } from "playwright-core";
 import { afterAll, describe, expect, it, vi } from "vitest";
 
 import type { RawFinding } from "../types";
+import { resolveAxeMinJsPath, runAxeOnPage } from "./axe-page";
+import { browserEnv } from "./browser";
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
@@ -15,13 +17,7 @@ import {
   gotoForRuntimeAudit,
   runtimePageMatchesAuditedUrl,
 } from "./runtime-navigation";
-import {
-  browserEnv,
-  resolveAxeMinJsPath,
-  runAxeOnPage,
-  type RuntimePageScanner,
-  runtimeViolationVerification,
-} from "./scan";
+import { type RuntimePageScanner, runtimeViolationVerification } from "./scan";
 import { emulateCoarsePointer } from "./viewport-conditions";
 
 registerPlaywrightBrowserTeardown();

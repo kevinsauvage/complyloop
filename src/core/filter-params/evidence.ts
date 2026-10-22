@@ -58,7 +58,8 @@ export function parseEvidenceDateParam(
 ): string | undefined {
   const value = firstParam(raw);
   if (!value || !ISO_DATE_PATTERN.test(value)) return undefined;
-  const [year, month, day] = value.split("-").map(Number);
+  // The pattern guarantees three parts.
+  const [year = 0, month = 0, day = 0] = value.split("-").map(Number);
   const date = new Date(Date.UTC(year, month - 1, day));
   const roundTrips =
     date.getUTCFullYear() === year &&

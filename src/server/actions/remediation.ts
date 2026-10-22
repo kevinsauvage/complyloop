@@ -212,7 +212,9 @@ export async function bulkApproveRemediationsAction(
     const { findingIds } = parseForm(bulkApproveInput, formData);
     let approved = 0;
 
-    const projectId = await projectIdForFinding(findingIds[0]);
+    // The schema guarantees one id; an empty one fails as "Unknown finding".
+    const [firstFindingId = ""] = findingIds;
+    const projectId = await projectIdForFinding(firstFindingId);
     await withProjectTx(projectId, "project.remediate", async (ctx) => {
       if (ctx.userId) {
         await assertRemediationRateLimit(ctx.userId, ctx.tx);
@@ -305,7 +307,9 @@ export async function bulkDismissFindingsAction(
     const at = new Date().toISOString();
     let dismissed = 0;
 
-    const projectId = await projectIdForFinding(findingIds[0]);
+    // The schema guarantees one id; an empty one fails as "Unknown finding".
+    const [firstFindingId = ""] = findingIds;
+    const projectId = await projectIdForFinding(firstFindingId);
     await withProjectTx(projectId, "project.remediate", async (ctx) => {
       if (ctx.userId) {
         await assertRemediationRateLimit(ctx.userId, ctx.tx);

@@ -172,8 +172,8 @@ export async function loadProjectAssessmentDb(
     getLatestAssessmentSnapshot(drizzle, projectId),
   ]);
 
-  if (latestSnapshot && runtime.assessments.length > 0) {
-    const latest = runtime.assessments[0];
+  const [latest] = runtime.assessments;
+  if (latestSnapshot && latest) {
     runtime.assessments[0] = { ...latest, snapshot: latestSnapshot };
   }
 

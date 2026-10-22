@@ -33,7 +33,7 @@ describe("developer handoff", () => {
     const source = `export const Hero = () => <button></button>;\n`;
     fs.writeFileSync(path.join(root, relative), source);
 
-    const [raw] = buttonNameCheck.run(parseSource(relative, source));
+    const raw = buttonNameCheck.run(parseSource(relative, source))[0]!;
     if (!raw.fix) throw new Error("expected fix");
 
     const project = testProject({

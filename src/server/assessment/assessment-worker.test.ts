@@ -35,11 +35,10 @@ vi.mock("./remediation-verify-worker", () => ({
     runRemediationVerifyJob(...args),
 }));
 
-vi.mock("./assessment-jobs", async () => {
-  const actual =
-    await vi.importActual<typeof import("./assessment-jobs")>(
-      "./assessment-jobs",
-    );
+vi.mock("./assessment-job-lease", async () => {
+  const actual = await vi.importActual<typeof import("./assessment-job-lease")>(
+    "./assessment-job-lease",
+  );
   return {
     ...actual,
     claimNextAssessmentJob: (...args: unknown[]) =>
@@ -90,8 +89,10 @@ vi.mock("../workspace/db", async () => {
   };
 });
 
-vi.mock("./assessment", () => ({
+vi.mock("./assessment-scan", () => ({
   scanAssessment: (...args: unknown[]) => scanAssessment(...args),
+}));
+vi.mock("./assessment", () => ({
   reconcileAssessment: (...args: unknown[]) => reconcileAssessment(...args),
 }));
 
@@ -123,7 +124,7 @@ vi.mock("../rate-limit", () => ({
   pruneRateLimitBuckets: (...args: unknown[]) => pruneRateLimitBuckets(...args),
 }));
 
-import { ASSESSMENT_JOB_HEARTBEAT_MS } from "./assessment-jobs";
+import { ASSESSMENT_JOB_HEARTBEAT_MS } from "./assessment-job-lease";
 import {
   processNextAssessmentJob,
   settleRunningAssessmentJob,

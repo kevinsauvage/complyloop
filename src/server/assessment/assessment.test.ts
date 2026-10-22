@@ -17,7 +17,8 @@ import type { WorkspaceSlice } from "@complyloop/db/types";
 import { testFinding } from "@/test-fixtures/finding";
 import { materializeAssessmentRun } from "@/test-fixtures/materialize-assessment-run";
 
-import { runAssessment, verifyRemediationOnResolve } from "./assessment";
+import { runAssessment } from "./assessment";
+import { verifyRemediationOnResolve } from "./assessment-auto-verify";
 import type { ProjectRows } from "./assessment-pipeline";
 import { toPipelineInput } from "./assessment-pipeline";
 
@@ -77,11 +78,11 @@ describe("runAssessment", () => {
 
     expect(assessment.filesScanned).toBe(1);
     expect(db.findings).toHaveLength(1);
-    expect(db.findings[0].status).toBe("open");
-    expect(db.findings[0].explanations[0].provenance).toBe("deterministic");
-    expect(db.remediations[0].status).toBe("suggested");
-    expect(db.remediations[0].suggestion?.proposedSnippet).toContain("alt=");
-    expect(db.remediations[0].suggestion?.provenance).toBe("deterministic");
+    expect(db.findings[0]!.status).toBe("open");
+    expect(db.findings[0]!.explanations[0]!.provenance).toBe("deterministic");
+    expect(db.remediations[0]!.status).toBe("suggested");
+    expect(db.remediations[0]!.suggestion?.proposedSnippet).toContain("alt=");
+    expect(db.remediations[0]!.suggestion?.provenance).toBe("deterministic");
     expect(requirementStatus("ctl-img-alt")).toBe("failed");
     expect(requirementStatus("ctl-button-name")).toBe("passed");
     expect(requirementStatus("ctl-color-contrast")).toBe("unable_to_verify");
@@ -108,12 +109,12 @@ describe("runAssessment", () => {
 
   it("carries the same finding across re-assessments instead of duplicating it", async () => {
     await assess();
-    const originalId = db.findings[0].id;
+    const originalId = db.findings[0]!.id;
 
     await assess();
     expect(db.findings).toHaveLength(1);
-    expect(db.findings[0].id).toBe(originalId);
-    expect(db.findings[0].status).toBe("open");
+    expect(db.findings[0]!.id).toBe(originalId);
+    expect(db.findings[0]!.status).toBe("open");
   });
 
   it("reports pipeline stages through onStage in order", async () => {
@@ -150,7 +151,7 @@ describe("runAssessment", () => {
 
     fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
     await assess();
-    expect(db.findings[0].status).toBe("resolved");
+    expect(db.findings[0]!.status).toBe("resolved");
     expect(requirementStatus("ctl-img-alt")).toBe("passed");
 
     fs.writeFileSync(path.join(rootPath, "Hero.tsx"), BROKEN);
@@ -266,9 +267,9 @@ describe("runAssessment", () => {
 
   it("re-opens a dismissed finding when the same instance is re-detected", async () => {
     await assess();
-    const originalId = db.findings[0].id;
-    db.findings[0].status = "dismissed";
-    db.findings[0].dismissal = {
+    const originalId = db.findings[0]!.id;
+    db.findings[0]!.status = "dismissed";
+    db.findings[0]!.dismissal = {
       reason: "accepted_risk",
       note: "Placeholder asset",
       at: new Date().toISOString(),
@@ -276,8 +277,8 @@ describe("runAssessment", () => {
 
     await assess();
     expect(db.findings).toHaveLength(1);
-    expect(db.findings[0].id).toBe(originalId);
-    expect(db.findings[0].status).toBe("open");
+    expect(db.findings[0]!.id).toBe(originalId);
+    expect(db.findings[0]!.status).toBe("open");
     expect(
       db.evidence.some(
         (record) =>
@@ -289,10 +290,10 @@ describe("runAssessment", () => {
 
   it("keeps a false-positive dismissal and a later requirement exception across re-assessment", async () => {
     await assess();
-    const findingId = db.findings[0].id;
+    const findingId = db.findings[0]!.id;
     const decidedAt = new Date().toISOString();
-    db.findings[0].status = "dismissed";
-    db.findings[0].dismissal = {
+    db.findings[0]!.status = "dismissed";
+    db.findings[0]!.dismissal = {
       reason: "false_positive",
       note: "Decorative image",
       at: decidedAt,
@@ -310,8 +311,8 @@ describe("runAssessment", () => {
 
     await assess();
     expect(db.findings).toHaveLength(1);
-    expect(db.findings[0].id).toBe(findingId);
-    expect(db.findings[0].status).toBe("dismissed");
+    expect(db.findings[0]!.id).toBe(findingId);
+    expect(db.findings[0]!.status).toBe("dismissed");
     expect(
       db.requirements.find((candidate) => candidate.controlId === "ctl-img-alt")
         ?.exception?.note,
