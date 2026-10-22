@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useId, useState } from "react";
 
 import { normalizeRoutes } from "@complyloop/analysis-core/runtime/routes";
 
@@ -63,12 +63,11 @@ export function RuntimeAuditForm({
   const [manual, setManual] = useState("");
   const [manualError, setManualError] = useState<string | null>(null);
 
-  const visibleOptions = useMemo(() => {
-    const needle = filter.trim().toLowerCase();
-    return needle.length === 0
-      ? known
-      : known.filter((path) => path.toLowerCase().includes(needle));
-  }, [filter, known]);
+  const needle = filter.trim().toLowerCase();
+  const matchesFilter = (path: string): boolean =>
+    needle.length === 0 || path.toLowerCase().includes(needle);
+  const nothingMatches =
+    known.length > 0 && filter.trim().length > 0 && !known.some(matchesFilter);
 
   const atCap = selected.length >= maxRoutes;
 
@@ -115,7 +114,14 @@ export function RuntimeAuditForm({
     setKnown((current) =>
       current.includes(path) ? current : [...current, path],
     );
-    if (!selected.includes(path) && selected.length < maxRoutes) {
+    if (selected.length >= maxRoutes) {
+      // The Add button is disabled at the cap; Enter has to say why too.
+      setManualError(
+        `At most ${maxRoutes} page${maxRoutes === 1 ? "" : "s"} can be audited per run — uncheck one first.`,
+      );
+      return;
+    }
+    if (!selected.includes(path)) {
       setSelected((current) => [...current, path]);
     }
     setManual("");
@@ -212,6 +218,7 @@ export function RuntimeAuditForm({
       <fieldset
         className="flex flex-col gap-3 rounded-lg border border-border/60 p-3"
         aria-describedby={hintId}
+        aria-busy={status === "loading"}
       >
         <legend className="px-1 text-sm font-medium">Pages to audit</legend>
         <p id={hintId} className="text-xs text-muted-foreground">
@@ -276,35 +283,38 @@ export function RuntimeAuditForm({
                 />
               </div>
             ) : null}
-            {visibleOptions.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                No page matches “{filter}”.
+            {nothingMatches ? (
+              <p className="text-xs text-muted-foreground" role="status">
+                No page matches “{filter}”. The {selected.length} selected page
+                {selected.length === 1 ? "" : "s"} stay selected and will be
+                saved.
               </p>
-            ) : (
-              <ul className="flex max-h-64 flex-col gap-0.5 overflow-y-auto pr-1">
-                {visibleOptions.map((path) => {
-                  const checked = selected.includes(path);
-                  return (
-                    <li key={path}>
-                      <label className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm hover:bg-accent/25">
-                        <input
-                          type="checkbox"
-                          name="runtimeRoutes"
-                          value={path}
-                          checked={checked}
-                          onChange={() => toggle(path)}
-                          disabled={!checked && atCap}
-                          className="size-4 shrink-0 accent-signal"
-                        />
-                        <span className="truncate font-mono text-xs">
-                          {path}
-                        </span>
-                      </label>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+            ) : null}
+            {/* Every option keeps its checkbox mounted: a filtered-out row
+                must still submit its value, or saving would silently drop the
+                pages the filter is hiding. */}
+            <ul className="flex max-h-64 flex-col gap-0.5 overflow-y-auto pr-1">
+              {known.map((path) => {
+                const checked = selected.includes(path);
+                const matches = matchesFilter(path);
+                return (
+                  <li key={path} hidden={!matches}>
+                    <label className="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-sm hover:bg-accent/25">
+                      <input
+                        type="checkbox"
+                        name="runtimeRoutes"
+                        value={path}
+                        checked={checked}
+                        onChange={() => toggle(path)}
+                        disabled={!checked && atCap}
+                        className="size-4 shrink-0 accent-signal"
+                      />
+                      <span className="truncate font-mono text-xs">{path}</span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         ) : null}
 
@@ -349,9 +359,11 @@ export function RuntimeAuditForm({
         </div>
 
         <p className="text-xs text-muted-foreground">
-          {selected.length === 0
-            ? "No page selected — only / will be audited."
-            : `${selected.length} of ${maxRoutes} page${maxRoutes === 1 ? "" : "s"} selected.`}
+          {baseUrl.trim().length === 0
+            ? "No preview URL — saving clears the page selection."
+            : selected.length === 0
+              ? "No page selected — only / will be audited."
+              : `${selected.length} of ${maxRoutes} page${maxRoutes === 1 ? "" : "s"} selected.`}
         </p>
       </fieldset>
     </StatefulActionForm>

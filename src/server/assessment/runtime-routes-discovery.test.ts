@@ -156,18 +156,67 @@ describe("discoverRuntimeRoutes", () => {
     ).resolves.toMatchObject({ source: "sitemap", paths: ["/moved"] });
   });
 
-  it("refuses a redirect that leaves public address space", async () => {
-    stubFetch({
-      [`${BASE}/sitemap.xml`]: () =>
-        new Response(null, {
+  it("stops at a redirect that leaves public address space", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url === `${BASE}/sitemap.xml`) {
+        return new Response(null, {
           status: 302,
           headers: { location: "http://127.0.0.1/sitemap.xml" },
-        }),
+        });
+      }
+      throw new Error(`must not fetch ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    // The refusal is a content problem (the site redirects somewhere blocked),
+    // not a bad preview URL, so it degrades to "nothing to offer".
+    await expect(discoverRuntimeRoutes(BASE, { lookup })).resolves.toEqual({
+      source: "none",
+      paths: [],
+      truncated: false,
+    });
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      "http://127.0.0.1/sitemap.xml",
+      expect.anything(),
+    );
+  });
+
+  it("skips a robots.txt sitemap hosted on a blocked host", async () => {
+    stubFetch({
+      [`${BASE}/robots.txt`]: new Response(
+        "Sitemap: http://10.0.0.5/sitemap.xml\nSitemap: /sitemap.xml\n",
+        { status: 200 },
+      ),
+      [`${BASE}/sitemap.xml`]: xml(urlset(`${BASE}/kept`)),
     });
 
-    await expect(discoverRuntimeRoutes(BASE, { lookup })).rejects.toThrow(
-      /localhost, private, or metadata/,
+    await expect(
+      discoverRuntimeRoutes(BASE, { lookup }),
+    ).resolves.toMatchObject({ source: "robots", paths: ["/kept"] });
+  });
+
+  it("flags truncation when an index has more children than the budget", async () => {
+    const children = Array.from(
+      { length: 8 },
+      (_value, index) => `${BASE}/child-${index}.xml`,
     );
+    stubFetch({
+      [`${BASE}/sitemap.xml`]: xml(index(...children)),
+      ...Object.fromEntries(
+        children.map((child, index) => [
+          child,
+          xml(urlset(`${BASE}/page-${index}`)),
+        ]),
+      ),
+    });
+
+    const result = await discoverRuntimeRoutes(BASE, { lookup });
+
+    expect(result.source).toBe("sitemap");
+    expect(result.truncated).toBe(true);
+    expect(result.paths.length).toBeGreaterThan(0);
+    expect(result.paths.length).toBeLessThan(children.length);
   });
 
   it("refuses a private preview URL before any request", async () => {

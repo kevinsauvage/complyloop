@@ -47,13 +47,53 @@ describe("parseSitemapDocument", () => {
       urlset(
         "https://preview.example.com/search?a=1&amp;b=2",
         "<![CDATA[https://preview.example.com/pricing]]>",
+        "\n  <![CDATA[https://preview.example.com/docs]]>\n",
       ),
     );
 
     expect(parsed.locs).toEqual([
       "https://preview.example.com/search?a=1&b=2",
       "https://preview.example.com/pricing",
+      "https://preview.example.com/docs",
     ]);
+  });
+
+  it("keeps an out-of-range numeric reference literal instead of throwing", () => {
+    // `String.fromCodePoint` raises on these; a hostile sitemap must not turn
+    // "unparseable" into a 500.
+    const parsed = parseSitemapDocument(
+      urlset(`${BASE}/&#x110000;`, `${BASE}/&#xzz;`, `${BASE}/&#xD800;`),
+    );
+
+    expect(parsed.locs).toEqual([
+      `${BASE}/&#x110000;`,
+      `${BASE}/&#xzz;`,
+      `${BASE}/&#xD800;`,
+    ]);
+  });
+
+  it("rejects a hostile document in linear time", () => {
+    // Thousands of openers and no closers used to backtrack quadratically
+    // (~30 s for 1 MB). The walk must stay linear.
+    const hostile = "<loc ".repeat(200_000);
+    const commentBomb = "<!-- ".repeat(200_000);
+    const started = performance.now();
+
+    expect(parseSitemapDocument(hostile).locs).toEqual([]);
+    expect(parseSitemapDocument(`<urlset>${hostile}</urlset>`).locs).toEqual(
+      [],
+    );
+    expect(parseSitemapDocument(commentBomb).locs).toEqual([]);
+
+    expect(performance.now() - started).toBeLessThan(2_000);
+  });
+
+  it("ignores location-like element names", () => {
+    const parsed = parseSitemapDocument(
+      `<urlset><url><location>${BASE}/not-a-page</location><loc>${BASE}/real</loc></url></urlset>`,
+    );
+
+    expect(parsed.locs).toEqual([`${BASE}/real`]);
   });
 
   it("ignores commented-out locations", () => {

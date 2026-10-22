@@ -19,6 +19,12 @@ const MAX_DOCUMENT_BYTES = 1_000_000;
 const MAX_DECOMPRESSED_BYTES = 2_000_000;
 const REQUEST_TIMEOUT_MS = 10_000;
 const MAX_REDIRECT_HOPS = 5;
+/**
+ * Wall-clock budget for the whole discovery. One request per document is
+ * bounded by {@link REQUEST_TIMEOUT_MS}, but robots plus five documents plus
+ * redirect hops would otherwise add up to minutes inside one handler.
+ */
+const TOTAL_BUDGET_MS = 20_000;
 
 export interface DiscoveredRuntimeRoutes {
   /** Where the offered paths came from; `none` means "add pages by hand". */
@@ -43,10 +49,14 @@ export async function discoverRuntimeRoutes(
   baseUrl: string,
   options?: { lookup?: DnsLookup },
 ): Promise<DiscoveredRuntimeRoutes> {
+  const deadline = Date.now() + TOTAL_BUDGET_MS;
+  // The base URL is the one value the user typed: refusing it is an error they
+  // can act on. Everything below it is discovered content, so a refusal there
+  // degrades to "no sitemap" instead of blaming the preview URL.
   const safeBase = await assertSafeRuntimeUrl(baseUrl, options);
   const origin = new URL(safeBase).origin;
 
-  const robots = await fetchDocument(`${origin}/robots.txt`, options);
+  const robots = await fetchDocument(`${origin}/robots.txt`, options, deadline);
   const declared = robots === null ? [] : robotsSitemapUrls(robots, origin);
   const candidates = declared.length > 0 ? declared : [`${origin}/sitemap.xml`];
   const fromRobots = declared.length > 0;
@@ -59,12 +69,16 @@ export async function discoverRuntimeRoutes(
   // Breadth-first over the index: children are appended while the cap holds.
   const queue = [...candidates];
   while (queue.length > 0 && visited.size < SITEMAP_MAX_DOCUMENTS) {
+    if (Date.now() >= deadline) {
+      truncated = true;
+      break;
+    }
     const next = queue.shift();
     if (next === undefined) break;
     if (visited.has(next)) continue;
     visited.add(next);
 
-    const xml = await fetchDocument(next, options);
+    const xml = await fetchDocument(next, options, deadline);
     if (xml === null) continue;
     const parsed = parseSitemapDocument(xml);
     if (parsed.kind === "unknown") continue;
@@ -73,7 +87,12 @@ export async function discoverRuntimeRoutes(
 
     if (parsed.kind === "index") {
       for (const child of parsed.locs) {
-        if (queue.length + visited.size >= SITEMAP_MAX_DOCUMENTS) break;
+        if (queue.length + visited.size >= SITEMAP_MAX_DOCUMENTS) {
+          // More child sitemaps than the budget allows: say so rather than
+          // presenting a subset as the site's full page list.
+          truncated = true;
+          break;
+        }
         queue.push(child);
       }
       continue;
@@ -99,12 +118,23 @@ export async function discoverRuntimeRoutes(
  */
 async function fetchDocument(
   rawUrl: string,
-  options?: { lookup?: DnsLookup },
+  options: { lookup?: DnsLookup } | undefined,
+  deadline: number,
 ): Promise<string | null> {
-  let url = await assertSafeRuntimeUrl(rawUrl, options);
+  let url: string;
+  try {
+    url = await assertSafeRuntimeUrl(rawUrl, options);
+  } catch {
+    // Content-derived URL (a robots/txt directive, an index child, a redirect
+    // target): the guard refusing it means "skip this document", not "the
+    // preview URL is wrong".
+    return null;
+  }
 
   for (let hop = 0; hop <= MAX_REDIRECT_HOPS; hop += 1) {
-    const response = await fetchGuarded(url);
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) return null;
+    const response = await fetchGuarded(url, remaining);
     if (response === null) return null;
 
     if (isRedirect(response.status)) {
@@ -118,7 +148,11 @@ async function fetchDocument(
         return null;
       }
       // Each hop is re-checked: a redirect is how an SSRF filter gets bypassed.
-      url = await assertSafeRuntimeUrl(target, options);
+      try {
+        url = await assertSafeRuntimeUrl(target, options);
+      } catch {
+        return null;
+      }
       continue;
     }
 
@@ -133,11 +167,14 @@ async function fetchDocument(
   return null;
 }
 
-async function fetchGuarded(url: string): Promise<Response | null> {
+async function fetchGuarded(
+  url: string,
+  remainingMs: number,
+): Promise<Response | null> {
   try {
     return await fetch(url, {
       redirect: "manual",
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(Math.min(REQUEST_TIMEOUT_MS, remainingMs)),
       headers: {
         accept: "application/xml,text/xml,text/plain;q=0.9,*/*;q=0.8",
         "user-agent": "ComplyLoop-Sitemap/1.0 (+https://complyloop.app)",
@@ -176,7 +213,11 @@ async function readBounded(response: Response): Promise<Uint8Array | null> {
       if (done) break;
       if (value === undefined) continue;
       total += value.byteLength;
-      if (total > MAX_DOCUMENT_BYTES) return null;
+      if (total > MAX_DOCUMENT_BYTES) {
+        // Stop the transfer now; the deadline alone would leave it draining.
+        await reader.cancel().catch(() => undefined);
+        return null;
+      }
       chunks.push(value);
     }
   } catch {

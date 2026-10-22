@@ -49,6 +49,19 @@ function renderForm(props: {
   );
 }
 
+/** More options than the filter threshold, so the filter input renders. */
+const MANY_ROUTES = [
+  "/",
+  "/pricing",
+  "/docs",
+  "/docs/install",
+  "/docs/config",
+  "/blog",
+  "/blog/one",
+  "/about",
+  "/contact",
+];
+
 /** Checkboxes carry the value that gets saved, so read them by their value. */
 function routeBoxes(): HTMLInputElement[] {
   return Array.from(
@@ -209,6 +222,64 @@ describe("RuntimeAuditForm", () => {
     await user.click(screen.getByRole("button", { name: "Clear all" }));
 
     expect(routeBoxes().every((box) => !box.checked)).toBe(true);
+  });
+
+  it("keeps a filtered-out selection in the form so saving does not drop it", async () => {
+    const user = userEvent.setup();
+    renderForm({
+      runtimeBaseUrl: BASE,
+      runtimeRoutes: MANY_ROUTES,
+    });
+
+    // Only /pricing matches; /docs keeps its checkbox mounted but hidden.
+    await user.type(screen.getByLabelText(/Filter pages/i), "pricing");
+
+    expect(boxFor("/pricing").closest("li")).not.toHaveAttribute("hidden");
+    expect(boxFor("/docs").closest("li")).toHaveAttribute("hidden");
+    expect(boxFor("/docs").checked).toBe(true);
+    expect(
+      document.querySelectorAll<HTMLInputElement>(
+        'input[name="runtimeRoutes"]:checked',
+      ),
+    ).toHaveLength(MANY_ROUTES.length);
+  });
+
+  it("warns that a filter matching nothing does not clear the selection", async () => {
+    const user = userEvent.setup();
+    renderForm({
+      runtimeBaseUrl: BASE,
+      runtimeRoutes: MANY_ROUTES,
+    });
+
+    await user.type(screen.getByLabelText(/Filter pages/i), "zzz");
+
+    expect(
+      screen.getByText(/No page matches .* stay selected and will be saved/i),
+    ).toBeInTheDocument();
+    expect(routeBoxes().filter((box) => box.checked)).toHaveLength(
+      MANY_ROUTES.length,
+    );
+  });
+
+  it("explains the cap when Enter cannot add another page", async () => {
+    const user = userEvent.setup();
+    renderForm({
+      runtimeBaseUrl: BASE,
+      runtimeRoutes: ["/", "/pricing"],
+      maxRoutes: 2,
+    });
+
+    await user.type(screen.getByLabelText(/Add a page/i), "/docs{Enter}");
+
+    expect(screen.getByRole("alert")).toHaveTextContent(/at most 2 pages/i);
+  });
+
+  it("says saving without a preview URL clears the selection", () => {
+    renderForm({ runtimeRoutes: ["/"] });
+
+    expect(
+      screen.getByText(/saving clears the page selection/i),
+    ).toBeInTheDocument();
   });
 
   it("does not submit the form when Enter adds a page", async () => {

@@ -5,6 +5,11 @@
  * layer, so this half is testable from fixture documents alone and cannot
  * smuggle an outbound request into a unit test. Everything here is bounded —
  * a hostile sitemap must not be able to grow memory or the option list.
+ *
+ * Both scans below are linear. A regex like `/<loc\b[^>]*>([\s\S]*?)<\/loc>/g`
+ * backtracks quadratically when a document is full of `<loc` openers and no
+ * closers — a 1 MB body took ~30 s of synchronous CPU to reject — so the
+ * element walk is done with `indexOf` instead.
  */
 
 import { normalizeRoutes } from "./routes.ts";
@@ -18,9 +23,6 @@ export const SITEMAP_MAX_DOCUMENTS = 5;
 /** Route options offered to the picker. */
 export const SITEMAP_MAX_URLS = 200;
 
-const LOC_PATTERN = /<loc\b[^>]*>([\s\S]*?)<\/loc\s*>/gi;
-const CDATA_PATTERN = /^<!\[CDATA\[([\s\S]*?)\]\]>$/;
-const COMMENT_PATTERN = /<!--[\s\S]*?-->/g;
 const NAMED_ENTITIES: Record<string, string> = {
   amp: "&",
   lt: "<",
@@ -38,19 +40,104 @@ export interface ParsedSitemapDocument {
   truncated: boolean;
 }
 
+/**
+ * Decodes the XML text of one element. Invalid numeric references keep their
+ * literal form instead of throwing: `String.fromCodePoint` raises on
+ * out-of-range or `NaN` code points, and a hostile `<loc>&#x110000;</loc>`
+ * must not turn "unparseable sitemap" into a 500.
+ */
 function decodeXmlText(raw: string): string {
-  const unwrapped = CDATA_PATTERN.exec(raw)?.[1] ?? raw;
+  const trimmed = raw.trim();
+  // CDATA may be wrapped in whitespace (`<loc>\n  <![CDATA[…]]>\n</loc>`).
+  const unwrapped =
+    trimmed.startsWith("<![CDATA[") && trimmed.endsWith("]]>")
+      ? trimmed.slice("<![CDATA[".length, -"]]>".length)
+      : trimmed;
+
   return unwrapped
-    .replace(/&#x([0-9a-f]+);/gi, (_match, hex: string) =>
-      String.fromCodePoint(Number.parseInt(hex, 16)),
+    .replace(
+      /&#x([0-9a-f]+);/gi,
+      (match, hex: string) => decodeCodePoint(hex, 16) ?? match,
     )
-    .replace(/&#(\d+);/g, (_match, digits: string) =>
-      String.fromCodePoint(Number.parseInt(digits, 10)),
+    .replace(
+      /&#(\d+);/g,
+      (match, digits: string) => decodeCodePoint(digits, 10) ?? match,
     )
     .replace(/&([a-z]+);/gi, (match, name: string) => {
       return NAMED_ENTITIES[name.toLowerCase()] ?? match;
     })
     .trim();
+}
+
+function decodeCodePoint(digits: string, radix: 10 | 16): string | null {
+  const value = Number.parseInt(digits, radix);
+  if (!Number.isSafeInteger(value)) return null;
+  // Out of the Unicode range, or a lone surrogate half: not a valid character.
+  if (value < 0 || value > 0x10ffff) return null;
+  if (value >= 0xd800 && value <= 0xdfff) return null;
+  return String.fromCodePoint(value);
+}
+
+/** Removes `<!-- … -->` runs in one pass; an unterminated run swallows the rest. */
+function stripComments(source: string): string {
+  let out = "";
+  let cursor = 0;
+  for (;;) {
+    const start = source.indexOf("<!--", cursor);
+    if (start === -1) return out + source.slice(cursor);
+    out += source.slice(cursor, start);
+    const end = source.indexOf("-->", start + 4);
+    if (end === -1) return out;
+    cursor = end + 3;
+  }
+}
+
+function isTagSpace(code: number): boolean {
+  return code === 0x20 || code === 0x09 || code === 0x0a || code === 0x0d;
+}
+
+/**
+ * Collects `<loc …>value</loc>` elements in document order.
+ *
+ * `<image:loc>` and `<video:loc>` are not matched: `indexOf("<loc")` needs the
+ * `<` and `l` adjacent, so the prefixed form never qualifies. A malformed open
+ * tag without `>` ends the walk rather than scanning to the end of the buffer.
+ */
+function readLocElements(source: string): {
+  locs: string[];
+  truncated: boolean;
+} {
+  const locs: string[] = [];
+  let cursor = 0;
+
+  for (;;) {
+    const open = source.indexOf("<loc", cursor);
+    if (open === -1) return { locs, truncated: false };
+
+    const afterName = source.charCodeAt(open + 4);
+    if (!isTagSpace(afterName) && afterName !== 0x3e /* > */) {
+      // `<location>` and friends: not the element we want.
+      cursor = open + 4;
+      continue;
+    }
+
+    const tagEnd = source.indexOf(">", open);
+    if (tagEnd === -1) return { locs, truncated: false };
+
+    const close = source.indexOf("</loc", tagEnd);
+    if (close === -1) return { locs, truncated: false };
+    const afterClose = source.charCodeAt(close + 5);
+    if (!isTagSpace(afterClose) && afterClose !== 0x3e) {
+      cursor = close + 5;
+      continue;
+    }
+
+    if (locs.length >= SITEMAP_MAX_LOCS) return { locs, truncated: true };
+
+    const loc = decodeXmlText(source.slice(tagEnd + 1, close));
+    if (loc.length > 0) locs.push(loc);
+    cursor = close + 5;
+  }
 }
 
 /**
@@ -63,29 +150,17 @@ function decodeXmlText(raw: string): string {
  * handles by letting the user add pages by hand.
  */
 export function parseSitemapDocument(xml: string): ParsedSitemapDocument {
-  const source = xml.replace(COMMENT_PATTERN, "");
+  const source = stripComments(xml);
   const kind: SitemapDocumentKind = /<sitemapindex\b/i.test(source)
     ? "index"
     : /<urlset\b/i.test(source)
       ? "urlset"
       : "unknown";
 
-  const locs: string[] = [];
-  let truncated = false;
-  LOC_PATTERN.lastIndex = 0;
-  for (const match of source.matchAll(LOC_PATTERN)) {
-    const value = match[1];
-    if (value === undefined) continue;
-    const loc = decodeXmlText(value);
-    if (loc.length === 0) continue;
-    if (locs.length >= SITEMAP_MAX_LOCS) {
-      truncated = true;
-      break;
-    }
-    locs.push(loc);
-  }
+  // Nothing to read in HTML or a truncated document: skip the element walk.
+  if (kind === "unknown") return { kind, locs: [], truncated: false };
 
-  return { kind, locs, truncated };
+  return { kind, ...readLocElements(source) };
 }
 
 /**
