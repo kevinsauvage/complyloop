@@ -392,6 +392,19 @@ Stage entries and leaf rules: `packages/analysis-core/README.md`.
   `@axe-core/playwright`. Never import `ssrf-guard/node` in app code.
   `linkinator`, `playwright`, `axe-core`, `html-validate` are server
   externals in `next.config.ts`.
+- **Runtime scope picker** — Settings sets `runtimeBaseUrl` plus the pages to
+  audit. "Load pages" reads the site's own sitemap (`robots.txt` `Sitemap:`
+  directives, else `/sitemap.xml`, one level of sitemap index) through
+  `POST /api/projects/[projectId]/runtime-routes` →
+  `discoverRuntimeRoutes` (`src/server/assessment/runtime-routes-discovery.ts`).
+  The parse half is pure and lives in `runtime/sitemap.ts`; the fetch half
+  re-runs `assertSafeRuntimeUrl` on **every redirect hop** (a redirect is how
+  an SSRF filter gets bypassed) and bounds documents, bytes, hops and parsed
+  URLs. Only same-origin paths are offered, and pages outside the sitemap are
+  added by hand — the sitemap is a convenience, never a requirement. The
+  selection is capped at `maxRuntimePages()` in both the picker and
+  `updateRuntimeAuditAction`, because the scan would otherwise drop pages
+  silently.
 
 Engine containment: a throwing custom probe is recorded on
 `probeFailures` and the rest of the pass continues. html-validate

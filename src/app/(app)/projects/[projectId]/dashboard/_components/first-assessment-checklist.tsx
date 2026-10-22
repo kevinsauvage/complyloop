@@ -1,6 +1,7 @@
 import { Check } from "lucide-react";
 import Link from "next/link";
 
+import { maxRuntimePages } from "@complyloop/analysis-core/contract/assessment-limits";
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 
 import { RuntimeAuditForm } from "@/components/forms/runtime-audit-form";
@@ -109,6 +110,7 @@ export function FirstAssessmentChecklist({
                       projectId={project.id}
                       runtimeBaseUrl={project.runtimeBaseUrl}
                       runtimeRoutes={project.runtimeRoutes}
+                      maxRoutes={maxRuntimePages()}
                     />
                   </div>
                 </details>

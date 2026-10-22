@@ -18,6 +18,23 @@ test.describe("project settings", () => {
     ).toBeVisible();
   });
 
+  test("offers the sitemap picker alongside a manual path field", async ({
+    page,
+  }) => {
+    await page.goto(projectPath("settings"));
+
+    const pages = page.getByRole("group", { name: "Pages to audit" });
+    await expect(pages).toBeVisible();
+    await expect(
+      pages.getByRole("button", { name: /Load pages/i }),
+    ).toBeVisible();
+    await expect(
+      pages.getByLabel(/Add a page that is not in the sitemap/i),
+    ).toBeVisible();
+    // The scan's page budget is stated, not implied.
+    await expect(pages.getByText(/audits up to \d+ pages/i)).toBeVisible();
+  });
+
   test("rejects localhost runtime audit URLs", async ({ page }) => {
     await page.goto(projectPath("settings"));
     await page.getByLabel(/Preview URL/i).fill("http://localhost:3000");

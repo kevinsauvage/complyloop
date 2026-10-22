@@ -3,6 +3,7 @@ import "@/test-fixtures/register-repo-mock";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { maxRuntimePages } from "@complyloop/analysis-core/contract/assessment-limits";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 import { initialActionState } from "@/core/actions/action-state";
@@ -87,14 +88,16 @@ describe("updateRuntimeAuditAction", () => {
     expect(assertRuntimeAuditRateLimit).toHaveBeenCalled();
   });
 
-  it("normalizes the origin and routes for owners", async () => {
+  it("normalizes the origin and the selected pages for owners", async () => {
     const workspace = workspaceFor("owner");
     mockProjectTx(workspace);
     assertSafeRuntimeUrl.mockResolvedValue("https://app.example/path");
     const form = new FormData();
     form.set("projectId", project.id);
     form.set("runtimeBaseUrl", "https://app.example/path");
-    form.set("runtimeRoutes", "home, /about\ncontact");
+    for (const route of ["home", "/about", "/home"]) {
+      form.append("runtimeRoutes", route);
+    }
 
     const result = await updateRuntimeAuditAction(initialActionState, form);
 
@@ -102,11 +105,55 @@ describe("updateRuntimeAuditAction", () => {
     expect(recordedWrites()?.project?.runtimeBaseUrl).toBe(
       "https://app.example",
     );
+    // One value per checked page, de-duplicated and given a leading slash.
     expect(recordedWrites()?.project?.runtimeRoutes).toEqual([
       "/home",
       "/about",
-      "/contact",
     ]);
+  });
+
+  it("accepts a single selected page posted as one value", async () => {
+    const workspace = workspaceFor("owner");
+    mockProjectTx(workspace);
+    assertSafeRuntimeUrl.mockResolvedValue("https://app.example/");
+    const form = new FormData();
+    form.set("projectId", project.id);
+    form.set("runtimeBaseUrl", "https://app.example");
+    form.set("runtimeRoutes", "/pricing");
+
+    await updateRuntimeAuditAction(initialActionState, form);
+
+    expect(recordedWrites()?.project?.runtimeRoutes).toEqual(["/pricing"]);
+  });
+
+  it("refuses more pages than one assessment audits", async () => {
+    assertSafeRuntimeUrl.mockResolvedValue("https://app.example/");
+    const form = new FormData();
+    form.set("projectId", project.id);
+    form.set("runtimeBaseUrl", "https://app.example");
+    for (let index = 0; index < maxRuntimePages() + 1; index += 1) {
+      form.append("runtimeRoutes", `/page-${index}`);
+    }
+
+    const result = await updateRuntimeAuditAction(initialActionState, form);
+
+    expect(result.ok ? null : result.message).toMatch(
+      /at most \d+ pages to audit/,
+    );
+    expect(withProjectTx).not.toHaveBeenCalled();
+  });
+
+  it("refuses a page path that is too long", async () => {
+    assertSafeRuntimeUrl.mockResolvedValue("https://app.example/");
+    const form = new FormData();
+    form.set("projectId", project.id);
+    form.set("runtimeBaseUrl", "https://app.example");
+    form.append("runtimeRoutes", `/${"a".repeat(2001)}`);
+
+    const result = await updateRuntimeAuditAction(initialActionState, form);
+
+    expect(result.ok ? null : result.message).toMatch(/too long to audit/);
+    expect(withProjectTx).not.toHaveBeenCalled();
   });
 
   it("surfaces unsafe URL errors", async () => {
@@ -129,7 +176,8 @@ describe("updateRuntimeAuditAction", () => {
     const form = new FormData();
     form.set("projectId", project.id);
     form.set("runtimeBaseUrl", "https://app.example");
-    form.set("runtimeRoutes", "/ok\nhttp://127.0.0.1/admin");
+    form.append("runtimeRoutes", "/ok");
+    form.append("runtimeRoutes", "http://127.0.0.1/admin");
 
     const result = await updateRuntimeAuditAction(initialActionState, form);
     expect(result.ok ? null : result.message).toMatch(
@@ -138,34 +186,28 @@ describe("updateRuntimeAuditAction", () => {
     expect(withProjectTx).not.toHaveBeenCalled();
   });
 
-  it("splits, trims, and prefixes bare routes", async () => {
+  it("trims and prefixes bare pages", async () => {
     const workspace = workspaceFor("owner");
     mockProjectTx(workspace);
     assertSafeRuntimeUrl.mockResolvedValue("https://app.example/");
 
-    const commaForm = new FormData();
-    commaForm.set("projectId", project.id);
-    commaForm.set("runtimeBaseUrl", "https://app.example");
-    commaForm.set("runtimeRoutes", "a,b");
-    await updateRuntimeAuditAction(initialActionState, commaForm);
-    expect(recordedWrites()?.project?.runtimeRoutes).toEqual(["/a", "/b"]);
+    const form = new FormData();
+    form.set("projectId", project.id);
+    form.set("runtimeBaseUrl", "https://app.example");
+    form.append("runtimeRoutes", "  docs  ");
+    form.append("runtimeRoutes", "  ");
+    await updateRuntimeAuditAction(initialActionState, form);
 
-    const paddedForm = new FormData();
-    paddedForm.set("projectId", project.id);
-    paddedForm.set("runtimeBaseUrl", "https://app.example");
-    paddedForm.set("runtimeRoutes", " /x ");
-    await updateRuntimeAuditAction(initialActionState, paddedForm);
-    expect(recordedWrites()?.project?.runtimeRoutes).toEqual(["/x"]);
+    expect(recordedWrites()?.project?.runtimeRoutes).toEqual(["/docs"]);
   });
 
-  it("stores an empty routes list when the field is blank (scan defaults to /)", async () => {
+  it("stores an empty routes list when no page is selected (scan defaults to /)", async () => {
     const workspace = workspaceFor("owner");
     mockProjectTx(workspace);
     assertSafeRuntimeUrl.mockResolvedValue("https://app.example/");
     const form = new FormData();
     form.set("projectId", project.id);
     form.set("runtimeBaseUrl", "https://app.example");
-    form.set("runtimeRoutes", "   ");
 
     const result = await updateRuntimeAuditAction(initialActionState, form);
 

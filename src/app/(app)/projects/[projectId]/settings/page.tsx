@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { maxRuntimePages } from "@complyloop/analysis-core/contract/assessment-limits";
+
 import { RuntimeAuditForm } from "@/components/forms/runtime-audit-form";
 import { TrackedBranchForm } from "@/components/forms/tracked-branch-form";
 import { CopyButton } from "@/components/primitives/copy-button";
@@ -208,6 +210,7 @@ export default async function SettingsPage({
                   projectId={projectId}
                   runtimeBaseUrl={project.runtimeBaseUrl}
                   runtimeRoutes={project.runtimeRoutes}
+                  maxRoutes={maxRuntimePages()}
                 />
               ) : (
                 <PermissionNotice>
