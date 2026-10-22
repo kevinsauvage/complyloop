@@ -157,8 +157,10 @@ export function parseSitemapDocument(xml: string): ParsedSitemapDocument {
       ? "urlset"
       : "unknown";
 
-  // Nothing to read in HTML or a truncated document: skip the element walk.
-  if (kind === "unknown") return { kind, locs: [], truncated: false };
+  // HTML or a truncated document has no element worth walking. A recognised
+  // root is not required though: a namespace-prefixed root (`<sm:urlset>`) is
+  // legal and its <loc>s are still pages.
+  if (!source.includes("<loc")) return { kind, locs: [], truncated: false };
 
   return { kind, ...readLocElements(source) };
 }

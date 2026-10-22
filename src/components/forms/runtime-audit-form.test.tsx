@@ -237,6 +237,13 @@ describe("RuntimeAuditForm", () => {
     expect(boxFor("/pricing").closest("li")).not.toHaveAttribute("hidden");
     expect(boxFor("/docs").closest("li")).toHaveAttribute("hidden");
     expect(boxFor("/docs").checked).toBe(true);
+
+    // The submitted payload — not just the DOM — keeps the hidden page.
+    const form = document.querySelector("form");
+    if (!form) throw new Error("expected the settings form");
+    const submitted = new FormData(form).getAll("runtimeRoutes");
+    expect(submitted).toContain("/docs");
+    expect(submitted).toContain("/pricing");
     expect(
       document.querySelectorAll<HTMLInputElement>(
         'input[name="runtimeRoutes"]:checked',
@@ -259,6 +266,16 @@ describe("RuntimeAuditForm", () => {
     expect(routeBoxes().filter((box) => box.checked)).toHaveLength(
       MANY_ROUTES.length,
     );
+  });
+
+  it("does not claim zero selected pages will be saved", async () => {
+    const user = userEvent.setup();
+    renderForm({ runtimeBaseUrl: BASE, runtimeRoutes: MANY_ROUTES });
+
+    await user.click(screen.getByRole("button", { name: "Clear all" }));
+    await user.type(screen.getByLabelText(/Filter pages/i), "zzz");
+
+    expect(screen.getByText(/No page matches “zzz”\.$/)).toBeInTheDocument();
   });
 
   it("explains the cap when Enter cannot add another page", async () => {

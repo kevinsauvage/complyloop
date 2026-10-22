@@ -100,7 +100,9 @@ export async function discoverRuntimeRoutes(
     locs.push(...parsed.locs);
   }
 
-  if (!foundDocument) return { source: "none", paths: [], truncated: false };
+  // Running out of budget before reading anything is "we gave up", not "the
+  // site has no sitemap" — keep the flag so the picker can say so.
+  if (!foundDocument) return { source: "none", paths: [], truncated };
 
   const result = sitemapPathsFromLocs(locs, origin);
   return {
@@ -147,6 +149,9 @@ async function fetchDocument(
       } catch {
         return null;
       }
+      // Stop before starting another guard+request past the budget; the guard
+      // itself resolves DNS, which this module cannot time out.
+      if (Date.now() >= deadline) return null;
       // Each hop is re-checked: a redirect is how an SSRF filter gets bypassed.
       try {
         url = await assertSafeRuntimeUrl(target, options);

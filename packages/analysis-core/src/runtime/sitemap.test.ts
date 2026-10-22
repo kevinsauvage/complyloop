@@ -88,6 +88,14 @@ describe("parseSitemapDocument", () => {
     expect(performance.now() - started).toBeLessThan(2_000);
   });
 
+  it("reads a namespace-prefixed root", () => {
+    const parsed = parseSitemapDocument(
+      `<sm:urlset xmlns:sm="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${BASE}/prefixed</loc></url></sm:urlset>`,
+    );
+
+    expect(parsed.locs).toEqual([`${BASE}/prefixed`]);
+  });
+
   it("ignores location-like element names", () => {
     const parsed = parseSitemapDocument(
       `<urlset><url><location>${BASE}/not-a-page</location><loc>${BASE}/real</loc></url></urlset>`,

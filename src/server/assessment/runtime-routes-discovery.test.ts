@@ -255,6 +255,32 @@ describe("discoverRuntimeRoutes", () => {
     });
   });
 
+  it("reports a budget that ran out before any document, not an absent sitemap", async () => {
+    // Every request burns the whole budget; the walk gives up before a document
+    // is read, which must not read as "this site has no sitemap".
+    const realNow = Date.now.bind(Date);
+    let clock = realNow();
+    vi.spyOn(Date, "now").mockImplementation(() => {
+      clock += 30_000;
+      return clock;
+    });
+    stubFetch({
+      [`${BASE}/robots.txt`]: () =>
+        new Response("Sitemap: /sitemap.xml", {
+          status: 200,
+        }),
+      [`${BASE}/sitemap.xml`]: xml(urlset(`${BASE}/late`)),
+    });
+
+    try {
+      const result = await discoverRuntimeRoutes(BASE, { lookup });
+      expect(result.source).toBe("none");
+      expect(result.truncated).toBe(true);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
   it("survives a document that throws while streaming", async () => {
     stubFetch({
       [`${BASE}/sitemap.xml`]: new Response(

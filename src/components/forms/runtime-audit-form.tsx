@@ -110,10 +110,12 @@ export function RuntimeAuditForm({
       path = normalized;
     }
 
-    setManualError(null);
-    setKnown((current) =>
-      current.includes(path) ? current : [...current, path],
-    );
+    if (selected.includes(path)) {
+      // Already audited: typing it again changes nothing, so say nothing.
+      setManualError(null);
+      setManual("");
+      return;
+    }
     if (selected.length >= maxRoutes) {
       // The Add button is disabled at the cap; Enter has to say why too.
       setManualError(
@@ -121,9 +123,12 @@ export function RuntimeAuditForm({
       );
       return;
     }
-    if (!selected.includes(path)) {
-      setSelected((current) => [...current, path]);
-    }
+
+    setManualError(null);
+    setKnown((current) =>
+      current.includes(path) ? current : [...current, path],
+    );
+    setSelected((current) => [...current, path]);
     setManual("");
   }
 
@@ -284,10 +289,10 @@ export function RuntimeAuditForm({
               </div>
             ) : null}
             {nothingMatches ? (
-              <p className="text-xs text-muted-foreground" role="status">
-                No page matches “{filter}”. The {selected.length} selected page
-                {selected.length === 1 ? "" : "s"} stay selected and will be
-                saved.
+              <p className="text-xs text-muted-foreground">
+                {selected.length === 0
+                  ? `No page matches “${filter}”.`
+                  : `No page matches “${filter}”. The ${selected.length} selected page${selected.length === 1 ? "" : "s"} stay selected and will be saved.`}
               </p>
             ) : null}
             {/* Every option keeps its checkbox mounted: a filtered-out row
