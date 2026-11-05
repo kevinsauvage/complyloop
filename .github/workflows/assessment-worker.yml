@@ -79,6 +79,21 @@ jobs:
           else
             echo "empty=false" >> "$GITHUB_OUTPUT"
           fi
+      - name: Resolve the drain budget
+        id: budget
+        # GitHub Actions expressions have no arithmetic: `(inputs['max-minutes'] || '20') * 1 + 5`
+        # is a parse error, and an unparseable file makes the whole workflow undispatchable *and*
+        # silently stops its `schedule` from firing. Derive the numbers in the shell instead.
+        run: |
+          max_minutes="${{ inputs['max-minutes'] || '20' }}"
+          case "$max_minutes" in
+            ''|*[!0-9]*)
+              echo "::error::max-minutes must be a whole number of minutes, got '${max_minutes}'."
+              exit 1
+              ;;
+          esac
+          echo "step_timeout=$(( max_minutes + 5 ))" >> "$GITHUB_OUTPUT"
+          echo "max_ms=$(( max_minutes * 60000 ))" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         if: steps.gate.outputs.empty != 'true'
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -126,7 +141,7 @@ jobs:
         # mid-scan (which would leave a phantom `running` job until lease
         # expiry). A hung browser/teardown still fails fast: lease recovery
         # requeues whatever was claimed.
-        timeout-minutes: ${{ (inputs['max-minutes'] || '20') * 1 + 5 }}
+        timeout-minutes: ${{ fromJSON(steps.budget.outputs.step_timeout) }}
         run: npm run worker:drain
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -134,7 +149,7 @@ jobs:
           GITHUB_APP_PRIVATE_KEY: ${{ secrets.COMPLYLOOP_APP_PRIVATE_KEY }}
           ASSESSMENT_WORKER_LIMIT: ${{ inputs.limit || '10' }}
           ASSESSMENT_WORKER_CONCURRENCY: ${{ inputs.concurrency || '2' }}
-          ASSESSMENT_WORKER_MAX_MS: ${{ (inputs['max-minutes'] || '20') * 60000 }}
+          ASSESSMENT_WORKER_MAX_MS: ${{ steps.budget.outputs.max_ms }}
       - name: Notify on failure
         # Optional: set repository secret SLACK_WEBHOOK_URL to post failures.
         # No-op when unset — stock Actions notifications still apply.
