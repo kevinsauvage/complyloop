@@ -1,0 +1,671 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-10T19:56:42+00:00",
+  "title": "Design System: ComplyLoop",
+  "extensions": {
+    "colorMeta": {
+      "ledger-ember": {
+        "role": "primary",
+        "displayName": "Ledger Ember",
+        "canonical": "oklch(0.47 0.15 42)",
+        "tonalRamp": [
+          "oklch(0.15 0.15 42.0)",
+          "oklch(0.26 0.15 42.0)",
+          "oklch(0.38 0.15 42.0)",
+          "oklch(0.49 0.15 42.0)",
+          "oklch(0.61 0.15 42.0)",
+          "oklch(0.72 0.15 42.0)",
+          "oklch(0.84 0.15 42.0)",
+          "oklch(0.95 0.15 42.0)"
+        ]
+      },
+      "ledger-ember-dark": {
+        "role": "primary",
+        "displayName": "Ledger Ember (dark)",
+        "canonical": "oklch(0.75 0.15 55)",
+        "tonalRamp": [
+          "oklch(0.15 0.15 55.0)",
+          "oklch(0.26 0.15 55.0)",
+          "oklch(0.38 0.15 55.0)",
+          "oklch(0.49 0.15 55.0)",
+          "oklch(0.61 0.15 55.0)",
+          "oklch(0.72 0.15 55.0)",
+          "oklch(0.84 0.15 55.0)",
+          "oklch(0.95 0.15 55.0)"
+        ]
+      },
+      "ember-foreground": {
+        "role": "primary",
+        "displayName": "Ember Foreground",
+        "canonical": "oklch(0.99 0.01 40)",
+        "tonalRamp": [
+          "oklch(0.15 0.01 40.0)",
+          "oklch(0.26 0.01 40.0)",
+          "oklch(0.38 0.01 40.0)",
+          "oklch(0.49 0.01 40.0)",
+          "oklch(0.61 0.01 40.0)",
+          "oklch(0.72 0.01 40.0)",
+          "oklch(0.84 0.01 40.0)",
+          "oklch(0.95 0.01 40.0)"
+        ]
+      },
+      "ember-foreground-dark": {
+        "role": "primary",
+        "displayName": "Ember Foreground (dark)",
+        "canonical": "oklch(0.18 0.02 45)",
+        "tonalRamp": [
+          "oklch(0.15 0.02 45.0)",
+          "oklch(0.26 0.02 45.0)",
+          "oklch(0.38 0.02 45.0)",
+          "oklch(0.49 0.02 45.0)",
+          "oklch(0.61 0.02 45.0)",
+          "oklch(0.72 0.02 45.0)",
+          "oklch(0.84 0.02 45.0)",
+          "oklch(0.95 0.02 45.0)"
+        ]
+      },
+      "ember-bright": {
+        "role": "primary",
+        "displayName": "Ember Bright",
+        "canonical": "oklch(0.65 0.19 41)",
+        "tonalRamp": [
+          "oklch(0.15 0.19 41.0)",
+          "oklch(0.26 0.19 41.0)",
+          "oklch(0.38 0.19 41.0)",
+          "oklch(0.49 0.19 41.0)",
+          "oklch(0.61 0.19 41.0)",
+          "oklch(0.72 0.19 41.0)",
+          "oklch(0.84 0.19 41.0)",
+          "oklch(0.95 0.19 41.0)"
+        ]
+      },
+      "blueprint-blue": {
+        "role": "secondary",
+        "displayName": "Blueprint Blue",
+        "canonical": "oklch(0.55 0.17 260)",
+        "tonalRamp": [
+          "oklch(0.15 0.17 260.0)",
+          "oklch(0.26 0.17 260.0)",
+          "oklch(0.38 0.17 260.0)",
+          "oklch(0.49 0.17 260.0)",
+          "oklch(0.61 0.17 260.0)",
+          "oklch(0.72 0.17 260.0)",
+          "oklch(0.84 0.17 260.0)",
+          "oklch(0.95 0.17 260.0)"
+        ]
+      },
+      "blueprint-blue-dark": {
+        "role": "secondary",
+        "displayName": "Blueprint Blue (dark)",
+        "canonical": "oklch(0.71 0.14 260)",
+        "tonalRamp": [
+          "oklch(0.15 0.14 260.0)",
+          "oklch(0.26 0.14 260.0)",
+          "oklch(0.38 0.14 260.0)",
+          "oklch(0.49 0.14 260.0)",
+          "oklch(0.61 0.14 260.0)",
+          "oklch(0.72 0.14 260.0)",
+          "oklch(0.84 0.14 260.0)",
+          "oklch(0.95 0.14 260.0)"
+        ]
+      },
+      "blueprint-ink": {
+        "role": "neutral",
+        "displayName": "Blueprint Ink",
+        "canonical": "oklch(0.28 0.04 260)",
+        "tonalRamp": [
+          "oklch(0.15 0.04 260.0)",
+          "oklch(0.26 0.04 260.0)",
+          "oklch(0.38 0.04 260.0)",
+          "oklch(0.49 0.04 260.0)",
+          "oklch(0.61 0.04 260.0)",
+          "oklch(0.72 0.04 260.0)",
+          "oklch(0.84 0.04 260.0)",
+          "oklch(0.95 0.04 260.0)"
+        ]
+      },
+      "blueprint-ink-dark": {
+        "role": "neutral",
+        "displayName": "Blueprint Ink (dark)",
+        "canonical": "oklch(0.96 0.01 220)",
+        "tonalRamp": [
+          "oklch(0.15 0.01 220.0)",
+          "oklch(0.26 0.01 220.0)",
+          "oklch(0.38 0.01 220.0)",
+          "oklch(0.49 0.01 220.0)",
+          "oklch(0.61 0.01 220.0)",
+          "oklch(0.72 0.01 220.0)",
+          "oklch(0.84 0.01 220.0)",
+          "oklch(0.95 0.01 220.0)"
+        ]
+      },
+      "drafting-paper": {
+        "role": "neutral",
+        "displayName": "Drafting Paper",
+        "canonical": "oklch(0.984 0.003 248)",
+        "tonalRamp": [
+          "oklch(0.15 0.003 248.0)",
+          "oklch(0.26 0.003 248.0)",
+          "oklch(0.38 0.003 248.0)",
+          "oklch(0.49 0.003 248.0)",
+          "oklch(0.61 0.003 248.0)",
+          "oklch(0.72 0.003 248.0)",
+          "oklch(0.84 0.003 248.0)",
+          "oklch(0.95 0.003 248.0)"
+        ]
+      },
+      "drafting-paper-dark": {
+        "role": "neutral",
+        "displayName": "Drafting Paper (dark)",
+        "canonical": "oklch(0.16 0.02 240)",
+        "tonalRamp": [
+          "oklch(0.15 0.02 240.0)",
+          "oklch(0.26 0.02 240.0)",
+          "oklch(0.38 0.02 240.0)",
+          "oklch(0.49 0.02 240.0)",
+          "oklch(0.61 0.02 240.0)",
+          "oklch(0.72 0.02 240.0)",
+          "oklch(0.84 0.02 240.0)",
+          "oklch(0.95 0.02 240.0)"
+        ]
+      },
+      "sheet": {
+        "role": "neutral",
+        "displayName": "Sheet",
+        "canonical": "oklch(1 0 0)",
+        "tonalRamp": [
+          "oklch(0.15 0.0 0.0)",
+          "oklch(0.26 0.0 0.0)",
+          "oklch(0.38 0.0 0.0)",
+          "oklch(0.49 0.0 0.0)",
+          "oklch(0.61 0.0 0.0)",
+          "oklch(0.72 0.0 0.0)",
+          "oklch(0.84 0.0 0.0)",
+          "oklch(0.95 0.0 0.0)"
+        ]
+      },
+      "sheet-dark": {
+        "role": "neutral",
+        "displayName": "Sheet (dark)",
+        "canonical": "oklch(0.2 0.022 240)",
+        "tonalRamp": [
+          "oklch(0.15 0.022 240.0)",
+          "oklch(0.26 0.022 240.0)",
+          "oklch(0.38 0.022 240.0)",
+          "oklch(0.49 0.022 240.0)",
+          "oklch(0.61 0.022 240.0)",
+          "oklch(0.72 0.022 240.0)",
+          "oklch(0.84 0.022 240.0)",
+          "oklch(0.95 0.022 240.0)"
+        ]
+      },
+      "pencil": {
+        "role": "neutral",
+        "displayName": "Pencil",
+        "canonical": "oklch(0.45 0.043 257)",
+        "tonalRamp": [
+          "oklch(0.15 0.043 257.0)",
+          "oklch(0.26 0.043 257.0)",
+          "oklch(0.38 0.043 257.0)",
+          "oklch(0.49 0.043 257.0)",
+          "oklch(0.61 0.043 257.0)",
+          "oklch(0.72 0.043 257.0)",
+          "oklch(0.84 0.043 257.0)",
+          "oklch(0.95 0.043 257.0)"
+        ]
+      },
+      "pencil-dark": {
+        "role": "neutral",
+        "displayName": "Pencil (dark)",
+        "canonical": "oklch(0.74 0.02 230)",
+        "tonalRamp": [
+          "oklch(0.15 0.02 230.0)",
+          "oklch(0.26 0.02 230.0)",
+          "oklch(0.38 0.02 230.0)",
+          "oklch(0.49 0.02 230.0)",
+          "oklch(0.61 0.02 230.0)",
+          "oklch(0.72 0.02 230.0)",
+          "oklch(0.84 0.02 230.0)",
+          "oklch(0.95 0.02 230.0)"
+        ]
+      },
+      "wash": {
+        "role": "neutral",
+        "displayName": "Wash",
+        "canonical": "oklch(0.94 0.012 258)",
+        "tonalRamp": [
+          "oklch(0.15 0.012 258.0)",
+          "oklch(0.26 0.012 258.0)",
+          "oklch(0.38 0.012 258.0)",
+          "oklch(0.49 0.012 258.0)",
+          "oklch(0.61 0.012 258.0)",
+          "oklch(0.72 0.012 258.0)",
+          "oklch(0.84 0.012 258.0)",
+          "oklch(0.95 0.012 258.0)"
+        ]
+      },
+      "wash-dark": {
+        "role": "neutral",
+        "displayName": "Wash (dark)",
+        "canonical": "oklch(0.26 0.025 240)",
+        "tonalRamp": [
+          "oklch(0.15 0.025 240.0)",
+          "oklch(0.26 0.025 240.0)",
+          "oklch(0.38 0.025 240.0)",
+          "oklch(0.49 0.025 240.0)",
+          "oklch(0.61 0.025 240.0)",
+          "oklch(0.72 0.025 240.0)",
+          "oklch(0.84 0.025 240.0)",
+          "oklch(0.95 0.025 240.0)"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "oklch(0.928 0.013 256)",
+        "tonalRamp": [
+          "oklch(0.15 0.013 256.0)",
+          "oklch(0.26 0.013 256.0)",
+          "oklch(0.38 0.013 256.0)",
+          "oklch(0.49 0.013 256.0)",
+          "oklch(0.61 0.013 256.0)",
+          "oklch(0.72 0.013 256.0)",
+          "oklch(0.84 0.013 256.0)",
+          "oklch(0.95 0.013 256.0)"
+        ]
+      },
+      "hairline-dark": {
+        "role": "neutral",
+        "displayName": "Hairline (dark)",
+        "canonical": "oklch(1 0 0 / 12%)",
+        "tonalRamp": [
+          "oklch(0.15 0.0 0.0)",
+          "oklch(0.26 0.0 0.0)",
+          "oklch(0.38 0.0 0.0)",
+          "oklch(0.49 0.0 0.0)",
+          "oklch(0.61 0.0 0.0)",
+          "oklch(0.72 0.0 0.0)",
+          "oklch(0.84 0.0 0.0)",
+          "oklch(0.95 0.0 0.0)"
+        ]
+      },
+      "status-passed": {
+        "role": "tertiary",
+        "displayName": "Passed Green",
+        "canonical": "oklch(0.42 0.13 155)",
+        "tonalRamp": [
+          "oklch(0.15 0.13 155.0)",
+          "oklch(0.26 0.13 155.0)",
+          "oklch(0.38 0.13 155.0)",
+          "oklch(0.49 0.13 155.0)",
+          "oklch(0.61 0.13 155.0)",
+          "oklch(0.72 0.13 155.0)",
+          "oklch(0.84 0.13 155.0)",
+          "oklch(0.95 0.13 155.0)"
+        ]
+      },
+      "status-passed-dark": {
+        "role": "tertiary",
+        "displayName": "Passed Green (dark)",
+        "canonical": "oklch(0.8 0.16 155)",
+        "tonalRamp": [
+          "oklch(0.15 0.16 155.0)",
+          "oklch(0.26 0.16 155.0)",
+          "oklch(0.38 0.16 155.0)",
+          "oklch(0.49 0.16 155.0)",
+          "oklch(0.61 0.16 155.0)",
+          "oklch(0.72 0.16 155.0)",
+          "oklch(0.84 0.16 155.0)",
+          "oklch(0.95 0.16 155.0)"
+        ]
+      },
+      "status-failed": {
+        "role": "tertiary",
+        "displayName": "Failed Red",
+        "canonical": "oklch(0.45 0.2 25)",
+        "tonalRamp": [
+          "oklch(0.15 0.2 25.0)",
+          "oklch(0.26 0.2 25.0)",
+          "oklch(0.38 0.2 25.0)",
+          "oklch(0.49 0.2 25.0)",
+          "oklch(0.61 0.2 25.0)",
+          "oklch(0.72 0.2 25.0)",
+          "oklch(0.84 0.2 25.0)",
+          "oklch(0.95 0.2 25.0)"
+        ]
+      },
+      "status-failed-dark": {
+        "role": "tertiary",
+        "displayName": "Failed Red (dark)",
+        "canonical": "oklch(0.78 0.18 25)",
+        "tonalRamp": [
+          "oklch(0.15 0.18 25.0)",
+          "oklch(0.26 0.18 25.0)",
+          "oklch(0.38 0.18 25.0)",
+          "oklch(0.49 0.18 25.0)",
+          "oklch(0.61 0.18 25.0)",
+          "oklch(0.72 0.18 25.0)",
+          "oklch(0.84 0.18 25.0)",
+          "oklch(0.95 0.18 25.0)"
+        ]
+      },
+      "status-review": {
+        "role": "tertiary",
+        "displayName": "Review Amber",
+        "canonical": "oklch(0.44 0.12 75)",
+        "tonalRamp": [
+          "oklch(0.15 0.12 75.0)",
+          "oklch(0.26 0.12 75.0)",
+          "oklch(0.38 0.12 75.0)",
+          "oklch(0.49 0.12 75.0)",
+          "oklch(0.61 0.12 75.0)",
+          "oklch(0.72 0.12 75.0)",
+          "oklch(0.84 0.12 75.0)",
+          "oklch(0.95 0.12 75.0)"
+        ]
+      },
+      "status-review-dark": {
+        "role": "tertiary",
+        "displayName": "Review Amber (dark)",
+        "canonical": "oklch(0.86 0.14 85)",
+        "tonalRamp": [
+          "oklch(0.15 0.14 85.0)",
+          "oklch(0.26 0.14 85.0)",
+          "oklch(0.38 0.14 85.0)",
+          "oklch(0.49 0.14 85.0)",
+          "oklch(0.61 0.14 85.0)",
+          "oklch(0.72 0.14 85.0)",
+          "oklch(0.84 0.14 85.0)",
+          "oklch(0.95 0.14 85.0)"
+        ]
+      },
+      "status-na": {
+        "role": "tertiary",
+        "displayName": "Not-Applicable Slate",
+        "canonical": "oklch(0.46 0.02 240)",
+        "tonalRamp": [
+          "oklch(0.15 0.02 240.0)",
+          "oklch(0.26 0.02 240.0)",
+          "oklch(0.38 0.02 240.0)",
+          "oklch(0.49 0.02 240.0)",
+          "oklch(0.61 0.02 240.0)",
+          "oklch(0.72 0.02 240.0)",
+          "oklch(0.84 0.02 240.0)",
+          "oklch(0.95 0.02 240.0)"
+        ]
+      },
+      "status-na-dark": {
+        "role": "tertiary",
+        "displayName": "Not-Applicable Slate (dark)",
+        "canonical": "oklch(0.76 0.03 240)",
+        "tonalRamp": [
+          "oklch(0.15 0.03 240.0)",
+          "oklch(0.26 0.03 240.0)",
+          "oklch(0.38 0.03 240.0)",
+          "oklch(0.49 0.03 240.0)",
+          "oklch(0.61 0.03 240.0)",
+          "oklch(0.72 0.03 240.0)",
+          "oklch(0.84 0.03 240.0)",
+          "oklch(0.95 0.03 240.0)"
+        ]
+      },
+      "status-unverifiable": {
+        "role": "tertiary",
+        "displayName": "Unverifiable Violet",
+        "canonical": "oklch(0.46 0.1 280)",
+        "tonalRamp": [
+          "oklch(0.15 0.1 280.0)",
+          "oklch(0.26 0.1 280.0)",
+          "oklch(0.38 0.1 280.0)",
+          "oklch(0.49 0.1 280.0)",
+          "oklch(0.61 0.1 280.0)",
+          "oklch(0.72 0.1 280.0)",
+          "oklch(0.84 0.1 280.0)",
+          "oklch(0.95 0.1 280.0)"
+        ]
+      },
+      "status-unverifiable-dark": {
+        "role": "tertiary",
+        "displayName": "Unverifiable Violet (dark)",
+        "canonical": "oklch(0.8 0.12 285)",
+        "tonalRamp": [
+          "oklch(0.15 0.12 285.0)",
+          "oklch(0.26 0.12 285.0)",
+          "oklch(0.38 0.12 285.0)",
+          "oklch(0.49 0.12 285.0)",
+          "oklch(0.61 0.12 285.0)",
+          "oklch(0.72 0.12 285.0)",
+          "oklch(0.84 0.12 285.0)",
+          "oklch(0.95 0.12 285.0)"
+        ]
+      },
+      "destructive": {
+        "role": "tertiary",
+        "displayName": "Destructive Red",
+        "canonical": "oklch(0.55 0.22 25)",
+        "tonalRamp": [
+          "oklch(0.15 0.22 25.0)",
+          "oklch(0.26 0.22 25.0)",
+          "oklch(0.38 0.22 25.0)",
+          "oklch(0.49 0.22 25.0)",
+          "oklch(0.61 0.22 25.0)",
+          "oklch(0.72 0.22 25.0)",
+          "oklch(0.84 0.22 25.0)",
+          "oklch(0.95 0.22 25.0)"
+        ]
+      },
+      "destructive-dark": {
+        "role": "tertiary",
+        "displayName": "Destructive Red (dark)",
+        "canonical": "oklch(0.74 0.17 22)",
+        "tonalRamp": [
+          "oklch(0.15 0.17 22.0)",
+          "oklch(0.26 0.17 22.0)",
+          "oklch(0.38 0.17 22.0)",
+          "oklch(0.49 0.17 22.0)",
+          "oklch(0.61 0.17 22.0)",
+          "oklch(0.72 0.17 22.0)",
+          "oklch(0.84 0.17 22.0)",
+          "oklch(0.95 0.17 22.0)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Page titles in header panels (h1); 1.5rem, 1.875rem from sm."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section headings (h2) inside a page."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card and panel titles (h3)."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text and descriptions, capped at 65ch."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Field and fact labels, captions, badge text; in Pencil."
+      },
+      "data": {
+        "displayName": "Data",
+        "purpose": "Codes, check IDs, file paths, selectors, snippets; tabular numerals."
+      },
+      "metric": {
+        "displayName": "Metric",
+        "purpose": "Headline numbers on stat strips."
+      }
+    },
+    "shadows": [
+      {
+        "name": "focus-lift",
+        "value": "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
+        "purpose": "Only the focused skip link."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-transition",
+        "value": "150ms cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Colour, border and ring changes on hover/focus (Tailwind default transition)."
+      },
+      {
+        "name": "loading-shimmer",
+        "value": "1.8s ease-in-out infinite",
+        "purpose": "Skeleton sweep on Wash."
+      },
+      {
+        "name": "loading-bar",
+        "value": "1.4s ease-in-out infinite",
+        "purpose": "Indeterminate Ember progress bar."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "0.01ms",
+        "purpose": "All animation and transition durations collapse under prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Default action button; copy actions add a leading icon.",
+      "html": "<button class=\"ds-btn-outline\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z\"/></svg>Copy for AI</button>",
+      "css": ".ds-btn-outline{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 10px;border-radius:10px;border:1px solid var(--border);background:var(--background);color:var(--foreground);font:500 0.875rem/1 'Plus Jakarta Sans',system-ui,sans-serif;cursor:pointer;transition:background-color .15s,border-color .15s}.ds-btn-outline:hover{background:var(--muted)}.ds-btn-outline:focus-visible{outline:none;border-color:var(--ring);box-shadow:0 0 0 3px color-mix(in oklch,var(--ring) 50%,transparent)}.ds-btn-outline:active{transform:translateY(1px)}"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one committing action of a form (Run assessment). Rare.",
+      "html": "<button class=\"ds-btn-primary\">Run assessment</button>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;height:36px;padding:0 10px;border-radius:10px;border:1px solid transparent;background:var(--primary);color:var(--primary-foreground);font:500 0.875rem/1 'Plus Jakarta Sans',system-ui,sans-serif;cursor:pointer;transition:background-color .15s}.ds-btn-primary:hover{background:color-mix(in oklch,var(--primary) 80%,transparent)}.ds-btn-primary:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in oklch,var(--ring) 50%,transparent)}.ds-btn-primary:active{transform:translateY(1px)}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Back links and secondary navigation.",
+      "html": "<button class=\"ds-btn-ghost\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m12 19-7-7 7-7\"/><path d=\"M19 12H5\"/></svg>Back to findings</button>",
+      "css": ".ds-btn-ghost{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--foreground);font:500 0.8rem/1 'Plus Jakarta Sans',system-ui,sans-serif;cursor:pointer;transition:background-color .15s}.ds-btn-ghost:hover{background:var(--muted)}.ds-btn-ghost:focus-visible{outline:2px solid var(--ring);outline-offset:2px}"
+    },
+    {
+      "name": "Status Badges",
+      "kind": "chip",
+      "refersTo": "badge-status",
+      "description": "Pill badges from the single tone table; outline variant for severities.",
+      "html": "<span class=\"ds-badge ds-badge-failed-outline\">Serious</span> <span class=\"ds-badge ds-badge-review\">Open</span> <span class=\"ds-badge ds-badge-passed\">Passed</span> <span class=\"ds-badge ds-badge-unverifiable\">Unable to verify</span>",
+      "css": ".ds-badge{display:inline-flex;align-items:center;height:20px;padding:2px 8px;border-radius:26px;border:1px solid transparent;font:500 0.75rem/1 'Plus Jakarta Sans',system-ui,sans-serif;white-space:nowrap}.ds-badge-failed-outline{color:var(--status-failed);border-color:currentColor}.ds-badge-review{color:var(--status-review);background:color-mix(in oklch,var(--status-review) 15%,transparent)}.ds-badge-passed{color:var(--status-passed);background:color-mix(in oklch,var(--status-passed) 15%,transparent)}.ds-badge-unverifiable{color:var(--status-unverifiable);background:color-mix(in oklch,var(--status-unverifiable) 15%,transparent)}"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Search and form fields.",
+      "html": "<input class=\"ds-input\" placeholder=\"Search code or title…\" aria-label=\"Search requirements\">",
+      "css": ".ds-input{height:32px;width:260px;padding:4px 10px;border-radius:10px;border:1px solid var(--input);background:transparent;color:var(--foreground);font:400 0.875rem/1.4 'Plus Jakarta Sans',system-ui,sans-serif;transition:border-color .15s,box-shadow .15s}.ds-input::placeholder{color:var(--muted-foreground)}.ds-input:focus-visible{outline:none;border-color:var(--ring);box-shadow:0 0 0 3px color-mix(in oklch,var(--ring) 50%,transparent)}"
+    },
+    {
+      "name": "Project Tabs",
+      "kind": "nav",
+      "refersTo": "nav-tab-active",
+      "description": "Underline tabs; active tab carries the 2px Ledger Ember underline.",
+      "html": "<nav class=\"ds-tabs\" aria-label=\"Project\"><a href=\"#\" class=\"ds-tab\">Dashboard</a><a href=\"#\" class=\"ds-tab\">Requirements</a><a href=\"#\" class=\"ds-tab\" aria-current=\"page\">Findings</a><a href=\"#\" class=\"ds-tab\">Evidence</a></nav>",
+      "css": ".ds-tabs{display:flex;border-bottom:1px solid var(--border);font:500 0.875rem/1 'Plus Jakarta Sans',system-ui,sans-serif}.ds-tab{display:flex;align-items:center;min-height:44px;padding:0 12px;margin-bottom:-1px;border-bottom:2px solid transparent;color:var(--muted-foreground);text-decoration:none;transition:color .15s,border-color .15s}.ds-tab:hover{color:var(--foreground);border-bottom-color:var(--border)}.ds-tab[aria-current=page]{color:var(--foreground);border-bottom-color:var(--signal)}.ds-tab:focus-visible{outline:2px solid var(--ring);outline-offset:-2px}"
+    },
+    {
+      "name": "Ledger Strip",
+      "kind": "custom",
+      "refersTo": "panel",
+      "description": "Signature: labelled facts on a hairline-divided strip at the foot of a header panel.",
+      "html": "<section class=\"ds-panel\"><div class=\"ds-panel-body\"><h1 class=\"ds-h1\">Images have a text alternative</h1><p class=\"ds-refs\">RGAA 1.1 · WCAG 1.1.1</p></div><div class=\"ds-strip-clip\"><dl class=\"ds-strip\"><div class=\"ds-fact\"><dt>Severity</dt><dd><span class=\"ds-sev\">Serious</span></dd></div><div class=\"ds-fact\"><dt>Status</dt><dd>Open</dd></div><div class=\"ds-fact\"><dt>Confidence</dt><dd>High</dd></div><div class=\"ds-fact\"><dt>Check</dt><dd><code>img-alt</code></dd></div></dl></div></section>",
+      "css": ".ds-panel{border-radius:14px;border:1px solid color-mix(in oklch,var(--border) 70%,transparent);background:color-mix(in oklch,var(--card) 96%,transparent);overflow:hidden;color:var(--foreground);font-family:'Plus Jakarta Sans',system-ui,sans-serif;max-width:720px}.ds-panel-body{padding:24px}.ds-h1{margin:0;font-size:1.5rem;font-weight:600;letter-spacing:-0.025em}.ds-refs{margin:6px 0 0;font:0.875rem ui-monospace,Menlo,monospace;opacity:.8}.ds-strip-clip{overflow:hidden;border-top:1px solid color-mix(in oklch,var(--border) 60%,transparent)}.ds-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin:0 -1px -1px 0}.ds-fact{display:flex;flex-direction:column;gap:6px;padding:14px 24px;border-right:1px solid color-mix(in oklch,var(--border) 60%,transparent);border-bottom:1px solid color-mix(in oklch,var(--border) 60%,transparent)}.ds-fact dt{font-size:.75rem;font-weight:500;color:var(--muted-foreground)}.ds-fact dd{margin:0;font-size:.875rem}.ds-fact code{font-family:ui-monospace,Menlo,monospace}.ds-sev{display:inline-flex;height:20px;align-items:center;padding:0 8px;border-radius:26px;border:1px solid currentColor;color:var(--status-failed);font-size:.75rem;font-weight:500}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Engineer's Ledger",
+    "overview": "ComplyLoop is a record that engineers can trust. Every screen reads like a page of a well-kept ledger: ruled with hairlines, set in one sober sans, with codes, paths and numbers in monospace where precision matters. Nothing is decorative because everything on the page is accountable; a mark exists because a check, a decision, or a piece of evidence put it there. The mood is **precise, calm, and trustworthy**: calm enough to triage forty findings in a row, exact enough that a lead can forward the screen to a client.\n\nColour is scarce on purpose. Blueprint Ink on Drafting Paper carries the page; the status hues speak only for statuses; and a single warm accent, Ledger Ember, marks where attention should go next: the current tab, the active section, the thing that needs you. Depth comes from hairline rules and tonal surfaces on a faint graph-paper ground, not from shadows. Light and dark are equal citizens; the dark theme is a night shift on the same ledger, not a different product.\n\nThis system rejects four neighbours by name: the **GRC / enterprise dashboard** (gauges, donuts, traffic-light walls), **glossy SaaS marketing** (gradients, glass, hero metrics, decorative illustration), **raw scanner output** (walls of red without hierarchy or a next step), and **playful consumer UI** (mascots, emoji, bouncy motion, pastel saturation).",
+    "keyCharacteristics": [
+      "Hairline-ruled panels over a 48px graph-paper ground; flat at rest.",
+      "One warm accent (Ledger Ember) against cool navy-slate neutrals.",
+      "A dedicated, single-source status palette in OKLCH, tuned per theme.",
+      "Plus Jakarta Sans throughout; monospace only for data.",
+      "Facts presented as labelled ledger strips, not loose pills or charts.",
+      "Light and dark themes with equal care."
+    ],
+    "rules": [
+      {
+        "name": "The One Ember Rule",
+        "body": "Ledger Ember marks where attention goes: the current location and the thing that needs action. It never fills large areas, never decorates, and never means \"success\" or \"error\".",
+        "section": "colors"
+      },
+      {
+        "name": "The Status Is Sacred Rule",
+        "body": "A status hue means its status and nothing else. Every status colour comes from the one tone table (`src/core/display/report-tones.ts`); no screen keeps a parallel colour map.",
+        "section": "colors"
+      },
+      {
+        "name": "The Mono Means Data Rule",
+        "body": "Monospace is for codes, paths, selectors, IDs and numbers a user might copy or compare. Never as a \"technical\" costume for prose or labels.",
+        "section": "typography"
+      },
+      {
+        "name": "The Ledger Strip Rule",
+        "body": "Key facts about the thing on screen (pass rate, open findings, severity, status, remediation, confidence, check) sit on one hairline-divided strip of labelled cells at the bottom of the header panel, not as a row of loose pills. Label above value, Pencil above Ink.",
+        "section": "layout"
+      },
+      {
+        "name": "The Graph Paper Rule",
+        "body": "The 48px grid lives only on the page ground, at whisper strength (16% light, 4.5% dark), and only from `lg`. It never appears inside panels.",
+        "section": "layout"
+      },
+      {
+        "name": "The Hairline, Not Shadow Rule",
+        "body": "Separate with a 1px Hairline or a tonal step, never with a drop shadow. If something must feel raised, it is a state (focus, open popover), not decoration.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep Ledger Ember for location and attention only: active tab, active rail item, the next action.",
+      "Do take every status colour from the one tone table, in both themes.",
+      "Do set codes, file paths, selectors, IDs and metrics in monospace with tabular numerals.",
+      "Do present an object's key facts as a Ledger Strip of labelled cells.",
+      "Do separate surfaces with 1px hairlines and tonal steps (Drafting Paper → Sheet → Wash).",
+      "Do design and check light and dark themes together; Pencil text must hold 4.5:1 on Sheet in both.",
+      "Do cap descriptive text at 65ch."
+    ],
+    "donts": [
+      "Don't build GRC / enterprise dashboard chrome: no gauges, donut charts, or traffic-light walls.",
+      "Don't use glossy SaaS marketing devices in the app: no gradients, decorative glass, hero metrics, or illustrations.",
+      "Don't dump raw scanner output: never a wall of red without hierarchy, location, and a next step.",
+      "Don't go playful: no mascots, emoji as icons, bouncy motion, or pastel saturation.",
+      "Don't use drop shadows for depth; the only lift is a focused skip link.",
+      "Don't reuse a status hue for decoration, or Ledger Ember for success or error.",
+      "Don't put an eyebrow or kicker label above a page heading; references go below the title."
+    ]
+  }
+}
