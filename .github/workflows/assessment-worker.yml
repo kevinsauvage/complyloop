@@ -105,13 +105,19 @@ jobs:
       # Cached install: a live run then starts at runner + browser, not at a
       # cold `npm ci` (minutes). Keyed on the lockfile + workspace manifests;
       # the browser cache below is separate (same idea, different artefact).
+      # Workspace-nested node_modules must be cached too: a hit skips `npm ci`,
+      # and deps npm could not hoist (e.g. analysis-core's `html-validate`)
+      # live only under `packages/*/node_modules` — without them the worker
+      # bundle fails to resolve them.
       - name: Cache node_modules
         id: modules
         if: steps.gate.outputs.empty != 'true'
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
-          path: node_modules
-          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json', 'package.json', 'packages/*/package.json') }}
+          path: |
+            node_modules
+            packages/*/node_modules
+          key: node-modules-v2-${{ runner.os }}-${{ hashFiles('package-lock.json', 'package.json', 'packages/*/package.json') }}
       - run: npm ci
         if: steps.gate.outputs.empty != 'true' && steps.modules.outputs.cache-hit != 'true'
       - name: Cache Playwright browsers
