@@ -24,7 +24,7 @@ export function CodeBlock({
         {filename ? (
           <p
             title={filename}
-            className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground"
+            className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground"
           >
             {filename}
           </p>

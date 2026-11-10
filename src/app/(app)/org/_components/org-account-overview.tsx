@@ -3,7 +3,10 @@ import Link from "next/link";
 import type { OrgRole } from "@complyloop/analysis-core/contract/project-types";
 
 import { FormattedDateTime } from "@/components/primitives/formatted-datetime";
-import { MetaTile } from "@/components/primitives/page-primitives";
+import {
+  LedgerFact,
+  LedgerStrip,
+} from "@/components/primitives/page-primitives";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -42,14 +45,10 @@ export function OrgAccountOverview({
     <Card className="shadow-none">
       <CardHeader className="gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span
-            className="hidden size-2 shrink-0 rounded-full bg-signal sm:block"
-            aria-hidden
-          />
           <h2 className="font-heading text-base font-medium leading-snug">
             Account
           </h2>
-          <Badge variant="secondary">Early access pilot</Badge>
+          <Badge variant="outline">Early access pilot</Badge>
           {viewerRole ? (
             <Badge
               className={cn(
@@ -65,24 +64,28 @@ export function OrgAccountOverview({
           Ownership, plan, and how this workspace&apos;s data is retained.
           Billing and self-serve plans are not enabled yet for this pilot.
         </CardDescription>
-        <div className="flex flex-wrap gap-2 pt-1">
-          <SummaryChip label="Projects" value={String(projectCount)} />
-          <SummaryChip label="Members" value={String(memberCount)} />
-          {pendingInviteCount > 0 ? (
-            <SummaryChip
-              label="Pending invites"
-              value={String(pendingInviteCount)}
-              tone="review"
-            />
-          ) : null}
-        </div>
       </CardHeader>
-      <CardContent className="grid gap-4 sm:grid-cols-2">
-        <MetaTile label="Organization">
+      <LedgerStrip
+        label="Organization details"
+        className="sm:grid-cols-2 lg:grid-cols-3"
+      >
+        <LedgerFact label="Organization">
           <p className="font-medium text-foreground">{orgName}</p>
           <p className="font-mono text-xs text-muted-foreground">{orgSlug}</p>
-        </MetaTile>
-        <MetaTile label="Organization owner">
+        </LedgerFact>
+        <LedgerFact label="Projects" valueClassName="font-mono tabular-nums">
+          {projectCount}
+        </LedgerFact>
+        <LedgerFact label="Members" valueClassName="font-mono tabular-nums">
+          {memberCount}
+          {pendingInviteCount > 0 ? (
+            <span className="ml-2 font-sans text-xs text-status-review">
+              {pendingInviteCount} pending invite
+              {pendingInviteCount === 1 ? "" : "s"}
+            </span>
+          ) : null}
+        </LedgerFact>
+        <LedgerFact label="Organization owner">
           <p className="font-medium text-foreground">
             {ownerGithubLogin ? `@${ownerGithubLogin}` : "Unknown"}
           </p>
@@ -90,8 +93,8 @@ export function OrgAccountOverview({
             Controls export, deletion, and admin roles. Ownership transfer is
             not supported yet.
           </p>
-        </MetaTile>
-        <MetaTile label="Plan & support">
+        </LedgerFact>
+        <LedgerFact label="Plan & support">
           <p className="text-sm text-muted-foreground">
             Manually provisioned. Seat and project quotas are not enforced in
             product yet.
@@ -100,7 +103,7 @@ export function OrgAccountOverview({
             <>
               <a
                 href={`mailto:${supportEmail}`}
-                className="mt-1 block font-medium text-signal underline-offset-4 hover:underline"
+                className="mt-1 block font-medium text-foreground underline underline-offset-4"
               >
                 {supportEmail}
               </a>
@@ -117,14 +120,15 @@ export function OrgAccountOverview({
               </p>
             </>
           ) : null}
-        </MetaTile>
-        <MetaTile label="Workspace age">
+        </LedgerFact>
+        <LedgerFact label="Workspace age">
           <p className="text-foreground">
             Created <FormattedDateTime iso={createdAt} />
           </p>
-        </MetaTile>
-
-        <div className="sm:col-span-2 rounded-lg border border-signal/20 bg-signal/5 px-4 py-3 text-sm">
+        </LedgerFact>
+      </LedgerStrip>
+      <CardContent>
+        <div className="rounded-lg bg-muted/40 px-4 py-3 text-sm">
           <p className="font-medium text-foreground">Data retention</p>
           <p className="mt-1 text-muted-foreground">
             Evidence is kept for audit after disconnect or org deletion; mutable
@@ -140,29 +144,5 @@ export function OrgAccountOverview({
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function SummaryChip({
-  label,
-  value,
-  tone = "default",
-}: {
-  label: string;
-  value: string;
-  tone?: "default" | "review";
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs",
-        tone === "review"
-          ? "border-status-review/30 bg-status-review/10 text-status-review"
-          : "border-border/60 bg-muted/40 text-muted-foreground",
-      )}
-    >
-      <span className="font-medium text-foreground">{value}</span>
-      {label}
-    </span>
   );
 }

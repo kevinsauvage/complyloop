@@ -123,7 +123,9 @@ export default async function OrgPage() {
         {canManage ? (
           <Dialog>
             <DialogTrigger asChild>
-              <Button size="sm">Invite member</Button>
+              <Button size="sm" variant="outline">
+                Invite member
+              </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
@@ -160,7 +162,7 @@ export default async function OrgPage() {
           title="Members & access"
           description="Owners and admins control invites and roles. Viewers can read project compliance data."
         >
-          <Card className="overflow-hidden shadow-none">
+          <Card className="overflow-hidden py-0 shadow-none">
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <OrgMembersCard
@@ -177,7 +179,7 @@ export default async function OrgPage() {
 
         {role === "owner" ? null : (
           <Card className="shadow-none">
-            <CardContent className="pt-6">
+            <CardContent>
               <p className="text-sm text-muted-foreground">
                 Owner-only — export and deletion are managed by{" "}
                 {owner?.githubLogin
@@ -192,7 +194,7 @@ export default async function OrgPage() {
         <PageSection title="New organization">
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="w-fit">
                 New organization
               </Button>
             </DialogTrigger>

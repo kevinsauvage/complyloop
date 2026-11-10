@@ -245,13 +245,23 @@ export default async function DashboardPage() {
               runtimeError={latestAssessment.engines?.runtimeError}
             />
             <div className="surface-panel overflow-hidden rounded-xl">
+              {/* The trend needs two runs; until then the counts take the
+                  full width instead of leaving an empty column. */}
               <div className="grid divide-y divide-border/60 lg:grid-cols-12 lg:divide-x lg:divide-y-0">
-                <div className="p-4 sm:p-5 lg:col-span-7">
+                <div
+                  className={
+                    trend.length >= 2
+                      ? "p-4 sm:p-5 lg:col-span-7"
+                      : "p-4 sm:p-5 lg:col-span-12"
+                  }
+                >
                   <DashboardStatusCounts counts={counts} />
                 </div>
-                <div className="p-4 sm:p-5 lg:col-span-5">
-                  <AssessmentTrend trend={trend} />
-                </div>
+                {trend.length >= 2 ? (
+                  <div className="p-4 sm:p-5 lg:col-span-5">
+                    <AssessmentTrend trend={trend} />
+                  </div>
+                ) : null}
               </div>
             </div>
           </PageSection>

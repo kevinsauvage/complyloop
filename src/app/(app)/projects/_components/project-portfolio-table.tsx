@@ -31,8 +31,8 @@ const JOB_TONE: Record<
 
 function countTone(status: RequirementStatus, value: number): string {
   if (value === 0) return "text-muted-foreground";
-  if (status === "failed") return "font-semibold text-destructive";
-  if (status === "needs_review") return "font-medium text-signal";
+  if (status === "failed") return "font-semibold text-status-failed";
+  if (status === "needs_review") return "font-medium text-status-review";
   return "text-foreground";
 }
 
@@ -115,7 +115,7 @@ export function ProjectPortfolioTable({
                   className={cn(
                     "py-2.5 pr-3 text-right tabular-nums",
                     row.openViolations > 0
-                      ? "font-semibold text-destructive"
+                      ? "font-semibold text-status-failed"
                       : "text-muted-foreground",
                   )}
                 >
@@ -125,7 +125,7 @@ export function ProjectPortfolioTable({
                   className={cn(
                     "py-2.5 pr-3 text-right tabular-nums",
                     row.unreadAlerts > 0
-                      ? "font-medium text-signal"
+                      ? "font-medium text-status-failed"
                       : "text-muted-foreground",
                   )}
                 >

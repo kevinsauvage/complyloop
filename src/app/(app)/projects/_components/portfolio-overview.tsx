@@ -2,6 +2,10 @@ import type { Route } from "next";
 import Link from "next/link";
 
 import {
+  LedgerFact,
+  LedgerStrip,
+} from "@/components/primitives/page-primitives";
+import {
   PORTFOLIO_FILTER_LABEL,
   PORTFOLIO_FILTERS,
   type PortfolioFilter,
@@ -9,57 +13,55 @@ import {
 } from "@/core/portfolio";
 import { cn } from "@/lib/utils";
 
-function Tile({
+function Metric({
   label,
   value,
-  tone = "default",
+  alarming = false,
 }: {
   label: string;
   value: number;
-  tone?: "default" | "danger" | "signal";
+  /** A non-zero value is a failure state (Failed Red), not just a count. */
+  alarming?: boolean;
 }) {
   return (
-    <div className="surface-panel rounded-xl px-4 py-3">
-      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
-      <dd
-        className={cn(
-          "mt-1 text-2xl font-semibold tabular-nums",
-          value === 0 && "text-muted-foreground",
-          value > 0 && tone === "danger" && "text-destructive",
-          value > 0 && tone === "signal" && "text-signal",
-        )}
-      >
-        {value}
-      </dd>
-    </div>
+    <LedgerFact
+      label={label}
+      valueClassName={cn(
+        "font-mono text-2xl font-semibold tabular-nums tracking-tight",
+        value === 0 && "text-muted-foreground",
+        value > 0 && alarming && "text-status-failed",
+      )}
+    >
+      {value}
+    </LedgerFact>
   );
 }
 
-/** Organization-wide totals across every visible project. */
+/** Organization-wide totals across every visible project, as a Ledger Strip. */
 export function PortfolioSummaryTiles({
   summary,
 }: {
   summary: PortfolioSummary;
 }) {
   return (
-    <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <Tile
+    <LedgerStrip
+      framed
+      label="Portfolio totals"
+      className="grid-cols-2 sm:grid-cols-2 lg:grid-cols-4"
+    >
+      <Metric
         label="Projects needing attention"
         value={summary.byFilter.attention}
-        tone="danger"
+        alarming
       />
-      <Tile
-        label="Open findings"
-        value={summary.openViolations}
-        tone="danger"
-      />
-      <Tile
+      <Metric label="Open findings" value={summary.openViolations} alarming />
+      <Metric
         label="Unread regressions"
         value={summary.unreadAlerts}
-        tone="signal"
+        alarming
       />
-      <Tile label="Never assessed" value={summary.byFilter.never} />
-    </dl>
+      <Metric label="Never assessed" value={summary.byFilter.never} />
+    </LedgerStrip>
   );
 }
 

@@ -25,7 +25,7 @@ export function PresetItemBody({
       <span className="mt-0.5 block text-xs text-muted-foreground">
         {preset.description}
       </span>
-      <span className="mt-1 block font-mono text-xs text-muted-foreground">
+      <span className="mt-1 block text-xs text-muted-foreground tabular-nums">
         {preset.controlCount} controls
       </span>
     </span>

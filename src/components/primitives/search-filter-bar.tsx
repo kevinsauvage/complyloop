@@ -107,7 +107,12 @@ export function SearchFilterBar({
               className="pl-8"
             />
           </div>
-          <Button type="submit" size="sm" onClick={onSearchClick}>
+          <Button
+            type="submit"
+            variant="outline"
+            size="sm"
+            onClick={onSearchClick}
+          >
             Search
           </Button>
         </div>

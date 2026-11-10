@@ -5,7 +5,8 @@ import { RuntimeAuditForm } from "@/components/forms/runtime-audit-form";
 import { TrackedBranchForm } from "@/components/forms/tracked-branch-form";
 import { CopyButton } from "@/components/primitives/copy-button";
 import {
-  MetaTile,
+  LedgerFact,
+  LedgerStrip,
   NoProjectNotice,
   PageContent,
   PageHeader,
@@ -62,13 +63,17 @@ export default async function SettingsPage() {
           title="Project"
           description="Connected repository and assessment defaults."
         >
-          <Card className="shadow-none">
-            <CardContent className="space-y-3 pt-6 text-sm">
-              <MetaTile label="Name">
+          <div className="surface-panel overflow-hidden rounded-xl">
+            <LedgerStrip
+              label="Project details"
+              className="sm:grid-cols-2"
+              topRule={false}
+            >
+              <LedgerFact label="Name">
                 <p className="font-medium">{project.name}</p>
-              </MetaTile>
+              </LedgerFact>
               {githubFullName ? (
-                <MetaTile label="GitHub repository">
+                <LedgerFact label="GitHub repository">
                   {repoUrl ? (
                     <a
                       href={repoUrl}
@@ -82,10 +87,10 @@ export default async function SettingsPage() {
                   ) : (
                     <p className="font-mono">{githubFullName}</p>
                   )}
-                </MetaTile>
+                </LedgerFact>
               ) : null}
               {project.runtimeBaseUrl ? (
-                <MetaTile label="Preview URL">
+                <LedgerFact label="Preview URL">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="min-w-0 flex-1 font-mono text-sm break-all">
                       {project.runtimeBaseUrl}
@@ -95,9 +100,9 @@ export default async function SettingsPage() {
                       text={project.runtimeBaseUrl}
                     />
                   </div>
-                </MetaTile>
+                </LedgerFact>
               ) : (
-                <MetaTile label="Preview URL">
+                <LedgerFact label="Preview URL">
                   <p className="text-muted-foreground">
                     Not set — code checks only.{" "}
                     <Link
@@ -107,26 +112,26 @@ export default async function SettingsPage() {
                       Set preview URL
                     </Link>
                   </p>
-                </MetaTile>
+                </LedgerFact>
               )}
               {defaultPreset ? (
-                <MetaTile label="Default framework scope">
+                <LedgerFact label="Default framework scope">
                   <p className="font-medium">{defaultPreset.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {defaultPreset.controlIds.length} controls
                   </p>
-                </MetaTile>
+                </LedgerFact>
               ) : null}
-              <p className="text-sm">
-                <Link
-                  href="/dashboard"
-                  className="font-medium text-foreground underline underline-offset-4"
-                >
-                  Manage repositories
-                </Link>
-              </p>
-            </CardContent>
-          </Card>
+            </LedgerStrip>
+            <p className="border-t border-border/60 px-5 py-3.5 text-sm sm:px-6">
+              <Link
+                href="/dashboard"
+                className="font-medium text-foreground underline underline-offset-4"
+              >
+                Manage repositories
+              </Link>
+            </p>
+          </div>
         </PageSection>
 
         <PageSection
@@ -143,7 +148,7 @@ export default async function SettingsPage() {
           }
         >
           <Card className="shadow-none">
-            <CardContent className="pt-6">
+            <CardContent>
               {caps.canConnect ? (
                 <DefaultPresetForm
                   key={defaultPresetId}
@@ -174,7 +179,7 @@ export default async function SettingsPage() {
           }
         >
           <Card className="shadow-none">
-            <CardContent className="space-y-3 pt-6 text-sm">
+            <CardContent className="space-y-3 text-sm">
               {runtimeError ? (
                 <Alert variant="destructive">
                   <AlertTitle>Preview audit failed</AlertTitle>
@@ -229,7 +234,7 @@ export default async function SettingsPage() {
             description="The branch scanned and audited for this project. Defaults to the repository's default branch."
           >
             <Card className="shadow-none">
-              <CardContent className="space-y-3 pt-6 text-sm">
+              <CardContent className="space-y-3 text-sm">
                 {caps.canConnect ? (
                   <TrackedBranchForm
                     trackedBranch={project.github.trackedBranch}

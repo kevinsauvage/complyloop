@@ -49,9 +49,10 @@ function ActivityCard({
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-3">
             {Icon ? (
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-signal/10 text-signal">
-                <Icon className="size-4" aria-hidden />
-              </span>
+              <Icon
+                className="mt-1 size-4 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
             ) : null}
             <div className="min-w-0">
               <CardTitle level={3} className="text-base">
@@ -85,7 +86,7 @@ function TextAction({
     <Link
       href={href}
       className={cn(
-        "inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-medium text-signal underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring",
+        "inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring",
         className,
       )}
     >
@@ -176,7 +177,7 @@ export function DashboardRegressionsBanner({
                     )}
                   </span>
                   {from && to ? (
-                    <span className="inline-flex items-center gap-1 rounded-md bg-destructive/10 px-1.5 py-0.5 text-[0.7rem] font-medium text-destructive">
+                    <span className="inline-flex items-center gap-1 rounded-md bg-destructive/10 px-1.5 py-0.5 text-xs font-medium text-destructive">
                       <span className="sr-only">
                         Regressed from {statusLabel(from)} to {statusLabel(to)}:
                       </span>

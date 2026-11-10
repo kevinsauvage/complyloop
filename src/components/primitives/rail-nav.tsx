@@ -35,7 +35,7 @@ export function RailNavGroup({
     <nav aria-label={ariaLabel}>
       <p
         aria-hidden
-        className="mb-2 hidden px-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase lg:block"
+        className="mb-2 hidden px-3 text-xs font-medium text-muted-foreground lg:block"
       >
         {heading}
       </p>
@@ -51,7 +51,7 @@ export function RailNavGroup({
                   ? "lg:whitespace-normal max-lg:whitespace-nowrap"
                   : "whitespace-nowrap",
                 item.current
-                  ? "bg-sidebar-accent text-foreground shadow-sm ring-1 ring-border lg:shadow-none lg:ring-0"
+                  ? "bg-sidebar-accent text-foreground ring-1 ring-border lg:ring-0"
                   : "text-muted-foreground hover:bg-accent/40 hover:text-foreground",
               )}
             >

@@ -45,7 +45,7 @@ export function PageHeader({
           ) : null}
           <h1
             tabIndex={-1}
-            className="text-2xl font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:text-3xl"
+            className="text-2xl font-semibold tracking-tight sm:text-3xl"
           >
             {title}
           </h1>
@@ -219,23 +219,71 @@ export function PageActionLink({
   );
 }
 
-export function MetaTile({
+/**
+ * The Ledger Strip (DESIGN.md signature): labelled facts on hairline-divided
+ * cells. Each cell draws its own right + bottom rule and the wrapper clips
+ * the outer ones, so the rules stay correct at any column count. Pass the
+ * grid columns via `className`; `framed` adds the panel border for strips
+ * that stand alone instead of closing a header panel.
+ */
+export function LedgerStrip({
+  children,
+  label,
+  className,
+  framed = false,
+  topRule = true,
+}: {
+  children: ReactNode;
+  /** Accessible name for the list, e.g. "Project details". */
+  label?: string;
+  className?: string;
+  framed?: boolean;
+  /** Hairline above the strip when it closes a panel (default). */
+  topRule?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "overflow-hidden",
+        framed && "surface-panel rounded-xl",
+        !framed && topRule && "border-t border-border/60",
+      )}
+    >
+      <dl
+        aria-label={label}
+        className={cn(
+          "-mr-px -mb-px grid grid-cols-1 sm:grid-cols-2",
+          className,
+        )}
+      >
+        {children}
+      </dl>
+    </div>
+  );
+}
+
+export function LedgerFact({
   label,
   children,
   className,
+  valueClassName,
 }: {
   label: string;
   children: ReactNode;
   className?: string;
+  valueClassName?: string;
 }) {
   return (
     <div
-      className={cn("surface-panel rounded-xl px-3 py-2.5 text-sm", className)}
+      className={cn(
+        "flex min-w-0 flex-col gap-1.5 border-r border-b border-border/60 px-5 py-3.5 sm:px-6",
+        className,
+      )}
     >
-      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        {label}
-      </p>
-      <div className="mt-1">{children}</div>
+      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+      <dd className={cn("min-w-0 text-sm text-foreground", valueClassName)}>
+        {children}
+      </dd>
     </div>
   );
 }

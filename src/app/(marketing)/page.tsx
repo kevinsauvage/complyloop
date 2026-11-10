@@ -18,13 +18,6 @@ export const metadata: Metadata = {
   description:
     "ComplyLoop turns RGAA/WCAG accessibility obligations into engineering work — deterministic checks, human-approved remediations, and audit evidence.",
 };
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 
 const LOOP_STEPS = [
   { label: "Requirement", icon: ShieldCheck },
@@ -86,19 +79,14 @@ export default function HomePage() {
     <div className="relative">
       <section className="relative mx-auto max-w-6xl px-4 pb-20 pt-16 sm:px-6 sm:pt-24 lg:pt-28">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="mb-4 inline-flex items-center rounded-full border border-signal/25 bg-signal/10 px-3 py-1 text-xs font-medium text-signal">
-            Compliance engineering for agencies
-          </p>
           <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl">
-            From RGAA requirement to{" "}
-            <span className="text-signal">verified code</span> and audit
-            evidence
+            From RGAA requirement to verified code and audit evidence
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-            ComplyLoop turns accessibility obligations into engineering work
-            your team can ship — with deterministic checks, human-approved
-            remediations, and an evidence trail that survives the next client
-            audit.
+            Compliance engineering for agencies: ComplyLoop turns accessibility
+            obligations into engineering work your team can ship — with
+            deterministic checks, human-approved remediations, and an evidence
+            trail that survives the next client audit.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button asChild size="lg" className="min-w-44">
@@ -115,43 +103,44 @@ export default function HomePage() {
 
         <div
           id="how-it-works"
-          className="mt-20 scroll-mt-24 rounded-xl border border-border/80 bg-card p-6 sm:p-8"
+          className="mt-20 scroll-mt-24 overflow-hidden rounded-xl border border-border/80 bg-card"
         >
-          <h2 className="text-center text-sm font-medium uppercase tracking-wider text-muted-foreground">
+          <h2 className="px-6 pt-6 text-center text-base font-semibold tracking-tight sm:px-8">
             The compliance loop
           </h2>
-          <ol className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            {LOOP_STEPS.map((step, index) => {
-              const Icon = step.icon;
-              return (
-                <li
-                  key={step.label}
-                  className="relative flex flex-col items-center rounded-xl border border-border/60 bg-background px-4 py-5 text-center"
-                >
-                  <span className="mb-3 flex size-10 items-center justify-center rounded-lg bg-signal/15 text-signal">
-                    <Icon className="size-5" aria-hidden />
-                  </span>
-                  <span className="text-xs font-medium tabular-nums text-muted-foreground">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <span className="mt-1 text-sm font-semibold">
-                    {step.label}
-                  </span>
-                  {index < LOOP_STEPS.length - 1 ? (
-                    <span
-                      aria-hidden
-                      className="absolute top-1/2 -right-2.5 hidden text-muted-foreground lg:block"
-                    >
-                      →
-                    </span>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ol>
-          <p className="mt-4 text-center text-xs text-muted-foreground">
+          <p className="mt-1 px-6 pb-6 text-center text-sm text-muted-foreground sm:px-8">
             Repeats on every assessment — each run closes the loop again.
           </p>
+          <div className="overflow-hidden border-t border-border/60">
+            <ol className="-mr-px -mb-px grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+              {LOOP_STEPS.map((step, index) => {
+                const Icon = step.icon;
+                return (
+                  <li
+                    key={step.label}
+                    className="relative flex flex-col items-center border-r border-b border-border/60 px-4 py-6 text-center"
+                  >
+                    <Icon
+                      className="mb-3 size-5 text-muted-foreground"
+                      aria-hidden
+                    />
+                    <span className="font-mono text-xs tabular-nums text-muted-foreground">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <span className="mt-1 text-sm font-semibold">
+                      {step.label}
+                    </span>
+                    {index < LOOP_STEPS.length - 1 ? (
+                      <ArrowRight
+                        aria-hidden
+                        className="absolute top-1/2 -right-2 z-10 hidden size-4 -translate-y-1/2 rounded-full bg-card text-muted-foreground xl:block"
+                      />
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
         </div>
       </section>
 
@@ -170,30 +159,30 @@ export default function HomePage() {
             </p>
           </div>
 
-          <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map((feature) => {
-              const Icon = feature.icon;
-              return (
-                <li key={feature.title}>
-                  <Card className="h-full border-border/70 shadow-none transition-[border-color] duration-200 hover:border-signal/30">
-                    <CardHeader>
-                      <div className="mb-2 flex size-9 items-center justify-center rounded-lg bg-signal/12 text-signal">
-                        <Icon className="size-4.5" aria-hidden />
-                      </div>
-                      <CardTitle level={3} className="text-base">
-                        {feature.title}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <CardDescription className="text-sm leading-relaxed">
-                        {feature.description}
-                      </CardDescription>
-                    </CardContent>
-                  </Card>
-                </li>
-              );
-            })}
-          </ul>
+          <div className="mt-12 overflow-hidden rounded-xl border border-border/70 bg-card">
+            <ul className="-mr-px -mb-px grid sm:grid-cols-2 lg:grid-cols-3">
+              {FEATURES.map((feature) => {
+                const Icon = feature.icon;
+                return (
+                  <li
+                    key={feature.title}
+                    className="border-r border-b border-border/60 p-6"
+                  >
+                    <h3 className="flex items-center gap-2 text-base font-semibold tracking-tight">
+                      <Icon
+                        className="size-4 shrink-0 text-muted-foreground"
+                        aria-hidden
+                      />
+                      {feature.title}
+                    </h3>
+                    <p className="mt-2 max-w-[65ch] text-sm leading-relaxed text-muted-foreground">
+                      {feature.description}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </div>
       </section>
 
@@ -212,11 +201,6 @@ export default function HomePage() {
                 append-only evidence — nothing can be edited, only superseded.
                 This is what your auditor receives.
               </p>
-              <p className="mt-4 text-sm text-muted-foreground">
-                We built ComplyLoop the way we expect our customers to build
-                accessible products: with clear semantics, visible decisions,
-                and proof you can show an auditor.
-              </p>
             </div>
 
             <div
@@ -224,11 +208,11 @@ export default function HomePage() {
               className="rounded-xl border border-border/80 bg-card p-5 sm:p-6"
               aria-label="Sample evidence trail"
             >
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <p className="text-xs font-medium text-muted-foreground">
                 Sample evidence trail
               </p>
-              <ol className="mt-4 flex flex-col gap-2">
-                <li className="flex items-start gap-3 rounded-lg border border-border/60 bg-background px-3 py-2.5">
+              <ol className="mt-3 flex flex-col divide-y divide-border/60">
+                <li className="flex items-start gap-3 py-3">
                   <span
                     aria-hidden
                     className="mt-1.5 size-2.5 shrink-0 rounded-full bg-status-passed"
@@ -240,7 +224,7 @@ export default function HomePage() {
                     </p>
                   </div>
                 </li>
-                <li className="flex items-start gap-3 rounded-lg border border-border/60 bg-background px-3 py-2.5">
+                <li className="flex items-start gap-3 py-3">
                   <span
                     aria-hidden
                     className="mt-1.5 size-2.5 shrink-0 rounded-full bg-status-failed"
@@ -248,11 +232,12 @@ export default function HomePage() {
                   <div className="min-w-0">
                     <p className="text-sm font-medium">Finding detected</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      Form control has no label · ContactForm.tsx:42
+                      Form control has no label ·{" "}
+                      <span className="font-mono">ContactForm.tsx:42</span>
                     </p>
                   </div>
                 </li>
-                <li className="flex items-start gap-3 rounded-lg border border-border/60 bg-background px-3 py-2.5">
+                <li className="flex items-start gap-3 py-3">
                   <span
                     aria-hidden
                     className="mt-1.5 size-2.5 shrink-0 rounded-full bg-status-passed"
@@ -301,7 +286,7 @@ export default function HomePage() {
                     className="flex items-start gap-3 text-sm leading-relaxed"
                   >
                     <CheckCircle2
-                      className="mt-0.5 size-4 shrink-0 text-status-passed"
+                      className="mt-0.5 size-4 shrink-0 text-foreground/70"
                       aria-hidden
                     />
                     <span>{principle}</span>
@@ -311,12 +296,9 @@ export default function HomePage() {
             </div>
 
             <div className="rounded-xl border border-border/80 bg-card p-8">
-              <p className="text-sm font-medium text-signal">
-                For French agencies
-              </p>
-              <p className="mt-3 text-2xl font-semibold tracking-tight">
-                RGAA and WCAG compliance across every client repo — not just the
-                one being audited this quarter.
+              <p className="text-2xl font-semibold tracking-tight">
+                For French agencies: RGAA and WCAG compliance across every
+                client repo — not just the one being audited this quarter.
               </p>
               <p className="mt-4 text-sm text-muted-foreground">
                 Connect GitHub, run your first assessment in minutes, and walk

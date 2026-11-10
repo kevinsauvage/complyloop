@@ -13,7 +13,7 @@ import { reportHref } from "@/core/filter-params/evidence";
 export function EvidenceExportMenu() {
   return (
     <div className="flex items-center gap-2">
-      <Button variant="default" size="sm" asChild>
+      <Button variant="outline" size="sm" asChild>
         <a href={reportHref("audit", "markdown")} download>
           Download audit report
         </a>

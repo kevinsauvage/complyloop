@@ -13,7 +13,7 @@ function MarketingBrandLink({ className }: { className?: string }) {
   return (
     <Link href="/" className={className}>
       <span className="flex min-w-0 items-center gap-2.5">
-        <span className="relative flex size-8 shrink-0 items-center justify-center rounded-lg bg-signal shadow-[0_0_0_1px] shadow-signal/30">
+        <span className="relative flex size-8 shrink-0 items-center justify-center rounded-lg bg-signal ring-1 ring-signal/30">
           <span
             className="size-2.5 rounded-sm bg-signal-foreground/95"
             aria-hidden

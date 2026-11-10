@@ -64,6 +64,12 @@ typography:
     fontWeight: 500
     lineHeight: 1.33
     letterSpacing: "-0.011em"
+  control-sm:
+    fontFamily: "Plus Jakarta Sans, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "0.8rem"
+    fontWeight: 500
+    lineHeight: 1
+    letterSpacing: "-0.011em"
   data:
     fontFamily: "ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, monospace"
     fontSize: "0.875rem"
@@ -214,7 +220,8 @@ Cool, navy-tinted neutrals do the work; one ember accent and five status hues ca
 - **Headline** (600, 1rem, 1.5): section headings (`h2`) inside a page.
 - **Title** (500, 1rem): card and panel titles (`h3`).
 - **Body** (400, 0.875rem, 1.43): all running text; descriptions capped at 65ch.
-- **Label** (500, 0.75rem): field labels, fact labels, captions, badge text; in Pencil.
+- **Label** (500, 0.75rem): field labels, fact labels, captions, badge text; in Pencil. Always sentence case: never uppercase or letter-spaced.
+- **Control (small)** (500, 0.8rem): the label inside 32px (`sm`) buttons only.
 - **Data** (mono 400, 0.875rem, tabular numerals): criterion codes (RGAA 1.1 · WCAG 1.1.1), check IDs, file paths and lines, selectors, snippets.
 - **Metric** (mono 600, 1.5rem, tabular numerals): headline numbers in stat strips (pass rate, open findings).
 
@@ -242,6 +249,7 @@ Flat at rest. Depth comes from tonal layering (Drafting Paper → Sheet) and 1px
 
 ### Shadow Vocabulary
 
+- **Overlay lift** (the shadcn `shadow-md` / `shadow-lg` on dropdown menus and sheets): open overlays only; this is the "raised as a state" case. Modal scrims may blur the page behind them (`backdrop-blur-xs`).
 - **Focus lift** (`box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)`): only the skip link when focused.
 
 ### Named Rules
@@ -292,7 +300,7 @@ Quiet and exact: outline-first, with colour reserved for status and signal.
 
 ### The Ledger Strip (signature component)
 
-A `<dl>` of labelled facts along the bottom of a header panel: each cell has a Label (Pencil, 0.75rem) above a value (badge, Body text, Data, or Metric). Cells draw their own right and bottom hairlines and the panel clips the outer edges, so rules stay correct at 2, 3, 4 or 6 columns. Used by the dashboard header (metrics) and the finding header (severity, status, remediation, detected by, confidence, check).
+Implemented once as `LedgerStrip` + `LedgerFact` (`src/components/primitives/page-primitives.tsx`); never hand-roll the hairline grid. A `<dl>` of labelled facts, closing a header panel (default top rule) or standing alone (`framed`): each cell has a Label (Pencil, 0.75rem) above a value (badge, Body text, Data, or Metric). Cells draw their own right and bottom hairlines and the panel clips the outer edges, so rules stay correct at 2, 3, 4 or 6 columns. Used by the dashboard header (metrics), the finding header (severity, status, remediation, detected by, confidence, check), the projects overview totals, Settings project details, and the Org account facts.
 
 ## Do's and Don'ts
 
@@ -314,4 +322,6 @@ A `<dl>` of labelled facts along the bottom of a header panel: each cell has a L
 - **Don't** go playful: no mascots, emoji as icons, bouncy motion, or pastel saturation.
 - **Don't** use drop shadows for depth; the only lift is a focused skip link.
 - **Don't** reuse a status hue for decoration, or Ledger Ember for success or error.
-- **Don't** put an eyebrow or kicker label above a page heading; references go below the title.
+- **Don't** put an eyebrow or kicker label above a page heading; references, chips and context go below the title.
+- **Don't** nest bordered boxes inside a panel; use a Ledger Strip or hairline dividers (`divide-y`) instead.
+- **Don't** paint a focus ring on programmatic focus targets (page `h1`s and regions with `tabindex="-1"`); interactive controls always keep theirs.

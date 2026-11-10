@@ -36,11 +36,12 @@ describe("OrgAccountOverview", () => {
     expect(
       screen.getAllByRole("link", { name: "Privacy" }).length,
     ).toBeGreaterThan(0);
-    const projectsChip = screen.getByText("Projects").parentElement;
-    expect(projectsChip).toHaveTextContent("2");
-    const invitesChip = screen.getByText("Pending invites").parentElement;
-    expect(invitesChip).toHaveTextContent("1");
-    expect(screen.queryByText("Members")?.parentElement).toHaveTextContent("3");
+    // Counts are Ledger Strip facts: label (dt) and value (dd) share a cell.
+    const projectsFact = screen.getByText("Projects").parentElement;
+    expect(projectsFact).toHaveTextContent("2");
+    const membersFact = screen.getByText("Members").parentElement;
+    expect(membersFact).toHaveTextContent("3");
+    expect(membersFact).toHaveTextContent("1 pending invite");
   });
 
   it("hides the support contact when support email is unset", () => {

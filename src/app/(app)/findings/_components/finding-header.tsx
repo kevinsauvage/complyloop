@@ -1,6 +1,5 @@
 import { RotateCcw } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
 
 import type {
   Finding,
@@ -15,24 +14,15 @@ import {
   SeverityBadge,
 } from "@/components/primitives/badges";
 import { CopyTextButton } from "@/components/primitives/copy-text-button";
+import {
+  LedgerFact,
+  LedgerStrip,
+} from "@/components/primitives/page-primitives";
 import { confidenceDisplay, engineDisplay } from "@/core/display/status";
 import {
   findingDetailHref,
   type FindingListParams,
 } from "@/core/filter-params/findings";
-
-function Fact({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    // Every cell draws its right + bottom hairline; the wrapper clips the
-    // outer ones, so the rules stay correct at 2, 3 or 6 columns.
-    <div className="flex min-w-0 flex-col gap-1.5 border-r border-b border-border/60 px-5 py-3.5 sm:px-6">
-      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
-      <dd className="flex min-h-6 min-w-0 items-center gap-1.5 text-sm text-foreground">
-        {children}
-      </dd>
-    </div>
-  );
-}
 
 /**
  * Finding detail header: what was broken (requirement + its references),
@@ -64,7 +54,7 @@ export function FindingHeader({
           <div className="space-y-1.5">
             <h1
               tabIndex={-1}
-              className="text-2xl font-semibold tracking-tight text-balance outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:text-3xl"
+              className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl"
             >
               {control.title}
             </h1>
@@ -110,49 +100,68 @@ export function FindingHeader({
         </p>
       ) : null}
 
-      <div className="overflow-hidden border-t border-border/60">
-        <dl className="-mr-px -mb-px grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6">
-          <Fact label="Severity">
-            <SeverityBadge severity={finding.severity} />
-          </Fact>
-          <Fact label="Status">
-            <FindingStatusBadge status={finding.status} />
-          </Fact>
-          <Fact label="Remediation">
-            <RemediationStatusBadge status={remediation.status} />
-          </Fact>
-          <Fact label="Detected by">
-            <span className="cursor-help truncate" title={engine.description}>
-              {engine.label}
-              <span className="sr-only">: {engine.description}</span>
-            </span>
-          </Fact>
-          <Fact label="Confidence">
-            <span
-              className="cursor-help capitalize"
-              title={confidence.description}
-            >
-              {finding.confidence}
-              <span className="sr-only">: {confidence.description}</span>
-            </span>
-          </Fact>
-          <Fact label="Check">
-            <code
-              title={finding.checkId}
-              className="min-w-0 truncate font-mono text-sm"
-            >
-              {finding.checkId}
-            </code>
-            <CopyTextButton
-              label="Copy check ID"
-              icon="copy"
-              iconOnly
-              size="icon-xs"
-              text={finding.checkId}
-            />
-          </Fact>
-        </dl>
-      </div>
+      <LedgerStrip
+        label="Finding facts"
+        className="grid-cols-2 sm:grid-cols-3 xl:grid-cols-6"
+      >
+        <LedgerFact
+          valueClassName="flex min-h-6 items-center gap-1.5"
+          label="Severity"
+        >
+          <SeverityBadge severity={finding.severity} />
+        </LedgerFact>
+        <LedgerFact
+          valueClassName="flex min-h-6 items-center gap-1.5"
+          label="Status"
+        >
+          <FindingStatusBadge status={finding.status} />
+        </LedgerFact>
+        <LedgerFact
+          valueClassName="flex min-h-6 items-center gap-1.5"
+          label="Remediation"
+        >
+          <RemediationStatusBadge status={remediation.status} />
+        </LedgerFact>
+        <LedgerFact
+          valueClassName="flex min-h-6 items-center gap-1.5"
+          label="Detected by"
+        >
+          <span className="cursor-help truncate" title={engine.description}>
+            {engine.label}
+            <span className="sr-only">: {engine.description}</span>
+          </span>
+        </LedgerFact>
+        <LedgerFact
+          valueClassName="flex min-h-6 items-center gap-1.5"
+          label="Confidence"
+        >
+          <span
+            className="cursor-help capitalize"
+            title={confidence.description}
+          >
+            {finding.confidence}
+            <span className="sr-only">: {confidence.description}</span>
+          </span>
+        </LedgerFact>
+        <LedgerFact
+          valueClassName="flex min-h-6 items-center gap-1.5"
+          label="Check"
+        >
+          <code
+            title={finding.checkId}
+            className="min-w-0 truncate font-mono text-sm"
+          >
+            {finding.checkId}
+          </code>
+          <CopyTextButton
+            label="Copy check ID"
+            icon="copy"
+            iconOnly
+            size="icon-xs"
+            text={finding.checkId}
+          />
+        </LedgerFact>
+      </LedgerStrip>
     </header>
   );
 }

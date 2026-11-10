@@ -49,7 +49,7 @@ export function GitHubRepoList({
     <div className="flex flex-col gap-4">
       {grouped.map(({ owner, repos: ownerRepos }) => (
         <section key={owner} aria-label={`Repositories for ${owner}`}>
-          <h3 className="mb-2 font-mono text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          <h3 className="mb-2 text-xs font-medium text-muted-foreground">
             {owner}
           </h3>
           <ul className="divide-y divide-border/60 overflow-hidden rounded-lg border border-border/60 ring-1 ring-border/40">

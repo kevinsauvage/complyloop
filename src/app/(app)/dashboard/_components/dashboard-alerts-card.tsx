@@ -146,12 +146,12 @@ export function DashboardAlertsCard({
                 </AlertTitle>
                 <AlertDescription>
                   {detailLine ? (
-                    <p className="mt-1 font-mono text-xs leading-relaxed text-muted-foreground">
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                       {detailLine}
                     </p>
                   ) : null}
                   {changeLink ? (
-                    <p className="mt-1 font-mono text-xs leading-relaxed text-muted-foreground">
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                       {changeLink.external ? (
                         <a
                           href={changeLink.href}
@@ -172,7 +172,7 @@ export function DashboardAlertsCard({
                       )}
                     </p>
                   ) : typeof alert.detail?.changeContext === "string" ? (
-                    <p className="mt-1 font-mono text-xs leading-relaxed opacity-90">
+                    <p className="mt-1 text-xs leading-relaxed opacity-90">
                       {alert.detail.changeContext}
                     </p>
                   ) : null}

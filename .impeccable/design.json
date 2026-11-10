@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-10T19:56:42+00:00",
+  "generatedAt": "2026-11-10T20:17:35+00:00",
   "title": "Design System: ComplyLoop",
   "extensions": {
     "colorMeta": {
@@ -498,9 +498,18 @@
       "metric": {
         "displayName": "Metric",
         "purpose": "Headline numbers on stat strips."
+      },
+      "control-sm": {
+        "displayName": "Control (small)",
+        "purpose": "Label inside 32px (sm) buttons only."
       }
     },
     "shadows": [
+      {
+        "name": "overlay-lift",
+        "value": "shadcn shadow-md / shadow-lg",
+        "purpose": "Open dropdown menus and sheets only (raised as a state)."
+      },
       {
         "name": "focus-lift",
         "value": "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
@@ -665,7 +674,9 @@
       "Don't go playful: no mascots, emoji as icons, bouncy motion, or pastel saturation.",
       "Don't use drop shadows for depth; the only lift is a focused skip link.",
       "Don't reuse a status hue for decoration, or Ledger Ember for success or error.",
-      "Don't put an eyebrow or kicker label above a page heading; references go below the title."
+      "Don't put an eyebrow or kicker label above a page heading; references, chips and context go below the title.",
+      "Don't nest bordered boxes inside a panel; use a Ledger Strip or hairline dividers (`divide-y`) instead.",
+      "Don't paint a focus ring on programmatic focus targets (page `h1`s and regions with `tabindex=\"-1\"`); interactive controls always keep theirs."
     ]
   }
 }

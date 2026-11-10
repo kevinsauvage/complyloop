@@ -128,6 +128,7 @@ export function OrgDataLifecycle({
                 type="button"
                 variant="outline"
                 size="sm"
+                className="w-fit"
                 disabled={exporting}
               >
                 {exporting ? "Exporting…" : "Export organization JSON"}

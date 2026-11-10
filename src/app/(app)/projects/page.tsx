@@ -122,7 +122,7 @@ export default async function ProjectsPage({
           description="Counts are live: requirement verdicts, open findings, unread regressions, the last completed assessment and the current pipeline state."
         >
           <PortfolioFilterChips summary={summary} active={filter} />
-          <Card className="overflow-hidden shadow-none">
+          <Card className="overflow-hidden py-0 shadow-none">
             <CardContent className="p-2 sm:p-4">
               {visible.length > 0 ? (
                 <ProjectPortfolioTable rows={visible} />

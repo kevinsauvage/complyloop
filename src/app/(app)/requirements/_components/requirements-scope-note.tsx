@@ -7,9 +7,7 @@ import Link from "next/link";
 export function RequirementsScopeNote({ scopeName }: { scopeName: string }) {
   return (
     <div className="px-3 text-xs text-muted-foreground">
-      <p className="mb-1 font-semibold tracking-wide uppercase">
-        Framework scope
-      </p>
+      <p className="mb-1 font-medium">Framework scope</p>
       <p className="text-sm font-medium text-foreground">{scopeName}</p>
       <Link
         href="/settings"

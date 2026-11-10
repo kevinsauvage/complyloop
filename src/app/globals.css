@@ -192,6 +192,13 @@
     outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
+  /* Route focus lands on the page h1 (tabindex=-1) for screen readers; it is
+     not an interactive target, so it must not paint a ring on every load. */
+  :is(h1, h2, h3, main, section, div, ul, ol, p)[tabindex="-1"]:not(
+      [role]
+    ):focus {
+    outline: none;
+  }
   * {
     scrollbar-width: thin;
     scrollbar-color: color-mix(in oklch, var(--foreground) 18%, transparent)

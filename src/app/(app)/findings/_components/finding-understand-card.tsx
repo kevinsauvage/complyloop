@@ -48,9 +48,7 @@ function DomElementBlock({ finding }: { finding: Finding }) {
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2 text-sm">
       <div className="grid gap-0.5">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Element
-        </p>
+        <p className="text-xs font-medium text-muted-foreground">Element</p>
         <p className="text-sm font-semibold text-foreground">{label}</p>
         {visibleText && !label.includes(visibleText) ? (
           <p className="text-sm text-muted-foreground">
@@ -59,9 +57,7 @@ function DomElementBlock({ finding }: { finding: Finding }) {
         ) : null}
       </div>
       <div className="grid gap-0.5">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Page
-        </p>
+        <p className="text-xs font-medium text-muted-foreground">Page</p>
         <p>
           <a
             href={location.url}
@@ -77,9 +73,7 @@ function DomElementBlock({ finding }: { finding: Finding }) {
       </div>
       {location.selector && location.selector !== "(unknown)" ? (
         <div className="grid gap-0.5">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Selector
-          </p>
+          <p className="text-xs font-medium text-muted-foreground">Selector</p>
           <p className="font-mono text-xs text-foreground break-all">
             {location.selector}
           </p>
@@ -90,13 +84,11 @@ function DomElementBlock({ finding }: { finding: Finding }) {
       ) : null}
       {location.context ? (
         <div className="grid gap-0.5">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Context
-          </p>
+          <p className="text-xs font-medium text-muted-foreground">Context</p>
           <p className="text-foreground">{location.context}</p>
         </div>
       ) : null}
-      <ol className="list-decimal space-y-0.5 pl-5 text-[13px] text-muted-foreground">
+      <ol className="list-decimal space-y-0.5 pl-5 text-sm text-muted-foreground">
         <li>
           Open the live page above — this is what visitors experience, not
           source code.
@@ -176,13 +168,13 @@ export function FindingUnderstandCard({
         {baseline ? (
           <div className="flex flex-col gap-2 text-sm leading-relaxed">
             <div className="rounded-lg border border-border/50 bg-muted/20 px-3 py-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <p className="text-xs font-medium text-muted-foreground">
                 Why this matters
               </p>
               <p className="mt-1 text-muted-foreground">{baseline.impact}</p>
             </div>
             <div className="rounded-lg border border-border/50 bg-muted/20 px-3 py-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <p className="text-xs font-medium text-muted-foreground">
                 How to fix
               </p>
               <p className="mt-1 text-muted-foreground">{baseline.howToFix}</p>

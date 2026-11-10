@@ -12,7 +12,7 @@ function BrandMark({ className }: { className?: string }) {
   return (
     <Link href="/projects" className={className}>
       <span className="flex items-center gap-2.5">
-        <span className="relative flex size-7 shrink-0 items-center justify-center rounded-lg bg-signal shadow-[0_0_0_1px] shadow-signal/30">
+        <span className="relative flex size-7 shrink-0 items-center justify-center rounded-lg bg-signal ring-1 ring-signal/30">
           <span
             className="size-2 rounded-sm bg-signal-foreground/95"
             aria-hidden
@@ -122,7 +122,7 @@ export function AppShell({
           </div>
         </header>
 
-        <aside className="panel-frost sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar/60 px-3 py-6 md:flex">
+        <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-3 py-6 md:flex">
           {sidebar}
         </aside>
 

@@ -77,7 +77,7 @@ export function AutoSubmitSelectForm({
           onChange={(event) => setValue(event.target.value)}
           className={cn(
             nativeSelectClass,
-            "truncate appearance-none bg-background pr-8 shadow-sm",
+            "truncate appearance-none bg-background pr-8",
             className,
           )}
         >

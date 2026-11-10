@@ -107,8 +107,19 @@ export function DashboardOverview({
     <section className="surface-panel relative overflow-hidden rounded-xl">
       <div className="flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
         <div className="min-w-0 space-y-2">
+          <h1
+            tabIndex={-1}
+            className="text-2xl font-semibold tracking-tight sm:text-3xl"
+          >
+            {title}
+          </h1>
+          {description ? (
+            <p className="max-w-2xl text-sm text-muted-foreground">
+              {description}
+            </p>
+          ) : null}
           {repoLabel || meta ? (
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 pt-1">
               {repoLabel && repoLabel !== title ? (
                 <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border/60 bg-background/50 px-2.5 py-1 font-mono text-xs text-muted-foreground">
                   <GitBranch className="size-3.5 shrink-0" aria-hidden />
@@ -117,17 +128,6 @@ export function DashboardOverview({
               ) : null}
               {meta}
             </div>
-          ) : null}
-          <h1
-            tabIndex={-1}
-            className="text-2xl font-semibold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:text-3xl"
-          >
-            {title}
-          </h1>
-          {description ? (
-            <p className="max-w-2xl text-sm text-muted-foreground">
-              {description}
-            </p>
           ) : null}
         </div>
         {actions ? (
