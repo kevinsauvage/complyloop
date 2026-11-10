@@ -203,31 +203,37 @@ export async function claimNextAssessmentJobRow(
   const candidateId = String(row.id);
   const candidateProjectId = String(row.project_id);
 
+  // The UPDATE runs in a savepoint: a losing claim's 23505 aborts the
+  // enclosing transaction, and postgres.js re-throws any failed query when
+  // its transaction scope ends (`uncaughtError`) even if we caught it here —
+  // so without the savepoint the "return null" below never reached callers.
   try {
-    const [claimed] = await tx
-      .update(assessmentJobs)
-      .set({
-        status: "running",
-        attempts: Number(row.attempts) + 1,
-        startedAt: now,
-        leaseExpiresAt,
-        error: null,
-        updatedAt: now,
-      })
-      .where(
-        and(
-          eq(assessmentJobs.id, candidateId),
-          eq(assessmentJobs.status, "queued"),
-          sql`NOT EXISTS (
+    return await tx.transaction(async (savepoint) => {
+      const [claimed] = await savepoint
+        .update(assessmentJobs)
+        .set({
+          status: "running",
+          attempts: Number(row.attempts) + 1,
+          startedAt: now,
+          leaseExpiresAt,
+          error: null,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(assessmentJobs.id, candidateId),
+            eq(assessmentJobs.status, "queued"),
+            sql`NOT EXISTS (
             SELECT 1 FROM assessment_jobs AS running
             WHERE running.status = 'running'
               AND running.project_id = ${candidateProjectId}
               AND running.id <> ${candidateId}
           )`,
-        ),
-      )
-      .returning();
-    return claimed ?? null;
+          ),
+        )
+        .returning();
+      return claimed ?? null;
+    });
   } catch (error) {
     if (isUniqueViolation(error)) return null;
     throw error;

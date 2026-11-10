@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { closeDrizzle, getDrizzle } from "@complyloop/db/postgres";
+import { claimNextAssessmentJobRow } from "@complyloop/db/repo/assessment-jobs";
 
 import {
   claimNextAssessmentJob,
@@ -58,6 +59,79 @@ describe.skipIf(!enabled)("assessment job serial claim concurrency", () => {
       `);
       expect(running.length).toBe(1);
     } finally {
+      await drizzle.execute(
+        sql`DELETE FROM assessment_jobs WHERE project_id = ${projectId}`,
+      );
+      await drizzle.execute(sql`DELETE FROM projects WHERE id = ${projectId}`);
+      await drizzle.execute(sql`DELETE FROM organizations WHERE id = ${orgId}`);
+    }
+  });
+
+  it("returns null — not a 23505 — when a concurrent claim for the project commits first", async () => {
+    // Deterministic version of the race above (Promise.all rarely interleaves
+    // the two claims). Claim A holds its transaction open with job 1 running;
+    // claim B skips the locked job 1, picks job 2, and its UPDATE blocks on
+    // the partial unique index until A commits — then gets 23505. postgres.js
+    // re-throws a failed query when its transaction ends even if the claim
+    // caught it, so this only returns null because the UPDATE is savepointed.
+    const drizzle = await getDrizzle();
+    const suffix = `${Date.now()}-interleaved`;
+    const orgId = `org-interleaved-${suffix}`;
+    const projectId = `proj-interleaved-${suffix}`;
+    await drizzle.execute(sql`
+      INSERT INTO organizations (id, slug, payload)
+      VALUES (${orgId}, ${`slug-interleaved-${suffix}`}, '{}'::jsonb)
+    `);
+    await drizzle.execute(sql`
+      INSERT INTO projects (id, name, owner_user_id, org_id, payload)
+      VALUES (${projectId}, 'interleaved-fixture', ${`user-${suffix}`}, ${orgId}, '{}'::jsonb)
+    `);
+    // Epoch `available_at` sorts these ahead of any other queued fixture.
+    await drizzle.execute(sql`
+      INSERT INTO assessment_jobs
+        (id, project_id, status, trigger, payload, attempts, max_attempts, available_at, created_at, updated_at)
+      VALUES
+        (${`job-a-${suffix}`}, ${projectId}, 'queued', 'manual', '{}'::jsonb, 0, 3, 'epoch', 'epoch', NOW()),
+        (${`job-b-${suffix}`}, ${projectId}, 'queued', 'manual', '{}'::jsonb, 0, 3, 'epoch', 'epoch'::timestamptz + interval '1 second', NOW())
+    `);
+
+    const now = new Date().toISOString();
+    const lease = new Date(Date.now() + 60_000).toISOString();
+    let commitFirst!: () => void;
+    const firstMayCommit = new Promise<void>((resolve) => {
+      commitFirst = resolve;
+    });
+    let markFirstClaimed!: () => void;
+    const firstClaimed = new Promise<void>((resolve) => {
+      markFirstClaimed = resolve;
+    });
+
+    try {
+      const first = drizzle.transaction(async (tx) => {
+        const row = await claimNextAssessmentJobRow(tx, now, lease);
+        markFirstClaimed();
+        await firstMayCommit;
+        return row;
+      });
+      await firstClaimed;
+      const second = drizzle.transaction((tx) =>
+        claimNextAssessmentJobRow(tx, now, lease),
+      );
+      // Let B reach the unique-index wait before A commits.
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      commitFirst();
+
+      const [a, b] = await Promise.all([first, second]);
+      expect(a?.id).toBe(`job-a-${suffix}`);
+      expect(b).toBeNull();
+
+      const running = await drizzle.execute(sql`
+        SELECT id FROM assessment_jobs
+        WHERE project_id = ${projectId} AND status = 'running'
+      `);
+      expect(running.length).toBe(1);
+    } finally {
+      commitFirst();
       await drizzle.execute(
         sql`DELETE FROM assessment_jobs WHERE project_id = ${projectId}`,
       );
