@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ClipboardList, Link2, Sparkles } from "lucide-react";
+import { Check, ClipboardList, Copy, Link2, Sparkles } from "lucide-react";
 
 import { useCopy } from "@/components/primitives/use-copy";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ const ICONS = {
   ai: Sparkles,
   summary: ClipboardList,
   link: Link2,
+  copy: Copy,
 } as const;
 
 /**
@@ -24,6 +25,7 @@ export function CopyTextButton({
   icon,
   description,
   iconOnly = false,
+  size,
   ...source
 }: {
   label: string;
@@ -32,6 +34,8 @@ export function CopyTextButton({
   description?: string;
   /** Icon-only button; `label` (+ description) stays its accessible name. */
   iconOnly?: boolean;
+  /** Icon-only size; defaults to `icon-sm` (32px). `icon-xs` (28px) for dense rows. */
+  size?: "icon-sm" | "icon-xs";
 } & ({ text: string; path?: never } | { path: string; text?: never })) {
   const text =
     source.path !== undefined
@@ -50,7 +54,7 @@ export function CopyTextButton({
       <Button
         type="button"
         variant="outline"
-        size={iconOnly ? "icon-sm" : "sm"}
+        size={iconOnly ? (size ?? "icon-sm") : "sm"}
         onClick={copy}
         aria-label={iconOnly || description ? accessibleName : undefined}
         title={iconOnly ? label : undefined}

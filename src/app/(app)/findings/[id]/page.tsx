@@ -4,32 +4,18 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import type { EvidenceRecord } from "@complyloop/analysis-core/contract/entities";
-import { engineFor } from "@complyloop/analysis-core/contract/finding-types";
 
-import {
-  BadgeWithDescription,
-  FindingStatusBadge,
-  RemediationStatusBadge,
-  SeverityBadge,
-} from "@/components/primitives/badges";
-import { CopyButton } from "@/components/primitives/copy-button";
-import { CopyTextButton } from "@/components/primitives/copy-text-button";
 import { EvidenceTimeline } from "@/components/primitives/evidence-timeline";
 import { FormattedDateTime } from "@/components/primitives/formatted-datetime";
 import {
   EmptyState,
   PageContent,
-  PageHeader,
   PageSection,
 } from "@/components/primitives/page-primitives";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { evidenceDisplay } from "@/core/display/evidence";
-import { confidenceDisplay, engineDisplay } from "@/core/display/status";
-import {
-  findingDetailHref,
-  findingsListHref,
-} from "@/core/filter-params/findings";
+import { findingsListHref } from "@/core/filter-params/findings";
 import { effectiveBranch } from "@/server/github/tracked-branch";
 import { findingHandoff } from "@/server/reporting/ai-handoff";
 import { displayControl } from "@/server/reporting/report";
@@ -38,6 +24,7 @@ import { isProjectVisible } from "@/server/workspace/project-visibility";
 import { getWorkspace, requireFinding } from "@/server/workspace/workspace";
 
 import { DeveloperHandoffCard } from "../_components/developer-handoff";
+import { FindingHeader } from "../_components/finding-header";
 import { FindingNextStepPanel } from "../_components/finding-next-step-panel";
 import { FindingQueueNav } from "../_components/finding-queue-nav";
 import { FindingUnderstandCard } from "../_components/finding-understand-card";
@@ -94,14 +81,24 @@ export default async function FindingPage({
 
   return (
     <>
-      <div className="mb-4 flex flex-col gap-3">
-        <Button variant="ghost" size="sm" className="-ml-2.5 w-fit" asChild>
+      {/* Navigation bar, not a panel: where you came from on the left, your
+          place in the queue on the right. */}
+      <nav
+        aria-label="Finding navigation"
+        className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4"
+      >
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-2.5 w-fit shrink-0"
+          asChild
+        >
           <Link href={findingsListHref(listParams)}>
             <ArrowLeft className="size-4" aria-hidden />
             Back to findings
           </Link>
         </Button>
-        <div className="surface-panel rounded-xl px-3 py-2.5">
+        <div className="min-w-0 flex-1 sm:border-l sm:border-border/60 sm:pl-4">
           <FindingQueueNav
             listParams={listParams}
             prevId={queuePosition.prevId}
@@ -110,60 +107,15 @@ export default async function FindingPage({
             total={queuePosition.total}
           />
         </div>
-      </div>
-      <PageHeader
-        title={`${control.code} — ${control.title}`}
-        description={`${control.secondaryCode} · ${control.description}`}
-      >
-        <div
-          role="group"
-          aria-label={`Finding status: ${finding.status}, remediation: ${remediation.status}`}
-          className="flex max-w-full flex-wrap items-center justify-end gap-2"
-        >
-          <FindingStatusBadge status={finding.status} />
-          <SeverityBadge severity={finding.severity} />
-          <RemediationStatusBadge status={remediation.status} />
-          <CopyTextButton
-            label="Copy for AI"
-            icon="ai"
-            description="fix prompt for this finding"
-            text={findingHandoff(project, { control, finding })}
-          />
-        </div>
-        <p className="flex w-full flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground sm:justify-end">
-          <BadgeWithDescription
-            description={engineDisplay(engineFor(finding)).description}
-          >
-            <span>{engineDisplay(engineFor(finding)).label}</span>
-          </BadgeWithDescription>
-          <span aria-hidden>·</span>
-          <BadgeWithDescription
-            description={confidenceDisplay(finding.confidence).description}
-          >
-            <span>Confidence: {finding.confidence}</span>
-          </BadgeWithDescription>
-          <span aria-hidden>·</span>
-          <span title={finding.checkId} className="max-w-64 truncate font-mono">
-            {finding.checkId}
-          </span>
-          <CopyButton label="Copy check ID" text={finding.checkId} />
-        </p>
-        {finding.regressionOf ? (
-          <p className="w-full text-xs text-muted-foreground sm:text-right">
-            Regression: this instance was fixed before.{" "}
-            <Link
-              href={findingDetailHref(finding.regressionOf, {
-                ...listParams,
-                tab: "resolved",
-                page: 1,
-              })}
-              className="font-medium text-foreground underline underline-offset-4"
-            >
-              View the earlier finding
-            </Link>
-          </p>
-        ) : null}
-      </PageHeader>
+      </nav>
+
+      <FindingHeader
+        finding={finding}
+        control={control}
+        remediation={remediation}
+        listParams={listParams}
+        aiPrompt={findingHandoff(project, { control, finding })}
+      />
 
       <PageContent>
         <FindingUnderstandCard

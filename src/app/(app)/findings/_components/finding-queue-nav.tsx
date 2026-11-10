@@ -182,7 +182,8 @@ export function FindingQueueNav({
             </span>
           ) : null}
         </p>
-        <label className="inline-flex min-h-6 cursor-pointer items-center gap-1.5">
+        {/* j/k shortcuts need a keyboard: the toggle is noise on phones. */}
+        <label className="hidden min-h-6 cursor-pointer items-center gap-1.5 sm:inline-flex">
           <input
             type="checkbox"
             className="size-4 accent-foreground"
