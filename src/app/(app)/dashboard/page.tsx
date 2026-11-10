@@ -5,6 +5,7 @@ import {
   ConnectProjectCard,
   ConnectProjectPanel,
 } from "@/components/github/connect-project-panel";
+import { CopyTextButton } from "@/components/primitives/copy-text-button";
 import { FormattedDateTime } from "@/components/primitives/formatted-datetime";
 import {
   PageActionLink,
@@ -13,6 +14,8 @@ import {
 import { PermissionNotice } from "@/components/primitives/permission-notice";
 import { hasPreviewUrl } from "@/core/assessment/assessment-helpers";
 import { displayControl } from "@/server/reporting/report";
+import { statusSummary } from "@/server/reporting/status-summary";
+import { requestOrigin } from "@/server/request-origin";
 import { loadDashboardView } from "@/server/workspace/dashboard-view";
 
 import { AssessmentRunForm } from "./_components/assessment-run-form";
@@ -102,6 +105,27 @@ export default async function DashboardPage() {
   const showNextAction =
     Boolean(nextAction) && unreadAlerts.length === 0 && openCount === 0;
 
+  const copySummary = latestAssessment ? (
+    <CopyTextButton
+      label="Copy summary"
+      icon="summary"
+      description="status update for Slack or a PR"
+      text={statusSummary({
+        project,
+        latestAssessment,
+        counts,
+        trend,
+        openCount,
+        regressionCount: regressions.length,
+        topFindings: openFindings.map((finding) => ({
+          finding,
+          control: controlById(finding.controlId),
+        })),
+        origin: await requestOrigin(),
+      })}
+    />
+  ) : null;
+
   return (
     <div className="flex flex-col gap-6">
       <DashboardOverview
@@ -130,7 +154,14 @@ export default async function DashboardPage() {
         }
         // The header owns Run assessment once results exist; before the first
         // assessment the checklist below owns the CTA (no duplicates).
-        actions={caps.canAssess && latestAssessment ? assessAction : undefined}
+        actions={
+          latestAssessment ? (
+            <>
+              {copySummary}
+              {caps.canAssess ? assessAction : null}
+            </>
+          ) : undefined
+        }
       />
 
       {!caps.canAssess ? assessAction : null}

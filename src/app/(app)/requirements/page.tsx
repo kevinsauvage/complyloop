@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { shippedCatalog } from "@complyloop/analysis-core/catalog/catalog";
 
-import { CopyForAiButton } from "@/components/primitives/copy-for-ai-button";
+import { CopyTextButton } from "@/components/primitives/copy-text-button";
 import {
   EmptyState,
   NoProjectNotice,
@@ -128,8 +128,9 @@ export default async function RequirementsPage({
             className="min-w-0 border-t-0 pt-0"
             action={
               unverifiable.length > 0 ? (
-                <CopyForAiButton
+                <CopyTextButton
                   label="Copy unable to verify for AI"
+                  icon="ai"
                   description={`${unverifiable.length} requirement${unverifiable.length === 1 ? "" : "s"}`}
                   text={unableToVerifyHandoff(project, unverifiable)}
                 />

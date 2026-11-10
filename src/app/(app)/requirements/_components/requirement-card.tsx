@@ -7,6 +7,7 @@ import type {
 } from "@complyloop/analysis-core/contract/project-types";
 
 import { RequirementStatusBadge } from "@/components/primitives/badges";
+import { CopyTextButton } from "@/components/primitives/copy-text-button";
 import { FormattedDateTime } from "@/components/primitives/formatted-datetime";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -51,7 +52,7 @@ export function RequirementCard({
   return (
     <Card
       id={`requirement-${control.id}`}
-      className="relative scroll-mt-24 overflow-hidden shadow-none transition-[border-color] hover:border-signal/30 focus-within:border-signal/30"
+      className="relative scroll-mt-24 overflow-hidden shadow-none transition-[border-color] hover:border-signal/30 focus-within:border-signal/30 target:border-signal target:ring-1 target:ring-signal/40"
     >
       <RequirementStatusAccent status={requirement.status} />
       <CardHeader className="pb-2 pl-5">
@@ -78,6 +79,15 @@ export function RequirementCard({
               ).label.toLowerCase()}
             </span>
           </div>
+          {/* Search by code so the card is on the first page whatever the
+              pagination; the hash scrolls to and highlights it. */}
+          <CopyTextButton
+            label="Copy link"
+            icon="link"
+            iconOnly
+            description={control.code}
+            path={`/requirements?q=${encodeURIComponent(control.code)}#requirement-${control.id}`}
+          />
         </div>
         {control.description ? (
           <p className="mt-1 text-xs text-muted-foreground">

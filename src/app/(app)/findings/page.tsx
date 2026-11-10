@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
 
-import { CopyForAiButton } from "@/components/primitives/copy-for-ai-button";
+import { CopyTextButton } from "@/components/primitives/copy-text-button";
 import {
   EmptyState,
   NoProjectNotice,
@@ -145,8 +145,9 @@ export default async function FindingsPage({
         description="One finding = one instance of a failed requirement. Fix it to Verified — every step is kept as evidence."
       >
         {activeTab === "open" && openItems.length > 0 ? (
-          <CopyForAiButton
+          <CopyTextButton
             label="Copy page for AI"
+            icon="ai"
             description={`${openItems.length} open finding${openItems.length === 1 ? "" : "s"} on this page`}
             text={findingsBatchHandoff(project, openItems)}
           />

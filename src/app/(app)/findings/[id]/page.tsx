@@ -13,7 +13,7 @@ import {
   SeverityBadge,
 } from "@/components/primitives/badges";
 import { CopyButton } from "@/components/primitives/copy-button";
-import { CopyForAiButton } from "@/components/primitives/copy-for-ai-button";
+import { CopyTextButton } from "@/components/primitives/copy-text-button";
 import { EvidenceTimeline } from "@/components/primitives/evidence-timeline";
 import { FormattedDateTime } from "@/components/primitives/formatted-datetime";
 import {
@@ -123,7 +123,9 @@ export default async function FindingPage({
           <FindingStatusBadge status={finding.status} />
           <SeverityBadge severity={finding.severity} />
           <RemediationStatusBadge status={remediation.status} />
-          <CopyForAiButton
+          <CopyTextButton
+            label="Copy for AI"
+            icon="ai"
             description="fix prompt for this finding"
             text={findingHandoff(project, { control, finding })}
           />
