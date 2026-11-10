@@ -22,10 +22,13 @@ test.describe("authenticated routes", () => {
   test("sidebar navigates between primary sections", async ({ page }) => {
     await page.goto("/dashboard");
     await expect(
-      page.getByRole("heading", { name: /sample-app|Welcome to ComplyLoop/i }),
+      page.getByRole("heading", {
+        level: 1,
+        name: /^Dashboard$|Welcome to ComplyLoop/i,
+      }),
     ).toBeVisible();
     await page
-      .getByRole("navigation", { name: "Main" })
+      .getByRole("navigation", { name: "Project" })
       .getByRole("link", { name: /Findings/ })
       .first()
       .click();
@@ -35,7 +38,7 @@ test.describe("authenticated routes", () => {
     ).toBeVisible();
 
     await page
-      .getByRole("navigation", { name: "Main" })
+      .getByRole("navigation", { name: "Project" })
       .getByRole("link", { name: /Evidence/ })
       .first()
       .click();

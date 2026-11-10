@@ -4,6 +4,7 @@ import { Octokit } from "@octokit/rest";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
+import { isE2EHarnessEnabled } from "../e2e-harness";
 import { githubApiBaseUrl } from "../env";
 import { redactSecrets } from "../redact";
 import type { GitHubRepoSummary } from "./github-types";
@@ -162,6 +163,12 @@ export async function lookupGitHubUser(
   accessToken: string,
   login: string,
 ): Promise<GitHubUserLookup> {
+  // E2E harness runs offline with a stub token: resolve any login to a
+  // stable synthetic id so invite flows stay testable without api.github.com.
+  if (isE2EHarnessEnabled()) {
+    const normalized = login.trim().replace(/^@/, "");
+    return { status: "found", login: normalized, id: `e2e-${normalized}` };
+  }
   const octokit = createOctokit(accessToken);
   try {
     const { data } = await octokit.rest.users.getByUsername({

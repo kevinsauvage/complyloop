@@ -4,7 +4,10 @@ test.describe("compliance core loop", () => {
   test("assess → finding → evidence", async ({ page }) => {
     await page.goto("/dashboard");
     await expect(
-      page.getByRole("heading", { name: /sample-app|Welcome to ComplyLoop/i }),
+      page.getByRole("heading", {
+        level: 1,
+        name: /^Dashboard$|Welcome to ComplyLoop/i,
+      }),
     ).toBeVisible();
 
     await page.getByRole("button", { name: "Run assessment" }).click();
@@ -16,7 +19,7 @@ test.describe("compliance core loop", () => {
     ).toBeVisible({ timeout: 60_000 });
 
     await page
-      .getByRole("navigation", { name: "Main" })
+      .getByRole("navigation", { name: "Project" })
       .getByRole("link", { name: /Findings/ })
       .first()
       .click();
@@ -65,7 +68,7 @@ test.describe("compliance core loop", () => {
     }
 
     await page
-      .getByRole("navigation", { name: "Main" })
+      .getByRole("navigation", { name: "Project" })
       .getByRole("link", { name: /Evidence/ })
       .first()
       .click();

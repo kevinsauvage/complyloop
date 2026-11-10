@@ -106,7 +106,7 @@ test.describe("webhook-driven continuous monitoring", () => {
         deliveryId: `e2e-verify-detect-${Date.now()}`,
       });
       expect(detect.ok()).toBeTruthy();
-      await waitForJobSuccess({ jobId: (await detect.json()).jobId });
+      await waitForJobSuccess({ jobId: (await detect.json()).jobIds[0] });
       await expect
         .poll(() => emptyHeadingStatus(), { timeout: 30_000 })
         .toBe("failed");
@@ -142,7 +142,7 @@ test.describe("webhook-driven continuous monitoring", () => {
         deliveryId: `e2e-verify-merge-${Date.now()}`,
       });
       expect(merge.ok()).toBeTruthy();
-      await waitForJobSuccess({ jobId: (await merge.json()).jobId });
+      await waitForJobSuccess({ jobId: (await merge.json()).jobIds[0] });
 
       // 4. Deterministic reassessment closes the loop: requirement passes,
       //    the remediation is verified, and the evidence trail says how.
@@ -203,7 +203,7 @@ test.describe("webhook-driven continuous monitoring", () => {
       expect(baseline.ok()).toBeTruthy();
       const baselineBody = await baseline.json();
       expect(baselineBody.handled).toBe(true);
-      await waitForJobSuccess({ jobId: baselineBody.jobId });
+      await waitForJobSuccess({ jobId: baselineBody.jobIds[0] });
 
       // With a clean baseline, the empty-heading control must be passing.
       await expect
@@ -222,7 +222,7 @@ test.describe("webhook-driven continuous monitoring", () => {
       expect(regression.ok()).toBeTruthy();
       const regressionBody = await regression.json();
       expect(regressionBody.handled).toBe(true);
-      await waitForJobSuccess({ jobId: regressionBody.jobId });
+      await waitForJobSuccess({ jobId: regressionBody.jobIds[0] });
 
       // empty-heading flipped passed → failed: a regression is recorded as
       // evidence AND surfaced as a compliance_regression alert.
