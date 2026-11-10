@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
 
+import { CopyForAiButton } from "@/components/primitives/copy-for-ai-button";
 import {
   EmptyState,
   NoProjectNotice,
@@ -15,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { reportHref } from "@/core/filter-params/evidence";
 import { findingsListHref } from "@/core/filter-params/findings";
 import { DEFAULT_PAGE_SIZE } from "@/core/filter-params/pagination";
+import { findingsBatchHandoff } from "@/server/reporting/ai-handoff";
 import { displayControl } from "@/server/reporting/report";
 import { loadFindingsView } from "@/server/workspace/findings-view";
 
@@ -142,6 +144,13 @@ export default async function FindingsPage({
         title="Findings"
         description="One finding = one instance of a failed requirement. Fix it to Verified — every step is kept as evidence."
       >
+        {activeTab === "open" && openItems.length > 0 ? (
+          <CopyForAiButton
+            label="Copy page for AI"
+            description={`${openItems.length} open finding${openItems.length === 1 ? "" : "s"} on this page`}
+            text={findingsBatchHandoff(project, openItems)}
+          />
+        ) : null}
         <Button variant="outline" size="sm" asChild>
           <a href={reportHref("engineering", "markdown")} download>
             Export engineering report
