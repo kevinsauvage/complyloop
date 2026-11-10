@@ -1,10 +1,5 @@
 import Link from "next/link";
 
-import { isPertinenceTwinControl } from "@complyloop/analysis-core/catalog/rgaa/pertinence-twins";
-import {
-  isHeuristicCheck,
-  isRuntimeOnlyCheck,
-} from "@complyloop/analysis-core/check-authority";
 import type { Requirement } from "@complyloop/analysis-core/contract/entities";
 import type {
   Control,
@@ -21,13 +16,11 @@ import {
   requirementStatusDisplay,
 } from "@/core/display/status";
 import { findingsListHref } from "@/core/filter-params/findings";
-import {
-  unableToVerifyReason,
-  unableToVerifyReasonLabel,
-} from "@/core/findings/finding-priority";
+import { unableToVerifyReasonLabel } from "@/core/findings/finding-priority";
 
 import { RequirementRemediationActions } from "./requirement-remediation-actions";
 import { RequirementStatusAccent } from "./requirement-status-accent";
+import { controlUnverifiableReason } from "./unverifiable-reason";
 
 export function RequirementCard({
   control,
@@ -48,15 +41,7 @@ export function RequirementCard({
 }) {
   const unverifiableReason =
     requirement.status === "unable_to_verify"
-      ? unableToVerifyReason(control, project, {
-          isRuntimeOnlyCheck: control.checkId
-            ? isRuntimeOnlyCheck(control.checkId)
-            : false,
-          isHeuristicCheck: control.checkId
-            ? isHeuristicCheck(control.checkId)
-            : false,
-          isPertinenceTwin: isPertinenceTwinControl(control.id),
-        })
+      ? controlUnverifiableReason(control, project)
       : null;
   const openFindingsHref =
     openCount > 0

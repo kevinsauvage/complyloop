@@ -13,6 +13,7 @@ import {
   SeverityBadge,
 } from "@/components/primitives/badges";
 import { CopyButton } from "@/components/primitives/copy-button";
+import { CopyForAiButton } from "@/components/primitives/copy-for-ai-button";
 import { EvidenceTimeline } from "@/components/primitives/evidence-timeline";
 import { FormattedDateTime } from "@/components/primitives/formatted-datetime";
 import {
@@ -30,6 +31,7 @@ import {
   findingsListHref,
 } from "@/core/filter-params/findings";
 import { effectiveBranch } from "@/server/github/tracked-branch";
+import { findingHandoff } from "@/server/reporting/ai-handoff";
 import { displayControl } from "@/server/reporting/report";
 import { loadFindingDetailView } from "@/server/workspace/finding-detail-view";
 import { isProjectVisible } from "@/server/workspace/project-visibility";
@@ -121,6 +123,10 @@ export default async function FindingPage({
           <FindingStatusBadge status={finding.status} />
           <SeverityBadge severity={finding.severity} />
           <RemediationStatusBadge status={remediation.status} />
+          <CopyForAiButton
+            description="fix prompt for this finding"
+            text={findingHandoff(project, { control, finding })}
+          />
         </div>
         <p className="flex w-full flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground sm:justify-end">
           <BadgeWithDescription

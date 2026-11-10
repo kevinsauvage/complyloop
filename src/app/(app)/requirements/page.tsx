@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 
+import { shippedCatalog } from "@complyloop/analysis-core/catalog/catalog";
+
+import { CopyForAiButton } from "@/components/primitives/copy-for-ai-button";
 import {
   EmptyState,
   NoProjectNotice,
@@ -14,11 +17,14 @@ import {
   SearchFilterBar,
 } from "@/components/primitives/search-filter-bar";
 import { requirementsPageHref } from "@/core/filter-params/requirements";
+import { unableToVerifyReasonLabel } from "@/core/findings/finding-priority";
+import { unableToVerifyHandoff } from "@/server/reporting/ai-handoff";
 import { loadRequirementsView } from "@/server/workspace/requirements-view";
 
 import { AssessedRequirementList } from "./_components/assessed-requirement-list";
 import { RequirementsScopeNote } from "./_components/requirements-scope-note";
 import { RequirementsStatusChips } from "./_components/requirements-status-chips";
+import { controlUnverifiableReason } from "./_components/unverifiable-reason";
 
 export const metadata: Metadata = {
   title: "Requirements",
@@ -66,6 +72,25 @@ export default async function RequirementsPage({
     targetLabel,
   } = view;
 
+  // "Copy for AI" covers every unable-to-verify requirement in the preset,
+  // not just the current page or filter.
+  const controlsById = new Map(
+    shippedCatalog().controls.map((control) => [control.id, control]),
+  );
+  const unverifiable = assessed.flatMap((requirement) => {
+    if (requirement.status !== "unable_to_verify") return [];
+    const control = controlsById.get(requirement.controlId);
+    if (!control) return [];
+    return [
+      {
+        control,
+        reason: unableToVerifyReasonLabel(
+          controlUnverifiableReason(control, project),
+        ),
+      },
+    ];
+  });
+
   return (
     <>
       <PageHeader
@@ -101,6 +126,15 @@ export default async function RequirementsPage({
                   : `${assessed.length} requirement${assessed.length === 1 ? "" : "s"} in this preset.`
             }
             className="min-w-0 border-t-0 pt-0"
+            action={
+              unverifiable.length > 0 ? (
+                <CopyForAiButton
+                  label="Copy unable to verify for AI"
+                  description={`${unverifiable.length} requirement${unverifiable.length === 1 ? "" : "s"}`}
+                  text={unableToVerifyHandoff(project, unverifiable)}
+                />
+              ) : undefined
+            }
           >
             {assessed.length > 0 ? (
               <SearchFilterBar
