@@ -15,6 +15,10 @@ updates:
         update-types:
           - minor
           - patch
+    # ESLint 10 breaks the plugins eslint-config-next pulls in; lift when they accept it.
+    ignore:
+      - dependency-name: eslint
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"
