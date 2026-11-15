@@ -22,6 +22,8 @@ Orientation for agents. **Do not duplicate** product principles, domain vocabula
 | [`docs/ai/platform-direction.md`](./docs/ai/platform-direction.md)                        | Direction, roadmap, open decisions (planned work) |
 | [`.cursor/rules/`](./.cursor/rules/)                                                      | Enforceable rules (domain, quality, AI, TS, …)    |
 | [`docs/prompts/`](./docs/prompts/README.md)                                               | Reusable task prompts (review, bug, quality, …)   |
+| [`PRODUCT.md`](./PRODUCT.md), [`DESIGN.md`](./DESIGN.md)                                  | Product register and visual system (tokens, type) |
+| [`docs/vercel.md`](./docs/vercel.md)                                                      | Deploy topology, env, operator checklists         |
 
 ## Next.js reference — source of truth
 
@@ -57,7 +59,6 @@ npm run dev              # Dev server (Turbopack); transpiles analysis-core from
 npm run build            # Production build; transpiles analysis-core from source
 npm run build:core       # Compile packages/analysis-core → dist (publish)
 npm run verify:gate      # Full gate: format + lint + typecheck + knip + test:coverage + worker:build + build (definition of done)
-npm run lint && npm run typecheck && npm run test && npm run build  # Definition of done (same as verify:gate)
 npx vitest run <touched-file>  # Targeted verify during work (fast loop; full gate at the end)
 npm run test:coverage    # Coverage gates (vitest.config.mts)
 npm run test:db          # Postgres persistence integration (needs DATABASE_URL)

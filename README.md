@@ -17,8 +17,10 @@ document is planned work; this README describes what ships today.
 
 ## Quick start
 
+Requires Node 22.22 or newer (`.nvmrc`), npm and Docker.
+
 ```bash
-npm install
+npm ci
 docker run -d --name complyloop-pg \
   -e POSTGRES_USER=complyloop -e POSTGRES_PASSWORD=complyloop \
   -e POSTGRES_DB=complyloop -p 5433:5432 postgres:16-alpine
@@ -35,6 +37,7 @@ Open [http://localhost:3000](http://localhost:3000), sign in with GitHub, connec
 | Architecture              | [`docs/ai/architecture.md`](./docs/ai/architecture.md) |
 | All docs                  | [`docs/README.md`](./docs/README.md)                   |
 | Agent / contributor guide | [`AGENTS.md`](./AGENTS.md)                             |
+| Environment variables     | [`.env.example`](./.env.example)                       |
 
 **Local dev:** assessments run **in-process** during `npm run dev`.
 **Production (Vercel):** trigger sites only enqueue, then kick the GitHub Actions
@@ -105,7 +108,7 @@ must pass ComplyLoop before **Create draft PR**. AI never sets requirement statu
 | `npm run test`                                               | Vitest                                                                         |
 | `npm run test:db`                                            | Postgres persistence integration (needs `DATABASE_URL`)                        |
 | `npm run test:coverage`                                      | Coverage gate (`vitest.config.mts`)                                            |
-| `npm run verify:gate`                                        | Full gate: lint + typecheck + test + build + bundle check                      |
+| `npm run verify:gate`                                        | Full gate, same steps as the CI quality job (see below)                        |
 | `npm run db:migrate` / `db:reset -- --confirm` / `db:studio` | Apply migrations / wipe + remigrate / Drizzle Studio                           |
 | `npm run db:ensure-owner`                                    | Backfill org owner                                                             |
 | `npm run worker:drain`                                       | Run queued assessment jobs locally (builds + runs the executor)                |
@@ -115,7 +118,10 @@ must pass ComplyLoop before **Create draft PR**. AI never sets requirement statu
 | `npm run build:core` / `build:db`                            | Compile workspace packages → `dist` (publish only; dev transpiles from source) |
 | `npm run analyze`                                            | Turbopack bundle report                                                        |
 
-Definition of done: `npm run verify:gate` (or `npm run lint && npm run typecheck && npm run test && npm run build`)
+Definition of done: `npm run verify:gate`. It mirrors the CI quality job: `format:check`, `lint`, `typecheck`, `knip`,
+`test:coverage`, `worker:build`, `build`. CI (`.github/workflows/ci.yml`) also runs a bundle analysis, the Postgres
+integration tests (`db:migrate`, `drizzle-kit check`, `test:db`) and the Playwright e2e suite; those need live
+infrastructure, so the local gate leaves them out.
 
 ---
 
