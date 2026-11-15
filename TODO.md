@@ -2,14 +2,6 @@
 
 Open work only; shipped work lives in `git log`. Last reviewed 2026-11-15.
 
-## Decide
-
-- [ ] **`develop` holds unmerged features.** Eight commits from 2026-10-21/22 never reached `main`: the project
-      as part of the URL (`src/app/(app)/projects/[projectId]/`), the sitemap page picker
-      (`packages/analysis-core/src/runtime/sitemap.ts`) and `noUncheckedIndexedAccess`. `main` has moved on since
-      (265 files differ), so a merge will conflict. Either port the features onto `main` or delete the branch.
-      **Why:** finished work is missing from production, and the branch still gets Vercel previews.
-
 ## Dependencies
 
 - [ ] **Dependabot #37 (10 production bumps) and #39 (12 dev bumps) fail CI.** Find the breaking package in
