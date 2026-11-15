@@ -106,8 +106,8 @@ test.describe("organization account", () => {
         .first(),
     ).toBeVisible({ timeout: 15_000 });
 
-    // Cookie should fall back to the seeded workspace so later owner tests keep
-    // the connected sample project.
+    // The active-org cookie falls back to the seeded workspace so later owner
+    // tests keep the connected sample project.
     await page.goto("/org");
     await expect(page.getByText(/Settings for E2E Workspace/)).toBeVisible();
   });

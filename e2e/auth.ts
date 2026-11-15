@@ -1,11 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import {
-  ACTIVE_ORG_COOKIE,
-  ACTIVE_PROJECT_COOKIE,
-} from "../src/server/workspace/active-cookie-names";
-import { E2E_ORG_ID, E2E_OWNER, E2E_PROJECT_ID, E2E_VIEWER } from "./constants";
+import { ACTIVE_ORG_COOKIE } from "../src/server/workspace/active-cookie-names";
+import { E2E_ORG_ID, E2E_OWNER, E2E_VIEWER } from "./constants";
 import { mintSessionCookie, storageState } from "./helpers";
 
 const AUTH_DIR = path.join(process.cwd(), "e2e", ".auth");
@@ -18,10 +15,7 @@ export async function writeAuthStates(): Promise<void> {
 
   const ownerSession = await mintSessionCookie(E2E_OWNER);
   const viewerSession = await mintSessionCookie(E2E_VIEWER);
-  const workspaceCookies = [
-    { name: ACTIVE_PROJECT_COOKIE, value: E2E_PROJECT_ID },
-    { name: ACTIVE_ORG_COOKIE, value: E2E_ORG_ID },
-  ];
+  const workspaceCookies = [{ name: ACTIVE_ORG_COOKIE, value: E2E_ORG_ID }];
 
   fs.writeFileSync(
     OWNER_STATE,

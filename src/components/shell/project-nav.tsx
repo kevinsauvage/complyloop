@@ -9,40 +9,35 @@ import {
   ScrollText,
   Settings,
 } from "lucide-react";
-import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import type { NavAttentionCounts } from "@complyloop/db/repo/nav-attention";
 
+import { PROJECT_TABS, projectPath, type ProjectTab } from "@/core/routes";
 import { cn } from "@/lib/utils";
 
-import { isProjectScopedPath } from "./nav-links";
-
-interface ProjectTab {
-  href: Route;
+interface ProjectTabMeta {
   label: string;
   icon: typeof LayoutDashboard;
   badgeKey?: keyof NavAttentionCounts;
 }
 
-const PROJECT_TABS: readonly ProjectTab[] = [
-  {
-    href: "/dashboard" as Route,
+const TAB_META: Record<ProjectTab, ProjectTabMeta> = {
+  dashboard: {
     label: "Dashboard",
     icon: LayoutDashboard,
     badgeKey: "unreadAlerts",
   },
-  { href: "/requirements" as Route, label: "Requirements", icon: ListChecks },
-  {
-    href: "/findings" as Route,
+  requirements: { label: "Requirements", icon: ListChecks },
+  findings: {
     label: "Findings",
     icon: FileSearch,
     badgeKey: "openFindings",
   },
-  { href: "/evidence" as Route, label: "Evidence", icon: ScrollText },
-  { href: "/settings" as Route, label: "Settings", icon: Settings },
-];
+  evidence: { label: "Evidence", icon: ScrollText },
+  settings: { label: "Settings", icon: Settings },
+};
 
 export function badgeAccessibleLabel(
   label: string,
@@ -60,18 +55,20 @@ export function badgeAccessibleLabel(
 
 /**
  * Project-level navigation: a header naming the project plus a tab bar for the
- * pages that act on it. Renders only on project-scoped routes, so the portfolio
- * and organization pages stay free of project chrome.
+ * pages that act on it. Rendered by the project layout, so it only ever appears
+ * on project-scoped routes.
  */
 export function ProjectNav({
+  projectId,
   project,
   navAttention = { openFindings: 0, unreadAlerts: 0 },
 }: {
+  projectId: string;
   project: { name: string; repo?: string | null } | null;
   navAttention?: NavAttentionCounts;
 }) {
   const pathname = usePathname();
-  if (!project || !isProjectScopedPath(pathname)) return null;
+  if (!project) return null;
 
   return (
     <div className="mb-6 space-y-3">
@@ -102,18 +99,18 @@ export function ProjectNav({
       >
         <ul className="flex min-w-max gap-1">
           {PROJECT_TABS.map((tab) => {
-            const active =
-              pathname === tab.href || pathname.startsWith(`${tab.href}/`);
-            const Icon = tab.icon;
-            const count = tab.badgeKey ? navAttention[tab.badgeKey] : 0;
+            const href = projectPath(projectId, tab);
+            const active = pathname === href || pathname.startsWith(`${href}/`);
+            const { label, icon: Icon, badgeKey } = TAB_META[tab];
+            const count = badgeKey ? navAttention[badgeKey] : 0;
             return (
-              <li key={tab.href}>
+              <li key={tab}>
                 <Link
-                  href={tab.href}
+                  href={href}
                   aria-current={active ? "page" : undefined}
                   aria-label={
-                    count > 0 && tab.badgeKey
-                      ? badgeAccessibleLabel(tab.label, count, tab.badgeKey)
+                    count > 0 && badgeKey
+                      ? badgeAccessibleLabel(label, count, badgeKey)
                       : undefined
                   }
                   className={cn(
@@ -127,7 +124,7 @@ export function ProjectNav({
                     className={cn("size-4 shrink-0", active && "text-signal")}
                     aria-hidden
                   />
-                  {tab.label}
+                  {label}
                   {count > 0 ? (
                     <span
                       className={cn(
@@ -153,8 +150,6 @@ export function ProjectNav({
 
 /** Fallback while the project name and badge counts load. */
 export function ProjectNavSkeleton() {
-  const pathname = usePathname();
-  if (!isProjectScopedPath(pathname)) return null;
   return (
     <div role="status" aria-label="Loading project navigation" className="mb-6">
       <span className="sr-only">Loading project navigation…</span>
@@ -163,7 +158,7 @@ export function ProjectNavSkeleton() {
         <div className="flex h-11 gap-3 border-b border-border">
           {PROJECT_TABS.map((tab) => (
             <span
-              key={tab.href}
+              key={tab}
               className="my-3 h-5 w-24 animate-pulse rounded bg-sidebar-accent"
             />
           ))}

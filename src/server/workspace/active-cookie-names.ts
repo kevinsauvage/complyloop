@@ -5,4 +5,3 @@
  * `next/headers`). Server code takes the names from here too.
  */
 export const ACTIVE_ORG_COOKIE = "complyloop_active_org";
-export const ACTIVE_PROJECT_COOKIE = "complyloop_active_project";

@@ -3,6 +3,8 @@ import path from "node:path";
 
 import { expect, type Page, test } from "@playwright/test";
 
+import { projectPath } from "./constants";
+
 const require = createRequire(path.join(process.cwd(), "package.json"));
 const axePath = require.resolve("axe-core/axe.min.js");
 
@@ -40,12 +42,14 @@ function seriousOrWorse(violations: AxeViolation[]): AxeViolation[] {
 }
 
 const pages = [
-  { path: "/", name: "dashboard" },
-  { path: "/findings", name: "findings" },
-  { path: "/evidence", name: "evidence" },
-  { path: "/settings", name: "settings" },
+  { path: "/", name: "landing" },
+  { path: "/projects", name: "portfolio" },
+  { path: projectPath("dashboard"), name: "dashboard" },
+  { path: projectPath("findings"), name: "findings" },
+  { path: projectPath("evidence"), name: "evidence" },
+  { path: projectPath("settings"), name: "settings" },
   { path: "/org", name: "organization account" },
-  { path: "/requirements", name: "requirements" },
+  { path: projectPath("requirements"), name: "requirements" },
   { path: "/legal/terms", name: "terms" },
   { path: "/legal/privacy", name: "privacy" },
 ];

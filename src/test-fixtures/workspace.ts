@@ -58,7 +58,6 @@ export function testWorkspace(
   } as WorkspaceSlice;
 
   return {
-    project,
     userId,
     githubLogin: userId,
     access: {
@@ -68,7 +67,6 @@ export function testWorkspace(
       memberships: db.memberships,
     },
     projects: db.projects,
-    visibleProjects: [project],
     organizations: db.organizations,
     activeOrgId: orgId,
     db,

@@ -12,7 +12,6 @@ import {
   findConnectedGitHubProject,
   uniqueProjectName,
 } from "./connect-github";
-import { setActiveProject } from "./project-visibility";
 
 function githubProject(
   partial: Pick<Project, "id" | "name" | "orgId"> &
@@ -111,53 +110,8 @@ describe("findConnectedGitHubProject", () => {
   });
 });
 
-describe("setActiveProject", () => {
-  it("returns an accessible project", () => {
-    const db = seededDb();
-    const projectA = githubProject({
-      id: "a",
-      name: "a",
-      orgId: "org-1",
-      ownerUserId: "user-a",
-    });
-    const projectB = githubProject({
-      id: "b",
-      name: "b",
-      orgId: "org-1",
-      ownerUserId: "user-a",
-    });
-    db.projects.push(projectA, projectB);
-    db.memberships.push({
-      id: "m1",
-      orgId: "org-1",
-      role: "owner",
-      userId: "user-a",
-      githubLogin: "user-a",
-      createdAt: "2026-01-01T00:00:00.000Z",
-    });
-
-    expect(setActiveProject(db, projectA.id, "user-a")).toBe(projectA);
-  });
-
-  it("rejects unknown and inaccessible projects", () => {
-    const db = seededDb();
-    const connected = githubProject({
-      id: "gh-1",
-      name: "shop",
-      orgId: "org-secret",
-      ownerUserId: "owner-a",
-    });
-    db.projects.push(connected);
-
-    expect(() => setActiveProject(db, "missing")).toThrow(/Unknown project/);
-    expect(() => setActiveProject(db, connected.id, "other-user")).toThrow(
-      /do not have access/,
-    );
-  });
-});
-
 describe("disconnectGitHubRepo", () => {
-  it("returns delete/evidence/next ids without mutating the loaded WorkspaceSlice", () => {
+  it("returns the delete id and evidence without mutating the loaded WorkspaceSlice", () => {
     const db = seededDb();
     db.memberships.push({
       id: "m1",
@@ -205,13 +159,12 @@ describe("disconnectGitHubRepo", () => {
       detectedAt: new Date().toISOString(),
     });
 
-    const { deleteProjectId, evidence, nextProjectId } = disconnectGitHubRepo(
+    const { deleteProjectId, evidence } = disconnectGitHubRepo(
       db,
       "gh-1",
       "user-a",
     );
     expect(deleteProjectId).toBe("gh-1");
-    expect(nextProjectId).toBeNull();
     // No in-memory mutation for persistence: the loaded list stays intact
     // (SQL cascade drops scoped rows on deleteProject).
     expect(db.projects).toHaveLength(1);

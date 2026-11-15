@@ -61,6 +61,8 @@ export default defineConfig({
         "**/*.d.ts",
         // Runtime scan driver — exercised by test:e2e (needs a repo + browsers).
         "packages/analysis-core/src/runtime/scan.ts",
+        "packages/analysis-core/src/runtime/browser.ts",
+        "packages/analysis-core/src/runtime/axe-page.ts",
         // Playwright page probes — unit job has no Chromium, so these skip.
         "packages/analysis-core/src/runtime/custom-checks/**",
         // HTML-validate runtime probe — covered by test:e2e browser runs.
@@ -99,6 +101,7 @@ export default defineConfig({
         "src/server/assessment/repo-checkout.ts", // test:e2e
         // Postgres job queue (claim / lease / hand-back) — assessment-jobs.concurrency.test.ts.
         "src/server/assessment/assessment-jobs.ts", // test:db
+        "src/server/assessment/assessment-job-lease.ts", // test:db
         "src/server/github/github-tokens.ts", // test:e2e
         "src/server/github/github-app.ts", // test:e2e
         "src/server/octokit.ts", // test:e2e

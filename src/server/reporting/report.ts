@@ -39,7 +39,7 @@ import {
   requirementsInScope,
   scopedControlIds,
 } from "../workspace/project-scope";
-import { getWorkspace } from "../workspace/workspace";
+import { getWorkspace, requireProjectAccess } from "../workspace/workspace";
 import type { ReportInput } from "./report-model";
 
 export type ReportLoadResult =
@@ -119,12 +119,16 @@ export function reportInputForProject(
   };
 }
 
-/** Loads workspace, evidence, and report input for markdown/HTML export routes. */
+/** Loads the URL's project, evidence, and report input for the export routes. */
 export async function loadReportInput(
   request: Request,
+  projectId: string,
 ): Promise<ReportLoadResult> {
-  const { project, userId } = await getWorkspace();
-  if (!project) {
+  const { userId } = await getWorkspace();
+  let project: Project;
+  try {
+    project = await requireProjectAccess(projectId, "project.view");
+  } catch {
     return {
       ok: false,
       response: new Response("No project connected.", { status: 404 }),

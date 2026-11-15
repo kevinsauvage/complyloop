@@ -1,7 +1,7 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const pathname = vi.hoisted(() => ({ current: "/dashboard" }));
+const pathname = vi.hoisted(() => ({ current: "/projects/p1/dashboard" }));
 vi.mock("next/navigation", () => ({
   usePathname: () => pathname.current,
 }));
@@ -10,7 +10,7 @@ import { badgeAccessibleLabel, ProjectNav } from "./project-nav";
 
 afterEach(() => {
   cleanup();
-  pathname.current = "/dashboard";
+  pathname.current = "/projects/p1/dashboard";
 });
 
 describe("badgeAccessibleLabel", () => {
@@ -31,7 +31,7 @@ describe("ProjectNav", () => {
   const project = { name: "Shop", repo: "acme/shop" };
 
   it("names the project, links back to the portfolio and lists the tabs", () => {
-    render(<ProjectNav project={project} />);
+    render(<ProjectNav projectId="p1" project={project} />);
 
     expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute(
       "href",
@@ -44,6 +44,9 @@ describe("ProjectNav", () => {
     expect(
       within(tabs).getByRole("link", { name: "Dashboard" }),
     ).toHaveAttribute("aria-current", "page");
+    expect(
+      within(tabs).getByRole("link", { name: "Findings" }),
+    ).toHaveAttribute("href", "/projects/p1/findings");
     for (const label of ["Requirements", "Findings", "Evidence", "Settings"]) {
       expect(
         within(tabs).getByRole("link", { name: label }),
@@ -52,8 +55,8 @@ describe("ProjectNav", () => {
   });
 
   it("keeps the Findings tab current on a finding page", () => {
-    pathname.current = "/findings/f1";
-    render(<ProjectNav project={project} />);
+    pathname.current = "/projects/p1/findings/f1";
+    render(<ProjectNav projectId="p1" project={project} />);
 
     expect(screen.getByRole("link", { name: "Findings" })).toHaveAttribute(
       "aria-current",
@@ -64,6 +67,7 @@ describe("ProjectNav", () => {
   it("annotates counts for screen readers", () => {
     render(
       <ProjectNav
+        projectId="p1"
         project={project}
         navAttention={{ openFindings: 4, unreadAlerts: 2 }}
       />,
@@ -77,13 +81,8 @@ describe("ProjectNav", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders nothing outside project routes or without a project", () => {
-    pathname.current = "/projects";
-    const { container, rerender } = render(<ProjectNav project={project} />);
-    expect(container).toBeEmptyDOMElement();
-
-    pathname.current = "/dashboard";
-    rerender(<ProjectNav project={null} />);
+  it("renders nothing without a project", () => {
+    const { container } = render(<ProjectNav projectId="p1" project={null} />);
     expect(container).toBeEmptyDOMElement();
   });
 });

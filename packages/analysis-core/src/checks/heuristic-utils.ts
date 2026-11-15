@@ -44,7 +44,7 @@ export function walkMotionActuationCalls(
       node.arguments.length > 0
     ) {
       const first = node.arguments[0];
-      if (ts.isStringLiteral(first) && MOTION_EVENTS.has(first.text)) {
+      if (first && ts.isStringLiteral(first) && MOTION_EVENTS.has(first.text)) {
         emit(node);
       }
     }

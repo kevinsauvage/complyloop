@@ -1,5 +1,5 @@
 import { cleanup, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import type { PortfolioRow } from "@/server/workspace/portfolio-view";
 import { testProject } from "@/test-fixtures/project";
@@ -8,10 +8,6 @@ import { renderWithUiProviders } from "@/test-fixtures/render-ui";
 // Static import: the module transform must not run inside a test body, where
 // it counts against the per-test timeout under parallel load.
 import { ProjectPortfolioTable } from "./project-portfolio-table";
-
-vi.mock("@/server/actions/connect", () => ({
-  openProjectAction: vi.fn(),
-}));
 
 afterEach(() => {
   cleanup();
@@ -107,17 +103,19 @@ describe("ProjectPortfolioTable", () => {
       <ProjectPortfolioTable rows={[row({ name: "Acme Shop" })]} />,
     );
 
-    expect(screen.getByRole("button", { name: "Open Acme Shop" })).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "Open Acme Shop" }),
+    ).toHaveAttribute("href", "/projects/p1/dashboard");
   });
 
-  it("carries the project id on the switch form", () => {
-    const { container } = renderWithUiProviders(
+  it("links each row to that project's dashboard", () => {
+    renderWithUiProviders(
       <ProjectPortfolioTable rows={[row({ projectId: "p-42" })]} />,
     );
 
-    const hidden = container.querySelector<HTMLInputElement>(
-      'input[type="hidden"][name="projectId"]',
+    expect(screen.getByRole("link", { name: /Open/ })).toHaveAttribute(
+      "href",
+      "/projects/p-42/dashboard",
     );
-    expect(hidden?.value).toBe("p-42");
   });
 });

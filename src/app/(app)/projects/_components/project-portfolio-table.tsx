@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import type { AssessmentJobStatus } from "@complyloop/analysis-core/contract/assessment-jobs";
 import type { RequirementStatus } from "@complyloop/analysis-core/contract/statuses";
 
@@ -6,8 +8,8 @@ import { FormattedDateTime } from "@/components/primitives/formatted-datetime";
 import { Button } from "@/components/ui/button";
 import { requirementStatusDisplay } from "@/core/display/status";
 import { PORTFOLIO_STATUS_COLUMNS, portfolioJobStatus } from "@/core/portfolio";
+import { projectPath } from "@/core/routes";
 import { cn } from "@/lib/utils";
-import { openProjectAction } from "@/server/actions/connect";
 import type { PortfolioRow } from "@/server/workspace/portfolio-view";
 
 const JOB_LABEL: Record<AssessmentJobStatus, string> = {
@@ -38,9 +40,8 @@ function countTone(status: RequirementStatus, value: number): string {
 
 /**
  * One row per project: verdict counts, open violations, unread regressions,
- * last assessment and current job. The project cell is a form button so
- * "open" also switches the active project (a plain link cannot set the
- * cookie-backed selection).
+ * last assessment and current job. "Open" links straight into that project's
+ * dashboard — the URL carries the project, so no selection has to be stored.
  */
 export function ProjectPortfolioTable({
   rows,
@@ -152,24 +153,19 @@ export function ProjectPortfolioTable({
                   )}
                 </td>
                 <td className="py-2.5 text-right">
-                  <form action={openProjectAction}>
-                    <input
-                      type="hidden"
-                      name="projectId"
-                      value={row.project.id}
-                    />
-                    <Button
-                      type="submit"
-                      variant="outline"
-                      size="sm"
-                      // Visible label "Open" stays a contiguous prefix of the
-                      // accessible name (WCAG 2.5.3); a trailing sr-only span
-                      // would collapse to "OpenAcme Shop".
-                      aria-label={`Open ${row.project.name}`}
-                    >
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    asChild
+                    // Visible label "Open" stays a contiguous prefix of the
+                    // accessible name (WCAG 2.5.3); a trailing sr-only span
+                    // would collapse to "OpenAcme Shop".
+                    aria-label={`Open ${row.project.name}`}
+                  >
+                    <Link href={projectPath(row.project.id, "dashboard")}>
                       Open
-                    </Button>
-                  </form>
+                    </Link>
+                  </Button>
                 </td>
               </tr>
             );

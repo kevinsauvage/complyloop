@@ -41,7 +41,7 @@ export async function markAlertReadAction(
       return markAlertReadById(tx, alertId);
     });
     if (!marked) throw new PublicError("Unknown alert.");
-    refresh("/dashboard");
+    refresh("/projects/[projectId]/dashboard");
     return "Alert marked as read.";
   });
 }
@@ -66,7 +66,7 @@ export async function markAllAlertsReadAction(
         await listAlertsForProject(tx, project.id),
       );
     });
-    refresh("/dashboard");
+    refresh("/projects/[projectId]/dashboard");
     return count === 0
       ? "No unread alerts."
       : `${count} alert${count === 1 ? "" : "s"} marked as read.`;

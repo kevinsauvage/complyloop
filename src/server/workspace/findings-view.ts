@@ -38,39 +38,37 @@ import {
   pageSliceFromQuery,
   paginateSlice,
 } from "@/core/filter-params/pagination";
-import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
 import type { ProjectCapabilities } from "@/server/workspace/project-capabilities";
+import { loadProjectPage } from "@/server/workspace/project-page";
 import { getProjectRuntime } from "@/server/workspace/project-runtime";
 import {
   findingsInScope,
   scopedControlIds,
 } from "@/server/workspace/project-scope";
 
-export type FindingsView =
-  | { project: null }
-  | {
-      project: Project;
-      caps: ProjectCapabilities;
-      listParams: FindingListParams;
-      activeTab: FindingsTab;
-      statusCounts: { open: number; resolved: number; dismissed: number };
-      totalFindings: number;
-      /**
-       * True when the findings load hit `FINDINGS_LIST_LOAD_LIMIT`: the page
-       * shows the most severe findings and the counts stay exact — the UI
-       * must tell the user to refine filters instead of paging a partial set.
-       */
-      findingsTruncated: boolean;
-      openSlice: PageSlice<Finding>;
-      resolvedSlice: PageSlice<Finding>;
-      dismissedSlice: PageSlice<Finding>;
-      findings: Finding[];
-      controls: readonly Control[];
-      remediationByFindingId: Map<string, Remediation>;
-      paginationQuery: Record<string, string>;
-      filtersActive: boolean;
-      hasAssessment: boolean;
-    };
+export interface FindingsView {
+  project: Project;
+  caps: ProjectCapabilities;
+  listParams: FindingListParams;
+  activeTab: FindingsTab;
+  statusCounts: { open: number; resolved: number; dismissed: number };
+  totalFindings: number;
+  /**
+   * True when the findings load hit `FINDINGS_LIST_LOAD_LIMIT`: the page
+   * shows the most severe findings and the counts stay exact — the UI
+   * must tell the user to refine filters instead of paging a partial set.
+   */
+  findingsTruncated: boolean;
+  openSlice: PageSlice<Finding>;
+  resolvedSlice: PageSlice<Finding>;
+  dismissedSlice: PageSlice<Finding>;
+  findings: Finding[];
+  controls: readonly Control[];
+  remediationByFindingId: Map<string, Remediation>;
+  paginationQuery: Record<string, string>;
+  filtersActive: boolean;
+  hasAssessment: boolean;
+}
 
 /**
  * Index-only tab totals within the project's preset scope (the same scope as
@@ -100,11 +98,11 @@ const countFindingsByStatus = cache(async (project: Project) => {
  * imports.
  */
 export async function loadFindingsView(
+  projectId: string,
   rawParams: Record<string, string | string[] | undefined>,
 ): Promise<FindingsView> {
   const listParams = parseFindingListParams(rawParams);
-  const { project, caps } = await loadActiveProjectPage();
-  if (!project) return { project: null };
+  const { project, caps } = await loadProjectPage(projectId);
 
   // Never rewrite the requested tab: a shared or bookmarked ?tab=open link
   // must render the open list (or its empty state), not silently jump to

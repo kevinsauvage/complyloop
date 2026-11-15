@@ -1,8 +1,10 @@
 import { expect, test } from "@playwright/test";
 
+import { projectPath } from "./constants";
+
 test.describe("compliance core loop", () => {
   test("assess → finding → evidence", async ({ page }) => {
-    await page.goto("/dashboard");
+    await page.goto(projectPath("dashboard"));
     await expect(
       page.getByRole("heading", {
         level: 1,

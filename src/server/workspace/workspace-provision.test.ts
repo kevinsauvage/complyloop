@@ -6,7 +6,6 @@ const provisionPersonalOrg = vi.hoisted(() => vi.fn());
 vi.mock("@/auth", () => ({ auth: vi.fn() }));
 vi.mock("./active-cookies", () => ({
   readActiveOrgCookie: vi.fn(),
-  readActiveProjectCookie: vi.fn(),
 }));
 vi.mock("@complyloop/db/postgres", () => ({ getDrizzle }));
 vi.mock("@complyloop/db/repo/orgs", () => ({

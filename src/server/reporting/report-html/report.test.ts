@@ -88,7 +88,7 @@ describe("buildEngineeringReportHtml", () => {
   it("escapes HTML in finding reasons", () => {
     const input = sampleReportInput();
     input.findings[0] = {
-      ...input.findings[0],
+      ...input.findings[0]!,
       reason: 'Reason with <img onerror="x">',
     };
 
@@ -108,7 +108,7 @@ describe("buildEngineeringReportHtml", () => {
   it("omits snippet and remediation lines when they are absent", () => {
     const input = sampleReportInput();
     input.findings[0] = {
-      ...input.findings[0],
+      ...input.findings[0]!,
       location: {
         kind: "source",
         filePath: "Empty.tsx",

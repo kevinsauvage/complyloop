@@ -24,7 +24,7 @@ describe("heading-order", () => {
       ),
     );
     expect(findings).toHaveLength(1);
-    expect(findings[0].checkId).toBe("heading-order");
+    expect(findings[0]!.checkId).toBe("heading-order");
   });
 });
 
@@ -373,7 +373,7 @@ describe("duplicate-id", () => {
       ),
     );
     expect(findings).toHaveLength(1);
-    expect(findings[0].reason).toContain('id="x"');
+    expect(findings[0]!.reason).toContain('id="x"');
   });
 
   it("reports each occurrence after the first", () => {

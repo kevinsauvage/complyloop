@@ -1,5 +1,4 @@
 import { Check } from "lucide-react";
-import type { Route } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -11,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import type { AppHref } from "@/core/routes";
 import { cn } from "@/lib/utils";
 
 export function PageHeader({
@@ -181,35 +181,11 @@ export function EmptyState({
   );
 }
 
-export function NoProjectNotice({
-  title,
-  description,
-  hint,
-}: {
-  title: string;
-  description: string;
-  hint?: string;
-}) {
-  return (
-    <>
-      <PageHeader title={title} description={description} />
-      <EmptyState
-        title="No project connected"
-        action={
-          <PageActionLink href="/dashboard">Go to dashboard</PageActionLink>
-        }
-      >
-        {hint ? <p>{hint}</p> : null}
-      </EmptyState>
-    </>
-  );
-}
-
 export function PageActionLink({
   href,
   children,
 }: {
-  href: Route;
+  href: AppHref;
   children: ReactNode;
 }) {
   return (

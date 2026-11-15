@@ -24,26 +24,9 @@ const PRIMARY_LINKS: readonly NavLink[] = [
   { href: "/org" as Route, label: "Organization", icon: Building2 },
 ];
 
-/** Project-scoped pages belong to the Overview section of the sidebar. */
-const PROJECT_SCOPED_PREFIXES = [
-  "/dashboard",
-  "/requirements",
-  "/findings",
-  "/evidence",
-  "/settings",
-] as const;
-
-export function isProjectScopedPath(pathname: string): boolean {
-  return PROJECT_SCOPED_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
-}
-
+/** Overview owns the portfolio and every `/projects/[projectId]/…` page. */
 function isActive(pathname: string, href: string): boolean {
-  if (href === "/projects") {
-    return pathname.startsWith("/projects") || isProjectScopedPath(pathname);
-  }
-  return pathname.startsWith(href);
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function NavLinks() {

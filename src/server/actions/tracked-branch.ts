@@ -6,7 +6,7 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { updateProject } from "@complyloop/db/repo/projects";
 
 import type { ActionState } from "@/core/actions/action-state";
-import { parseForm } from "@/core/actions/validate";
+import { parseForm, requiredField } from "@/core/actions/validate";
 
 import { runAction } from "../action-state";
 import { parseCheckoutRef } from "../assessment/repo-checkout";
@@ -15,14 +15,12 @@ import {
   getProjectToken,
 } from "../github/github-connector";
 import { assertRuntimeAuditRateLimit } from "../rate-limit";
-import { getWorkspace } from "../workspace/workspace";
-import {
-  resolveActiveProjectId,
-  withProjectTx,
-} from "../workspace/workspace-write";
-import { refresh, requireOnActive } from "./shared";
+import { requireProjectAccess } from "../workspace/workspace";
+import { withProjectTx } from "../workspace/workspace-write";
+import { refresh } from "./shared";
 
 const updateTrackedBranchInput = z.object({
+  projectId: requiredField("Unknown project."),
   trackedBranch: z.string().max(128).optional(),
 });
 
@@ -36,22 +34,24 @@ export async function updateTrackedBranchAction(
   formData: FormData,
 ): Promise<ActionState> {
   return runAction(async () => {
-    const parsed = parseForm(updateTrackedBranchInput, formData);
-    const requested = parsed.trackedBranch?.trim() ?? "";
+    const { projectId, trackedBranch } = parseForm(
+      updateTrackedBranchInput,
+      formData,
+    );
+    const requested = trackedBranch?.trim() ?? "";
     const branch = requested.length > 0 ? parseCheckoutRef(requested) : null;
 
     // Verify against GitHub outside the write transaction (network call).
     if (branch !== null) {
-      const current = await getWorkspace();
-      requireOnActive(current, "project.connect");
-      const fullName = current.project.github?.fullName;
+      const current = await requireProjectAccess(projectId, "project.connect");
+      const fullName = current.github?.fullName;
       if (!fullName) {
         throw new PublicError(
           "This project is not connected to a GitHub repository.",
           "connect",
         );
       }
-      const token = await getProjectToken(current.project);
+      const token = await getProjectToken(current);
       if (!token) {
         throw new PublicError(
           "Could not reach GitHub for this project. Reconnect it from Settings.",
@@ -61,7 +61,6 @@ export async function updateTrackedBranchAction(
       await assertBranchExists(token, fullName, branch);
     }
 
-    const projectId = await resolveActiveProjectId();
     await withProjectTx(projectId, "project.connect", async (ctx) => {
       if (ctx.userId) {
         await assertRuntimeAuditRateLimit(ctx.userId, ctx.tx);
@@ -80,7 +79,11 @@ export async function updateTrackedBranchAction(
       }
       await updateProject(ctx.tx, next);
     });
-    refresh("/settings", "/dashboard", "/requirements");
+    refresh(
+      "/projects/[projectId]/settings",
+      "/projects/[projectId]/dashboard",
+      "/projects/[projectId]/requirements",
+    );
     return branch === null
       ? "Tracking the repository's default branch."
       : `Tracking branch "${branch}". Push to it, then run an assessment.`;

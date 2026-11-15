@@ -5,9 +5,11 @@ import { updateTrackedBranchAction } from "@/server/actions/tracked-branch";
 import { StatefulActionForm } from "./stateful-action-form";
 
 export function TrackedBranchForm({
+  projectId,
   trackedBranch,
   defaultBranch,
 }: {
+  projectId: string;
   trackedBranch?: string;
   defaultBranch: string;
 }) {
@@ -19,6 +21,7 @@ export function TrackedBranchForm({
       variant="default"
       className="flex flex-col gap-4"
     >
+      <input type="hidden" name="projectId" value={projectId} />
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="trackedBranch">Tracked branch</Label>
         <Input

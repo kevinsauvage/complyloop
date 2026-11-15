@@ -1,11 +1,13 @@
 import { expect, test } from "@playwright/test";
 
+import { E2E_PROJECT_ID, projectPath } from "./constants";
+
 const routes: Array<{ path: string; heading: string | RegExp }> = [
-  { path: "/dashboard", heading: /Dashboard|Welcome to ComplyLoop/i },
-  { path: "/requirements", heading: "Requirements" },
-  { path: "/findings", heading: "Findings" },
-  { path: "/evidence", heading: "Evidence" },
-  { path: "/settings", heading: "Settings" },
+  { path: projectPath("dashboard"), heading: "Dashboard" },
+  { path: projectPath("requirements"), heading: "Requirements" },
+  { path: projectPath("findings"), heading: "Findings" },
+  { path: projectPath("evidence"), heading: "Evidence" },
+  { path: projectPath("settings"), heading: "Settings" },
   { path: "/org", heading: "Organization" },
 ];
 
@@ -19,8 +21,8 @@ test.describe("authenticated routes", () => {
     });
   }
 
-  test("sidebar navigates between primary sections", async ({ page }) => {
-    await page.goto("/dashboard");
+  test("project tabs navigate between project sections", async ({ page }) => {
+    await page.goto(projectPath("dashboard"));
     await expect(
       page.getByRole("heading", {
         level: 1,
@@ -32,7 +34,9 @@ test.describe("authenticated routes", () => {
       .getByRole("link", { name: /Findings/ })
       .first()
       .click();
-    await expect(page).toHaveURL(/\/findings/);
+    await expect(page).toHaveURL(
+      new RegExp(`/projects/${E2E_PROJECT_ID}/findings`),
+    );
     await expect(
       page.getByRole("heading", { name: "Findings", exact: true }),
     ).toBeVisible();
@@ -42,7 +46,9 @@ test.describe("authenticated routes", () => {
       .getByRole("link", { name: /Evidence/ })
       .first()
       .click();
-    await expect(page).toHaveURL(/\/evidence/);
+    await expect(page).toHaveURL(
+      new RegExp(`/projects/${E2E_PROJECT_ID}/evidence`),
+    );
     await expect(
       page.getByRole("heading", { name: "Evidence", exact: true }),
     ).toBeVisible();

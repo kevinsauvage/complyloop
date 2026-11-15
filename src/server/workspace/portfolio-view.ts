@@ -32,14 +32,13 @@ export interface PortfolioView {
  * never a runtime load per project.
  */
 export async function loadPortfolioView(): Promise<PortfolioView> {
-  const { project, projects, access, activeOrgId, organizations } =
-    await getWorkspace();
+  const { projects, access, activeOrgId, organizations } = await getWorkspace();
   const org = activeOrgId
     ? organizations.find((candidate) => candidate.id === activeOrgId)
     : undefined;
   if (!org) return { org: null, rows: [], canCreateProject: false };
   const canCreateProject = projectCapabilities(
-    project,
+    null,
     access,
     activeOrgId,
   ).canConnect;

@@ -47,13 +47,15 @@ describe("filter-params helpers", () => {
   });
 
   it("builds findings hrefs with list context", () => {
-    expect(findingsListHref()).toBe("/findings");
-    expect(findingsListHref({ tab: "resolved" })).toContain("tab=resolved");
-    const detail = findingDetailHref("f-1", {
+    expect(findingsListHref("p1")).toBe("/projects/p1/findings");
+    expect(findingsListHref("p1", { tab: "resolved" })).toContain(
+      "tab=resolved",
+    );
+    const detail = findingDetailHref("p1", "f-1", {
       tab: "open",
       page: 2,
     });
-    expect(detail.startsWith("/findings/f-1?")).toBe(true);
+    expect(detail.startsWith("/projects/p1/findings/f-1?")).toBe(true);
     expect(detail).toContain("page=2");
   });
 

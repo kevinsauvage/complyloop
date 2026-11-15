@@ -18,7 +18,6 @@ import { canOnProject } from "@/core/rbac";
 
 import { withRepoCheckout } from "../assessment/repo-checkout";
 import { normalizeGitHubFullName } from "../github/github";
-import { accessFromStore, resolveActiveProject } from "./project-visibility";
 
 /** Short filesystem-safe name from a GitHub `owner/repo` full name. */
 export function deriveProjectName(fullName: string): string {
@@ -210,8 +209,8 @@ export async function connectGitHubRepo(
 
 /**
  * Disconnects a GitHub project when the actor has `project.connect`.
- * Returns what to persist (scoped rows drop via the project FK cascade) plus
- * the next visible project id for the cookie. Does not mutate `db`.
+ * Returns what to persist (scoped rows drop via the project FK cascade).
+ * Does not mutate `db`.
  *
  * Retention: disconnecting drops the project's findings/remediations/
  * requirements — only the `project_disconnected` evidence row survives
@@ -226,7 +225,6 @@ export function disconnectGitHubRepo(
 ): {
   deleteProjectId: string;
   evidence: EvidenceRecord;
-  nextProjectId: string | null;
 } {
   const project = db.projects.find((candidate) => candidate.id === projectId);
   if (!project) {
@@ -257,12 +255,5 @@ export function disconnectGitHubRepo(
     },
   });
 
-  const remaining = db.projects.filter(
-    (candidate) => candidate.id !== projectId,
-  );
-  const nextProjectId =
-    resolveActiveProject(remaining, null, accessFromStore(db, userId))?.id ??
-    null;
-
-  return { deleteProjectId: projectId, evidence, nextProjectId };
+  return { deleteProjectId: projectId, evidence };
 }

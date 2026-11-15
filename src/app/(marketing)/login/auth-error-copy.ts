@@ -19,7 +19,8 @@ const FALLBACK_AUTH_ERROR_COPY =
  */
 export function authErrorCopy(error: string | null): string | null {
   if (!error) return null;
-  return Object.hasOwn(AUTH_ERROR_COPY, error)
+  const copy = Object.hasOwn(AUTH_ERROR_COPY, error)
     ? AUTH_ERROR_COPY[error]
-    : FALLBACK_AUTH_ERROR_COPY;
+    : undefined;
+  return copy ?? FALLBACK_AUTH_ERROR_COPY;
 }

@@ -4,6 +4,7 @@ import {
   type RequirementStatus,
 } from "@complyloop/analysis-core/contract/statuses";
 
+import { type ProjectHref, projectPath } from "../routes";
 import { href } from "./href";
 import { firstParam, trimmedQuery } from "./params";
 
@@ -22,9 +23,10 @@ export function parseRequirementsQueryParam(
 }
 
 export function requirementsStatusHref(
+  projectId: string,
   status?: RequirementStatus,
-): "/requirements" | `/requirements?${string}` {
-  return href("/requirements", { status });
+): ProjectHref {
+  return href(projectPath(projectId, "requirements"), { status });
 }
 
 export function parsePresetIdParam(
@@ -37,13 +39,14 @@ export function parsePresetIdParam(
 }
 
 export function requirementsPageHref(options: {
+  projectId: string;
   presetId?: string;
   status?: RequirementStatus;
   q?: string;
   page?: number;
   defaultPresetId: string;
-}): "/requirements" | `/requirements?${string}` {
-  return href("/requirements", {
+}): ProjectHref {
+  return href(projectPath(options.projectId, "requirements"), {
     presetId:
       options.presetId && options.presetId !== options.defaultPresetId
         ? options.presetId

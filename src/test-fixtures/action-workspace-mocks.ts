@@ -17,7 +17,6 @@ const withProjectTx = vi.fn();
 const withOrgWrite = vi.fn();
 const withProjectLock = vi.fn();
 const withConnectWrite = vi.fn();
-const resolveActiveProjectId = vi.fn();
 const getWorkspace = vi.fn();
 
 /** Rows the action wrote through the mocked repo layer (assertions read this). */
@@ -76,9 +75,6 @@ export function mockStore(): TestWorkspace | null {
  */
 export function mockProjectTx(workspace: TestWorkspace): void {
   store = workspace;
-  resolveActiveProjectId.mockResolvedValue(
-    workspace.project?.id ?? "project-1",
-  );
   withProjectTx.mockImplementation(
     async (
       projectId: string,
@@ -106,7 +102,6 @@ export const actionWorkspaceMocks = {
   withOrgWrite,
   withProjectLock,
   withConnectWrite,
-  resolveActiveProjectId,
   getWorkspace,
   replaceById,
   writes,

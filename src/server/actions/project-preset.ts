@@ -11,13 +11,11 @@ import type { ActionState } from "@/core/actions/action-state";
 import { parseForm, requiredField } from "@/core/actions/validate";
 
 import { runAction } from "../action-state";
-import {
-  resolveActiveProjectId,
-  withProjectTx,
-} from "../workspace/workspace-write";
+import { withProjectTx } from "../workspace/workspace-write";
 import { refresh } from "./shared";
 
 const setDefaultPresetInput = z.object({
+  projectId: requiredField("Unknown project."),
   presetId: requiredField("A framework preset is required."),
 });
 
@@ -26,13 +24,12 @@ export async function setDefaultPresetAction(
   formData: FormData,
 ): Promise<ActionState> {
   return runAction(async () => {
-    const { presetId } = parseForm(setDefaultPresetInput, formData);
+    const { projectId, presetId } = parseForm(setDefaultPresetInput, formData);
     const preset = presetById(presetId);
     if (!preset) {
       throw new PublicError(`Unknown framework preset: ${presetId}`);
     }
 
-    const projectId = await resolveActiveProjectId();
     const changed = await withProjectTx(
       projectId,
       "project.connect",
@@ -49,7 +46,11 @@ export async function setDefaultPresetAction(
         return true;
       },
     );
-    refresh("/settings", "/requirements", "/evidence");
+    refresh(
+      "/projects/[projectId]/settings",
+      "/projects/[projectId]/requirements",
+      "/projects/[projectId]/evidence",
+    );
     return changed
       ? "Default assessment preset saved"
       : "This is already the default preset.";

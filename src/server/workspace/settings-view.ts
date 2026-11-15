@@ -1,4 +1,4 @@
-/** Settings view loader — data-shaping for the `(app)/settings` route (one loader per page, no JSX here). */
+/** Settings view loader — data-shaping for the settings tab (no JSX here). */
 import "server-only";
 
 import {
@@ -13,29 +13,28 @@ import { getDrizzle } from "@complyloop/db/postgres";
 import { listLatestAssessmentForProject } from "@complyloop/db/repo/assessments";
 
 import { latestAssessmentFor } from "@/core/assessment/assessment-helpers";
-import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
 import type { ProjectCapabilities } from "@/server/workspace/project-capabilities";
+import { loadProjectPage } from "@/server/workspace/project-page";
 
-export type SettingsView =
-  | { project: null }
-  | {
-      project: Project;
-      caps: ProjectCapabilities;
-      latestAssessment: ReturnType<typeof latestAssessmentFor>;
-      runtimeError: string | null;
-      runtimeStatus: string;
-      githubFullName: string | undefined;
-      repoUrl: string | undefined;
-      defaultPresetId: string;
-      defaultPreset: ReturnType<typeof presetById>;
-      presets: ReturnType<typeof presetSummaries>;
-      runtimeOnlyCheckCount: number;
-    };
+export interface SettingsView {
+  project: Project;
+  caps: ProjectCapabilities;
+  latestAssessment: ReturnType<typeof latestAssessmentFor>;
+  runtimeError: string | null;
+  runtimeStatus: string;
+  githubFullName: string | undefined;
+  repoUrl: string | undefined;
+  defaultPresetId: string;
+  defaultPreset: ReturnType<typeof presetById>;
+  presets: ReturnType<typeof presetSummaries>;
+  runtimeOnlyCheckCount: number;
+}
 
 /** Everything the settings page renders, derived in one place. */
-export async function loadSettingsView(): Promise<SettingsView> {
-  const { project, caps } = await loadActiveProjectPage();
-  if (!project) return { project: null };
+export async function loadSettingsView(
+  projectId: string,
+): Promise<SettingsView> {
+  const { project, caps } = await loadProjectPage(projectId);
 
   // Only the latest assessment record is rendered here. The full runtime load
   // would read every requirement row plus the workspace evidence window for

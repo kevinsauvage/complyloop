@@ -39,15 +39,12 @@ import type { AssessmentJobStage } from "@/core/assessment/assessment-jobs";
 import { reportWarning } from "../observability";
 import { loadProjectDb, withProjectLock } from "../workspace/db";
 import { appendEvidence, type ProjectRows } from "../workspace/project-rows";
-import {
-  type AssessmentRunResult,
-  type AssessmentScanResult,
-  reconcileAssessment,
-} from "./assessment";
+import { type AssessmentRunResult, reconcileAssessment } from "./assessment";
 import {
   type AssessmentJob,
   AssessmentJobCancelledError,
 } from "./assessment-jobs";
+import type { AssessmentScanResult } from "./assessment-scan";
 export {
   type AssessmentPipelineInput,
   createAssessmentScratch,

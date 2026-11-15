@@ -24,9 +24,8 @@ export async function pruneWebhookDeliveryRows(
   db: DrizzleDb,
   maxDeliveries: number,
 ): Promise<void> {
-  const [{ total }] = await db
-    .select({ total: count() })
-    .from(webhookDeliveries);
+  const [row] = await db.select({ total: count() }).from(webhookDeliveries);
+  const total = row?.total ?? 0;
   if (total <= maxDeliveries) return;
 
   const overflow = total - maxDeliveries;

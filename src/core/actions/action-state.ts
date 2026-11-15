@@ -4,6 +4,8 @@
  * the browser bundle just to read `initialActionState` or a type.
  */
 
+import type { AppHref } from "../routes";
+
 /**
  * Result of a form server action. `ok` separates a success toast from an inline
  * error; `message` is public copy in both cases.
@@ -11,6 +13,12 @@
 export type ActionState = {
   ok: boolean;
   message: string | null;
+  /**
+   * Where the client should navigate on success. Set when the action creates or
+   * removes the thing the current URL names (connecting a repository creates a
+   * project, so the next step lives on that project's dashboard).
+   */
+  redirectTo?: AppHref;
 };
 
 export const initialActionState: ActionState = {

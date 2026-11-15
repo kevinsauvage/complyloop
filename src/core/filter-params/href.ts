@@ -1,13 +1,13 @@
-import type { Route } from "next";
+import type { AppHref } from "../routes";
 
 type SearchParams = Record<string, string | undefined>;
 
 /**
  * Append defined query params to `path`; returns the bare path when none apply.
- * Typed as `Route` so call sites satisfy Next.js `typedRoutes` — a route literal
- * is statically checked, and a query string built from it is accepted.
+ * Typed against `AppHref` so both static routes and project-scoped paths (which
+ * are template literal types, not `Route` literals) satisfy `typedRoutes`.
  */
-export function href<T extends Route>(
+export function href<T extends AppHref>(
   path: T,
   params: SearchParams,
 ): T | `${T}?${string}` {

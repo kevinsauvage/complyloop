@@ -1,9 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-
-import { testWorkspace } from "@/test-fixtures/workspace";
-
 const getSession = vi.hoisted(() => vi.fn());
 const revalidatePath = vi.hoisted(() => vi.fn());
 
@@ -15,7 +11,7 @@ vi.mock("@/server/auth-session", () => ({
   getSession: (...args: unknown[]) => getSession(...args),
 }));
 
-import { refresh, requireOnActive, requireSignedIn } from "./shared";
+import { refresh, requireSignedIn } from "./shared";
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -29,11 +25,20 @@ describe("refresh", () => {
   });
 
   it("revalidates only the given routes, de-duplicated", () => {
-    refresh("/findings", "/dashboard", "/findings");
+    refresh("/projects", "/org", "/projects");
     expect(revalidatePath).toHaveBeenCalledTimes(2);
-    expect(revalidatePath).toHaveBeenCalledWith("/findings");
-    expect(revalidatePath).toHaveBeenCalledWith("/dashboard");
+    expect(revalidatePath).toHaveBeenCalledWith("/projects");
+    expect(revalidatePath).toHaveBeenCalledWith("/org");
     expect(revalidatePath).not.toHaveBeenCalledWith("/", "layout");
+  });
+
+  it("passes the page type for a dynamic route pattern", () => {
+    // `revalidatePath` requires the type argument for a dynamic segment.
+    refresh("/projects/[projectId]/findings");
+    expect(revalidatePath).toHaveBeenCalledWith(
+      "/projects/[projectId]/findings",
+      "page",
+    );
   });
 });
 
@@ -62,26 +67,5 @@ describe("requireSignedIn", () => {
   it("throws the caller-supplied message", async () => {
     getSession.mockResolvedValue({ user: {} });
     await expect(requireSignedIn("Nope.")).rejects.toThrow("Nope.");
-  });
-});
-
-describe("requireOnActive", () => {
-  it("passes when the active project grants the permission", () => {
-    const workspace = testWorkspace({ role: "member" });
-    expect(() => requireOnActive(workspace, "project.view")).not.toThrow();
-  });
-
-  it("throws when no project is connected", () => {
-    const workspace = { ...testWorkspace(), project: null };
-    expect(() => requireOnActive(workspace, "project.view")).toThrow(
-      "No project connected.",
-    );
-  });
-
-  it("throws a PublicError when the role lacks the permission", () => {
-    const workspace = testWorkspace({ role: "viewer" });
-    expect(() => requireOnActive(workspace, "project.remediate")).toThrow(
-      PublicError,
-    );
   });
 });

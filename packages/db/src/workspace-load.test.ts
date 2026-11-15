@@ -39,7 +39,6 @@ describe("loadTenancyDb claim-on-workspace-load", () => {
     await loadTenancyDb(drizzle, {
       userId: "user-1",
       githubLogin: "alice",
-      activeProjectId: null,
     });
 
     expect(provisionPersonalOrg).toHaveBeenCalledOnce();
@@ -58,7 +57,6 @@ describe("loadTenancyDb claim-on-workspace-load", () => {
     await loadTenancyDb(drizzle, {
       userId: null,
       githubLogin: null,
-      activeProjectId: null,
     });
     expect(provisionPersonalOrg).not.toHaveBeenCalled();
     expect(listOrgIdsForUser).toHaveBeenCalledWith(drizzle, null);

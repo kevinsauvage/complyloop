@@ -7,7 +7,11 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { insertEvidence } from "@complyloop/db/repo/evidence";
 
 import type { ActionState } from "@/core/actions/action-state";
-import { entityIdSchema, parseForm } from "@/core/actions/validate";
+import {
+  entityIdSchema,
+  parseForm,
+  requiredField,
+} from "@/core/actions/validate";
 
 import { runAction } from "../action-state";
 import {
@@ -22,14 +26,16 @@ import {
   shouldDrainAssessmentJobsInline,
 } from "../assessment/assessment-scheduler";
 import { assertAssessRateLimit } from "../rate-limit";
-import {
-  resolveActiveProjectId,
-  withProjectTx,
-} from "../workspace/workspace-write";
+import { withProjectTx } from "../workspace/workspace-write";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 import { refresh } from "./shared";
 
+const runAssessmentInput = z.object({
+  projectId: requiredField("Unknown project."),
+});
+
 const cancelAssessmentJobInput = z.object({
+  projectId: requiredField("Unknown project."),
   jobId: entityIdSchema,
 });
 
@@ -78,24 +84,20 @@ function isDueForDispatch(job: AssessmentJob, now: number): boolean {
  */
 export async function runAssessmentAction(
   _previous: ActionState,
-  _formData: FormData,
+  formData: FormData,
 ): Promise<ActionState> {
-  void _formData;
   return runAction(async () => {
+    const { projectId } = parseForm(runAssessmentInput, formData);
     // One short write (permission + rate limit + enqueue + evidence, all
     // under the project lock), then the drain happens outside it.
     const context: {
-      projectId: string | null;
       job: AssessmentJob | null;
       alreadyActive: AssessmentJob | null;
     } = {
-      projectId: null,
       job: null,
       alreadyActive: null,
     };
-    const activeProjectId = await resolveActiveProjectId();
-    await withProjectTx(activeProjectId, "project.assess", async (ctx) => {
-      context.projectId = ctx.project.id;
+    await withProjectTx(projectId, "project.assess", async (ctx) => {
       if (ctx.userId) await assertAssessRateLimit(ctx.userId, ctx.tx);
       // Reclaim crashed-worker leases before reading the active job: an
       // expired-`running` row must not block re-dispatch until the 15-minute
@@ -174,13 +176,12 @@ export async function cancelAssessmentJobAction(
   formData: FormData,
 ): Promise<ActionState> {
   return runAction(async () => {
-    const { jobId } = parseForm(
+    const { projectId, jobId } = parseForm(
       cancelAssessmentJobInput,
       formData,
       "Invalid assessment job.",
     );
-    const activeProjectId = await resolveActiveProjectId();
-    await withProjectTx(activeProjectId, "project.assess", async (ctx) => {
+    await withProjectTx(projectId, "project.assess", async (ctx) => {
       // Same transaction as its evidence: a failed evidence write must not
       // leave a cancelled job with no audit record.
       const cancelled = await cancelAssessmentJob(

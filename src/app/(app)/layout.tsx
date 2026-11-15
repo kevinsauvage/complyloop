@@ -5,8 +5,6 @@ import { Suspense } from "react";
 import { isGitHubAuthConfigured } from "@/auth";
 import { AppShell } from "@/components/shell/app-shell";
 import { AuthControls } from "@/components/shell/auth-controls";
-import { NavAttentionBadges } from "@/components/shell/nav-attention-badges";
-import { ProjectNavSkeleton } from "@/components/shell/project-nav";
 import {
   WorkspaceSwitcher,
   WorkspaceSwitcherSkeleton,
@@ -38,11 +36,6 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <TooltipProvider>
       <AppShell
-        workspaceContext={
-          <Suspense fallback={<ProjectNavSkeleton />}>
-            <NavAttentionBadges />
-          </Suspense>
-        }
         workspaceSwitcher={
           <Suspense fallback={<WorkspaceSwitcherSkeleton />}>
             <WorkspaceSwitcher />

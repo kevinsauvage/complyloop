@@ -6,11 +6,8 @@
  * `custom-checks/*` or `site-level/*` internals. See
  * `packages/analysis-core/README.md`.
  */
-import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
-import path from "node:path";
 
-import type { Browser, Page } from "playwright-core";
+import type { Page } from "playwright-core";
 
 import { maxRuntimePages } from "../contract/assessment-limits.ts";
 import { PublicError, publicMessage } from "../contract/public-error.ts";
@@ -19,6 +16,8 @@ import {
   aggregateApplicabilityObservations,
   applicabilityObservationsForPage,
 } from "./applicability.ts";
+import { axeTargetSizeViolations, runAxeOnPage } from "./axe-page.ts";
+import { closeTeardown, getBrowser } from "./browser.ts";
 import {
   runCustomRuntimeChecks,
   runThemeSensitiveCustomChecks,
@@ -66,7 +65,6 @@ import {
   emulateCoarsePointer,
   MOBILE_TARGET_SIZE_LABEL,
   MOBILE_VIEWPORT,
-  TARGET_SIZE_AXE_RULE,
 } from "./viewport-conditions.ts";
 
 export type RuntimePageScanner = (urls: ReadonlyArray<string>) => Promise<{
@@ -74,239 +72,6 @@ export type RuntimePageScanner = (urls: ReadonlyArray<string>) => Promise<{
   /** Per-page failures contained by the loop — sibling results are kept. */
   pageFailures: RuntimePageFailure[];
 }>;
-
-let sharedBrowser: Browser | null = null;
-
-/**
- * Set when teardown timed out: the cached browser may hold a leaked context,
- * so the next scan launches fresh instead of reusing it. The leak is
- * container-lifetime-bounded (serverless discards the whole process).
- */
-let sharedBrowserTainted = false;
-
-/**
- * Teardown must never sink a scan whose findings are already collected:
- * `page.close()` / `context.close()` have waited minutes on pages with open
- * connections. Bound the wait, warn, and continue with what was collected.
- */
-const TEARDOWN_TIMEOUT_MS = 15_000;
-
-async function closeTeardown(
-  label: "page" | "context",
-  closing: Promise<void>,
-): Promise<void> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    await Promise.race([
-      closing,
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(
-          () => reject(new Error(`${label} close timed out`)),
-          TEARDOWN_TIMEOUT_MS,
-        );
-      }),
-    ]);
-  } catch {
-    sharedBrowserTainted = true;
-    console.warn(
-      `[warning] runtime ${label} close timed out; continuing with collected findings.`,
-    );
-  } finally {
-    if (timer !== undefined) clearTimeout(timer);
-  }
-}
-
-/**
- * Worker-script teardown: close the cached browser so a long-lived process
- * can exit. Serverless never needs this (the container dies with the
- * invocation); the GitHub Actions executor hangs on the browser child
- * process after the batch summary prints without it. Bounded like
- * page/context teardown, never throws.
- */
-export async function closeRuntimeBrowser(): Promise<void> {
-  const browser = sharedBrowser;
-  sharedBrowser = null;
-  sharedBrowserTainted = false;
-  if (!browser) return;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    await Promise.race([
-      browser.close(),
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(
-          () => reject(new Error("browser close timed out")),
-          TEARDOWN_TIMEOUT_MS,
-        );
-      }),
-    ]);
-  } catch {
-    console.warn(
-      "[warning] runtime browser close timed out; continuing to exit.",
-    );
-  } finally {
-    if (timer !== undefined) clearTimeout(timer);
-  }
-}
-
-/**
- * The only variables the browser inherits. The worker process holds
- * `DATABASE_URL` and the GitHub App private key, and Playwright passes the
- * whole `process.env` to Chromium by default — a renderer exploit on an
- * audited page must find no secrets to read.
- */
-const BROWSER_ENV_KEYS = [
-  "PATH",
-  "HOME",
-  "TMPDIR",
-  "TMP",
-  "TEMP",
-  "LANG",
-  "LC_ALL",
-  "TZ",
-  "XDG_CONFIG_HOME",
-  "XDG_CACHE_HOME",
-  "FONTCONFIG_PATH",
-] as const;
-
-export function browserEnv(
-  source: Readonly<Record<string, string | undefined>> = process.env,
-): Record<string, string> {
-  const env: Record<string, string> = {};
-  for (const key of BROWSER_ENV_KEYS) {
-    const value = source[key];
-    if (value !== undefined) env[key] = value;
-  }
-  return env;
-}
-
-/**
- * Runtime audits run on the GitHub Actions executor, which installs its own
- * Playwright Chromium (`npm run playwright:install`); local dev does the same.
- * There is no serverless-browser path — nothing Vercel-reachable imports this
- * module (see `docs/vercel.md`).
- *
- * The sandbox is explicit because Playwright disables it by default on Linux;
- * Ubuntu 24.04 runners must allow unprivileged user namespaces for it
- * (`apparmor_restrict_unprivileged_userns=0`, set in the workflows).
- */
-async function getBrowser(): Promise<Browser> {
-  if (sharedBrowserTainted) {
-    // A previous teardown timed out and may have leaked a context — do not
-    // reuse this browser. No close attempt: close is what hung last time.
-    sharedBrowser = null;
-    sharedBrowserTainted = false;
-  }
-  if (!sharedBrowser) {
-    console.info("[progress] runtime browser launch started");
-    const { chromium } = await import("playwright-core");
-    sharedBrowser = await chromium.launch({
-      headless: true,
-      chromiumSandbox: true,
-      env: browserEnv(),
-    });
-    process.on("exit", () => {
-      sharedBrowser?.close().catch(() => {});
-    });
-  }
-  return sharedBrowser;
-}
-
-/**
- * Resolve axe.min.js from node_modules at runtime.
- * Do not import `axe-core`'s `source` string — Next/webpack rewrites
- * `typeof module` inside it, which throws in the browser (`module is not defined`).
- */
-export function resolveAxeMinJsPath(): string {
-  const require = createRequire(path.join(process.cwd(), "package.json"));
-  return require.resolve("axe-core/axe.min.js");
-}
-
-async function axeTargetSizeViolations(
-  page: Page,
-): Promise<AxeViolationLike[]> {
-  const axe = await runAxeOnPage(page, { runOnly: [TARGET_SIZE_AXE_RULE] });
-  return axe.violations.filter((v) => v.id === TARGET_SIZE_AXE_RULE);
-}
-
-async function axePresentOnPage(page: Page): Promise<boolean> {
-  return page.evaluate(
-    () =>
-      typeof (window as { axe?: { run?: unknown } }).axe?.run === "function",
-  );
-}
-
-async function ensureAxeOnPage(page: Page): Promise<void> {
-  if (await axePresentOnPage(page)) return;
-  // Evaluate the engine as an expression instead of appending a <script>
-  // element. Only DOM-inserted scripts are governed by the page's
-  // `script-src`; `page.evaluate` goes through the debugger protocol, which
-  // CSP does not restrict. Verified against strict (`script-src 'self'`),
-  // nonce-based and hash-only policies — `addScriptTag` is blocked by all
-  // three. This keeps the audited page's policy fully enforced (no
-  // `bypassCSP`), so hosts the site blocks — analytics, tag managers,
-  // personalisation widgets — stay blocked and the DOM still matches what
-  // real users get. Same reason the `new Function` probes in
-  // `custom-checks/hit-capture-evaluate.ts` survive strict CSP.
-  await page.evaluate(readFileSync(resolveAxeMinJsPath(), "utf8"));
-  if (!(await axePresentOnPage(page))) {
-    throw new PublicError(
-      "Could not initialize the accessibility engine on the audited page.",
-    );
-  }
-}
-
-/**
- * Load axe from disk and analyze the current page (main frame). Do not switch
- * to `@axe-core/playwright`: it injects `axe-core`'s `source` string, which
- * Next/webpack rewrites (`module is not defined`) — see `resolveAxeMinJsPath`.
- */
-export async function runAxeOnPage(
-  page: Page,
-  options?: { runOnly?: ReadonlyArray<string> },
-): Promise<{
-  violations: AxeViolationLike[];
-  incomplete: AxeViolationLike[];
-}> {
-  await ensureAxeOnPage(page);
-  const runOnly = options?.runOnly;
-  const results = await page.evaluate(
-    async (
-      rules,
-    ): Promise<{
-      violations: AxeViolationLike[];
-      incomplete?: AxeViolationLike[];
-    }> => {
-      const axe = (
-        window as unknown as {
-          axe: {
-            run: (
-              context: Document,
-              options: {
-                iframes: boolean;
-                runOnly?: { type: "rule"; values: string[] };
-              },
-            ) => Promise<{
-              violations: AxeViolationLike[];
-              incomplete?: AxeViolationLike[];
-            }>;
-          };
-        }
-      ).axe;
-      return axe.run(document, {
-        iframes: true,
-        ...(rules && rules.length > 0
-          ? { runOnly: { type: "rule", values: [...rules] } }
-          : {}),
-      });
-    },
-    runOnly ? [...runOnly] : undefined,
-  );
-
-  return {
-    violations: results.violations,
-    incomplete: results.incomplete ?? [],
-  };
-}
 
 /**
  * Playwright + axe-core scanner with DNS/redirect SSRF checks on every request.

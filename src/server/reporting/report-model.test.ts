@@ -48,7 +48,7 @@ describe("report model composers", () => {
   it("falls back when a finding has no catalog control or remediation", () => {
     const input = sampleReportInput();
     input.findings[0] = {
-      ...input.findings[0],
+      ...input.findings[0]!,
       controlId: "ctl-unknown",
     };
     input.controls = [];
@@ -233,7 +233,7 @@ describe("report model composers", () => {
     const input = sampleReportInput();
     input.controls = [
       {
-        ...input.controls[0],
+        ...input.controls[0]!,
         secondaryCode: "ISO 40500",
       },
     ];

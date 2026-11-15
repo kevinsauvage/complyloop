@@ -1,7 +1,5 @@
-/** Dashboard view loader — data-shaping for the `(app)/dashboard` route (no JSX here). */
+/** Dashboard view loader — data-shaping for the dashboard tab (no JSX here). */
 import "server-only";
-
-import type { Route } from "next";
 
 import type {
   Alert,
@@ -25,19 +23,18 @@ import { findingsListHref } from "@/core/filter-params/findings";
 import { requirementsStatusHref } from "@/core/filter-params/requirements";
 import { compareFindingsBySeverity } from "@/core/findings/finding-priority";
 import { activeRegressions } from "@/core/requirements/active-regressions";
+import { type AppHref, projectPath } from "@/core/routes";
 import { navAttentionForProject } from "@/server/reporting/nav-attention";
-import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
 import type { ProjectCapabilities } from "@/server/workspace/project-capabilities";
+import { loadProjectPage } from "@/server/workspace/project-page";
 import { getProjectRuntime } from "@/server/workspace/project-runtime";
 import {
   findingsInScope,
   requirementsInScope,
 } from "@/server/workspace/project-scope";
 
-interface DashboardViewProject {
+export interface DashboardView {
   project: Project;
-  visibleProjects: Project[];
-  hasConnectedProject: boolean;
   caps: ProjectCapabilities;
   latestAssessment: Assessment | undefined;
   counts: Record<(typeof REQUIREMENT_STATUSES)[number], number>;
@@ -52,7 +49,7 @@ interface DashboardViewProject {
   quickStats: Array<{
     label: string;
     value: string | number;
-    href?: Route;
+    href?: AppHref;
     tone:
       "warning" | "success" | "muted" | "signal" | "review" | "unverifiable";
   }>;
@@ -60,15 +57,12 @@ interface DashboardViewProject {
     title: string;
     description: string;
     cta: string;
-    href: Route;
+    href: AppHref;
   } | null;
   showFirstRun: boolean;
   /** Pass-rate history for the trend sparkline (oldest → newest, max 10). */
   trend: Array<{ at: string; passRate: number }>;
 }
-
-export type DashboardView =
-  { project: null; visibleProjects: Project[] } | DashboardViewProject;
 
 /**
  * Everything the dashboard renders: scoped runtime rows, status counts,
@@ -76,10 +70,10 @@ export type DashboardView =
  * derived quick-stats + next-action cards. The run-assessment CTA and
  * coverage chip stay in the page (render decisions on `caps`).
  */
-export async function loadDashboardView(): Promise<DashboardView> {
-  const { project, visibleProjects, caps } = await loadActiveProjectPage();
-  if (!project) return { project: null, visibleProjects };
-  const hasConnectedProject = visibleProjects.length > 0;
+export async function loadDashboardView(
+  projectId: string,
+): Promise<DashboardView> {
+  const { project, caps } = await loadProjectPage(projectId);
 
   const drizzle = await getDrizzle();
   const [runtime, attention, unreadAlerts, history] = await Promise.all([
@@ -142,7 +136,7 @@ export async function loadDashboardView(): Promise<DashboardView> {
 
   const failedCount = counts.failed;
   const hasPreviewUrlValue = hasPreviewUrl(project);
-  const showFirstRun = !latestAssessment && hasConnectedProject;
+  const showFirstRun = !latestAssessment;
   const passRateValue = passRatePercent(counts);
   const passRate = passRateValue === null ? "—" : `${passRateValue}%`;
   const passRateTone =
@@ -157,7 +151,7 @@ export async function loadDashboardView(): Promise<DashboardView> {
   // Pass rate leads: it is the one number that answers "how compliant are
   // we?". Unread alerts were dropped — the alerts card below owns them, and
   // a permanent "0" in the strip read as noise.
-  const quickStats: DashboardViewProject["quickStats"] = latestAssessment
+  const quickStats: DashboardView["quickStats"] = latestAssessment
     ? [
         {
           label: "Pass rate",
@@ -167,13 +161,16 @@ export async function loadDashboardView(): Promise<DashboardView> {
         {
           label: "Open findings",
           value: openCount,
-          href: openCount > 0 ? findingsListHref() : undefined,
+          href: openCount > 0 ? findingsListHref(project.id) : undefined,
           tone: openCount > 0 ? ("warning" as const) : ("success" as const),
         },
         {
           label: "Failed requirements",
           value: failedCount,
-          href: failedCount > 0 ? requirementsStatusHref("failed") : undefined,
+          href:
+            failedCount > 0
+              ? requirementsStatusHref(project.id, "failed")
+              : undefined,
           tone: failedCount > 0 ? ("warning" as const) : ("muted" as const),
         },
         {
@@ -181,7 +178,7 @@ export async function loadDashboardView(): Promise<DashboardView> {
           value: counts.unable_to_verify,
           href:
             counts.unable_to_verify > 0
-              ? requirementsStatusHref("unable_to_verify")
+              ? requirementsStatusHref(project.id, "unable_to_verify")
               : undefined,
           tone:
             counts.unable_to_verify > 0
@@ -193,7 +190,7 @@ export async function loadDashboardView(): Promise<DashboardView> {
 
   // Single next action, most urgent first: alerts → failed
   // requirements → open findings → preview-URL coverage gap.
-  const nextAction: DashboardViewProject["nextAction"] =
+  const nextAction: DashboardView["nextAction"] =
     oldestFirstAlerts.length > 0
       ? {
           title: `${oldestFirstAlerts.length} unread alert${oldestFirstAlerts.length === 1 ? "" : "s"}`,
@@ -208,7 +205,7 @@ export async function loadDashboardView(): Promise<DashboardView> {
             description:
               "These requirements have open findings. Fix or dismiss the findings to move them to Passed.",
             cta: "See failed requirements",
-            href: requirementsStatusHref("failed"),
+            href: requirementsStatusHref(project.id, "failed"),
           }
         : openCount > 0
           ? {
@@ -216,21 +213,19 @@ export async function loadDashboardView(): Promise<DashboardView> {
               description:
                 "Triage the queue in severity order — fix each finding to Verified.",
               cta: "Triage findings",
-              href: findingsListHref({ tab: "open" }),
+              href: findingsListHref(project.id, { tab: "open" }),
             }
           : counts.unable_to_verify > 0 && !hasPreviewUrlValue
             ? {
                 title: "Unlock live-page checks",
                 description: `${counts.unable_to_verify} requirement${counts.unable_to_verify === 1 ? "" : "s"} can't be verified without a preview URL — contrast, landmarks, and page structure stay unchecked.`,
                 cta: "Set preview URL",
-                href: "/settings",
+                href: projectPath(project.id, "settings"),
               }
             : null;
 
   return {
     project,
-    visibleProjects,
-    hasConnectedProject,
     caps,
     latestAssessment,
     counts,

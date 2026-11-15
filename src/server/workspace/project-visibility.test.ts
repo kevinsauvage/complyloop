@@ -19,7 +19,6 @@ import {
   type AccessContext,
   accessFromStore,
   isProjectVisible,
-  resolveActiveProject,
   visibleProjects,
 } from "./project-visibility";
 
@@ -161,20 +160,6 @@ describe("project visibility", () => {
       ).map((p) => p.id),
     ).toEqual(["org-repo"]);
   });
-
-  it("falls back to the first visible project when the active one is not", () => {
-    const otherOrgProject = project({
-      id: "other-repo",
-      source: "github",
-      orgId: "org-2",
-    });
-    const resolved = resolveActiveProject(
-      [orgProject, otherOrgProject],
-      otherOrgProject.id,
-      ctx("user-a", [ownerMembership]),
-    );
-    expect(resolved?.id).toBe("org-repo");
-  });
 });
 
 describe("tenant-scoped read helpers", () => {
@@ -248,19 +233,17 @@ describe("tenant-scoped read helpers", () => {
     ).toEqual(["e-a"]);
   });
 
-  it("resolves independent preferred projects without a shared store field", () => {
-    const aliceCtx = ctx("user-a", [aliceMembership]);
-    const bobCtx = ctx("user-b", [bobMembership]);
-    const aliceActive = resolveActiveProject(
-      [aliceProject],
-      "proj-a",
-      aliceCtx,
+  it("gates a URL-named project per viewer, with no shared store field", () => {
+    // `loadProjectPage` resolves the project by the id in the URL: each viewer
+    // must be checked against their own memberships.
+    expect(
+      isProjectVisible(aliceProject, ctx("user-a", [aliceMembership])),
+    ).toBe(true);
+    expect(isProjectVisible(aliceProject, ctx("user-b", [bobMembership]))).toBe(
+      false,
     );
-    const bobActive = resolveActiveProject([bobProject], "proj-b", bobCtx);
-    expect(aliceActive?.id).toBe("proj-a");
-    expect(bobActive?.id).toBe("proj-b");
-    expect(resolveActiveProject([aliceProject], "proj-b", aliceCtx)?.id).toBe(
-      "proj-a",
+    expect(isProjectVisible(bobProject, ctx("user-b", [bobMembership]))).toBe(
+      true,
     );
   });
 });

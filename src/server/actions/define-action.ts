@@ -7,12 +7,8 @@ import { parseEntityId } from "@/core/actions/validate";
 import type { Permission } from "@/core/rbac";
 
 import { runAction } from "../action-state";
-import { requireFinding } from "../workspace/workspace";
-import {
-  type ProjectTx,
-  resolveActiveProjectId,
-  withProjectTx,
-} from "../workspace/workspace-write";
+import { requireFinding, requireRequirement } from "../workspace/workspace";
+import { type ProjectTx, withProjectTx } from "../workspace/workspace-write";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 import { refresh } from "./shared";
 
@@ -22,6 +18,25 @@ export type FindingTx = ProjectTx & {
   /** Lock-free read used to resolve the project (drift checks). */
   preview: Finding;
 };
+
+/**
+ * The project owning a finding id, via a lock-free preview read. Bulk finding
+ * actions take their scope from the ids they were handed — the ids already pin
+ * the project, so they never need a cookie or a form field.
+ */
+export async function projectIdForFinding(findingId: string): Promise<string> {
+  return (await requireFinding(findingId)).projectId;
+}
+
+/**
+ * The project owning a requirement id, via a lock-free read. Requirement
+ * decisions take their scope from the row they act on, same as findings.
+ */
+export async function projectIdForRequirement(
+  requirementId: string,
+): Promise<string> {
+  return (await requireRequirement(requirementId)).projectId;
+}
 
 /**
  * Canonical single-finding mutation: parse id → resolve the finding's project →
@@ -54,18 +69,21 @@ export function runFindingAction(
 }
 
 /**
- * Canonical active-project mutation: resolve the active project → project lock
- * + transaction → revalidate → success message. Parse form input inside `fn` so
- * validation errors are mapped by `runAction`.
+ * Canonical row-scoped mutation for a caller that must resolve its own project:
+ * `resolveProjectId` runs inside `runAction` (so a `PublicError` from parsing or
+ * lookup maps to `ActionState`), then project lock + transaction → revalidate →
+ * success message. Parse form input inside `fn` so validation errors are mapped
+ * the same way.
  */
 export function runProjectAction(
+  resolveProjectId: () => Promise<string>,
   permission: Permission,
   fn: (ctx: ProjectTx) => Promise<void>,
   message: string,
   routes: readonly string[] = COMPLIANCE_LOOP_ROUTES,
 ): Promise<ActionState> {
   return runAction(async () => {
-    const projectId = await resolveActiveProjectId();
+    const projectId = await resolveProjectId();
     await withProjectTx(projectId, permission, fn);
     refresh(...routes);
     return message;

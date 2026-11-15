@@ -1,14 +1,8 @@
 import { revalidatePath } from "next/cache";
 
-import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 import { getSession } from "@/server/auth-session";
-
-import {
-  type AccessContext,
-  assertProjectPermission,
-} from "../workspace/project-visibility";
 
 export interface SignedInUser {
   userId: string;
@@ -30,26 +24,18 @@ export async function requireSignedIn(
  * when called with no paths). Triage-loop mutations should pass the narrow
  * route list from `COMPLIANCE_LOOP_ROUTES` so unrelated (dynamic) pages are
  * not refetched; shell/tenancy mutations keep the layout-wide default.
+ *
+ * Project routes are dynamic (`/projects/[projectId]/…`), and `revalidatePath`
+ * requires the `type` argument for a path containing a dynamic segment — that
+ * invalidates every project's page, which is the intended blast radius here.
  */
 export function refresh(...paths: string[]): void {
   if (paths.length === 0) {
     revalidatePath("/", "layout");
     return;
   }
-  for (const path of new Set(paths)) revalidatePath(path);
-}
-
-/**
- * Pre-flight permission check against an already-loaded workspace. The write
- * itself re-authorizes inside `withProjectTx`; this only fails fast before
- * expensive work (a GitHub round-trip) or a network call.
- */
-export function requireOnActive(
-  workspace: { project: Project | null; access: AccessContext },
-  permission: Parameters<typeof assertProjectPermission>[2],
-): asserts workspace is { project: Project; access: AccessContext } {
-  if (!workspace.project) {
-    throw new PublicError("No project connected.");
+  for (const path of new Set(paths)) {
+    if (path.includes("[")) revalidatePath(path, "page");
+    else revalidatePath(path);
   }
-  assertProjectPermission(workspace.project, workspace.access, permission);
 }

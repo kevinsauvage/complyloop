@@ -35,7 +35,7 @@ export async function GET(request: Request): Promise<Response> {
 
   const workspace = await getWorkspace();
   const caps = projectCapabilities(
-    workspace.project,
+    null,
     workspace.access,
     workspace.activeOrgId,
   );

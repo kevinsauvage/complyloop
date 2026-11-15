@@ -1,6 +1,6 @@
 # Finding page flow
 
-UX contract for `/findings/[id]`. Domain:
+UX contract for `/projects/[projectId]/findings/[findingId]`. Domain:
 [`.cursor/rules/domain-model.mdc`](../../.cursor/rules/domain-model.mdc).
 
 Opening a finding answers: **what failed**, **what do I do now** (one

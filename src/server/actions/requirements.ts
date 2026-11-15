@@ -35,7 +35,7 @@ import { assertRequirementsRateLimit } from "../rate-limit";
 import { stampEvidenceActor } from "../workspace/project-rows";
 import { controlById } from "../workspace/workspace";
 import type { ProjectTx } from "../workspace/workspace-write";
-import { runProjectAction } from "./define-action";
+import { projectIdForRequirement, runProjectAction } from "./define-action";
 
 const markExceptionInput = z
   .object({
@@ -158,6 +158,7 @@ export async function markRequirementExceptionAction(
   formData: FormData,
 ): Promise<ActionState> {
   return runProjectAction(
+    () => projectIdForRequirement(parseEntityId(requirementIdRaw)),
     "project.decide",
     async (ctx) => {
       const requirementId = parseEntityId(requirementIdRaw);
@@ -228,6 +229,7 @@ export async function markRequirementPassedAction(
   formData: FormData,
 ): Promise<ActionState> {
   return runProjectAction(
+    () => projectIdForRequirement(parseEntityId(requirementIdRaw)),
     "project.decide",
     async (ctx) => {
       const requirementId = parseEntityId(requirementIdRaw);
@@ -318,6 +320,7 @@ async function clearRequirementOverrideAction(
   message: string,
 ): Promise<ActionState> {
   return runProjectAction(
+    () => projectIdForRequirement(parseEntityId(requirementIdRaw)),
     "project.decide",
     async (ctx) => {
       const requirementId = parseEntityId(requirementIdRaw);

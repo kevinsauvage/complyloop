@@ -15,7 +15,7 @@ describe("button-name", () => {
       parseSource("test.tsx", `const A = () => <button><svg /></button>;`),
     );
     expect(findings).toHaveLength(1);
-    expect(findings[0].severity).toBe("critical");
+    expect(findings[0]!.severity).toBe("critical");
   });
 
   it("accepts text content, aria-label, and expression children", () => {

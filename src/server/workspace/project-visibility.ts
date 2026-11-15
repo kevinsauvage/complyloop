@@ -48,24 +48,6 @@ export function visibleProjects(
   return projects.filter((project) => isProjectVisible(project, ctx));
 }
 
-/**
- * Picks the active project among visible ones, preferring the current id when
- * still allowed, otherwise the first visible project.
- */
-export function resolveActiveProject(
-  projects: ReadonlyArray<Project>,
-  activeProjectId: string | null | undefined,
-  ctx: AccessContext,
-): Project | undefined {
-  const visible = visibleProjects(projects, ctx);
-  if (visible.length === 0) return undefined;
-
-  const preferred = visible.find((project) => project.id === activeProjectId);
-  if (preferred) return preferred;
-
-  return visible[0];
-}
-
 export function assertProjectPermission(
   project: Project,
   ctx: AccessContext,
@@ -74,22 +56,4 @@ export function assertProjectPermission(
   if (!canOnProject(project, ctx.memberships, ctx.userId, permission)) {
     throw new PublicError(`Not allowed: missing permission ${permission}.`);
   }
-}
-
-/** Validates the viewer can access `projectId` (active selection is cookie-scoped). */
-export function setActiveProject(
-  db: {
-    projects: ReadonlyArray<Project>;
-    organizations: ReadonlyArray<Organization>;
-    memberships: ReadonlyArray<OrgMembership>;
-  },
-  projectId: string,
-  userId?: string | null,
-): Project {
-  const project = db.projects.find((candidate) => candidate.id === projectId);
-  if (!project) throw new PublicError("Unknown project.", "connect");
-  if (!isProjectVisible(project, accessFromStore(db, userId))) {
-    throw new PublicError("You do not have access to that project.", "connect");
-  }
-  return project;
 }

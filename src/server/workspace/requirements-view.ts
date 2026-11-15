@@ -31,8 +31,8 @@ import {
 } from "@/core/filter-params/requirements";
 import { stickyDecisionAt } from "@/core/requirements/masked-findings";
 import { exceptionHasLapsed } from "@/core/requirements/requirement-human-determination";
-import { loadActiveProjectPage } from "@/server/workspace/active-project-page";
 import type { ProjectCapabilities } from "@/server/workspace/project-capabilities";
+import { loadProjectPage } from "@/server/workspace/project-page";
 import { getProjectRuntime } from "@/server/workspace/project-runtime";
 
 function controlsForPreset(
@@ -45,42 +45,40 @@ function controlsForPreset(
   return controls.filter((control) => ids.has(control.id));
 }
 
-export type RequirementsView =
-  | { project: null }
-  | {
-      project: Project;
-      caps: ProjectCapabilities;
-      statusFilter: ReturnType<typeof parseRequirementStatusParam>;
-      query: string | undefined;
-      defaultPresetId: string;
-      selectedPresetId: string;
-      selectedPreset: ReturnType<typeof presetById>;
-      frameworkId: string;
-      assessed: Requirement[];
-      statusCounts: Record<(typeof REQUIREMENT_STATUSES)[number], number>;
-      openFindingCounts: Map<string, number>;
-      maskedFindingCounts: Map<string, number>;
-      /** Controls whose temporary exception expired but is not cleared yet. */
-      lapsedExceptionControlIds: Set<string>;
-      filtered: Requirement[];
-      filteredControls: Control[];
-      page: PageSlice<Control>;
-      pageRequirements: Requirement[];
-      paginationQuery: Record<string, string>;
-      targetLabel: string;
-    };
+export interface RequirementsView {
+  project: Project;
+  caps: ProjectCapabilities;
+  statusFilter: ReturnType<typeof parseRequirementStatusParam>;
+  query: string | undefined;
+  defaultPresetId: string;
+  selectedPresetId: string;
+  selectedPreset: ReturnType<typeof presetById>;
+  frameworkId: string;
+  assessed: Requirement[];
+  statusCounts: Record<(typeof REQUIREMENT_STATUSES)[number], number>;
+  openFindingCounts: Map<string, number>;
+  maskedFindingCounts: Map<string, number>;
+  /** Controls whose temporary exception expired but is not cleared yet. */
+  lapsedExceptionControlIds: Set<string>;
+  filtered: Requirement[];
+  filteredControls: Control[];
+  page: PageSlice<Control>;
+  pageRequirements: Requirement[];
+  paginationQuery: Record<string, string>;
+  targetLabel: string;
+}
 
 /**
  * Everything the requirements page renders: preset resolution, scoped +
  * filtered requirements, per-control open-finding counts, and pagination.
  */
 export async function loadRequirementsView(
+  projectId: string,
   rawParams: Record<string, string | string[] | undefined>,
 ): Promise<RequirementsView> {
   const statusFilter = parseRequirementStatusParam(rawParams.status);
   const query = parseRequirementsQueryParam(rawParams.q);
-  const { project, caps } = await loadActiveProjectPage();
-  if (!project) return { project: null };
+  const { project, caps } = await loadProjectPage(projectId);
 
   const drizzle = await getDrizzle();
   const [runtime, openFindingCounts] = await Promise.all([

@@ -7,7 +7,6 @@ import { testProject } from "@/test-fixtures/project";
 
 const auth = vi.hoisted(() => vi.fn());
 const readActiveOrgCookie = vi.hoisted(() => vi.fn());
-const readActiveProjectCookie = vi.hoisted(() => vi.fn());
 const getDrizzle = vi.hoisted(() => vi.fn());
 const loadTenancyDb = vi.hoisted(() => vi.fn());
 const acquireNamedPostgresAdvisoryLock = vi.hoisted(() => vi.fn());
@@ -25,7 +24,6 @@ const deleteEvidenceForOrg = vi.hoisted(() => vi.fn());
 vi.mock("@/auth", () => ({ auth }));
 vi.mock("./active-cookies", () => ({
   readActiveOrgCookie,
-  readActiveProjectCookie,
 }));
 vi.mock("@complyloop/db/postgres", () => ({
   getDrizzle,
@@ -59,7 +57,6 @@ vi.mock("@complyloop/db/repo/evidence", () => ({
 
 import { withProjectLock } from "./db";
 import {
-  resolveActiveProjectId,
   withConnectWrite,
   withOrgWrite,
   withProjectTx,
@@ -69,17 +66,6 @@ const orgId = "org-1";
 const userId = "user-1";
 const project = testProject({ id: "p1", orgId, ownerUserId: userId });
 const tx = { kind: "tx" };
-
-function tenancyDb() {
-  return {
-    ...emptyWorkspaceSlice(),
-    organizations: [
-      { id: orgId, name: "Acme", slug: "acme", createdAt: "2026-01-01" },
-    ],
-    memberships: [testMembership("owner", { userId, orgId })],
-    projects: [structuredClone(project)],
-  };
-}
 
 describe("withProjectTx", () => {
   beforeEach(() => {
@@ -166,37 +152,6 @@ describe("withProjectTx", () => {
   });
 });
 
-describe("resolveActiveProjectId", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    auth.mockResolvedValue({ user: { id: userId, login: "dev" } });
-    readActiveOrgCookie.mockResolvedValue(orgId);
-    readActiveProjectCookie.mockResolvedValue(project.id);
-    loadTenancyDb.mockResolvedValue(tenancyDb());
-  });
-
-  it("returns the cookie project when it is still visible", async () => {
-    await expect(resolveActiveProjectId()).resolves.toBe(project.id);
-  });
-
-  it("falls back to the first visible project when the cookie is stale", async () => {
-    readActiveProjectCookie.mockResolvedValue("stale-cookie-id");
-    await expect(resolveActiveProjectId()).resolves.toBe(project.id);
-  });
-
-  it("throws when no project resolves", async () => {
-    loadTenancyDb.mockResolvedValue({
-      ...emptyWorkspaceSlice(),
-      organizations: [],
-      memberships: [],
-      projects: [],
-    });
-    await expect(resolveActiveProjectId()).rejects.toThrow(
-      /Select a project first/,
-    );
-  });
-});
-
 describe("withProjectLock", () => {
   it("locks the project and returns the callback value", async () => {
     getDrizzle.mockResolvedValue({
@@ -269,23 +224,20 @@ describe("withOrgWrite and withConnectWrite", () => {
 
   it("persists connect inserts, deletes, and evidence", async () => {
     const connected = testProject({ id: "p9", orgId, ownerUserId: userId });
-    const result = await withConnectWrite(
-      { activeProjectId: null },
-      async () => ({
-        result: "connected",
-        insertProjects: [connected],
-        deleteProjectIds: ["p-old"],
-        evidence: [
-          {
-            id: "ev1",
-            at: "2026-01-01T00:00:00.000Z",
-            kind: "project_connected",
-            summary: "Connected",
-            projectId: "p9",
-          },
-        ],
-      }),
-    );
+    const result = await withConnectWrite(async () => ({
+      result: "connected",
+      insertProjects: [connected],
+      deleteProjectIds: ["p-old"],
+      evidence: [
+        {
+          id: "ev1",
+          at: "2026-01-01T00:00:00.000Z",
+          kind: "project_connected",
+          summary: "Connected",
+          projectId: "p9",
+        },
+      ],
+    }));
 
     expect(result).toBe("connected");
     expect(deleteProject).toHaveBeenCalledWith(tx, "p-old");

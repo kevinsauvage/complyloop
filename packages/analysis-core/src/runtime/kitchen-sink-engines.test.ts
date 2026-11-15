@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { CheckId } from "../check-registry.ts";
 import { checkIdForAxeRule } from "./axe-map.ts";
+import { runAxeOnPage } from "./axe-page";
 import {
   chromiumExecutableAvailable,
   PLAYWRIGHT_TEST_TIMEOUT_MS,
@@ -9,7 +10,6 @@ import {
 } from "./custom-checks/playwright-page";
 import { registerPlaywrightBrowserTeardown } from "./custom-checks/playwright-test-teardown";
 import { htmlValidateFindingsForPage } from "./html-validate-runtime";
-import { runAxeOnPage } from "./scan";
 import { runSiteLevelChecks } from "./site-level/checks";
 import { brokenLinkFindingsForUrls } from "./site-level/link-check";
 import type { RuntimePageSnapshot } from "./site-level/types";

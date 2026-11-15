@@ -16,7 +16,7 @@ function SubmitButton({ label }: { label: string }) {
 
 export function SignInWithGitHubButton({
   label = "Sign in with GitHub",
-  callbackUrl = "/dashboard",
+  callbackUrl = "/projects",
 }: {
   label?: string;
   callbackUrl?: string;

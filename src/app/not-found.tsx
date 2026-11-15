@@ -46,12 +46,12 @@ export default async function NotFound() {
               <h1 className="text-base font-medium">Page not found</h1>
               <CardDescription className="max-w-lg text-balance">
                 That page does not exist, or you do not have access to it. Check
-                the URL or return to the dashboard.
+                the URL or return to the overview.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex justify-center gap-2">
               <Button asChild>
-                <Link href="/dashboard">Back to dashboard</Link>
+                <Link href="/projects">Back to overview</Link>
               </Button>
               <Button asChild variant="outline">
                 <Link href="/">Home</Link>

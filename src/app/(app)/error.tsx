@@ -15,7 +15,7 @@ export default function AppGroupError({
       onReset={retry}
       reportTag="app_group_error_boundary"
       title="This workspace section could not be loaded"
-      description="This workspace section could not be loaded. Your data is safe — try again or return to the dashboard."
+      description="This workspace section could not be loaded. Your data is safe — try again or return to the overview."
     />
   );
 }

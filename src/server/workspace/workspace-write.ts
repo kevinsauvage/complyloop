@@ -39,7 +39,6 @@ import { getSession } from "../auth-session";
 import { orgsForUser } from "./org-queries";
 import { stampEvidenceActor } from "./project-rows";
 import { assertProjectPermission } from "./project-visibility";
-import { prepareWorkspaceState, readViewerSession } from "./workspace";
 
 /**
  * In-transaction handle for one project's mutations. Callbacks load the rows
@@ -116,30 +115,6 @@ export async function withProjectTx<T>(
   });
 }
 
-/**
- * The viewer's active project: the cookie project when it is still visible in
- * the active org, else the first visible one. Tenancy-only read (orgs,
- * memberships, projects) — no compliance rows.
- */
-export async function resolveActiveProjectId(): Promise<string> {
-  const { userId, githubLogin, preferredOrgId, preferredProjectId } =
-    await readViewerSession();
-  const db = await loadTenancyDb(await getDrizzle(), {
-    userId,
-    githubLogin,
-    activeProjectId: preferredProjectId,
-  });
-  const project = prepareWorkspaceState(
-    db,
-    userId,
-    githubLogin,
-    preferredOrgId,
-    preferredProjectId,
-  ).project;
-  if (!project) throw new PublicError("Select a project first.");
-  return project.id;
-}
-
 export interface OrgWritePayload {
   insertOrgs?: Organization[];
   upsertMemberships?: OrgMembership[];
@@ -167,7 +142,6 @@ interface LockedTenancyContext {
  * in those callers.
  */
 async function withLockedTenancy<T>(
-  options: { activeProjectId: string | null },
   fn: (ctx: LockedTenancyContext) => Promise<T>,
 ): Promise<T> {
   const session = await getSession();
@@ -181,7 +155,6 @@ async function withLockedTenancy<T>(
     const db = await loadTenancyDb(tx, {
       userId,
       githubLogin,
-      activeProjectId: options.activeProjectId,
     });
     return fn({ tx, db, userId, githubLogin });
   });
@@ -198,37 +171,34 @@ export async function withOrgWrite<T>(
     | Promise<OrgWritePayload & { result: T }>
     | (OrgWritePayload & { result: T }),
 ): Promise<T> {
-  return withLockedTenancy(
-    { activeProjectId: null },
-    async ({ tx, db, userId, githubLogin }) => {
-      const organizations = orgsForUser(db, userId);
-      const {
-        result,
-        insertOrgs,
-        upsertMemberships,
-        deleteMembershipIds,
-        deleteOrgIds,
-      } = await fn({ db, userId, githubLogin, organizations });
+  return withLockedTenancy(async ({ tx, db, userId, githubLogin }) => {
+    const organizations = orgsForUser(db, userId);
+    const {
+      result,
+      insertOrgs,
+      upsertMemberships,
+      deleteMembershipIds,
+      deleteOrgIds,
+    } = await fn({ db, userId, githubLogin, organizations });
 
-      for (const org of insertOrgs ?? []) {
-        await insertOrganization(tx, org);
-      }
-      for (const membership of upsertMemberships ?? []) {
-        await upsertMembership(tx, membership);
-      }
-      for (const id of deleteMembershipIds ?? []) {
-        await deleteMembership(tx, id);
-      }
-      for (const id of deleteOrgIds ?? []) {
-        // Tenant erasure precedes the row deletes: org deletion honors data
-        // erasure (owner-gated upstream); project disconnect keeps retention.
-        await deleteEvidenceForOrg(tx, id);
-        await deleteOrganizationRow(tx, id);
-      }
+    for (const org of insertOrgs ?? []) {
+      await insertOrganization(tx, org);
+    }
+    for (const membership of upsertMemberships ?? []) {
+      await upsertMembership(tx, membership);
+    }
+    for (const id of deleteMembershipIds ?? []) {
+      await deleteMembership(tx, id);
+    }
+    for (const id of deleteOrgIds ?? []) {
+      // Tenant erasure precedes the row deletes: org deletion honors data
+      // erasure (owner-gated upstream); project disconnect keeps retention.
+      await deleteEvidenceForOrg(tx, id);
+      await deleteOrganizationRow(tx, id);
+    }
 
-      return result;
-    },
-  );
+    return result;
+  });
 }
 
 export interface ConnectWritePayload {
@@ -244,19 +214,18 @@ export interface ConnectWriteContext {
 }
 
 /**
- * Connect/disconnect writes: tenancy load (no active-project requirement),
- * user-scoped org lock (not project lock — there may be no project cookie yet),
- * persist insert/delete project + evidence.
+ * Connect/disconnect writes: tenancy load, user-scoped org lock (not the
+ * project lock — a connect has no project row yet), persist insert/delete
+ * project + evidence.
  */
 export async function withConnectWrite<T>(
-  options: { activeProjectId: string | null },
   fn: (
     ctx: ConnectWriteContext,
   ) =>
     | Promise<ConnectWritePayload & { result: T }>
     | (ConnectWritePayload & { result: T }),
 ): Promise<T> {
-  return withLockedTenancy(options, async ({ tx, db, userId, githubLogin }) => {
+  return withLockedTenancy(async ({ tx, db, userId, githubLogin }) => {
     const { result, insertProjects, deleteProjectIds, evidence } = await fn({
       db,
       userId,

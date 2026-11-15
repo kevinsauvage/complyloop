@@ -13,12 +13,10 @@ import {
 
 const auth = vi.hoisted(() => vi.fn());
 const readActiveOrgCookie = vi.hoisted(() => vi.fn());
-const readActiveProjectCookie = vi.hoisted(() => vi.fn());
 
 vi.mock("@/auth", () => ({ auth }));
 vi.mock("./active-cookies", () => ({
   readActiveOrgCookie,
-  readActiveProjectCookie,
 }));
 
 import { withProjectTx } from "./workspace-write";
@@ -45,7 +43,6 @@ describe.skipIf(!enabled)("withProjectTx postgres integration", () => {
       user: { id: fixture.userId, login: fixture.githubLogin },
     });
     readActiveOrgCookie.mockResolvedValue(fixture.orgId);
-    readActiveProjectCookie.mockResolvedValue(fixture.projectId);
   }
 
   it("persists a targeted finding write through the real transaction", async () => {

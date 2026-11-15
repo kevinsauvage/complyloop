@@ -1,0 +1,152 @@
+import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import type {
+  Finding,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
+import type { Control } from "@complyloop/analysis-core/contract/project-types";
+
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { testFinding } from "@/test-fixtures/finding";
+
+import { FindingsBulkList } from "./findings-bulk-list";
+
+vi.mock("@/server/actions/remediation", () => ({
+  bulkApproveRemediationsAction: vi.fn(),
+  bulkDismissFindingsAction: vi.fn(),
+}));
+
+const useActionStateMock = vi.fn();
+
+vi.mock("react", async () => {
+  const actual = await vi.importActual<typeof import("react")>("react");
+  return {
+    ...actual,
+    useActionState: (...args: unknown[]) => useActionStateMock(...args),
+  };
+});
+
+afterEach(() => {
+  cleanup();
+});
+
+const control: Control = {
+  id: "c1",
+  frameworkId: "fw",
+  code: "WCAG 1.3.1",
+  secondaryCode: "RGAA 11.1",
+  title: "Labels",
+  description: "Form controls have labels.",
+  checkId: "label",
+};
+
+function item(
+  finding: Finding,
+  remediationStatus: Remediation["status"],
+  suggestion: Remediation["suggestion"] = null,
+) {
+  return { finding, control, remediationStatus, suggestion };
+}
+
+const sourceFinding: Finding = testFinding({
+  id: "f-source",
+  controlId: control.id,
+  checkId: "label",
+  reason: "Missing label",
+  location: {
+    kind: "source",
+    filePath: "Form.tsx",
+    line: 1,
+    column: 1,
+    span: { start: 0, end: 1 },
+    snippet: "<input />",
+  },
+});
+
+const runtimeFinding: Finding = {
+  ...sourceFinding,
+  id: "f-runtime",
+  location: {
+    kind: "dom",
+    url: "https://example.com/login",
+    selector: "input#email",
+    snippet: "<input id='email'>",
+  },
+};
+
+describe("FindingsBulkList bulk approve", () => {
+  it("offers bulk approve only for runtime findings with suggested guidance", async () => {
+    useActionStateMock.mockReturnValue([
+      { error: null, message: null },
+      vi.fn(),
+      false,
+    ]);
+    const user = userEvent.setup();
+
+    render(
+      <TooltipProvider>
+        <FindingsBulkList
+          projectId="p1"
+          items={[
+            item(sourceFinding, "suggested"),
+            item(runtimeFinding, "suggested"),
+          ]}
+          canRemediate
+          listParams={{ tab: "open", page: 1 }}
+        />
+      </TooltipProvider>,
+    );
+
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "Select all findings on this page",
+      }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Approve guidance (1)" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Approve guidance (2)" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers bulk approve for source findings with a deterministic high-confidence fix", async () => {
+    useActionStateMock.mockReturnValue([
+      { error: null, message: null },
+      vi.fn(),
+      false,
+    ]);
+    const user = userEvent.setup();
+
+    render(
+      <TooltipProvider>
+        <FindingsBulkList
+          projectId="p1"
+          items={[
+            item(sourceFinding, "suggested", {
+              description: "Remove redundant role",
+              proposedSnippet: "<div />",
+              provenance: "deterministic",
+              confidence: "high",
+            }),
+          ]}
+          canRemediate
+          listParams={{ tab: "open", page: 1 }}
+        />
+      </TooltipProvider>,
+    );
+
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "Select all findings on this page",
+      }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Approve guidance (1)" }),
+    ).toBeInTheDocument();
+  });
+});

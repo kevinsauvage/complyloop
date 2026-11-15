@@ -1,7 +1,6 @@
 "use client";
 
 import { RotateCcw, TriangleAlert } from "lucide-react";
-import type { Route } from "next";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 
@@ -12,6 +11,7 @@ import {
   CardDescription,
   CardHeader,
 } from "@/components/ui/card";
+import type { AppHref } from "@/core/routes";
 import { cn } from "@/lib/utils";
 import { clientSentry } from "@/sentry/client";
 
@@ -21,8 +21,8 @@ export function AppErrorCard({
   title,
   description,
   onReset,
-  secondaryHref = "/dashboard",
-  secondaryLabel = "Back to dashboard",
+  secondaryHref = "/projects",
+  secondaryLabel = "Back to overview",
   className,
 }: {
   error: Error & { digest?: string };
@@ -30,7 +30,7 @@ export function AppErrorCard({
   title: string;
   description: string;
   onReset: () => void;
-  secondaryHref?: Route;
+  secondaryHref?: AppHref;
   secondaryLabel?: string;
   className?: string;
 }) {

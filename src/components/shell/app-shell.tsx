@@ -76,13 +76,10 @@ function SidebarBody({
 }
 
 export function AppShell({
-  workspaceContext,
   workspaceSwitcher,
   authControls,
   children,
 }: {
-  /** Project header + tabs — rendered above the page, project routes only. */
-  workspaceContext: ReactNode;
   /** Active-organization label / switcher at the top of the sidebar. */
   workspaceSwitcher?: ReactNode;
   /** Server-rendered auth UI — passed as a slot, never imported. */
@@ -130,10 +127,7 @@ export function AppShell({
           id="main-content"
           className="min-w-0 flex-1 px-4 py-6 sm:px-6 sm:py-8"
         >
-          <div className="mx-auto max-w-7xl">
-            {workspaceContext}
-            {children}
-          </div>
+          <div className="mx-auto max-w-7xl">{children}</div>
         </main>
       </div>
     </>

@@ -383,7 +383,7 @@ function readRootBlock(): string {
   const css = readFileSync(join(here, "..", "app", "globals.css"), "utf8");
   const root = css.match(/:root\s*{([^}]*)}/);
   if (!root) throw new Error("globals.css has no :root block");
-  return root[1];
+  return root[1]!;
 }
 
 function parseOklch(block: string, name: string): [number, number, number] {
@@ -476,7 +476,7 @@ function hexLuminance(hex: string): number {
     const v = Number.parseInt(hex.slice(i, i + 2), 16) / 255;
     return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
   });
-  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+  return 0.2126 * channels[0]! + 0.7152 * channels[1]! + 0.0722 * channels[2]!;
 }
 
 function hexContrast(a: string, b: string): number {

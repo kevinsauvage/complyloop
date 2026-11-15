@@ -206,7 +206,7 @@ describe("reportInputForProject", () => {
       updatedAt: "2026-01-02T00:00:00.000Z",
     });
 
-    const input = reportInputForProject(db, db.projects[0], {
+    const input = reportInputForProject(db, db.projects[0]!, {
       findingCounts: { open: 0, resolved: 0, dismissed: 0 },
       evidenceTotal: 0,
       evidenceTruncated: false,

@@ -80,26 +80,30 @@ describe("parseEvidenceKindParam", () => {
 
 describe("evidenceKindHref", () => {
   it("builds filter links", () => {
-    expect(evidenceKindHref("finding")).toBe("/evidence?kind=finding");
-    expect(evidenceKindHref("finding", 2)).toBe(
-      "/evidence?kind=finding&page=2",
+    expect(evidenceKindHref("p1", "finding")).toBe(
+      "/projects/p1/evidence?kind=finding",
     );
-    expect(evidenceKindHref("finding", 1)).toBe("/evidence?kind=finding");
+    expect(evidenceKindHref("p1", "finding", 2)).toBe(
+      "/projects/p1/evidence?kind=finding&page=2",
+    );
+    expect(evidenceKindHref("p1", "finding", 1)).toBe(
+      "/projects/p1/evidence?kind=finding",
+    );
   });
 
   it("preserves text/date/author filters when switching kinds", () => {
     expect(
-      evidenceKindHref("finding", undefined, {
+      evidenceKindHref("p1", "finding", undefined, {
         q: "alt",
         from: "2026-09-01",
         to: "2026-09-10",
         actor: "octocat",
       }),
     ).toBe(
-      "/evidence?kind=finding&q=alt&from=2026-09-01&to=2026-09-10&actor=octocat",
+      "/projects/p1/evidence?kind=finding&q=alt&from=2026-09-01&to=2026-09-10&actor=octocat",
     );
-    expect(evidenceKindHref(undefined, undefined, { q: "alt" })).toBe(
-      "/evidence?q=alt",
+    expect(evidenceKindHref("p1", undefined, undefined, { q: "alt" })).toBe(
+      "/projects/p1/evidence?q=alt",
     );
   });
 });
@@ -148,15 +152,17 @@ describe("parseReportViewParam", () => {
 
 describe("report href builders", () => {
   it("builds markdown and html hrefs for each view", () => {
-    expect(reportHref("audit", "markdown")).toBe("/evidence/report?view=audit");
-    expect(reportHref("engineering", "markdown")).toBe(
-      "/evidence/report?view=engineering",
+    expect(reportHref("p1", "audit", "markdown")).toBe(
+      "/projects/p1/evidence/report?view=audit",
     );
-    expect(reportHref("audit", "html")).toBe(
-      "/evidence/report/html?view=audit",
+    expect(reportHref("p1", "engineering", "markdown")).toBe(
+      "/projects/p1/evidence/report?view=engineering",
     );
-    expect(reportHref("engineering", "html")).toBe(
-      "/evidence/report/html?view=engineering",
+    expect(reportHref("p1", "audit", "html")).toBe(
+      "/projects/p1/evidence/report/html?view=audit",
+    );
+    expect(reportHref("p1", "engineering", "html")).toBe(
+      "/projects/p1/evidence/report/html?view=engineering",
     );
   });
 });
@@ -182,14 +188,16 @@ describe("parseRequirementStatusParam", () => {
 
 describe("requirementsStatusHref", () => {
   it("builds a deep link for a status filter", () => {
-    expect(requirementsStatusHref("failed")).toBe(
-      "/requirements?status=failed",
+    expect(requirementsStatusHref("p1", "failed")).toBe(
+      "/projects/p1/requirements?status=failed",
     );
   });
 
   it("returns the unfiltered list path when clearing", () => {
-    expect(requirementsStatusHref()).toBe("/requirements");
-    expect(requirementsStatusHref(undefined)).toBe("/requirements");
+    expect(requirementsStatusHref("p1")).toBe("/projects/p1/requirements");
+    expect(requirementsStatusHref("p1", undefined)).toBe(
+      "/projects/p1/requirements",
+    );
   });
 });
 
@@ -216,35 +224,39 @@ describe("requirements page preset URL", () => {
   it("omits presetId from the URL when it matches the project default", () => {
     expect(
       requirementsPageHref({
+        projectId: "p1",
         presetId: "preset-rgaa-full",
         defaultPresetId: "preset-rgaa-full",
       }),
-    ).toBe("/requirements");
+    ).toBe("/projects/p1/requirements");
     expect(
       requirementsPageHref({
+        projectId: "p1",
         presetId: "preset-wcag-aa",
         defaultPresetId: "preset-rgaa-full",
       }),
-    ).toBe("/requirements?presetId=preset-wcag-aa");
+    ).toBe("/projects/p1/requirements?presetId=preset-wcag-aa");
   });
 
   it("keeps presetId and status together for shareable links", () => {
     expect(
       requirementsPageHref({
+        projectId: "p1",
         presetId: "preset-wcag-aa",
         status: "failed",
         defaultPresetId: "preset-rgaa-full",
       }),
-    ).toBe("/requirements?presetId=preset-wcag-aa&status=failed");
+    ).toBe("/projects/p1/requirements?presetId=preset-wcag-aa&status=failed");
   });
 
   it("emits a status-only link when there is no preset override", () => {
     expect(
       requirementsPageHref({
+        projectId: "p1",
         status: "needs_review",
         defaultPresetId: "preset-rgaa-full",
       }),
-    ).toBe("/requirements?status=needs_review");
+    ).toBe("/projects/p1/requirements?status=needs_review");
   });
 });
 
@@ -257,8 +269,8 @@ const base: EvidenceRecord = {
 
 describe("evidenceRecordHref", () => {
   it("links a finding event to its finding page", () => {
-    expect(evidenceRecordHref({ ...base, findingId: "f42" }, [])).toBe(
-      "/findings/f42",
+    expect(evidenceRecordHref("p1", { ...base, findingId: "f42" }, [])).toBe(
+      "/projects/p1/findings/f42",
     );
   });
 
@@ -275,10 +287,13 @@ describe("evidenceRecordHref", () => {
     ];
     expect(
       evidenceRecordHref(
+        "p1",
         { ...base, controlId: "ctl-button-name" },
         requirements,
       ),
-    ).toBe("/requirements?status=needs_review#requirement-ctl-button-name");
+    ).toBe(
+      "/projects/p1/requirements?status=needs_review#requirement-ctl-button-name",
+    );
   });
 
   it("falls back to the requirements page when the control is not in scope", () => {
@@ -293,18 +308,22 @@ describe("evidenceRecordHref", () => {
       },
     ];
     expect(
-      evidenceRecordHref({ ...base, controlId: "ctl-missing" }, requirements),
-    ).toBe("/requirements#requirement-ctl-missing");
+      evidenceRecordHref(
+        "p1",
+        { ...base, controlId: "ctl-missing" },
+        requirements,
+      ),
+    ).toBe("/projects/p1/requirements#requirement-ctl-missing");
   });
 
   it("links an assessment event to the project home", () => {
-    expect(evidenceRecordHref({ ...base, assessmentId: "a1" }, [])).toBe(
-      "/dashboard",
+    expect(evidenceRecordHref("p1", { ...base, assessmentId: "a1" }, [])).toBe(
+      "/projects/p1/dashboard",
     );
   });
 
   it("returns undefined for records with no navigation target", () => {
-    expect(evidenceRecordHref({ ...base }, [])).toBeUndefined();
+    expect(evidenceRecordHref("p1", { ...base }, [])).toBeUndefined();
   });
 });
 
@@ -418,32 +437,36 @@ describe("parseFindingListParams", () => {
 
 describe("findingsListHref", () => {
   it("builds a deep link with filters", () => {
-    const href = findingsListHref({
+    const href = findingsListHref("p1", {
       control: "ctl-img",
       q: "Button",
       tab: "open",
     });
     expect(href).toContain("control=ctl-img");
     expect(href).toContain("q=Button");
-    expect(href.startsWith("/findings?")).toBe(true);
+    expect(href.startsWith("/projects/p1/findings?")).toBe(true);
   });
 
   it("includes non-default tab and page", () => {
-    expect(findingsListHref({ tab: "resolved", page: 3 })).toBe(
-      "/findings?tab=resolved&page=3",
+    expect(findingsListHref("p1", { tab: "resolved", page: 3 })).toBe(
+      "/projects/p1/findings?tab=resolved&page=3",
     );
   });
 
   it("returns the unfiltered list path when clearing", () => {
-    expect(findingsListHref()).toBe("/findings");
-    expect(findingsListHref({ tab: "open", page: 1 })).toBe("/findings");
+    expect(findingsListHref("p1")).toBe("/projects/p1/findings");
+    expect(findingsListHref("p1", { tab: "open", page: 1 })).toBe(
+      "/projects/p1/findings",
+    );
   });
 
   it("preserves tab and page in detail hrefs", () => {
     const params = parseFindingListParams({ tab: "resolved", page: "3" });
-    expect(findingsListHref(params)).toBe("/findings?tab=resolved&page=3");
-    expect(findingDetailHref("f1", params)).toBe(
-      "/findings/f1?tab=resolved&page=3",
+    expect(findingsListHref("p1", params)).toBe(
+      "/projects/p1/findings?tab=resolved&page=3",
+    );
+    expect(findingDetailHref("p1", "f1", params)).toBe(
+      "/projects/p1/findings/f1?tab=resolved&page=3",
     );
   });
 });

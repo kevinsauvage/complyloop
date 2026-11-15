@@ -2,10 +2,7 @@ import "server-only";
 
 import { cookies } from "next/headers";
 
-import {
-  ACTIVE_ORG_COOKIE,
-  ACTIVE_PROJECT_COOKIE,
-} from "./active-cookie-names";
+import { ACTIVE_ORG_COOKIE } from "./active-cookie-names";
 
 const cookieOptions = {
   httpOnly: true,
@@ -34,18 +31,4 @@ export function readActiveOrgCookie(): Promise<string | null> {
 
 export function writeActiveOrgCookie(orgId: string): Promise<void> {
   return writeIdCookie(ACTIVE_ORG_COOKIE, orgId);
-}
-
-/** Reads the per-browser active project cookie (not shared across users). */
-export function readActiveProjectCookie(): Promise<string | null> {
-  return readIdCookie(ACTIVE_PROJECT_COOKIE);
-}
-
-export function writeActiveProjectCookie(projectId: string): Promise<void> {
-  return writeIdCookie(ACTIVE_PROJECT_COOKIE, projectId);
-}
-
-export async function clearActiveProjectCookie(): Promise<void> {
-  const store = await cookies();
-  store.delete(ACTIVE_PROJECT_COOKIE);
 }
