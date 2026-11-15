@@ -19,6 +19,9 @@ updates:
     ignore:
       - dependency-name: eslint
         update-types: ["version-update:semver-major"]
+      # Types follow the Node runtime (24); bump them together with .nvmrc.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"

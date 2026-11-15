@@ -84,10 +84,12 @@ const REACHABLE_AXE_TARGETS: ReadonlyArray<CheckId> = [
   "lang-parts",
   "presentation-role",
   "frame-keyboard",
+  // Enabled by default since axe-core 4.14 (was experimental and dormant in 4.13).
+  "label-in-name",
 ];
 
 /**
- * Checks axe-core 4.13 never emits under the production wiring
+ * Checks axe-core 4.14 never emits under the production wiring
  * (`enabled: false` experimental/deprecated/AAA rules). Each entry is
  * `checkId: axeRuleId: reason`. The dormant test below asserts they stay
  * absent from the wiring run (canary for axe upgrades) AND fire when forced
@@ -98,7 +100,6 @@ const DORMANT_AXE_CHECKS: ReadonlyArray<{
   checkId: CheckId;
   axeRuleId: string;
 }> = [
-  { checkId: "label-in-name", axeRuleId: "label-content-name-mismatch" },
   { checkId: "focus-order-logical", axeRuleId: "focus-order-semantics" },
   { checkId: "table-headers", axeRuleId: "td-has-header" },
   { checkId: "aria-roledescription", axeRuleId: "aria-roledescription" },
