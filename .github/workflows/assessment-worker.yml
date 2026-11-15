@@ -99,7 +99,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         if: steps.gate.outputs.empty != 'true'
         with:
-          node-version: "22"
+          node-version: "24"
           # ~/.npm tarballs: makes a node_modules cache miss cheaper too.
           cache: npm
       # Cached install: a live run then starts at runner + browser, not at a

@@ -20,8 +20,3 @@ Open work only; shipped work lives in `git log`. Last reviewed 2026-11-15.
 - [ ] **Moderate advisories, none with a safe fix:** `minimatch` through `@typescript-eslint/parser` and `glob`
       through `linkinator` (both are runtime dependencies of `@complyloop/analysis-core`, which lints and
       link-checks the audited repository), `vitest` (dev). npm's proposed fixes are downgrades.
-
-## Housekeeping
-
-- [ ] **Node version.** `.nvmrc`, CI, the worker and `engines` say 22; Vercel builds on 24.x. Move everything to
-      24 in one change (three workflows, `.nvmrc`, three `package.json`, README) and run `npm run verify:gate`.

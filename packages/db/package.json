@@ -10,7 +10,7 @@
     "./*": "./src/*.ts"
   },
   "engines": {
-    "node": ">=22.22.0"
+    "node": ">=24"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

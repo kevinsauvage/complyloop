@@ -17,7 +17,7 @@ document is planned work; this README describes what ships today.
 
 ## Quick start
 
-Requires Node 22.22 or newer (`.nvmrc`), npm and Docker.
+Requires Node 24 (`.nvmrc`), npm and Docker.
 
 ```bash
 npm ci
