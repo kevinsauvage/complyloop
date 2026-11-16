@@ -19,9 +19,6 @@ updates:
     ignore:
       - dependency-name: eslint
         update-types: ["version-update:semver-major"]
-      # knip 6 reads the workspace differently (reports packages/db/dist and new unused exports); migrate by hand.
-      - dependency-name: knip
-        update-types: ["version-update:semver-major"]
       # Does not install until the Babel 8 peer chain settles (see TODO.md).
       - dependency-name: "@vitejs/plugin-react"
       # Types follow the Node runtime (24); bump them together with .nvmrc.

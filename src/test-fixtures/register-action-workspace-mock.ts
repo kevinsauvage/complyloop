@@ -8,7 +8,6 @@ import { vi } from "vitest";
 import {
   actionAuthMocks,
   actionWorkspaceMocks,
-  clearRecordedWrites,
   mockStore,
 } from "./action-workspace-mocks";
 
@@ -131,5 +130,3 @@ vi.mock("@/server/workspace/db", async () => {
     ) => actionWorkspaceMocks.withProjectLock(projectId, fn),
   };
 });
-
-export { clearRecordedWrites };

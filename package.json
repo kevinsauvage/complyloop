@@ -90,7 +90,7 @@
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "jsdom": "^31.0.1",
-    "knip": "^5.88.1",
+    "knip": "^6.45.1",
     "prettier": "^3.10.1",
     "shadcn": "^4.21.0",
     "tailwindcss": "^4",

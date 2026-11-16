@@ -1,10 +1,10 @@
 {
-  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "$schema": "https://unpkg.com/knip@6/schema.json",
   "ignoreExportsUsedInFile": true,
+  "ignore": ["packages/*/dist/**"],
   "drizzle": false,
   "ignoreDependencies": [
     "axe-core",
-    "postcss",
     "shadcn",
     "tailwindcss",
     "tw-animate-css",

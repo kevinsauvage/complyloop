@@ -11,14 +11,9 @@ import { assertSingleFileEdits, type ProposedFixEdits } from "./patch-types";
 export {
   assertSingleFileEdits,
   boundFileEdit,
-  fileEditSchema,
-  patchCandidateDetailSchema,
   patchCandidateFromDetail,
   patchCandidateToDetail,
-  type ComplyLoopGateResult,
-  type FileEdit,
   type PatchCandidate,
-  type PatchCandidateDetail,
   type ProposedFixEdits,
 } from "./patch-types";
 export { applyFileEdits } from "./patch-apply";
