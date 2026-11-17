@@ -75,7 +75,7 @@ describe("rawFindingFromDom", () => {
     const postgres = (postgresModule.default ?? postgresModule) as (
       url: string,
       opts: { max: number; onnotice: () => void },
-    ) => ReturnType<typeof import("postgres")>;
+    ) => ReturnType<typeof import("postgres").default>;
     const sql = postgres(envUrl, { max: 1, onnotice: () => {} });
     try {
       await expect(sql`select ${payload}::jsonb as ok`).resolves.toBeDefined();

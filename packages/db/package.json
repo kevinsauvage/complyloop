@@ -23,7 +23,7 @@
     "drizzle-orm": "^0.45.4"
   },
   "peerDependencies": {
-    "postgres": "^3.4.9",
+    "postgres": "^4.1.1",
     "typescript": "~6.0.3"
   },
   "license": "UNLICENSED",
