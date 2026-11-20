@@ -4,7 +4,6 @@ import "@/test-fixtures/register-repo-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Requirement } from "@complyloop/analysis-core/contract/entities";
-import type { WorkspaceSlice } from "@complyloop/db/types";
 
 import { initialActionState } from "@/core/actions/action-state";
 import {
@@ -14,8 +13,8 @@ import {
 } from "@/test-fixtures/action-workspace-mocks";
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
-import { testRemediation } from "@/test-fixtures/remediation";
-import { type TestWorkspace, testWorkspace } from "@/test-fixtures/workspace";
+import type { TestWorkspace } from "@/test-fixtures/workspace";
+import { makeBaseWorkspace } from "@/test-fixtures/workspace";
 
 import {
   clearRequirementExceptionAction,
@@ -63,26 +62,7 @@ vi.mock("../assessment/assessment-status", async () => {
 const project = testProject({ orgId: "org-1" });
 const finding = testFinding();
 
-function baseWorkspace(
-  overrides: Partial<WorkspaceSlice> = {},
-  role: "member" | "admin" = "admin",
-): TestWorkspace {
-  const { findings, remediations, ...rest } = overrides;
-  return testWorkspace({
-    role,
-    userId: "user-1",
-    project,
-    findings: findings ?? [finding],
-    remediations: remediations ?? [
-      testRemediation({ status: "implemented", suggestion: null, history: [] }),
-    ],
-    db: {
-      requirements: [],
-      alerts: [],
-      ...rest,
-    },
-  });
-}
+const baseWorkspace = makeBaseWorkspace({ project, finding, role: "admin" });
 
 function requirementWorkspace(requirement: Requirement): TestWorkspace {
   return baseWorkspace({

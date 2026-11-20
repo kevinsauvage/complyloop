@@ -61,6 +61,38 @@ describe("buildAuditReportMarkdown", () => {
     expect(markdown).toContain("- **WCAG:** WCAG 1.1.1");
   });
 
+  it("names the connected GitHub repository when there is one", () => {
+    const input = sampleReportInput();
+    input.project = {
+      ...input.project,
+      github: {
+        fullName: "acme/demo-app",
+        defaultBranch: "main",
+        private: false,
+      },
+    };
+
+    expect(buildAuditReportMarkdown(input)).toContain(
+      "- **GitHub repository:** `acme/demo-app`",
+    );
+  });
+
+  it("marks a truncated evidence trail and an empty one", () => {
+    const truncated = sampleReportInput();
+    truncated.evidenceTotal = 9;
+    truncated.evidenceTruncated = true;
+    expect(buildAuditReportMarkdown(truncated)).toContain(
+      "_Showing the latest 1 of 9 evidence records",
+    );
+
+    const empty = sampleReportInput();
+    empty.evidence = [];
+    empty.evidenceTotal = 0;
+    expect(buildAuditReportMarkdown(empty)).toContain(
+      "_No evidence recorded._",
+    );
+  });
+
   it("labels controls with WCAG as primary when the assessment target is WCAG", () => {
     const input = sampleReportInput();
     input.framework = wcagFramework;
@@ -133,6 +165,22 @@ describe("buildEngineeringReportMarkdown", () => {
     );
     expect(markdown).toContain(
       '```tsx\n<button aria-label="Close">…</button>\n```',
+    );
+  });
+
+  it("notes a capped list and says so when nothing is open", () => {
+    const capped = sampleReportInput();
+    capped.findingCounts = { ...capped.findingCounts, open: 12 };
+    expect(buildEngineeringReportMarkdown(capped)).toContain(
+      "_Showing the 1 most severe of 12 open findings._",
+    );
+
+    const clean = sampleReportInput();
+    clean.findings = [];
+    clean.remediations = [];
+    clean.findingCounts = { ...clean.findingCounts, open: 0 };
+    expect(buildEngineeringReportMarkdown(clean)).toContain(
+      "_No open findings — nothing to fix right now._",
     );
   });
 

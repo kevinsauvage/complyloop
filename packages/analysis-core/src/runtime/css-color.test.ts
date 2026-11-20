@@ -87,4 +87,45 @@ describe("parseCssColor", () => {
     expect(parseCssColor("not-a-color")).toBeNull();
     expect(parseCssColor("")).toBeNull();
   });
+
+  it("clamps out-of-range channels and alpha", () => {
+    expect(parseCssColor("rgb(300, -20, 12.6)")).toEqual({
+      rgb: [255, 0, 13],
+      alpha: 1,
+    });
+    // Chromium can serialize a non-numeric channel for a color-mix() result.
+    expect(parseCssColor("rgb(abc 0 0)")).toEqual({
+      rgb: [0, 0, 0],
+      alpha: 1,
+    });
+    expect(parseCssColor("rgb(9 9 11 / 2)")?.alpha).toBe(1);
+    expect(parseCssColor("rgb(9 9 11 / -1)")?.alpha).toBe(0);
+    expect(parseCssColor("rgb(9 9 11 / abc)")?.alpha).toBe(1);
+  });
+
+  it("rejects functions with too few components", () => {
+    expect(parseCssColor("rgb(1, 2)")).toBeNull();
+    expect(parseCssColor("lab(50 10)")).toBeNull();
+    expect(parseCssColor("color(srgb 1 1)")).toBeNull();
+  });
+
+  it("rejects non-numeric lab/oklab components", () => {
+    expect(parseCssColor("lab(foo 0 0)")).toBeNull();
+    expect(parseCssColor("oklab(0.5 bar 0)")).toBeNull();
+    expect(parseCssColor("lab(50 0 baz)")).toBeNull();
+  });
+
+  it("reads color(srgb) percentages", () => {
+    expect(parseCssColor("color(srgb 100% 50% 0%)")).toEqual({
+      rgb: [255, 128, 0],
+      alpha: 1,
+    });
+  });
+
+  it("parses oklab() with a percentage lightness and alpha", () => {
+    expect(parseCssColor("oklab(100% 0 0 / 50%)")).toEqual({
+      rgb: [255, 255, 255],
+      alpha: 0.5,
+    });
+  });
 });

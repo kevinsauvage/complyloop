@@ -299,4 +299,75 @@ describe("discoverRuntimeRoutes", () => {
       truncated: false,
     });
   });
+
+  it("fetches a sitemap declared twice in robots.txt only once", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url === `${BASE}/robots.txt`) {
+        return new Response("Sitemap: /sitemap.xml\nSitemap: /sitemap.xml\n", {
+          status: 200,
+        });
+      }
+      return xml(urlset(`${BASE}/once`));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      discoverRuntimeRoutes(BASE, { lookup }),
+    ).resolves.toMatchObject({ paths: ["/once"] });
+    expect(
+      fetchMock.mock.calls.filter(
+        ([url]) => String(url) === `${BASE}/sitemap.xml`,
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("gives up on a redirect with no usable location", async () => {
+    stubFetch({
+      [`${BASE}/sitemap.xml`]: () =>
+        new Response(null, { status: 302, headers: {} }),
+    });
+
+    await expect(discoverRuntimeRoutes(BASE, { lookup })).resolves.toEqual({
+      source: "none",
+      paths: [],
+      truncated: false,
+    });
+
+    stubFetch({
+      [`${BASE}/sitemap.xml`]: () =>
+        new Response(null, { status: 302, headers: { location: "http://[" } }),
+    });
+
+    await expect(discoverRuntimeRoutes(BASE, { lookup })).resolves.toEqual({
+      source: "none",
+      paths: [],
+      truncated: false,
+    });
+  });
+
+  it("treats a response without a body as no document", async () => {
+    stubFetch({
+      [`${BASE}/sitemap.xml`]: () => new Response(null, { status: 200 }),
+    });
+
+    await expect(discoverRuntimeRoutes(BASE, { lookup })).resolves.toEqual({
+      source: "none",
+      paths: [],
+      truncated: false,
+    });
+  });
+
+  it("treats a corrupt gzip document as no document", async () => {
+    stubFetch({
+      [`${BASE}/sitemap.xml`]: () =>
+        new Response(new Uint8Array([0x1f, 0x8b, 0x00, 0x00]), { status: 200 }),
+    });
+
+    await expect(discoverRuntimeRoutes(BASE, { lookup })).resolves.toEqual({
+      source: "none",
+      paths: [],
+      truncated: false,
+    });
+  });
 });

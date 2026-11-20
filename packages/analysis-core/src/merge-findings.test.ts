@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { AnalyzerContribution } from "./contract/finding-types";
 import {
   dedupeRuntimeFindings,
   filterAstFindingsForAuthority,
@@ -164,6 +165,21 @@ describe("filterAstFindingsForAuthority", () => {
     ).toEqual(["input-label", "fieldset-legend"]);
   });
 
+  it("keeps a finding runtime does not supersede under partial coverage", () => {
+    const astAutoplay: RawFinding = {
+      ...astInput,
+      checkId: "autoplay-media",
+      reason: "autoplay",
+    };
+
+    expect(
+      filterAstFindingsForAuthority([astAutoplay], true, {
+        fullyCovered: false,
+        coveredFiles: new Set(["a.tsx"]),
+      }).map((finding) => finding.checkId),
+    ).toEqual(["autoplay-media"]);
+  });
+
   it("drops only findings on pages the audit actually rendered", () => {
     const sourceAt = (filePath: string): RawFinding => ({
       ...astImg,
@@ -321,5 +337,76 @@ describe("dedupeRuntimeFindings", () => {
       },
     ]);
     expect(deduped).toHaveLength(2);
+  });
+
+  it("promotes the strongest analyzer even when it comes last", () => {
+    const deduped = dedupeRuntimeFindings([
+      domFinding(
+        "focus-visible",
+        "playwright-custom",
+        "focus-visible",
+        "<button>",
+      ),
+      domFinding("focus-visible", "axe", "focus-order-semantics", "<button>"),
+    ]);
+
+    expect(deduped).toHaveLength(1);
+    expect(deduped[0]?.analyzerId).toBe("axe");
+    expect(deduped[0]?.contributingAnalyzers).toEqual([
+      { analyzerId: "playwright-custom", analyzerRuleId: "focus-visible" },
+    ]);
+  });
+
+  it("accumulates contributors from both sides of a merge", () => {
+    const withContributors = (
+      finding: RawFinding,
+      contributingAnalyzers: AnalyzerContribution[],
+    ): RawFinding => ({ ...finding, contributingAnalyzers });
+
+    const deduped = dedupeRuntimeFindings([
+      withContributors(
+        domFinding("focus-visible", "axe", "focus-order-semantics", "<a>"),
+        [{ analyzerId: "html-validate", analyzerRuleId: "wcag/h32" }],
+      ),
+      withContributors(
+        domFinding(
+          "focus-visible",
+          "playwright-custom",
+          "focus-visible",
+          "<a>",
+        ),
+        [{ analyzerId: "linkinator", analyzerRuleId: "broken" }],
+      ),
+    ]);
+
+    expect(deduped).toHaveLength(1);
+    expect(deduped[0]?.contributingAnalyzers).toEqual([
+      { analyzerId: "html-validate", analyzerRuleId: "wcag/h32" },
+      { analyzerId: "linkinator", analyzerRuleId: "broken" },
+      { analyzerId: "playwright-custom", analyzerRuleId: "focus-visible" },
+    ]);
+  });
+
+  it("does not collapse findings without a runtime node identity", () => {
+    const sourceFinding: RawFinding = {
+      checkId: "focus-visible",
+      kind: "violation",
+      severity: "serious",
+      confidence: "medium",
+      reason: "no analyzer",
+      location: {
+        kind: "source",
+        filePath: "App.tsx",
+        line: 1,
+        column: 1,
+        snippet: "<a>",
+        span: { start: 0, end: 1 },
+      },
+      fix: null,
+    };
+
+    expect(dedupeRuntimeFindings([sourceFinding, sourceFinding])).toHaveLength(
+      2,
+    );
   });
 });

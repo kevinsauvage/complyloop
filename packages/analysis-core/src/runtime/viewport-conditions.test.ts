@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import type { Page } from "playwright-core";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   chromiumExecutableAvailable,
@@ -51,4 +52,73 @@ describe("viewport target-size conditions", () => {
     },
     PLAYWRIGHT_TEST_TIMEOUT_MS,
   );
+});
+
+describe("emulateCoarsePointer", () => {
+  function cdpPage(viewport: { width: number; height: number } | null) {
+    const session = {
+      send: vi.fn<(method: string, params?: unknown) => Promise<void>>(
+        async () => {},
+      ),
+      detach: vi.fn(async () => {}),
+    };
+    const page = {
+      viewportSize: () => viewport,
+      context: () => ({ newCDPSession: async () => session }),
+    } as unknown as Page;
+    return { page, session };
+  }
+
+  it("emulates a touch device and restores the default pointer", async () => {
+    const { page, session } = cdpPage({ width: 390, height: 844 });
+
+    const result = await emulateCoarsePointer(page, async () => "done");
+
+    expect(result).toBe("done");
+    expect(session.send.mock.calls).toEqual([
+      [
+        "Emulation.setDeviceMetricsOverride",
+        {
+          width: 390,
+          height: 844,
+          deviceScaleFactor: 1,
+          mobile: true,
+        },
+      ],
+      [
+        "Emulation.setTouchEmulationEnabled",
+        { enabled: true, maxTouchPoints: 5 },
+      ],
+      ["Emulation.setTouchEmulationEnabled", { enabled: false }],
+      ["Emulation.clearDeviceMetricsOverride"],
+    ]);
+    expect(session.detach).toHaveBeenCalledOnce();
+  });
+
+  it("falls back to a desktop viewport when the page reports none", async () => {
+    const { page, session } = cdpPage(null);
+
+    await emulateCoarsePointer(page, async () => {});
+
+    expect(session.send).toHaveBeenNthCalledWith(
+      1,
+      "Emulation.setDeviceMetricsOverride",
+      expect.objectContaining({ width: 1280, height: 720 }),
+    );
+  });
+
+  it("restores the pointer when the probe throws", async () => {
+    const { page, session } = cdpPage({ width: 320, height: 568 });
+
+    await expect(
+      emulateCoarsePointer(page, async () => {
+        throw new Error("probe failed");
+      }),
+    ).rejects.toThrow("probe failed");
+
+    expect(session.send).toHaveBeenLastCalledWith(
+      "Emulation.clearDeviceMetricsOverride",
+    );
+    expect(session.detach).toHaveBeenCalledOnce();
+  });
 });

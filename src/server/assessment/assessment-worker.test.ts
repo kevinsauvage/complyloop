@@ -126,7 +126,9 @@ vi.mock("../rate-limit", () => ({
 
 import { ASSESSMENT_JOB_HEARTBEAT_MS } from "./assessment-job-lease";
 import {
+  closeAssessmentWorker,
   processNextAssessmentJob,
+  resolveJobAuthoritative,
   settleRunningAssessmentJob,
   shouldCollectAlerts,
 } from "./assessment-worker";
@@ -1178,5 +1180,35 @@ describe("shouldCollectAlerts", () => {
         },
       ),
     ).toBe(false);
+  });
+});
+
+describe("resolveJobAuthoritative", () => {
+  function jobWith(trigger: AssessmentJob["trigger"], eventName?: string) {
+    return {
+      ...job({ trigger }),
+      payload: { eventName },
+    } as AssessmentJob;
+  }
+
+  it("trusts manual runs and live-branch webhook events", () => {
+    expect(resolveJobAuthoritative(jobWith("manual"))).toBe(true);
+    expect(resolveJobAuthoritative(jobWith("webhook", "push"))).toBe(true);
+    expect(
+      resolveJobAuthoritative(jobWith("webhook", "deployment_status")),
+    ).toBe(true);
+  });
+
+  it("fails closed for other triggers and unknown events", () => {
+    expect(resolveJobAuthoritative(jobWith("verify_remediation"))).toBe(false);
+    expect(resolveJobAuthoritative(jobWith("webhook", "pull_request"))).toBe(
+      false,
+    );
+  });
+});
+
+describe("closeAssessmentWorker", () => {
+  it("tears down best-effort and never throws", async () => {
+    await expect(closeAssessmentWorker()).resolves.toBeUndefined();
   });
 });

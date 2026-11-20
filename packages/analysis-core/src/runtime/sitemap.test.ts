@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   parseSitemapDocument,
   robotsSitemapUrls,
+  SITEMAP_MAX_DOCUMENTS,
   SITEMAP_MAX_LOCS,
   sitemapPathsFromLocs,
 } from "./sitemap.ts";
@@ -129,6 +130,27 @@ describe("parseSitemapDocument", () => {
       locs: [],
       truncated: false,
     });
+    // An opening tag that never closes must not claim truncation.
+    expect(parseSitemapDocument("<urlset><url><loc")).toMatchObject({
+      locs: [],
+      truncated: false,
+    });
+  });
+
+  it("keeps lone surrogate and out-of-range numeric references literal", () => {
+    const parsed = parseSitemapDocument(
+      urlset(
+        `${BASE}/a?x=&#xD800;`,
+        `${BASE}/b?x=&#x110000;`,
+        `${BASE}/c?x=&#999999999;`,
+      ),
+    );
+
+    expect(parsed.locs).toEqual([
+      `${BASE}/a?x=&#xD800;`,
+      `${BASE}/b?x=&#x110000;`,
+      `${BASE}/c?x=&#999999999;`,
+    ]);
   });
 
   it("caps the number of locations it keeps", () => {
@@ -176,6 +198,21 @@ describe("robotsSitemapUrls", () => {
 
   it("returns nothing for an unusable base URL", () => {
     expect(robotsSitemapUrls("Sitemap: /sitemap.xml", "not-a-url")).toEqual([]);
+  });
+
+  it("ignores a directive value that is not a URL", () => {
+    expect(
+      robotsSitemapUrls("Sitemap: http://[\nSitemap: /sitemap.xml", BASE),
+    ).toEqual(["https://preview.example.com/sitemap.xml"]);
+  });
+
+  it("caps how many documents one robots.txt can declare", () => {
+    const robots = Array.from(
+      { length: SITEMAP_MAX_DOCUMENTS + 3 },
+      (_, index) => `Sitemap: /sitemap-${index}.xml`,
+    ).join("\n");
+
+    expect(robotsSitemapUrls(robots, BASE)).toHaveLength(SITEMAP_MAX_DOCUMENTS);
   });
 });
 

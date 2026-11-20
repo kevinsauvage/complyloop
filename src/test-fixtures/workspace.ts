@@ -72,3 +72,38 @@ export function testWorkspace(
     db,
   };
 }
+
+/**
+ * Fixture factory for action suites that swap only the slice: one finding, one
+ * implemented remediation, and the overrides the test cares about.
+ */
+export function makeBaseWorkspace(defaults: {
+  project: Project;
+  finding: Finding;
+  role: OrgMembership["role"];
+}): (
+  overrides?: Partial<WorkspaceSlice>,
+  role?: OrgMembership["role"],
+) => TestWorkspace {
+  return (overrides = {}, role = defaults.role) => {
+    const { findings, remediations, ...rest } = overrides;
+    return testWorkspace({
+      role,
+      userId: "user-1",
+      project: defaults.project,
+      findings: findings ?? [defaults.finding],
+      remediations: remediations ?? [
+        testRemediation({
+          status: "implemented",
+          suggestion: null,
+          history: [],
+        }),
+      ],
+      db: {
+        requirements: [],
+        alerts: [],
+        ...rest,
+      },
+    });
+  };
+}

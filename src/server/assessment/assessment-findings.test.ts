@@ -387,6 +387,55 @@ describe("reconcileControlFindings", () => {
     ).toHaveLength(1);
   });
 
+  it("resolves an open finding the latest assessment no longer reports", () => {
+    const open = testFinding({
+      id: "f-open",
+      projectId: project.id,
+      controlId: "ctl-img-alt",
+      status: "open",
+      location: sourceLoc({
+        filePath: "Hero.tsx",
+        line: 1,
+        snippet: '<img src="/hero.png" />',
+      }),
+    });
+    const rows = emptyRows();
+    rows.findings.push(open);
+    const resolved: string[] = [];
+
+    reconcileControlFindings({
+      rows,
+      project,
+      control: {
+        id: "ctl-img-alt",
+        frameworkId: "rgaa",
+        code: "RGAA 1.1",
+        secondaryCode: "WCAG 1.1.1",
+        title: "Images",
+        description: "Images have text alternatives",
+        checkId: "img-alt",
+      },
+      assessmentId: "a1",
+      rootPath: "/tmp",
+      rawForControl: [],
+      openFindings: [open],
+      dismissedFindings: [],
+      scopedFileSet: null,
+      runtimeRan: false,
+      onFindingResolved: (finding) => resolved.push(finding.id),
+    });
+
+    expect(open.status).toBe("resolved");
+    expect(open.resolvedNote).toMatch(/No longer detected/);
+    expect(resolved).toEqual(["f-open"]);
+    expect(
+      rows.evidence.some(
+        (record) =>
+          record.findingId === "f-open" && record.detail?.event === "resolved",
+      ),
+    ).toBe(true);
+  });
+
   it("does not rewrite assessmentId when an open finding matches", () => {
     const open = testFinding({
       id: "f-open",
@@ -622,6 +671,16 @@ describe("shouldResolveOpenFinding", () => {
       }),
     ).toBe(true);
   });
+
+  it("ignores the file scope for a finding outside the source", () => {
+    expect(
+      shouldResolveOpenFinding({
+        finding: domFinding,
+        scopedFileSet: new Set(["Other.tsx"]),
+        runtimeRan: true,
+      }),
+    ).toBe(true);
+  });
 });
 
 describe("sameInstance", () => {
@@ -843,6 +902,67 @@ describe("sameInstance", () => {
       ),
     ).toBe(true);
   });
+
+  it("does not match DOM findings recorded on another URL", () => {
+    expect(
+      sameInstance(
+        {
+          location: {
+            kind: "dom",
+            url: "https://x.test/",
+            selector: "#a",
+            snippet: "<a>",
+          },
+        },
+        {
+          location: {
+            kind: "dom",
+            url: "https://x.test/about",
+            selector: "#a",
+            snippet: "<a>",
+          },
+        },
+      ),
+    ).toBe(false);
+  });
+
+  it("compares site findings by detail and rendered page list", () => {
+    const site = (detail: string, pages: string[]) => ({
+      location: { kind: "site" as const, detail, pages },
+    });
+
+    expect(
+      sameInstance(
+        site("broken-link", ["/", "/a"]),
+        site("broken-link", ["/", "/a"]),
+      ),
+    ).toBe(true);
+    expect(
+      sameInstance(
+        site("broken-link", ["/", "/a"]),
+        site("broken-link", ["/a", "/"]),
+      ),
+    ).toBe(false);
+    expect(sameInstance(site("broken-link", ["/"]), site("other", ["/"]))).toBe(
+      false,
+    );
+  });
+
+  it("never matches across location kinds", () => {
+    expect(
+      sameInstance(
+        { location: sourceLoc({ filePath: "A.tsx", line: 1, snippet: "<a>" }) },
+        {
+          location: {
+            kind: "dom",
+            url: "https://x.test/",
+            selector: "a",
+            snippet: "<a>",
+          },
+        },
+      ),
+    ).toBe(false);
+  });
 });
 
 describe("mergeFix", () => {
@@ -890,6 +1010,55 @@ describe("buildSuggestion", () => {
         fix: null,
       }),
     ).toBeNull();
+  });
+
+  it("returns null for a finding outside the source", () => {
+    expect(
+      buildSuggestion("/tmp", {
+        location: {
+          kind: "dom",
+          url: "https://x.test/",
+          selector: "#a",
+          snippet: "<a>",
+        },
+        fix: {
+          kind: "insert_attribute",
+          attribute: "alt",
+          value: "X",
+          editable: true,
+          span: { start: 0, end: 0 },
+        },
+      }),
+    ).toBeNull();
+  });
+
+  it("reuses the per-run file text cache", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "suggest-cache-"));
+    tempDirs.push(root);
+    const filePath = "App.tsx";
+    const absolute = path.join(root, filePath);
+    fs.writeFileSync(absolute, '<img src="/x.png" />\n', "utf8");
+    const raw = {
+      location: sourceLoc({
+        filePath,
+        line: 1,
+        snippet: '<img src="/x.png" />',
+        span: { start: 0, end: 20 },
+      }),
+      fix: {
+        kind: "insert_attribute" as const,
+        attribute: "alt",
+        value: "",
+        editable: true,
+        span: { start: 4, end: 4 },
+      },
+    };
+    const cache = new Map<string, string>();
+
+    expect(buildSuggestion(root, raw, cache)).not.toBeNull();
+    // The second call must not touch the filesystem again.
+    fs.rmSync(absolute);
+    expect(buildSuggestion(root, raw, cache)).not.toBeNull();
   });
 
   it("builds a deterministic suggestion from the current file text", () => {
@@ -949,5 +1118,64 @@ describe("locateViolationInProject", () => {
     }
     expect(match.location.span.start).not.toBe(raw.location.span.start);
     expect(mergeFix(raw.fix, match.fix)).toBeTruthy();
+  });
+
+  it("ignores a finding that is not a source finding", () => {
+    expect(
+      locateViolationInProject("/tmp", {
+        checkId: "img-alt",
+        location: {
+          kind: "dom",
+          url: "https://x.test/",
+          selector: "img",
+          snippet: "<img>",
+        },
+      }),
+    ).toBeUndefined();
+  });
+
+  it("returns undefined once the element is gone from the file", () => {
+    const filePath = "Gone.tsx";
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "locate-gone-"));
+    tempDirs.push(root);
+    fs.writeFileSync(
+      path.join(root, filePath),
+      "export const Gone = () => <button></button>;\n",
+    );
+    const [raw] = buttonNameCheck.run(
+      parseSource(filePath, "export const Gone = () => <button></button>;\n"),
+    );
+    if (!raw) throw new Error("expected a button-name finding");
+    fs.writeFileSync(
+      path.join(root, filePath),
+      "export const Gone = () => <button>Save</button>;\n",
+      "utf8",
+    );
+
+    expect(
+      locateViolationInProject(root, {
+        checkId: raw.checkId,
+        location: raw.location,
+      }),
+    ).toBeUndefined();
+  });
+
+  it("falls back to the line when the stored finding has no snippet", () => {
+    const filePath = "NoSnippet.tsx";
+    const source = "export const NoSnippet = () => <button></button>;\n";
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "locate-line-"));
+    tempDirs.push(root);
+    fs.writeFileSync(path.join(root, filePath), source);
+    const [raw] = buttonNameCheck.run(parseSource(filePath, source));
+    if (!raw?.location || raw.location.kind !== "source") {
+      throw new Error("expected a source button-name finding");
+    }
+
+    const match = locateViolationInProject(root, {
+      checkId: raw.checkId,
+      location: { ...raw.location, snippet: "  " },
+    });
+
+    expect(match?.checkId).toBe(raw.checkId);
   });
 });

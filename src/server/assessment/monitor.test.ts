@@ -54,6 +54,22 @@ describe("detectChanges", () => {
     ).toBe("2 file(s) changed: a.tsx, b.tsx");
   });
 
+  it("summarizes a long change list with a remainder count", () => {
+    const changes = ["a", "b", "c", "d", "e", "f", "g"].map((filePath) => ({
+      filePath,
+    }));
+
+    expect(summarizeChanges(changes)).toBe(
+      "7 file(s) changed: a, b, c, d, e (+2 more)",
+    );
+  });
+
+  it("reports a single unchanged file as no change", () => {
+    expect(summarizeChanges([])).toBe(
+      "No source changes since the previous assessment.",
+    );
+  });
+
   it("snapshots exactly the script set (node_modules/dotfiles excluded)", async () => {
     fs.mkdirSync(path.join(rootPath, "node_modules", "pkg"), {
       recursive: true,
@@ -80,6 +96,56 @@ describe("detectChanges", () => {
       );
     } finally {
       vi.unstubAllEnvs();
+    }
+  });
+
+  it("fails the walk when the checkout exceeds the byte quota", async () => {
+    vi.stubEnv("ASSESSMENT_MAX_CHECKOUT_BYTES", "1");
+    try {
+      await expect(captureSnapshot(rootPath)).rejects.toThrow(
+        /assessment quota/,
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("abandons the walk when it runs past its time budget", async () => {
+    vi.stubEnv("ASSESSMENT_MAX_CHECKOUT_SCAN_MS", "1");
+    let calls = 0;
+    vi.spyOn(Date, "now").mockImplementation(() =>
+      calls++ === 0 ? 1_000 : 100_000,
+    );
+    try {
+      await expect(captureSnapshot(rootPath)).rejects.toThrow(/timed out/);
+    } finally {
+      vi.unstubAllEnvs();
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("keeps walking when a directory cannot be opened", async () => {
+    fs.mkdirSync(path.join(rootPath, "sub"));
+    fs.writeFileSync(path.join(rootPath, "sub", "B.tsx"), "export {};\n");
+    const opendir = fs.promises.opendir;
+    let calls = 0;
+    const spy = vi.spyOn(fs.promises, "opendir").mockImplementation((async (
+      target: fs.PathLike,
+    ) => {
+      calls += 1;
+      if (calls === 2) {
+        throw Object.assign(new Error("EACCES"), { code: "EACCES" });
+      }
+      return opendir(target);
+    }) as typeof fs.promises.opendir);
+
+    try {
+      const snapshot = await captureSnapshot(rootPath);
+      // The unreadable subtree is skipped; the rest of the tree still lands.
+      expect(snapshot.fileHashes["A.tsx"]).toBeDefined();
+      expect(snapshot.fileHashes["sub/B.tsx"]).toBeUndefined();
+    } finally {
+      spy.mockRestore();
     }
   });
 });

@@ -1,5 +1,5 @@
 import type { Page } from "playwright-core";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   chromiumExecutableAvailable,
@@ -29,6 +29,15 @@ describe("runtimePageMatchesAuditedUrl", () => {
       runtimePageMatchesAuditedUrl(
         "https://app.example/guide/",
         "https://app.example/guide",
+      ),
+    ).toBe(true);
+  });
+
+  it("treats the bare origin as the root page", () => {
+    expect(
+      runtimePageMatchesAuditedUrl(
+        "https://app.example/",
+        "https://app.example",
       ),
     ).toBe(true);
   });
@@ -152,6 +161,34 @@ describe("gotoForRuntimeAudit", () => {
         "https://app.example/guide",
       ),
     ).rejects.toThrow(/did not render/);
+  });
+
+  it("runs its settle and document checks inside the page", async () => {
+    const fontsReady = Promise.resolve();
+    vi.stubGlobal("document", {
+      fonts: { ready: fontsReady },
+      documentElement: { innerHTML: "<body>ok</body>" },
+    });
+    let evaluates = 0;
+    const page = {
+      goto: async () => ({ status: () => 200 }),
+      addStyleTag: async () => undefined,
+      evaluate: async (fn: () => unknown) => {
+        evaluates += 1;
+        return fn();
+      },
+      waitForTimeout: async () => undefined,
+      url: () => "https://app.example/guide",
+    } as unknown as Page;
+
+    try {
+      await expect(
+        gotoForRuntimeAudit(page, "https://app.example/guide"),
+      ).resolves.toBeUndefined();
+      expect(evaluates).toBe(2);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 

@@ -866,6 +866,33 @@ describe("input-label coverage", () => {
       ),
     ).toHaveLength(0);
   });
+
+  it("cannot pair a label whose htmlFor is a runtime expression", () => {
+    // Only static ids are provable; `htmlFor={fieldId}` is left to review.
+    const findings = inputLabelCheck.run(
+      parseSource(
+        "test.tsx",
+        `const A = ({ fieldId }) => (
+          <><label htmlFor={fieldId}>Email</label><input id="email" /></>
+        );`,
+      ),
+    );
+
+    expect(findings).toHaveLength(1);
+  });
+
+  it("pairs a template-literal htmlFor with a matching id", () => {
+    expect(
+      inputLabelCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = ({ name }) => (
+            <><label htmlFor={\`field-\${name}\`}>Name</label><input id={\`field-\${name}\`} /></>
+          );`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
 });
 
 describe("form-error-association coverage", () => {

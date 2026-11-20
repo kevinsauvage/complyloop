@@ -9,6 +9,8 @@ const domIncludes = [
   "src/app/**/*.test.tsx",
   "packages/analysis-core/src/runtime/site-level/snapshot.test.ts",
   "packages/analysis-core/src/runtime/custom-checks/*.test.ts",
+  // Runs the resolver's in-page callbacks against jsdom: needs a DOM.
+  "packages/analysis-core/src/runtime/incomplete-resolver.dom.test.ts",
 ];
 
 const unitIncludes = [

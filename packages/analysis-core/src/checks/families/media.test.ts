@@ -250,6 +250,25 @@ describe("video-caption", () => {
       ),
     ).toHaveLength(0);
   });
+
+  it("treats player components and src-less iframes as unknown embeds", () => {
+    expect(
+      videoCaptionCheck.run(
+        parseSource("test.tsx", `const A = () => <YouTube id="abc" />;`),
+      ),
+    ).toHaveLength(1);
+
+    // No src, and a src that is an expression the scan cannot read: neither is
+    // provably a captioned video host.
+    expect(
+      videoCaptionCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = ({ url }) => (<><iframe title="a" /><iframe src={url} title="b" /></>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
 });
 
 describe("captions-live", () => {
@@ -318,6 +337,17 @@ describe("media-controls-present", () => {
       ),
     ).toHaveLength(0);
   });
+
+  it("ignores non-media elements and spread props", () => {
+    expect(
+      mediaControlsPresentCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = (props) => (<><div /><video {...props} src="/x.mp4" /></>);`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
 });
 
 describe("media-keyboard-static", () => {
@@ -330,6 +360,24 @@ describe("media-keyboard-static", () => {
         ),
       ),
     ).toHaveLength(1);
+  });
+
+  it("ignores spread props, hidden embeds, and unrelated tags", () => {
+    expect(
+      mediaKeyboardStaticCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = (props) => (
+            <>
+              <div />
+              <object {...props} data="/chart.svg" />
+              <embed src="/chart.svg" aria-hidden="true" />
+              <object data="/chart.svg" role="presentation" />
+            </>
+          );`,
+        ),
+      ),
+    ).toHaveLength(0);
   });
 
   it("accepts object with tabIndex", () => {
@@ -404,6 +452,43 @@ describe("nontemporal-media-alt", () => {
       ),
     ).toHaveLength(0);
   });
+
+  it("ignores temporal media, spread props, and hidden embeds", () => {
+    expect(
+      nontemporalMediaAltCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = (props) => (
+            <>
+              <div />
+              <object {...props} data="/clip.mp4" />
+              <object type="video/mp4" data="/clip.mp4" />
+              <embed type="audio/mpeg" src="/clip.mp3" />
+              <embed src="/chart.svg" aria-hidden="true" />
+            </>
+          );`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("accepts adjacent named links and buttons without fallback content", () => {
+    expect(
+      nontemporalMediaAltCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (
+            <>
+              <object data="/chart.svg" />
+              <a href="/chart.txt" aria-label="Text version" />
+              <canvas />
+              <button aria-labelledby="ref" aria-label="Open summary" />
+            </>
+          );`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
 });
 
 describe("image-detailed-description", () => {
@@ -439,6 +524,36 @@ describe("image-detailed-description", () => {
       ),
     ).toHaveLength(0);
   });
+
+  it("warns on a long alt even when the source looks simple", () => {
+    const longAlt =
+      "A bar chart comparing quarterly revenue across the four regions we report on, 2019 to 2024";
+    const findings = imageDetailedDescriptionCheck.run(
+      parseSource(
+        "test.tsx",
+        `const A = () => <img src="/figure.png" alt="${longAlt}" />;`,
+      ),
+    );
+
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.kind).toBe("warning");
+  });
+
+  it("ignores spread props and images named by a surrounding control", () => {
+    expect(
+      imageDetailedDescriptionCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = (props) => (
+            <>
+              <img {...props} src="/chart.png" alt="Chart" />
+              <button><img src="/chart.png" alt="Chart" /></button>
+            </>
+          );`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
 });
 
 describe("office-docs-alt-present", () => {
@@ -462,6 +577,39 @@ describe("office-docs-alt-present", () => {
             <>
               <a href="/guide.pdf">Guide (PDF)</a>
               <a href="/guide.html">HTML version</a>
+            </>
+          );`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("accepts a link description long enough to stand alone", () => {
+    expect(
+      officeDocsAltPresentCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = () => (
+            <>
+              <a href="/guide.pdf">Guide</a>
+              <a href="/help">Read the full accessible summary of this guide</a>
+            </>
+          );`,
+        ),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("ignores spread props, non-office links, and unrelated siblings", () => {
+    expect(
+      officeDocsAltPresentCheck.run(
+        parseSource(
+          "test.tsx",
+          `const A = (props) => (
+            <>
+              <a {...props} href="/guide.pdf">Guide</a>
+              <a href="/pricing">Pricing</a>
+              <a />
             </>
           );`,
         ),

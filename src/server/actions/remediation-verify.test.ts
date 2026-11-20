@@ -3,8 +3,6 @@ import "@/test-fixtures/register-repo-mock";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { WorkspaceSlice } from "@complyloop/db/types";
-
 import { initialActionState } from "@/core/actions/action-state";
 import {
   actionWorkspaceMocks,
@@ -15,7 +13,7 @@ import {
 import { testFinding } from "@/test-fixtures/finding";
 import { testProject } from "@/test-fixtures/project";
 import { testRemediation } from "@/test-fixtures/remediation";
-import { type TestWorkspace, testWorkspace } from "@/test-fixtures/workspace";
+import { makeBaseWorkspace } from "@/test-fixtures/workspace";
 
 import {
   attestRemediationVerifiedAction,
@@ -28,6 +26,12 @@ const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
 const recoverExpiredAssessmentLeases = vi.hoisted(() => vi.fn());
 const scheduleAssessmentDrain = vi.hoisted(() => vi.fn());
 const assertRemediationRateLimit = vi.hoisted(() => vi.fn());
+const isE2EHarnessEnabled = vi.hoisted(() => vi.fn(() => true));
+const afterFn = vi.hoisted(() => vi.fn());
+
+vi.mock("next/server", () => ({
+  after: (...args: unknown[]) => afterFn(...args),
+}));
 
 vi.mock("../rate-limit", async () => {
   const actual =
@@ -73,32 +77,13 @@ vi.mock("../observability", () => ({
 vi.mock("../e2e-harness", async () => {
   const actual =
     await vi.importActual<typeof import("../e2e-harness")>("../e2e-harness");
-  return { ...actual, isE2EHarnessEnabled: () => true };
+  return { ...actual, isE2EHarnessEnabled };
 });
 
 const project = testProject({ orgId: "org-1" });
 const finding = testFinding();
 
-function baseWorkspace(
-  overrides: Partial<WorkspaceSlice> = {},
-  role: "member" | "viewer" = "member",
-): TestWorkspace {
-  const { findings, remediations, ...rest } = overrides;
-  return testWorkspace({
-    role,
-    userId: "user-1",
-    project,
-    findings: findings ?? [finding],
-    remediations: remediations ?? [
-      testRemediation({ status: "implemented", suggestion: null, history: [] }),
-    ],
-    db: {
-      requirements: [],
-      alerts: [],
-      ...rest,
-    },
-  });
-}
+const baseWorkspace = makeBaseWorkspace({ project, finding, role: "member" });
 
 const domFinding = () =>
   testFinding({
@@ -115,6 +100,8 @@ afterEach(() => {
   vi.clearAllMocks();
   scheduleAssessmentDrain.mockReset();
   enqueueAssessmentJob.mockReset();
+  isE2EHarnessEnabled.mockReturnValue(true);
+  vi.unstubAllEnvs();
 });
 
 describe("verifyRemediationAction", () => {
@@ -271,6 +258,62 @@ describe("verifyRemediationAction", () => {
     expect(enqueueAssessmentJob).not.toHaveBeenCalled();
     expect(recordedWrites().findings).toHaveLength(0);
     expect(result.ok ? result.message : "").not.toMatch(/verified/i);
+  });
+
+  it("queues the re-audit instead of draining it inline", async () => {
+    const workspace = baseWorkspace({ findings: [domFinding()] });
+    getWorkspace.mockResolvedValue(workspace);
+    mockProjectTx(workspace);
+    enqueueAssessmentJob.mockResolvedValue({
+      id: "job-1",
+      projectId: "p1",
+      status: "queued",
+      trigger: "verify_remediation",
+      payload: { findingId: "f1" },
+      attempts: 0,
+      maxAttempts: 3,
+      availableAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    isE2EHarnessEnabled.mockReturnValue(false);
+    vi.stubEnv("NODE_ENV", "production");
+
+    const result = await verifyRemediationAction(
+      "f1",
+      initialActionState,
+      new FormData(),
+    );
+
+    expect(result.ok ? result.message : null).toMatch(/queued/i);
+    expect(scheduleAssessmentDrain).not.toHaveBeenCalled();
+    expect(afterFn).toHaveBeenCalledOnce();
+  });
+
+  it("fails when the finding or remediation disappears under the lock", async () => {
+    getWorkspace.mockResolvedValue(baseWorkspace({ findings: [domFinding()] }));
+    mockProjectTx(baseWorkspace({ findings: [] }));
+    const missingFinding = await verifyRemediationAction(
+      "f1",
+      initialActionState,
+      new FormData(),
+    );
+    expect(missingFinding.ok ? null : missingFinding.message).toMatch(
+      /Unknown finding/,
+    );
+
+    mockProjectTx(
+      baseWorkspace({ findings: [domFinding()], remediations: [] }),
+    );
+    const missingRemediation = await verifyRemediationAction(
+      "f1",
+      initialActionState,
+      new FormData(),
+    );
+    expect(missingRemediation.ok ? null : missingRemediation.message).toMatch(
+      /No remediation/,
+    );
+    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
   });
 });
 
@@ -452,6 +495,22 @@ describe("attestRemediationVerifiedAction", () => {
     );
     expect(stale.ok ? null : stale.message).toMatch(/implemented/);
     expect(recordedWrites().findings).toHaveLength(0);
+
+    mockProjectTx(
+      baseWorkspace({
+        findings: [resolved("img")],
+        remediations: [],
+      }),
+    );
+    const noRemediation = await attestRemediationVerifiedAction(
+      "f1",
+      initialActionState,
+      note,
+    );
+    expect(noRemediation.ok ? null : noRemediation.message).toMatch(
+      /No remediation/,
+    );
+    expect(recordedWrites().findings).toHaveLength(0);
   });
 });
 
@@ -497,6 +556,36 @@ describe("markRemediationImplementedAction", () => {
     );
 
     expect(result.ok ? null : result.message).toMatch(/approved/);
+    expect(recordedWrites().findings).toHaveLength(0);
+  });
+
+  it("rejects a finding that is no longer open", async () => {
+    mockProjectTx(
+      baseWorkspace({
+        findings: [testFinding({ status: "resolved" })],
+      }),
+    );
+
+    const result = await markRemediationImplementedAction(
+      "f1",
+      initialActionState,
+      new FormData(),
+    );
+
+    expect(result.ok ? null : result.message).toMatch(/Only open findings/);
+    expect(recordedWrites().findings).toHaveLength(0);
+  });
+
+  it("rejects a finding with no remediation row", async () => {
+    mockProjectTx(baseWorkspace({ remediations: [] }));
+
+    const result = await markRemediationImplementedAction(
+      "f1",
+      initialActionState,
+      new FormData(),
+    );
+
+    expect(result.ok ? null : result.message).toMatch(/No remediation/);
     expect(recordedWrites().findings).toHaveLength(0);
   });
 });
