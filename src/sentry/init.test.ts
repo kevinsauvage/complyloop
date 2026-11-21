@@ -25,7 +25,16 @@ describe("sentryInitOptions", () => {
       dsn: "https://example.ingest.sentry.io/1",
       environment: "production",
       tracesSampleRate: 0.05,
+      ignoreErrors: [/The destination stream closed early/],
       beforeSend: expect.any(Function),
     });
+  });
+
+  it("drops web-vital messages so telemetry never opens an Issue", () => {
+    const { beforeSend } = sentryInitOptions("https://example.ingest.sentry.io/1");
+    const send = (event: { message?: string }) => beforeSend?.(event as never, {} as never);
+
+    expect(send({ message: "web-vital LCP" })).toBeNull();
+    expect(send({ message: "GET /dashboard failed" })).not.toBeNull();
   });
 });

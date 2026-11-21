@@ -8,7 +8,7 @@ import { resolveInside } from "@complyloop/analysis-core/workspace-path";
 
 import { advanceRemediation } from "@/core/requirements/remediation-lifecycle";
 
-import { reportWarning } from "../observability";
+import { reportEvent, reportWarning } from "../observability";
 import type { ProjectRows } from "../workspace/project-rows";
 import { appendEvidence } from "../workspace/project-rows";
 import {
@@ -129,7 +129,8 @@ export function verifyRemediationOnResolve(
     ? scope.fileExists(filePath)
     : fileExistsInCheckout(scope.rootPath, filePath);
   if (!exists) {
-    reportWarning("Skipping auto-verify: finding file no longer exists", {
+    // Expected on any file move or delete: keep it in the logs, out of Issues.
+    reportEvent("Skipping auto-verify: finding file no longer exists", {
       code: "draft_pr_verify_scope_unproven",
       projectId: finding.projectId,
       findingId: finding.id,

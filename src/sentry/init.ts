@@ -7,6 +7,9 @@ export function sentryTracesSampleRate(): number {
   return process.env.NODE_ENV === "production" ? 0.05 : 0;
 }
 
+/** Field Core Web Vitals are telemetry; one Issue per metric buries real errors. */
+const WEB_VITAL_PREFIX = "web-vital ";
+
 function scrubValue(value: unknown, depth = 0): unknown {
   if (typeof value === "string") return redactSecrets(value);
   if (depth >= 3 || typeof value !== "object" || value === null) return value;
@@ -69,6 +72,12 @@ export function sentryInitOptions(
     dsn,
     environment: process.env.NODE_ENV ?? "development",
     tracesSampleRate: sentryTracesSampleRate(),
-    beforeSend: (event) => scrubSentryEvent(event),
+    // A cancelled navigation aborts the RSC stream; Next.js reports it as an
+    // error even though nothing in the app is broken.
+    ignoreErrors: [/The destination stream closed early/],
+    beforeSend: (event) => {
+      if (event.message?.startsWith(WEB_VITAL_PREFIX)) return null;
+      return scrubSentryEvent(event);
+    },
   };
 }
