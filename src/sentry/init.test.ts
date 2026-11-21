@@ -31,8 +31,11 @@ describe("sentryInitOptions", () => {
   });
 
   it("drops web-vital messages so telemetry never opens an Issue", () => {
-    const { beforeSend } = sentryInitOptions("https://example.ingest.sentry.io/1");
-    const send = (event: { message?: string }) => beforeSend?.(event as never, {} as never);
+    const { beforeSend } = sentryInitOptions(
+      "https://example.ingest.sentry.io/1",
+    );
+    const send = (event: { message?: string }) =>
+      beforeSend?.(event as never, {} as never);
 
     expect(send({ message: "web-vital LCP" })).toBeNull();
     expect(send({ message: "GET /dashboard failed" })).not.toBeNull();
