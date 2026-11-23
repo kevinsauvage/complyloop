@@ -46,9 +46,12 @@ describe("resolveChanges", () => {
     });
 
     expect(changeSet.comparable).toBe(true);
+    // Deletions are part of the trail (evidence + changesSincePrevious), not
+    // only of the invalidation set.
     expect(changeSet.changes.map((change) => change.filePath)).toEqual([
       "A.tsx",
       "B.tsx",
+      "Gone.tsx",
       "Renamed.tsx",
     ]);
     expect(changeSet.removed).toEqual(["Gone.tsx", "Renamed.tsx"]);

@@ -3,12 +3,12 @@ import { type SQL, sql } from "drizzle-orm";
 import type { DrizzleDb } from "../postgres.ts";
 
 /**
- * Retention for the assessment pipeline's own bookkeeping tables.
+ * Retention for the assessment pipeline's own bookkeeping table.
  *
- * `assessments` and `assessment_snapshots` grow with every
- * run and are never read far back, so they are pruned on the worker tick
- * (`runAssessmentJobBatch`) in bounded batches — a deployment must not stop
- * taking assessments because a DELETE holds a long lock.
+ * `assessments` grows with every run and is never read far back, so it is
+ * pruned on the worker tick (`runAssessmentJobBatch`) in bounded batches — a
+ * deployment must not stop taking assessments because a DELETE holds a long
+ * lock.
  *
  * Guards (each protects something the schema would otherwise destroy):
  *

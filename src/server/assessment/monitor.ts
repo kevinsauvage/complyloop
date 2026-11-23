@@ -132,8 +132,10 @@ export async function resolveChanges(input: {
     else changes.add(entry.filePath);
   }
 
+  // Deletions belong to the change trail too: a commit that only removes files
+  // must still record what changed in evidence and `changesSincePrevious`.
   return {
-    changes: [...changes]
+    changes: [...new Set([...changes, ...removed])]
       .sort((a, b) => a.localeCompare(b))
       .map((filePath) => ({ filePath })),
     removed: [...removed].sort(),
