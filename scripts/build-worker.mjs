@@ -57,6 +57,11 @@ buildSync({
     "typescript",
     "@sentry/*",
     "isomorphic-git",
+    // `html-validate` resolves its own element metadata and formatters through
+    // `import.meta.url`; rolled into a CJS bundle that is `{}`, so its first
+    // use threw `createRequire(undefined)` and the rendered-DOM pass (RGAA 8.2
+    // / 10.1) silently skipped every page. Resolve the real package instead.
+    "html-validate",
     // `pg` (pulled in by pg-boss) lazily requires its optional native binding.
     "pg-native",
   ],
