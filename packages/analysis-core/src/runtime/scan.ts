@@ -211,8 +211,15 @@ function createPlaywrightAxeScanner(options?: {
               url,
             );
             pageHtmlValidateRan = true;
-          } catch {
-            // Non-fatal: axe + custom findings are still valid evidence.
+          } catch (error) {
+            // Non-fatal: axe + custom findings are still valid evidence. Loud
+            // anyway — an engine that silently skips turns RGAA 8.2/10.1 into
+            // `unable_to_verify` with no trace to explain it.
+            console.warn(
+              `[warning] html-validate skipped for ${url.replace(/\?[^\s"'<>]*/g, "")}: ${
+                error instanceof Error ? error.message : String(error)
+              }`.slice(0, 400),
+            );
           }
 
           let violations = hasDoctype
