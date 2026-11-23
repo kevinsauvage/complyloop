@@ -7,76 +7,29 @@ import { githubTokens } from "../schema.ts";
  * Stored GitHub OAuth token row (encrypted at rest — encryption lives in
  * `src/server/github/github-tokens.ts`; this module is persistence only).
  */
-export interface GithubTokenRow {
-  userId: string;
-  v: number;
-  iv: string;
-  tag: string;
-  ciphertext: string;
-  updatedAt: string;
-  refreshToken: string | null;
-  refreshIv: string | null;
-  refreshTag: string | null;
-  expiresAt: string | null;
-}
+export type GithubTokenRow = typeof githubTokens.$inferSelect;
 
 export async function upsertGithubTokenRow(
   db: DrizzleDb,
   row: GithubTokenRow,
 ): Promise<void> {
+  // `set: row` rewrites the conflicting key with its own value: harmless.
   await db
     .insert(githubTokens)
-    .values({
-      userId: row.userId,
-      v: row.v,
-      iv: row.iv,
-      tag: row.tag,
-      ciphertext: row.ciphertext,
-      updatedAt: row.updatedAt,
-      refreshToken: row.refreshToken,
-      refreshIv: row.refreshIv,
-      refreshTag: row.refreshTag,
-      expiresAt: row.expiresAt,
-    })
-    .onConflictDoUpdate({
-      target: githubTokens.userId,
-      set: {
-        v: row.v,
-        iv: row.iv,
-        tag: row.tag,
-        ciphertext: row.ciphertext,
-        updatedAt: row.updatedAt,
-        refreshToken: row.refreshToken,
-        refreshIv: row.refreshIv,
-        refreshTag: row.refreshTag,
-        expiresAt: row.expiresAt,
-      },
-    });
+    .values(row)
+    .onConflictDoUpdate({ target: githubTokens.userId, set: row });
 }
 
 export async function findGithubTokenRowByUserId(
   db: DrizzleDb,
   userId: string,
 ): Promise<GithubTokenRow | undefined> {
-  const rows = await db
+  const [row] = await db
     .select()
     .from(githubTokens)
     .where(eq(githubTokens.userId, userId))
     .limit(1);
-  const row = rows[0];
-  if (!row) return undefined;
-  return {
-    userId: row.userId,
-    v: row.v,
-    iv: row.iv,
-    tag: row.tag,
-    ciphertext: row.ciphertext,
-    updatedAt: row.updatedAt,
-    refreshToken: row.refreshToken,
-    refreshIv: row.refreshIv,
-    refreshTag: row.refreshTag,
-    expiresAt: row.expiresAt,
-  };
+  return row;
 }
 
 export async function deleteGithubTokenRowByUserId(

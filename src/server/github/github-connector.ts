@@ -22,16 +22,8 @@
  */
 import "server-only";
 
-import type {
-  Finding,
-  Remediation,
-} from "@complyloop/analysis-core/contract/entities";
-import type {
-  Control,
-  Project,
-} from "@complyloop/analysis-core/contract/project-types";
-
-import type { PatchCandidate } from "@/ai/verified-fix";
+import type { Project } from "@complyloop/analysis-core/contract/project-types";
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 import { type ChangedPath, compareCommitFiles } from "./compare";
 import { fetchGitHubRepo, resolveProjectGitHubToken } from "./github-access";
@@ -44,7 +36,7 @@ import {
   resolveUserInstallationForRepo,
 } from "./github-app";
 import type { GitHubRepoSummary } from "./github-types";
-import { preparePullRequest, type PullRequestResult } from "./pr";
+import { preparePullRequest } from "./pr";
 
 export type { GitHubRepoSummary };
 export { assertBranchExists, isGitHubAppConfigured };
@@ -52,6 +44,32 @@ export { createInstallationAccessToken, resolveUserInstallationForRepo };
 
 /** Installation token for clone / PR / Checks. Null when not App-connected. */
 export { resolveProjectGitHubToken as getProjectToken };
+
+/**
+ * The project's repository and an installation token, or a `PublicError`
+ * saying what to repair (missing metadata, or not connected via the App).
+ */
+export async function requireProjectRepoAccess(
+  project: Project,
+): Promise<{ fullName: string; accessToken: string }> {
+  const fullName = project.github?.fullName;
+  if (!fullName) {
+    throw new PublicError(
+      "Project has no GitHub repository metadata.",
+      "connect",
+    );
+  }
+  const accessToken = await resolveProjectGitHubToken(project);
+  if (!accessToken) {
+    throw new PublicError(
+      project.github?.installationId
+        ? "Could not mint a GitHub App installation token for this repository."
+        : "This project is not connected via the GitHub App. Reconnect it from Settings.",
+      "connect",
+    );
+  }
+  return { fullName, accessToken };
+}
 
 /** Public install URL for the GitHub App (repair banner, picker empty state). */
 export { githubAppInstallUrl };
@@ -72,12 +90,7 @@ export function listAvailableRepos(options: {
 }
 
 /** Single repository metadata for a user access token (connect flow). */
-export function fetchRepo(
-  accessToken: string,
-  fullName: string,
-): Promise<GitHubRepoSummary> {
-  return fetchGitHubRepo(accessToken, fullName);
-}
+export { fetchGitHubRepo as fetchRepo };
 
 /**
  * Files that differ between two commits of a connected project, or `null` when
@@ -104,12 +117,4 @@ export async function compareProjectCommits(
  * Apply a verified patch on a fresh checkout, then commit, push, and open a
  * draft PR. Checkout + token handling stay inside `pr.ts`.
  */
-export function createProjectPullRequest(
-  project: Project,
-  control: Control,
-  finding: Finding,
-  remediation: Remediation,
-  candidate: PatchCandidate | null,
-): Promise<PullRequestResult> {
-  return preparePullRequest(project, control, finding, remediation, candidate);
-}
+export { preparePullRequest as createProjectPullRequest };

@@ -14,7 +14,7 @@ import {
   octokitErrorMessage,
   parseOwnerRepo,
 } from "../github/github";
-import { getProjectToken } from "../github/github-connector";
+import { requireProjectRepoAccess } from "../github/github-connector";
 import { refForProjectCheckout } from "../github/tracked-branch";
 import { withFixtureCheckout } from "./fixture-checkout";
 
@@ -27,22 +27,7 @@ export async function readProjectFile(
   project: Project,
   filePath: string,
 ): Promise<string> {
-  const fullName = project.github?.fullName;
-  if (!fullName) {
-    throw new PublicError(
-      "Project has no GitHub repository metadata.",
-      "connect",
-    );
-  }
-  const accessToken = await getProjectToken(project);
-  if (!accessToken) {
-    throw new PublicError(
-      project.github?.installationId
-        ? "Could not mint a GitHub App installation token for this repository."
-        : "This project is not connected via the GitHub App. Reconnect it from Settings.",
-      "connect",
-    );
-  }
+  const { fullName, accessToken } = await requireProjectRepoAccess(project);
 
   const { owner, repo } = parseOwnerRepo(fullName);
   const ref = refForProjectCheckout(project);

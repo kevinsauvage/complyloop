@@ -1,5 +1,9 @@
 "use server";
 
+import type {
+  Finding,
+  Remediation,
+} from "@complyloop/analysis-core/contract/entities";
 import { formatLocationRef } from "@complyloop/analysis-core/contract/location";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { insertEvidence } from "@complyloop/db/repo/evidence";
@@ -30,6 +34,53 @@ import { withProjectTx } from "../workspace/workspace-write";
 import { COMPLIANCE_LOOP_ROUTES } from "./refresh-routes";
 import { refresh } from "./shared";
 
+/**
+ * Preview reads, access and rate limits shared by both actions. The AI call
+ * runs BEFORE the transaction takes the project lock: holding a lock + open
+ * transaction across LLM latency would block every other writer for this
+ * project. Preview reads are single-row + the light project guard — no
+ * tenancy load. Both actions write finding/remediation rows, so they need
+ * remediate, not view: otherwise a read-only viewer could mutate findings and
+ * spend AI credits by invoking an action directly.
+ */
+async function prepareFindingAiCall(findingIdRaw: string) {
+  const findingId = parseEntityId(findingIdRaw);
+  const previewFinding = await requireFinding(findingId);
+  const project = await requireProjectAccess(
+    previewFinding.projectId,
+    "project.remediate",
+  );
+  const sessionUserId = (await getSession())?.user?.id;
+  if (sessionUserId) await assertAiRateLimit(sessionUserId);
+  await assertAiOrgRateLimit(project.orgId);
+  return {
+    findingId,
+    previewFinding,
+    project,
+    control: controlById(previewFinding.controlId),
+  };
+}
+
+/** AI may only refine an open finding's suggestion before approval. */
+function assertRefinable<R extends Pick<Remediation, "status">>(
+  finding: Pick<Finding, "status">,
+  remediation: R | undefined,
+): asserts remediation is R {
+  if (finding.status !== "open") {
+    throw new PublicError(
+      "AI remediation is only available for open findings.",
+    );
+  }
+  if (
+    !remediation ||
+    (remediation.status !== "detected" && remediation.status !== "suggested")
+  ) {
+    throw new PublicError(
+      "AI remediation can only refine suggestions before approval.",
+    );
+  }
+}
+
 export async function generateAiExplanationAction(
   findingIdRaw: string,
   _previous: ActionState,
@@ -38,23 +89,8 @@ export async function generateAiExplanationAction(
   void _previous;
   void _formData;
   return runAction(async () => {
-    const findingId = parseEntityId(findingIdRaw);
-    // The AI call runs BEFORE the transaction takes the project lock: holding
-    // a lock + open transaction across LLM latency would block every other
-    // writer for this project. Preview reads are single-row (finding) + the
-    // light project guard — no tenancy load.
-    const previewFinding = await requireFinding(findingId);
-    // Writes the finding row below: remediate, not view — otherwise a
-    // read-only viewer could mutate findings and spend AI credits by invoking
-    // the action directly (the UI already gates the button on canRemediate).
-    const project = await requireProjectAccess(
-      previewFinding.projectId,
-      "project.remediate",
-    );
-    const sessionUserId = (await getSession())?.user?.id;
-    if (sessionUserId) await assertAiRateLimit(sessionUserId);
-    await assertAiOrgRateLimit(project.orgId);
-    const control = controlById(previewFinding.controlId);
+    const { findingId, previewFinding, project, control } =
+      await prepareFindingAiCall(findingIdRaw);
     const config = await prepareAiCallForOrg(project.orgId);
 
     const explanation = await generateAiExplanation(
@@ -103,35 +139,12 @@ export async function generateAiRemediationAction(
   void _previous;
   void _formData;
   return runAction(async () => {
-    const findingId = parseEntityId(findingIdRaw);
-    // The AI call runs BEFORE the transaction takes the project lock: holding
-    // a lock + open transaction across LLM latency would block every other
-    // writer for this project. Preview reads are single-row (finding,
-    // remediation) + the light project guard — no tenancy load.
-    const previewFinding = await requireFinding(findingId);
-    const project = await requireProjectAccess(
-      previewFinding.projectId,
-      "project.remediate",
+    const { findingId, previewFinding, project, control } =
+      await prepareFindingAiCall(findingIdRaw);
+    assertRefinable(
+      previewFinding,
+      await requireRemediationForFinding(findingId),
     );
-    const sessionUserId = (await getSession())?.user?.id;
-    if (sessionUserId) await assertAiRateLimit(sessionUserId);
-    await assertAiOrgRateLimit(project.orgId);
-    const control = controlById(previewFinding.controlId);
-    const previewRemediation = await requireRemediationForFinding(findingId);
-
-    if (previewFinding.status !== "open") {
-      throw new PublicError(
-        "AI remediation is only available for open findings.",
-      );
-    }
-    if (
-      previewRemediation.status !== "detected" &&
-      previewRemediation.status !== "suggested"
-    ) {
-      throw new PublicError(
-        "AI remediation can only refine suggestions before approval.",
-      );
-    }
 
     const config = await prepareAiCallForOrg(project.orgId);
     const result = await generateAiRemediation(
@@ -156,21 +169,8 @@ export async function generateAiRemediationAction(
         // lock. Re-validate the live row before trusting it: the finding must
         // still be open with a pre-approval remediation, otherwise the stale
         // verdict must not decide the write.
-        if (finding.status !== "open") {
-          throw new PublicError(
-            "AI remediation is only available for open findings.",
-          );
-        }
         const remediation = await getRemediationByFindingId(ctx.tx, findingId);
-        if (
-          !remediation ||
-          (remediation.status !== "detected" &&
-            remediation.status !== "suggested")
-        ) {
-          throw new PublicError(
-            "AI remediation can only refine suggestions before approval.",
-          );
-        }
+        assertRefinable(finding, remediation);
 
         if (
           result.attributeValue &&

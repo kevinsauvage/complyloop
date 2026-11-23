@@ -1,21 +1,15 @@
 import type {
-  AnalyzerContribution,
-  AnalyzerId,
   AssessmentEngines,
   Dismissal,
   Explanation,
-  FindingLocation,
-  ProposedFix,
+  FindingObservation,
   RemediationSuggestion,
 } from "./finding-types.ts";
 import type {
-  Confidence,
   DeterminationMethod,
-  FindingKind,
   FindingStatus,
   RemediationStatus,
   RequirementStatus,
-  Severity,
 } from "./statuses.ts";
 
 /**
@@ -78,7 +72,7 @@ export interface Assessment {
  * in SQL. `checkId` stays a plain string at the persistence boundary;
  * the strict registry union lives on `RawFinding`.
  */
-export interface Finding {
+export interface Finding extends FindingObservation {
   id: string;
   projectId: string;
   controlId: string;
@@ -89,26 +83,6 @@ export interface Finding {
   assessmentId: string;
   /** Loose string at the persistence boundary; `RawFinding` keys the strict registry union. */
   checkId: string;
-  kind: FindingKind;
-  severity: Severity;
-  confidence: Confidence;
-  reason: string;
-  location: FindingLocation;
-  fix: ProposedFix | null;
-  /** Analyzer that produced this observation (AST checks default to `ast`). */
-  analyzerId?: AnalyzerId;
-  /** axe / html-validate / jsx-a11y rule id, or custom probe check id. */
-  analyzerRuleId?: string;
-  /** Package version of the analyzer when cheap to resolve. */
-  analyzerVersion?: string;
-  /** What was validated (e.g. live DOM serialization vs source HTML). */
-  validationInput?: string;
-  /** Rule ids enabled for this validation pass. */
-  validationRules?: string[];
-  /** Whether a doctype was included in the validated string. */
-  doctypeIncludedInInput?: boolean;
-  /** Other analyzers merged into this finding during runtime dedupe. */
-  contributingAnalyzers?: AnalyzerContribution[];
   status: FindingStatus;
   explanations: Explanation[];
   detectedAt: string;

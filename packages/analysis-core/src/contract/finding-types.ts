@@ -1,4 +1,9 @@
-import type { Confidence, ExplanationProvenance } from "./statuses.ts";
+import type {
+  Confidence,
+  ExplanationProvenance,
+  FindingKind,
+  Severity,
+} from "./statuses.ts";
 
 /** Which analyzer produced an observation (finer than `engine`). */
 export type AnalyzerId =
@@ -178,4 +183,31 @@ export interface RemediationSuggestion {
   confidence?: Confidence;
   model?: string;
   generatedAt?: string;
+}
+
+/**
+ * What an analyzer observed. Shared by raw scan output (`RawFinding`) and the
+ * stored `Finding`, which adds identity and lifecycle.
+ */
+export interface FindingObservation {
+  kind: FindingKind;
+  severity: Severity;
+  confidence: Confidence;
+  reason: string;
+  location: FindingLocation;
+  fix: ProposedFix | null;
+  /** Analyzer that produced this observation (AST checks default to `ast`). */
+  analyzerId?: AnalyzerId;
+  /** axe / html-validate / jsx-a11y rule id, or custom probe check id. */
+  analyzerRuleId?: string;
+  /** Package version of the analyzer when cheap to resolve. */
+  analyzerVersion?: string;
+  /** What was validated (e.g. live DOM serialization vs source HTML). */
+  validationInput?: string;
+  /** Rule ids enabled for this validation pass. */
+  validationRules?: string[];
+  /** Whether a doctype was included in the validated string. */
+  doctypeIncludedInInput?: boolean;
+  /** Other analyzers merged into this finding during runtime dedupe. */
+  contributingAnalyzers?: AnalyzerContribution[];
 }

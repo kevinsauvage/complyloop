@@ -24,8 +24,8 @@ vi.mock("isomorphic-git/http/node", () => ({
   default: {},
 }));
 
+import { assertCheckoutQuota } from "./monitor";
 import {
-  assertCheckoutWithinQuota,
   cloneAuthedShallow,
   cloneShallow,
   parseCheckoutRef,
@@ -283,7 +283,7 @@ describe("parseCheckoutRef", () => {
   });
 });
 
-describe("assertCheckoutWithinQuota", () => {
+describe("assertCheckoutQuota", () => {
   const envKeys = [
     "ASSESSMENT_MAX_CHECKOUT_BYTES",
     "ASSESSMENT_MAX_CHECKOUT_FILES",
@@ -305,7 +305,7 @@ describe("assertCheckoutWithinQuota", () => {
     process.env.ASSESSMENT_MAX_CHECKOUT_BYTES = String(1024 * 1024);
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "quota-empty-"));
     tempDirs.push(root);
-    await expect(assertCheckoutWithinQuota(root)).resolves.toBeUndefined();
+    await expect(assertCheckoutQuota(root)).resolves.toBeUndefined();
   });
 
   it("counts files across nested directories, ignoring .git", async () => {
@@ -321,12 +321,10 @@ describe("assertCheckoutWithinQuota", () => {
       path.join(root, ".git", "objects", "pack"),
       "x".repeat(100),
     );
-    await expect(assertCheckoutWithinQuota(root)).resolves.toBeUndefined();
+    await expect(assertCheckoutQuota(root)).resolves.toBeUndefined();
 
     fs.writeFileSync(path.join(root, "a", "b", "three.ts"), "3");
-    await expect(assertCheckoutWithinQuota(root)).rejects.toThrow(
-      /assessment quota/,
-    );
+    await expect(assertCheckoutQuota(root)).rejects.toThrow(/assessment quota/);
   });
 
   it("allows trees within the quota", async () => {
@@ -338,7 +336,7 @@ describe("assertCheckoutWithinQuota", () => {
     fs.writeFileSync(path.join(root, "src", "a.ts"), "export const a = 1;\n");
     fs.mkdirSync(path.join(root, ".git"));
     fs.writeFileSync(path.join(root, ".git", "HEAD"), "ref: refs/heads/main\n");
-    await expect(assertCheckoutWithinQuota(root)).resolves.toBeUndefined();
+    await expect(assertCheckoutQuota(root)).resolves.toBeUndefined();
   });
 
   it("rejects when file count exceeds the quota", async () => {
@@ -348,12 +346,8 @@ describe("assertCheckoutWithinQuota", () => {
     tempDirs.push(root);
     fs.writeFileSync(path.join(root, "one.ts"), "1");
     fs.writeFileSync(path.join(root, "two.ts"), "2");
-    await expect(assertCheckoutWithinQuota(root)).rejects.toBeInstanceOf(
-      PublicError,
-    );
-    await expect(assertCheckoutWithinQuota(root)).rejects.toThrow(
-      /assessment quota/,
-    );
+    await expect(assertCheckoutQuota(root)).rejects.toBeInstanceOf(PublicError);
+    await expect(assertCheckoutQuota(root)).rejects.toThrow(/assessment quota/);
   });
 
   it("rejects when byte size exceeds the quota", async () => {
@@ -362,9 +356,7 @@ describe("assertCheckoutWithinQuota", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "quota-bytes-"));
     tempDirs.push(root);
     fs.writeFileSync(path.join(root, "big.txt"), "0123456789");
-    await expect(assertCheckoutWithinQuota(root)).rejects.toThrow(
-      /assessment quota/,
-    );
+    await expect(assertCheckoutQuota(root)).rejects.toThrow(/assessment quota/);
   });
 });
 

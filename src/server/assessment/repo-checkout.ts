@@ -11,7 +11,6 @@ import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 import { isE2EHarnessEnabled } from "../e2e-harness";
-import { assessmentCheckoutQuota } from "../env";
 import {
   gitBasicAuthHeader,
   type GitHttpAuth,
@@ -22,61 +21,10 @@ import {
   parseOwnerRepo,
   redactCloneUrl,
 } from "../github/github";
-import { getProjectToken } from "../github/github-connector";
+import { requireProjectRepoAccess } from "../github/github-connector";
 import { refForProjectCheckout } from "../github/tracked-branch";
 import { withFixtureCheckout } from "./fixture-checkout";
-
-/**
- * Rejects oversized clones before AST parsing or Playwright can consume
- * capacity. Async + time-budgeted so a huge tree cannot block the event loop.
- */
-export async function assertCheckoutWithinQuota(
-  rootPath: string,
-): Promise<void> {
-  const {
-    maxBytes: byteLimit,
-    maxFiles: fileLimit,
-    scanTimeoutMs,
-  } = assessmentCheckoutQuota();
-  const deadline = Date.now() + scanTimeoutMs;
-  const { opendir, stat } = fs.promises;
-  let bytes = 0;
-  let files = 0;
-  const pending = [rootPath];
-  while (pending.length > 0) {
-    const current = pending.pop();
-    if (!current) continue;
-    let directory: fs.Dir;
-    try {
-      directory = await opendir(current);
-    } catch {
-      continue;
-    }
-    for await (const entry of directory) {
-      if (Date.now() > deadline) {
-        throw new PublicError(
-          "Repository quota check timed out.",
-          "assessment_quota_exceeded",
-        );
-      }
-      if (entry.name === ".git") continue;
-      const absolute = path.join(current, entry.name);
-      if (entry.isDirectory()) {
-        pending.push(absolute);
-        continue;
-      }
-      if (!entry.isFile()) continue;
-      files += 1;
-      bytes += (await stat(absolute)).size;
-      if (files > fileLimit || bytes > byteLimit) {
-        throw new PublicError(
-          `Repository exceeds the assessment quota (${fileLimit} files or ${Math.floor(byteLimit / 1024 / 1024)} MB).`,
-          "assessment_quota_exceeded",
-        );
-      }
-    }
-  }
-}
+import { assertCheckoutQuota } from "./monitor";
 
 export interface RepoCheckoutOptions {
   fullName: string;
@@ -236,7 +184,7 @@ export async function withRepoCheckout<T>(
       // fast on quota before fetching instead of after. Full 40-hex SHAs
       // fetch by hash (verified against GitHub); branch/tag names resolve
       // server-side as usual.
-      await assertCheckoutWithinQuota(rootPath);
+      await assertCheckoutQuota(rootPath);
       try {
         await git.fetch({
           fs,
@@ -291,22 +239,7 @@ export async function withProjectCheckout<T>(
     return withFixtureCheckout(fn);
   }
 
-  const fullName = project.github?.fullName;
-  if (!fullName) {
-    throw new PublicError(
-      "Project has no GitHub repository metadata.",
-      "connect",
-    );
-  }
-  const accessToken = await getProjectToken(project);
-  if (!accessToken) {
-    throw new PublicError(
-      project.github?.installationId
-        ? "Could not mint a GitHub App installation token for this repository."
-        : "This project is not connected via the GitHub App. Reconnect it from Settings.",
-      "connect",
-    );
-  }
+  const { fullName, accessToken } = await requireProjectRepoAccess(project);
   // No explicit ref (a manual run): the project's tracked branch when one is
   // set, otherwise the repository default.
   return withRepoCheckout(
