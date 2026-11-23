@@ -57,6 +57,28 @@ const finding: Finding = {
 };
 
 describe("FindingUnderstandCard", () => {
+  it("links blocked AI to the settings of the project's own organization", () => {
+    useActionStateMock.mockReturnValue([
+      { error: null, message: null },
+      vi.fn(),
+      false,
+    ]);
+    render(
+      <FindingUnderstandCard
+        aiSettingsHref="/org?org=org-2#ai"
+        finding={finding}
+        canRemediate
+        aiAvailable={false}
+        aiUnavailableMessage="AI key rejected."
+      />,
+    );
+
+    expect(screen.getByText(/AI key rejected\./)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Open Organization → AI" }),
+    ).toHaveAttribute("href", "/org?org=org-2#ai");
+  });
+
   it("shows why it failed next to the source location and snippet", () => {
     useActionStateMock.mockReturnValue([
       { error: null, message: null },
@@ -64,7 +86,12 @@ describe("FindingUnderstandCard", () => {
       false,
     ]);
     render(
-      <FindingUnderstandCard finding={finding} canRemediate aiAvailable />,
+      <FindingUnderstandCard
+        aiSettingsHref="/org?org=org-1#ai"
+        finding={finding}
+        canRemediate
+        aiAvailable
+      />,
     );
 
     expect(
@@ -97,6 +124,7 @@ describe("FindingUnderstandCard", () => {
     };
     render(
       <FindingUnderstandCard
+        aiSettingsHref="/org?org=org-1#ai"
         finding={runtimeFinding}
         canRemediate
         aiAvailable
@@ -134,6 +162,7 @@ describe("FindingUnderstandCard", () => {
     };
     render(
       <FindingUnderstandCard
+        aiSettingsHref="/org?org=org-1#ai"
         finding={contrastFinding}
         canRemediate
         aiAvailable
@@ -159,6 +188,7 @@ describe("FindingUnderstandCard", () => {
     ]);
     render(
       <FindingUnderstandCard
+        aiSettingsHref="/org?org=org-1#ai"
         finding={finding}
         canRemediate
         aiAvailable
@@ -195,6 +225,7 @@ describe("FindingUnderstandCard", () => {
     };
     render(
       <FindingUnderstandCard
+        aiSettingsHref="/org?org=org-1#ai"
         finding={iconLink}
         canRemediate
         aiAvailable
@@ -219,7 +250,12 @@ describe("FindingUnderstandCard", () => {
       false,
     ]);
     render(
-      <FindingUnderstandCard finding={finding} canRemediate aiAvailable />,
+      <FindingUnderstandCard
+        aiSettingsHref="/org?org=org-1#ai"
+        finding={finding}
+        canRemediate
+        aiAvailable
+      />,
     );
 
     expect(screen.getByText("AI explanation")).toBeInTheDocument();

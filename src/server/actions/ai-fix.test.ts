@@ -1,7 +1,9 @@
 import "@/test-fixtures/register-action-workspace-mock";
 import "@/test-fixtures/register-repo-mock";
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 import { initialActionState } from "@/core/actions/action-state";
 import {
@@ -20,6 +22,8 @@ const { getWorkspace } = actionWorkspaceMocks;
 const generatePatchCandidateForFinding = vi.hoisted(() => vi.fn());
 const persistPatchCandidate = vi.hoisted(() => vi.fn());
 const assertAiRateLimit = vi.hoisted(() => vi.fn());
+const assertAiOrgRateLimit = vi.hoisted(() => vi.fn());
+const prepareAiCallForOrg = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
 
 vi.mock("../assessment/ai-fix", async (importOriginal) => {
@@ -33,8 +37,13 @@ vi.mock("../assessment/ai-fix", async (importOriginal) => {
   };
 });
 
+vi.mock("../ai/ai-config", () => ({
+  prepareAiCallForOrg: (...args: unknown[]) => prepareAiCallForOrg(...args),
+}));
+
 vi.mock("../rate-limit", () => ({
   assertAiRateLimit: (...args: unknown[]) => assertAiRateLimit(...args),
+  assertAiOrgRateLimit: (...args: unknown[]) => assertAiOrgRateLimit(...args),
 }));
 
 vi.mock("./shared", async () => {
@@ -82,6 +91,18 @@ afterEach(() => {
   actionAuthMocks.auth.mockReset();
 });
 
+function aiConfig() {
+  return {
+    model: "test-model",
+    modelId: "test-model",
+  };
+}
+
+beforeEach(() => {
+  prepareAiCallForOrg.mockResolvedValue(aiConfig());
+  assertAiOrgRateLimit.mockResolvedValue(undefined);
+});
+
 describe("generateAiFixAction", () => {
   it("generates and persists a verified patch in the request", async () => {
     const current = workspace();
@@ -118,7 +139,7 @@ describe("generateAiFixAction", () => {
       project,
       finding,
       expect.objectContaining({ id: "ctl-img-alt" }),
-      expect.objectContaining({ aiAvailable: expect.any(Boolean) }),
+      { aiConfig: aiConfig() },
     );
     expect(persistPatchCandidate).toHaveBeenCalledWith(
       expect.anything(),
@@ -127,7 +148,30 @@ describe("generateAiFixAction", () => {
       "user-1",
     );
     expect(assertAiRateLimit).toHaveBeenCalledWith("user-1");
+    expect(assertAiOrgRateLimit).toHaveBeenCalledWith("org-1");
     expect(refresh).toHaveBeenCalled();
+  });
+
+  it("persists nothing when the patch fails verification", async () => {
+    const current = workspace();
+    getWorkspace.mockResolvedValue(current);
+    mockProjectTx(current);
+    generatePatchCandidateForFinding.mockRejectedValue(
+      new PublicError("Patch did not pass ComplyLoop."),
+    );
+    assertAiRateLimit.mockResolvedValue(undefined);
+    actionAuthMocks.auth.mockResolvedValue({
+      user: { id: "user-1", login: "user-1" },
+    });
+
+    const result = await generateAiFixAction(
+      "f1",
+      initialActionState,
+      new FormData(),
+    );
+
+    expect(result.ok).toBe(false);
+    expect(persistPatchCandidate).not.toHaveBeenCalled();
   });
 
   it("rejects DOM findings", async () => {
@@ -185,6 +229,14 @@ describe("generateAiFixAction", () => {
     // The checkout + scan runs regardless of a deterministic fix, so it must
     // always be throttled.
     expect(assertAiRateLimit).toHaveBeenCalledWith("user-1");
+    // A deterministic fix never resolves AI credentials.
+    expect(prepareAiCallForOrg).not.toHaveBeenCalled();
+    expect(generatePatchCandidateForFinding).toHaveBeenCalledWith(
+      project,
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ aiConfig: null }),
+    );
   });
 
   it("rejects when the project has no GitHub repo", async () => {

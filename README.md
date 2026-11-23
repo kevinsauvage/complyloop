@@ -90,10 +90,13 @@ Repos are **shallow-cloned per job** into a temp directory and deleted when done
 the platform, record human pass or exceptions on Requirements.
 
 **AI** (optional, **off by default**): explanations, remediation suggestions,
-constrained source patches. Enabled only when both `AI_GATEWAY_API_KEY` and
-`AI_MODEL` are set; there is no default model, so point `AI_MODEL` at a
-zero-data-retention provider — prompts can include client source code. Patches
-must pass ComplyLoop before **Create draft PR**. AI never sets requirement status.
+constrained source patches. Organizations can bring their own Vercel AI
+Gateway key under **Organization → AI**, or the operator can enable a platform
+gateway fallback with `AI_GATEWAY_API_KEY` + `AI_MODEL` (no default model:
+prompts can include client source code, so point it at a zero-data-retention
+provider). Organization keys are AES-256-GCM encrypted with a dedicated
+`AI_KEYS_ENCRYPTION_KEY`; spend limits live in the gateway account. Patches must pass ComplyLoop before **Create
+draft PR**. AI never sets requirement status.
 
 ---
 

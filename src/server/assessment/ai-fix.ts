@@ -26,6 +26,7 @@ import {
 } from "@complyloop/db/repo/remediations";
 
 import { AI_PATCH_UNAVAILABLE_MESSAGE, type AiCallOnError } from "@/ai/ai-call";
+import type { AiConfig } from "@/ai/ai-config";
 import { proposeFixEdits } from "@/ai/patch";
 import {
   assertSourceLocatedFinding,
@@ -53,8 +54,8 @@ export type PatchUiState =
 export interface RunAiFixOnCheckoutOptions {
   propose?: GeneratePatchCandidateOptions["propose"];
   scan?: GeneratePatchCandidateOptions["scan"];
-  /** When false, patch generation fails fast with actionable copy. */
-  aiAvailable?: boolean;
+  /** Resolved AI configuration; `null` fails patch generation fast. */
+  aiConfig?: AiConfig | null;
   /** Gateway-failure hook; defaults to observability reporting. */
   onError?: AiCallOnError;
 }
@@ -105,6 +106,7 @@ export async function runAiFixOnCheckout(
           proposeFixEdits({
             finding,
             control,
+            config: options.aiConfig ?? null,
             onError,
             fileContents: {
               [filePath]: redactSecrets(
@@ -113,7 +115,11 @@ export async function runAiFixOnCheckout(
             },
           })));
 
-  if (deterministic === null && options.aiAvailable === false) {
+  if (
+    deterministic === null &&
+    options.propose === undefined &&
+    options.aiConfig == null
+  ) {
     throw new PublicError(AI_PATCH_UNAVAILABLE_MESSAGE);
   }
 
@@ -137,7 +143,10 @@ export async function generatePatchCandidateForFinding(
   project: Project,
   finding: Finding,
   control: Control,
-  options: { aiAvailable: boolean },
+  options: {
+    aiConfig: AiConfig | null;
+    onError?: AiCallOnError;
+  },
 ): Promise<PatchCandidate> {
   assertSourceLocatedFinding(finding);
   return withProjectFileWorkspace(
@@ -145,7 +154,8 @@ export async function generatePatchCandidateForFinding(
     finding.location.filePath,
     (rootPath) =>
       runAiFixOnCheckout(rootPath, finding, control, {
-        aiAvailable: options.aiAvailable,
+        aiConfig: options.aiConfig,
+        ...(options.onError ? { onError: options.onError } : {}),
       }),
   );
 }

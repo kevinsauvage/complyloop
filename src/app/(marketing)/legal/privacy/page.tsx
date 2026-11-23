@@ -71,16 +71,13 @@ export default function PrivacyPage() {
               Subprocessors
             </h2>
             <p className="mt-2">
-              Optional AI features send finding context to the configured AI
-              gateway only when both{" "}
-              <code className="font-mono text-xs text-foreground">
-                AI_GATEWAY_API_KEY
-              </code>{" "}
-              and{" "}
-              <code className="font-mono text-xs text-foreground">
-                AI_MODEL
-              </code>{" "}
-              are set. Error reporting may send diagnostics to Sentry when a
+              Optional AI features send finding context and source snippets only
+              through Vercel AI Gateway: your organization&apos;s own gateway
+              key, or the operator&apos;s when your organization has not
+              configured one. Organization keys are stored encrypted and are
+              never shown again. Every call requests zero data retention and no
+              prompt training. AI output is advisory and never sets a compliance
+              status. Error reporting may send diagnostics to Sentry when a
               Sentry DSN is configured (
               <code className="font-mono text-xs text-foreground">
                 SENTRY_DSN

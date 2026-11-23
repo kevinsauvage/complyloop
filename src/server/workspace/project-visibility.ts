@@ -7,7 +7,7 @@ import type {
 } from "@complyloop/analysis-core/contract/project-types";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
-import { canOnProject, type Permission } from "@/core/rbac";
+import { canInOrg, canOnProject, type Permission } from "@/core/rbac";
 
 export interface AccessContext {
   userId: string | null | undefined;
@@ -54,6 +54,18 @@ export function assertProjectPermission(
   permission: Permission,
 ): void {
   if (!canOnProject(project, ctx.memberships, ctx.userId, permission)) {
+    throw new PublicError(`Not allowed: missing permission ${permission}.`);
+  }
+}
+
+/** Org-scoped authorization (members, AI settings) — not tied to a project. */
+export function assertOrgPermission(
+  memberships: ReadonlyArray<OrgMembership>,
+  userId: string | null | undefined,
+  orgId: string,
+  permission: Permission,
+): void {
+  if (!canInOrg(memberships, userId, orgId, permission)) {
     throw new PublicError(`Not allowed: missing permission ${permission}.`);
   }
 }

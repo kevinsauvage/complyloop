@@ -15,6 +15,7 @@ import {
 } from "@/core/actions/validate";
 
 import { publicErrorMessage, runAction } from "../action-state";
+import { loadOrgAiExport } from "../ai/ai-config";
 import { getGitHubAccessToken } from "../github/access-token";
 import { lookupGitHubUser } from "../github/github";
 import {
@@ -329,7 +330,9 @@ export async function exportOrgDataAction(
       userId,
       { evidenceTruncatedProjectIds, findingsTruncatedProjectIds },
     );
-    return { error: null, json: JSON.stringify(payload, null, 2) };
+    // AI routing metadata, never the key envelope (see loadOrgAiExport).
+    const ai = await loadOrgAiExport(orgId);
+    return { error: null, json: JSON.stringify({ ...payload, ai }, null, 2) };
   } catch (error) {
     return {
       error: publicErrorMessage(error),

@@ -13,7 +13,6 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import { getDrizzle } from "@complyloop/db/postgres";
 import { listFindingIdsForQueue } from "@complyloop/db/repo/findings";
 
-import { aiAvailable as isAiAvailable } from "@/ai/ai-call";
 import {
   type FilterFindingsContext,
   type FindingListParams,
@@ -23,6 +22,8 @@ import {
 } from "@/core/filter-params/findings";
 import type { FindingActView } from "@/core/findings/finding-act";
 import { findingAct } from "@/core/findings/finding-act";
+import { aiStatusForOrg } from "@/server/ai/ai-config";
+import { aiUnavailableCopy } from "@/server/ai/types";
 import {
   latestPatchState,
   pullRequestUrlFromEvidence,
@@ -55,6 +56,8 @@ export type FindingDetailView =
       prUrl: string | null;
       patchState: ReturnType<typeof latestPatchState>;
       aiAvailable: boolean;
+      /** Why AI is blocked (copy for the disabled buttons); null when enabled. */
+      aiUnavailableMessage: string | null;
       act: FindingActView;
       handoff: ReturnType<typeof buildDeveloperHandoff> | null;
       queuePosition: ReturnType<typeof findingQueuePosition>;
@@ -101,12 +104,16 @@ export async function loadFindingDetailView(
   const { project, caps } = page;
 
   const control = displayControl(finding.controlId, project);
-  const [evidence, queueIds] = await Promise.all([
+  const [evidence, queueIds, aiStatus] = await Promise.all([
     listEvidenceForFindingScoped(finding.id),
     loadFindingQueueIds(project, listParams),
+    aiStatusForOrg(project.orgId),
   ]);
   const chronologicalEvidence = [...evidence].reverse();
-  const aiAvailable = isAiAvailable();
+  const aiAvailable = aiStatus.available;
+  const aiUnavailableMessage = aiAvailable
+    ? null
+    : aiUnavailableCopy(aiStatus.reason);
   const prUrl = pullRequestUrlFromEvidence(chronologicalEvidence);
   const patchState = latestPatchState(chronologicalEvidence);
   const githubConnected = Boolean(project.github?.fullName);
@@ -116,6 +123,7 @@ export async function loadFindingDetailView(
     canRemediate: caps.canRemediate,
     prUrl,
     aiAvailable,
+    aiUnavailableMessage,
     patchReady: patchState.status === "ready",
     githubConnected,
   });
@@ -155,6 +163,7 @@ export async function loadFindingDetailView(
     prUrl,
     patchState,
     aiAvailable,
+    aiUnavailableMessage,
     act,
     handoff,
     queuePosition,

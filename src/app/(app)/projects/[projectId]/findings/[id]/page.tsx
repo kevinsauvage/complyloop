@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { evidenceDisplay } from "@/core/display/evidence";
 import { findingsListHref } from "@/core/filter-params/findings";
+import { orgAiSettingsPath } from "@/core/routes";
 import { effectiveBranch } from "@/server/github/tracked-branch";
 import { findingHandoff } from "@/server/reporting/ai-handoff";
 import { displayControl } from "@/server/reporting/report";
@@ -72,6 +73,7 @@ export default async function FindingPage({
     prUrl,
     patchState,
     aiAvailable,
+    aiUnavailableMessage,
     act,
     handoff,
     queuePosition,
@@ -124,6 +126,8 @@ export default async function FindingPage({
           finding={finding}
           canRemediate={caps.canRemediate}
           aiAvailable={aiAvailable}
+          aiUnavailableMessage={aiUnavailableMessage}
+          aiSettingsHref={orgAiSettingsPath(project.orgId)}
           githubFullName={project.github?.fullName}
           defaultBranch={effectiveBranch(project.github) ?? "main"}
         />
@@ -135,6 +139,7 @@ export default async function FindingPage({
           canRemediate={caps.canRemediate}
           patchState={patchState}
           suggestionStale={suggestionStale}
+          aiSettingsHref={orgAiSettingsPath(project.orgId)}
         />
 
         <RemediationHistory remediation={remediation} evidence={evidence} />

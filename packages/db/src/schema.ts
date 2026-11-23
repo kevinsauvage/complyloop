@@ -463,3 +463,54 @@ export const rateLimitBuckets = pgTable(
     check("rate_limit_buckets_count_check", sql`${table.count} >= 0`),
   ],
 );
+
+/**
+ * Organization-level AI Gateway key (BYOK). AES-256-GCM envelope sealed with
+ * `AI_KEYS_ENCRYPTION_KEY` and the org id as AAD (`src/server/ai/secret-box.ts`);
+ * never plaintext. One row per org.
+ */
+export const orgAiSettings = pgTable("org_ai_settings", {
+  orgId: text("org_id")
+    .primaryKey()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  model: text("model").notNull(),
+  iv: text("iv").notNull(),
+  tag: text("tag").notNull(),
+  ciphertext: text("ciphertext").notNull(),
+  /** Last four characters of the key, for the "••••abcd" display only. */
+  keyLast4: text("key_last4").notNull(),
+  updatedBy: text("updated_by").notNull(),
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+    mode: "string",
+  })
+    .notNull()
+    .defaultNow(),
+});
+
+/**
+ * Append-friendly audit trail for AI configuration changes. Org-level events
+ * cannot use the project-scoped compliance evidence stream (frozen vocabulary,
+ * project-bound reads), and the key is never recorded here.
+ */
+export const orgAiSettingsEvents = pgTable(
+  "org_ai_settings_events",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    at: timestamp("at", { withTimezone: true, mode: "string" }).notNull(),
+    /** GitHub login or user id of the admin who made the change. */
+    actor: text("actor").notNull(),
+    action: text("action").notNull(),
+    model: text("model"),
+  },
+  (table) => [
+    index("org_ai_settings_events_org_at_idx").on(table.orgId, table.at.desc()),
+    check(
+      "org_ai_settings_events_action_check",
+      sqlIn(sql`${table.action}`, ["configured", "removed"]),
+    ),
+  ],
+);

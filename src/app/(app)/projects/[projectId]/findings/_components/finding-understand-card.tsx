@@ -1,4 +1,5 @@
 import { ExternalLink, MapPin } from "lucide-react";
+import Link from "next/link";
 
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import type { Explanation } from "@complyloop/analysis-core/contract/finding-types";
@@ -108,12 +109,18 @@ export function FindingUnderstandCard({
   finding,
   canRemediate,
   aiAvailable,
+  aiUnavailableMessage,
+  aiSettingsHref,
   githubFullName,
   defaultBranch = "main",
 }: {
   finding: Finding;
   canRemediate: boolean;
   aiAvailable: boolean;
+  /** Why AI is blocked, replacing the generic unavailable copy. */
+  aiUnavailableMessage?: string | null;
+  /** The project's own org: it may not be the active one. */
+  aiSettingsHref: `/org?${string}`;
   /** `owner/repo` — enables the exact-line GitHub blob link. */
   githubFullName?: string;
   defaultBranch?: string;
@@ -227,8 +234,14 @@ export function FindingUnderstandCard({
                 />
                 {!aiAvailable ? (
                   <p className="mt-1.5 text-xs text-muted-foreground">
-                    AI explanations aren&apos;t enabled for this workspace. The
-                    guidance above is the baseline.
+                    {aiUnavailableMessage ??
+                      "AI explanations aren't enabled for this organization. The guidance above is the baseline."}{" "}
+                    <Link
+                      href={aiSettingsHref}
+                      className="text-foreground underline underline-offset-2"
+                    >
+                      Open Organization → AI
+                    </Link>
                   </p>
                 ) : null}
               </div>

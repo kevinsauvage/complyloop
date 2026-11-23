@@ -47,7 +47,7 @@ Compliance engineering for **RGAA/WCAG** on React/Next.js/TypeScript — orgs, p
 | Auth     | Auth.js v5 + GitHub OAuth/App; ephemeral checkouts per job                                                              |
 | Analysis | AST + jsx-a11y + optional Playwright/axe when `runtimeBaseUrl` is set                                                   |
 | Jobs     | GH Actions `assessment-worker` via `repository_dispatch` + 15-min schedule backstop (no worker process, no Vercel Cron) |
-| AI       | Vercel AI SDK, optional; **never sets statuses**                                                                        |
+| AI       | Vercel AI SDK (`ai`) through AI Gateway, org BYOK gateway key or operator fallback; **never sets statuses**             |
 | Tests    | Vitest + RTL; Playwright e2e (`E2E_AUTH_ENABLED`)                                                                       |
 
 Record new stack decisions here and in `docs/ai/architecture.md`.

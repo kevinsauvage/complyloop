@@ -1,12 +1,12 @@
 import { generateText } from "ai";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 
-import { generateAiRemediation, remediationSchema } from "./remediation";
+import { TEST_AI_MODEL, testAiConfig } from "@/test-fixtures/ai-config";
 
-const TEST_MODEL = "acme/zero-retention-model";
+import { generateAiRemediation, remediationSchema } from "./remediation";
 
 vi.mock("ai", () => ({
   generateText: vi.fn(),
@@ -14,14 +14,10 @@ vi.mock("ai", () => ({
 }));
 
 const generate = vi.mocked(generateText);
-
-beforeEach(() => {
-  vi.stubEnv("AI_MODEL", TEST_MODEL);
-  generate.mockReset();
-});
+const config = testAiConfig();
 
 afterEach(() => {
-  vi.unstubAllEnvs();
+  generate.mockReset();
 });
 
 const control = {
@@ -66,16 +62,14 @@ function sourceFinding(overrides: Partial<Finding> = {}): Finding {
 }
 
 describe("generateAiRemediation", () => {
-  it("returns null when AI credentials are missing", async () => {
-    vi.stubEnv("AI_GATEWAY_API_KEY", "");
+  it("returns null when no config is resolved", async () => {
     await expect(
-      generateAiRemediation(sourceFinding(), control),
+      generateAiRemediation(sourceFinding(), control, null),
     ).resolves.toBeNull();
     expect(generate).not.toHaveBeenCalled();
   });
 
   it("returns a suggestion with provenance when the model succeeds", async () => {
-    vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
     generate.mockResolvedValue({
       output: {
         description: "Add a descriptive alt",
@@ -85,7 +79,11 @@ describe("generateAiRemediation", () => {
       },
     } as never);
 
-    const result = await generateAiRemediation(sourceFinding(), control);
+    const result = await generateAiRemediation(
+      sourceFinding(),
+      control,
+      config,
+    );
     expect(result).toMatchObject({
       attributeValue: "Product photo",
       suggestion: {
@@ -93,14 +91,13 @@ describe("generateAiRemediation", () => {
         proposedSnippet: '<img src="/x.png" alt="Product photo" />',
         provenance: "ai",
         confidence: "high",
-        model: TEST_MODEL,
+        model: TEST_AI_MODEL,
       },
     });
     expect(result?.suggestion.generatedAt).toMatch(/^\d{4}-/);
   });
 
   it("omits blank attributeValue and prompts for runtime findings", async () => {
-    vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
     generate.mockResolvedValue({
       output: {
         description: "Fix the call site",
@@ -120,7 +117,7 @@ describe("generateAiRemediation", () => {
         snippet: "<input>",
       },
     });
-    const result = await generateAiRemediation(finding, control);
+    const result = await generateAiRemediation(finding, control, config);
     expect(result?.attributeValue).toBeUndefined();
     expect(generate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -130,20 +127,18 @@ describe("generateAiRemediation", () => {
   });
 
   it("returns null when the model throws", async () => {
-    vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
     generate.mockRejectedValue(new Error("gateway down"));
 
     await expect(
-      generateAiRemediation(sourceFinding(), control),
+      generateAiRemediation(sourceFinding(), control, config),
     ).resolves.toBeNull();
   });
 
   it("returns null when the model rejects with a non-Error", async () => {
-    vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
     generate.mockRejectedValue("boom");
 
     await expect(
-      generateAiRemediation(sourceFinding(), control),
+      generateAiRemediation(sourceFinding(), control, config),
     ).resolves.toBeNull();
   });
 });

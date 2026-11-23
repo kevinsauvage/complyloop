@@ -13,7 +13,9 @@ export type Permission =
   /** Record compliance decisions: requirement exceptions and human passes. */
   | "project.decide"
   | "project.connect"
-  | "org.manage_members";
+  | "org.manage_members"
+  /** Configure the organization's own AI credentials, cap and enablement. */
+  | "org.manage_ai";
 
 const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
   viewer: ["project.view"],
@@ -25,6 +27,7 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "project.decide",
     "project.connect",
     "org.manage_members",
+    "org.manage_ai",
   ],
   owner: [
     "project.view",
@@ -33,6 +36,7 @@ const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "project.decide",
     "project.connect",
     "org.manage_members",
+    "org.manage_ai",
   ],
 };
 

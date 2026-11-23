@@ -130,6 +130,7 @@ function renderPanel({
   });
   return render(
     <FindingNextStepPanel
+      aiSettingsHref="/org?org=org-1#ai"
       act={act}
       finding={findingOverride}
       remediation={remediation}
@@ -396,6 +397,7 @@ describe("FindingNextStepPanel", () => {
       <>
         <section id="copy-handoff">Handoff</section>
         <FindingNextStepPanel
+          aiSettingsHref="/org?org=org-1#ai"
           act={findingAct({
             finding: {
               ...finding,

@@ -71,6 +71,15 @@ export function assertAiRateLimit(userId: string): Promise<void> {
   return assertRateLimit(`ai:${userId}`, 20, 60_000);
 }
 
+/**
+ * Org-level AI budget: every AI call and key validation spends the
+ * organization's provider quota, so it is limited per org too (not only per
+ * user — a team must not multiply the limit).
+ */
+export function assertAiOrgRateLimit(orgId: string): Promise<void> {
+  return assertRateLimit(`ai-org:${orgId}`, 40, 60_000);
+}
+
 export function assertRemediationRateLimit(
   userId: string,
   db?: DrizzleDb,

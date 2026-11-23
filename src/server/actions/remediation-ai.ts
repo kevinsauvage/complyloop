@@ -16,9 +16,10 @@ import { parseEntityId } from "@/core/actions/validate";
 import { refreshSuggestion } from "@/core/requirements/remediation-lifecycle";
 
 import { runAction } from "../action-state";
+import { prepareAiCallForOrg } from "../ai/ai-config";
 import { getSession } from "../auth-session";
 import { reportError } from "../observability";
-import { assertAiRateLimit } from "../rate-limit";
+import { assertAiOrgRateLimit, assertAiRateLimit } from "../rate-limit";
 import {
   controlById,
   requireFinding,
@@ -46,17 +47,25 @@ export async function generateAiExplanationAction(
     // Writes the finding row below: remediate, not view — otherwise a
     // read-only viewer could mutate findings and spend AI credits by invoking
     // the action directly (the UI already gates the button on canRemediate).
-    await requireProjectAccess(previewFinding.projectId, "project.remediate");
+    const project = await requireProjectAccess(
+      previewFinding.projectId,
+      "project.remediate",
+    );
     const sessionUserId = (await getSession())?.user?.id;
     if (sessionUserId) await assertAiRateLimit(sessionUserId);
+    await assertAiOrgRateLimit(project.orgId);
     const control = controlById(previewFinding.controlId);
+    const config = await prepareAiCallForOrg(project.orgId);
 
-    const explanation = await generateAiExplanation(previewFinding, control, {
-      onError: reportError,
-    });
+    const explanation = await generateAiExplanation(
+      previewFinding,
+      control,
+      config,
+      { onError: reportError },
+    );
     if (!explanation) {
       throw new PublicError(
-        "AI explanation unavailable. Check AI credentials or try again.",
+        "AI explanation unavailable. Try again, or check this organization's AI settings under Organization → AI.",
       );
     }
     await withProjectTx(
@@ -100,9 +109,13 @@ export async function generateAiRemediationAction(
     // writer for this project. Preview reads are single-row (finding,
     // remediation) + the light project guard — no tenancy load.
     const previewFinding = await requireFinding(findingId);
-    await requireProjectAccess(previewFinding.projectId, "project.remediate");
+    const project = await requireProjectAccess(
+      previewFinding.projectId,
+      "project.remediate",
+    );
     const sessionUserId = (await getSession())?.user?.id;
     if (sessionUserId) await assertAiRateLimit(sessionUserId);
+    await assertAiOrgRateLimit(project.orgId);
     const control = controlById(previewFinding.controlId);
     const previewRemediation = await requireRemediationForFinding(findingId);
 
@@ -120,12 +133,16 @@ export async function generateAiRemediationAction(
       );
     }
 
-    const result = await generateAiRemediation(previewFinding, control, {
-      onError: reportError,
-    });
+    const config = await prepareAiCallForOrg(project.orgId);
+    const result = await generateAiRemediation(
+      previewFinding,
+      control,
+      config,
+      { onError: reportError },
+    );
     if (!result) {
       throw new PublicError(
-        "AI remediation unavailable. Check AI credentials or try again.",
+        "AI remediation unavailable. Try again, or check this organization's AI settings under Organization → AI.",
       );
     }
 

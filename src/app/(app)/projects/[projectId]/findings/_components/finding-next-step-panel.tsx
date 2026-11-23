@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import type {
   Finding,
   Remediation,
@@ -33,6 +35,21 @@ import { CreatePrForm } from "./create-pr-form";
 import { RemediationStepper } from "./remediation-stepper";
 import { SecondaryFindingActions } from "./secondary-finding-actions";
 
+function AiSettingsLink({ href }: { href: `/org?${string}` }) {
+  return (
+    <p className="text-xs text-muted-foreground">
+      An organization admin can configure AI under{" "}
+      <Link
+        href={href}
+        className="text-foreground underline underline-offset-2"
+      >
+        Organization → AI
+      </Link>
+      .
+    </p>
+  );
+}
+
 function PatchPreview({ candidate }: { candidate: PatchCandidate }) {
   return (
     <div className="space-y-3">
@@ -56,6 +73,7 @@ function ActControls({
   canRemediate,
   patchState,
   suggestionStale,
+  aiSettingsHref,
 }: {
   act: FindingActView;
   finding: Finding;
@@ -63,6 +81,7 @@ function ActControls({
   canRemediate: boolean;
   patchState: PatchUiState;
   suggestionStale: boolean;
+  aiSettingsHref: `/org?${string}`;
 }) {
   if (!canRemediate) {
     return null;
@@ -80,7 +99,9 @@ function ActControls({
           size="sm"
           className="flex flex-col gap-1.5"
         />
-      ) : null;
+      ) : (
+        <AiSettingsLink href={aiSettingsHref} />
+      );
     case "source_review":
       return (
         <>
@@ -131,11 +152,7 @@ function ActControls({
             size="sm"
             className="flex flex-col gap-1.5"
           />
-          {!act.canGenerate ? (
-            <p className="text-xs text-muted-foreground">
-              AI guidance isn&apos;t enabled for this workspace.
-            </p>
-          ) : null}
+          {!act.canGenerate ? <AiSettingsLink href={aiSettingsHref} /> : null}
         </>
       );
     case "runtime_approve":
@@ -253,6 +270,7 @@ export function FindingNextStepPanel({
   canRemediate,
   patchState = { status: "idle" },
   suggestionStale = false,
+  aiSettingsHref,
 }: {
   act: FindingActView;
   finding: Finding;
@@ -260,6 +278,8 @@ export function FindingNextStepPanel({
   canRemediate: boolean;
   patchState?: PatchUiState;
   suggestionStale?: boolean;
+  /** The project's own org: it may not be the active one. */
+  aiSettingsHref: `/org?${string}`;
 }) {
   const isTerminalBeat =
     act.beat === "verified" ||
@@ -297,6 +317,7 @@ export function FindingNextStepPanel({
           canRemediate={canRemediate}
           patchState={patchState}
           suggestionStale={suggestionStale}
+          aiSettingsHref={aiSettingsHref}
         />
         {act.showDismiss ? (
           <>

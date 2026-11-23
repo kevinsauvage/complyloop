@@ -29,6 +29,8 @@ describe("rbac", () => {
     expect(roleHasPermission("member", "project.remediate")).toBe(true);
     expect(roleHasPermission("member", "project.connect")).toBe(false);
     expect(roleHasPermission("admin", "org.manage_members")).toBe(true);
+    expect(roleHasPermission("admin", "org.manage_ai")).toBe(true);
+    expect(roleHasPermission("member", "org.manage_ai")).toBe(false);
   });
 
   it("covers the role × permission matrix for project actions", () => {
@@ -39,12 +41,13 @@ describe("rbac", () => {
       "project.remediate",
       "project.connect",
       "org.manage_members",
+      "org.manage_ai",
     ] as const;
     const expected: Record<(typeof roles)[number], boolean[]> = {
-      viewer: [true, false, false, false, false],
-      member: [true, true, true, false, false],
-      admin: [true, true, true, true, true],
-      owner: [true, true, true, true, true],
+      viewer: [true, false, false, false, false, false],
+      member: [true, true, true, false, false, false],
+      admin: [true, true, true, true, true, true],
+      owner: [true, true, true, true, true, true],
     };
     for (const role of roles) {
       for (const [index, permission] of permissions.entries()) {

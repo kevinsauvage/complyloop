@@ -51,6 +51,25 @@ describe.skipIf(!enabled)("tenant database constraints", () => {
     await cleanupFixtureGraph(drizzle, ids);
   });
 
+  it("refuses an unknown org AI audit action", async () => {
+    const drizzle = await getDrizzle();
+    const suffix = `${Date.now()}-ai`;
+    const ids = await insertFixtureGraph(drizzle, suffix);
+
+    await expect(
+      unwrapDbError(
+        drizzle.execute(sql`
+          INSERT INTO org_ai_settings_events (id, org_id, at, actor, action)
+          VALUES (${`evt-${suffix}`}, ${ids.orgId}, now(), 'user', 'cap_set')
+        `),
+      ),
+    ).rejects.toThrow(
+      /org_ai_settings_events_action_check|violates check constraint/i,
+    );
+
+    await cleanupFixtureGraph(drizzle, ids);
+  });
+
   it("rejects orphan findings and duplicate org slugs", async () => {
     const drizzle = await getDrizzle();
     const suffix = `${Date.now()}-fk`;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  orgAiSettingsPath,
   PROJECT_TABS,
   projectEvidenceExportPath,
   projectEvidenceReportPath,
@@ -52,5 +53,12 @@ describe("project route builders", () => {
     expect(projectPath("01H2-abc", "evidence")).toBe(
       "/projects/01H2-abc/evidence",
     );
+  });
+});
+
+describe("orgAiSettingsPath", () => {
+  it("names the organization explicitly and encodes it", () => {
+    expect(orgAiSettingsPath("org-1")).toBe("/org?org=org-1#ai");
+    expect(orgAiSettingsPath("a&b")).toBe("/org?org=a%26b#ai");
   });
 });

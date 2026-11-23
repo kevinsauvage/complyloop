@@ -65,3 +65,12 @@ export function projectEvidenceExportPath(
 ): ProjectEvidenceExportPath {
   return `/projects/${projectId}/evidence/export`;
 }
+
+/**
+ * AI settings of one organization. A project page can show a project from an
+ * org other than the active one, so the link names the org explicitly instead
+ * of relying on the active-org cookie.
+ */
+export function orgAiSettingsPath(orgId: string): `/org?${string}` {
+  return `/org?org=${encodeURIComponent(orgId)}#ai`;
+}

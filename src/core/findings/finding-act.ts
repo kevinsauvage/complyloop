@@ -27,6 +27,8 @@ export interface FindingActInput {
   canRemediate: boolean;
   prUrl: string | null;
   aiAvailable: boolean;
+  /** Why AI is blocked, shown instead of the generic copy. */
+  aiUnavailableMessage?: string | null;
   patchReady: boolean;
   githubConnected: boolean;
 }
@@ -93,9 +95,12 @@ function runtimeAct(input: FindingActInput): FindingActView {
         ...chrome(input),
         beat: "runtime_generate",
         title: site ? "Fix across the site" : "Fix at the call site",
-        description: site
-          ? "Propose a fix for this site-wide pattern — it appears on multiple pages, not one element."
-          : "Propose a fix where this element is rendered — not a generic change to a shared component.",
+        description: input.aiAvailable
+          ? site
+            ? "Propose a fix for this site-wide pattern — it appears on multiple pages, not one element."
+            : "Propose a fix where this element is rendered — not a generic change to a shared component."
+          : (input.aiUnavailableMessage ??
+            "AI remediation isn't enabled for this organization."),
         canGenerate: input.aiAvailable,
       };
     case "suggested":
@@ -151,7 +156,9 @@ function sourceGenerate(input: FindingActInput): FindingActView {
   if (!input.githubConnected) {
     description = "Connect a GitHub repository before generating a patch.";
   } else if (!canGenerate) {
-    description = "AI patch generation isn't enabled for this workspace yet.";
+    description =
+      input.aiUnavailableMessage ??
+      "AI patch generation isn't enabled for this organization yet.";
   }
   return {
     ...chrome(input),

@@ -4,10 +4,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Finding } from "@complyloop/analysis-core/contract/entities";
 import type { Control } from "@complyloop/analysis-core/contract/project-types";
 
-import { aiAvailable } from "./ai-call";
-import { deterministicExplanation, generateAiExplanation } from "./explainer";
+import { TEST_AI_MODEL, testAiConfig } from "@/test-fixtures/ai-config";
 
-const TEST_MODEL = "acme/zero-retention-model";
+import { deterministicExplanation, generateAiExplanation } from "./explainer";
 
 vi.mock("ai", () => ({
   generateText: vi.fn(),
@@ -15,9 +14,9 @@ vi.mock("ai", () => ({
 }));
 
 const generate = vi.mocked(generateText);
+const config = testAiConfig();
 
 afterEach(() => {
-  vi.unstubAllEnvs();
   generate.mockReset();
 });
 
@@ -67,41 +66,15 @@ describe("deterministicExplanation", () => {
   });
 });
 
-describe("aiAvailable", () => {
-  it("requires both the gateway key and an explicit model", () => {
-    vi.stubEnv("AI_GATEWAY_API_KEY", "");
-    vi.stubEnv("AI_MODEL", "");
-    expect(aiAvailable()).toBe(false);
-
-    // Key alone is not enough: no model means repository contents must not
-    // be sent anywhere.
-    vi.stubEnv("AI_GATEWAY_API_KEY", "k");
-    vi.stubEnv("AI_MODEL", "");
-    expect(aiAvailable()).toBe(false);
-
-    vi.stubEnv("AI_MODEL", TEST_MODEL);
-    expect(aiAvailable()).toBe(true);
-  });
-});
-
 describe("generateAiExplanation", () => {
-  it("returns null without credentials", async () => {
-    vi.stubEnv("AI_GATEWAY_API_KEY", "");
-    vi.stubEnv("AI_MODEL", TEST_MODEL);
-    await expect(generateAiExplanation(finding, control)).resolves.toBeNull();
-    expect(generate).not.toHaveBeenCalled();
-  });
-
-  it("returns null without an explicit model", async () => {
-    vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
-    vi.stubEnv("AI_MODEL", "");
-    await expect(generateAiExplanation(finding, control)).resolves.toBeNull();
+  it("returns null without a resolved config", async () => {
+    await expect(
+      generateAiExplanation(finding, control, null),
+    ).resolves.toBeNull();
     expect(generate).not.toHaveBeenCalled();
   });
 
   it("returns a provenance-tagged explanation on success", async () => {
-    vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
-    vi.stubEnv("AI_MODEL", TEST_MODEL);
     generate.mockResolvedValue({
       output: {
         whyItFailed: "No alt",
@@ -112,20 +85,18 @@ describe("generateAiExplanation", () => {
     } as never);
 
     await expect(
-      generateAiExplanation(finding, control),
+      generateAiExplanation(finding, control, config),
     ).resolves.toMatchObject({
       whyItFailed: "No alt",
       impact: "SR users miss it",
       howToFix: "Add alt",
       confidence: "medium",
       provenance: "ai",
-      model: TEST_MODEL,
+      model: TEST_AI_MODEL,
     });
   });
 
   it("mentions runtime guidance for DOM findings", async () => {
-    vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
-    vi.stubEnv("AI_MODEL", TEST_MODEL);
     generate.mockResolvedValue({
       output: {
         whyItFailed: "x",
@@ -135,7 +106,7 @@ describe("generateAiExplanation", () => {
       },
     } as never);
 
-    await generateAiExplanation(runtimeFinding, control);
+    await generateAiExplanation(runtimeFinding, control, config);
     expect(generate).toHaveBeenCalledWith(
       expect.objectContaining({
         prompt: expect.stringContaining("rendered-page audit"),
@@ -144,16 +115,16 @@ describe("generateAiExplanation", () => {
   });
 
   it("returns null when the AI call fails", async () => {
-    vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
-    vi.stubEnv("AI_MODEL", TEST_MODEL);
     generate.mockRejectedValue(new Error("gateway down"));
-    await expect(generateAiExplanation(finding, control)).resolves.toBeNull();
+    await expect(
+      generateAiExplanation(finding, control, config),
+    ).resolves.toBeNull();
   });
 
   it("returns null when the AI call rejects with a non-Error", async () => {
-    vi.stubEnv("AI_GATEWAY_API_KEY", "test-key");
-    vi.stubEnv("AI_MODEL", TEST_MODEL);
     generate.mockRejectedValue("offline");
-    await expect(generateAiExplanation(finding, control)).resolves.toBeNull();
+    await expect(
+      generateAiExplanation(finding, control, config),
+    ).resolves.toBeNull();
   });
 });

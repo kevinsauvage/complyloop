@@ -37,6 +37,11 @@ const readActiveOrgCookie = vi.hoisted(() => vi.fn());
 const assertOrgCreateRateLimit = vi.hoisted(() => vi.fn());
 const assertOrgInviteRateLimit = vi.hoisted(() => vi.fn());
 const assertExportRateLimit = vi.hoisted(() => vi.fn());
+const loadOrgAiExport = vi.hoisted(() => vi.fn());
+
+vi.mock("../ai/ai-config", () => ({
+  loadOrgAiExport: (...args: unknown[]) => loadOrgAiExport(...args),
+}));
 
 vi.mock("../rate-limit", async () => {
   const actual =
@@ -226,6 +231,12 @@ beforeEach(() => {
   listAlertsForProjects.mockReset();
   listAlertsForProjects.mockResolvedValue([]);
   deleteOrganization.mockReturnValue({ deleteMembershipIds: ["m-owner"] });
+  loadOrgAiExport.mockReset();
+  loadOrgAiExport.mockResolvedValue({
+    configuration: null,
+    usage: [],
+    recentChanges: [],
+  });
   lookupGitHubUser.mockReset();
   lookupGitHubUser.mockResolvedValue({
     status: "found",
@@ -269,6 +280,17 @@ describe("org lifecycle actions", () => {
       "user-1",
       { evidenceTruncatedProjectIds: [], findingsTruncatedProjectIds: [] },
     );
+    // AI routing metadata rides along, without the key envelope.
+    const payload = JSON.parse(result.json ?? "{}") as {
+      ai?: { configuration: unknown; usage: unknown[] };
+    };
+    expect(payload.ai).toEqual({
+      configuration: null,
+      usage: [],
+      recentChanges: [],
+    });
+    expect(result.json).not.toContain("ciphertext");
+    expect(loadOrgAiExport).toHaveBeenCalledWith("org-1");
   });
 
   it("rejects export when unsigned", async () => {

@@ -20,7 +20,7 @@
 | DB       | `packages/db/src/`                     | Drizzle schema, `repo/`, workspace-load, `WorkspaceSlice`                                  |
 | App core | `src/core/`                            | Shared kernel: `rbac`, `datetime`, `assessment/`, `findings/`, `requirements/`, `actions/` |
 | AI       | `src/ai/`                              | Explain / remediate — never sets status; never imports `@/server`                          |
-| Server   | `src/server/`                          | `assessment/`, `github/`, `workspace/`, `reporting/` + `actions/` mutation edge            |
+| Server   | `src/server/`                          | `assessment/`, `github/`, `workspace/`, `ai/`, `reporting/` + `actions/` mutation edge     |
 | App      | `src/app/`                             | Next.js UI + API                                                                           |
 
 Details per folder:
@@ -35,6 +35,39 @@ Details per folder:
   no entity re-exports.
 - **AI** takes contract types in, returns results or throws `PublicError`,
   and reports failures only via an injected `onError` hook.
+
+**Bring your own AI key (BYOK).** AI credentials are org-scoped, never
+per-project or per-user, and always a **Vercel AI Gateway** key: an org that
+wants its own Anthropic/OpenAI/Google account adds that key inside its gateway.
+`src/ai` reads no credentials: the server resolves an `AiConfig` (explicit
+gateway instance + `modelId`) and passes it to `aiCall`. A bare
+`provider/model` string is never passed to the SDK, which would resolve
+credentials implicitly (on Vercel, the deployment OIDC token) and bill the
+operator for a customer's call. Every call sends `zeroDataRetention` +
+`disallowPromptTraining` (`src/ai/gateway.ts`).
+
+- **Precedence:** org key → operator env (`AI_GATEWAY_API_KEY` + `AI_MODEL`;
+  leave either unset to turn the fallback off) → AI disabled. An unreadable
+  org key never falls back to the operator key.
+- **Secret box:** `src/server/ai/secret-box.ts` seals keys with AES-256-GCM
+  (full 16-byte tag) under a dedicated `AI_KEYS_ENCRYPTION_KEY`, AAD = `orgId`.
+  Never reuse `AUTH_SECRET`: rotating sessions would brick stored keys and one
+  compromise would expose both. There is no rotation machinery: changing the
+  secret makes stored keys unreadable and admins re-enter them.
+- **Persistence:** `org_ai_settings` (one row per org: model, sealed envelope,
+  `key_last4`, `updated_by/at`) and `org_ai_settings_events` (`configured` /
+  `removed` audit trail; the compliance evidence vocabulary is frozen and
+  project-scoped, so org settings do not use it). Writes go through
+  `withOrgAiWrite` (org-scoped advisory lock, `org.manage_ai` re-checked).
+- **Save:** a one-token probe through the gateway proves key + model before
+  anything is stored. Leaving the key blank keeps the stored one (model-only
+  change); a concurrent key change aborts the save.
+- **Spend:** no in-app metering or cap. Per-user and per-org rate limits bound
+  call volume; the gateway account's own budget is the hard spend limit.
+  Failures surface as the call's `PublicError`; no error state is stored.
+- **UI:** `/org` shows status, key/model form, removal and recent changes
+  (members see status and model only; `org.manage_ai` edits). The finding page
+  gates AI buttons from `aiStatusForOrg` and links to the settings.
 
 **Dependency rules** (enforced by ESLint):
 
@@ -213,6 +246,10 @@ Chain per domain. `exists` = shipped, `evolves` = shipped but domain-blind today
     controls' requirement rows and **open findings**, reuses the pure
     `refreshRequirementStatuses`, and returns the changed rows to write.
   - Tenancy/org/connect mutations → `withOrgWrite` / `withConnectWrite`.
+  - Org AI configuration mutations → `withOrgAiWrite(orgId, fn)`
+    (`src/server/ai/org-ai-write.ts`): org-scoped advisory lock with
+    `org.manage_ai` re-checked under it. Provider key validation runs before
+    the write — a transaction is never held across an API call.
   - Actions never call `getDrizzle()` (ESLint).
   - Single-row alert touches use the `requireAlertAccess` /
     `requireProjectAccess` read guards (`src/server/workspace/workspace.ts`)

@@ -273,6 +273,11 @@ export function orgWriteLockKey(userId: string): string {
   return `org-write:${userId}`;
 }
 
+/** Serialize AI configuration writes for one org (key, enablement, cap). */
+export function orgAiWriteLockKey(orgId: string): string {
+  return `org-ai-settings:${orgId}`;
+}
+
 /** Holds until the surrounding transaction commits or rolls back. */
 export async function acquireNamedPostgresAdvisoryLock(
   tx: DrizzleDb,

@@ -11,10 +11,10 @@ import {
   aiCall,
   type AiCallOnError,
   neutralizeUntrusted,
-  resolveAiModel,
   UNTRUSTED_FINDING_CLOSE,
   UNTRUSTED_FINDING_OPEN,
 } from "./ai-call";
+import type { AiConfig } from "./ai-config";
 import {
   assertSingleFileEdits,
   fileEditSchema,
@@ -104,20 +104,20 @@ interface ProposeFixEditsInput {
   finding: Finding;
   control: Control;
   fileContents: Record<string, string>;
-  /** When false, skip the gateway call and fail fast with actionable copy. */
-  aiAvailable?: boolean;
+  /** Resolved AI configuration; `null` fails fast with actionable copy. */
+  config: AiConfig | null;
   /** Failure hook for observability (owned by the server caller). */
   onError?: AiCallOnError;
 }
 
 /**
- * Asks the gateway model for unique search/replace edits. Typed output only —
- * callers apply and verify; this never sets a requirement status.
+ * Asks the model for unique search/replace edits. Typed output only — callers
+ * apply and verify; this never sets a requirement status.
  */
 export async function proposeFixEdits(
   input: ProposeFixEditsInput,
 ): Promise<ProposedFixEdits> {
-  if (input.aiAvailable === false) {
+  if (!input.config) {
     throw new PublicError(AI_PATCH_UNAVAILABLE_MESSAGE);
   }
   if (input.finding.location.kind !== "source") {
@@ -126,9 +126,9 @@ export async function proposeFixEdits(
   const targetPath = input.finding.location.filePath;
   const files = filePromptSection(input.fileContents);
 
-  const object = await aiCall({
+  const output = await aiCall({
     schema: editsSchema,
-    available: true,
+    config: input.config,
     throwIfUnavailable: true,
     failureMessage: AI_PATCH_FAILED_MESSAGE,
     code: "ai_fix_propose",
@@ -149,17 +149,17 @@ export async function proposeFixEdits(
     ],
   });
 
-  if (!object) {
+  if (!output) {
     throw new PublicError(AI_PATCH_FAILED_MESSAGE);
   }
-  assertSingleFileEdits(object.edits, targetPath, {
+  assertSingleFileEdits(output.edits, targetPath, {
     emptyMessage: "AI patch must contain at least one edit.",
     offTargetMessage: (path) => `AI patch edits must target ${path}.`,
   });
   return {
-    description: object.description,
+    description: output.description,
     provenance: "ai",
-    model: resolveAiModel(),
-    edits: object.edits,
+    model: input.config.modelId,
+    edits: output.edits,
   };
 }

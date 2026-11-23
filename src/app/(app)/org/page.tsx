@@ -19,8 +19,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { canInOrg } from "@/core/rbac";
 import { signOutAction } from "@/server/actions/auth";
 import { createOrgAction, inviteOrgMemberAction } from "@/server/actions/org";
+import { loadOrgAiSettingsView } from "@/server/ai/ai-config";
 import { getSession } from "@/server/auth-session";
 import { supportEmail as getSupportEmail } from "@/server/env";
 import { getWorkspace } from "@/server/workspace/workspace";
@@ -28,15 +30,22 @@ import { getWorkspace } from "@/server/workspace/workspace";
 import { CreateOrgForm } from "./_components/create-org-form";
 import { InviteMemberForm } from "./_components/invite-member-form";
 import { OrgAccountOverview } from "./_components/org-account-overview";
+import { OrgAiSettingsCard } from "./_components/org-ai-settings-card";
 import { OrgDataLifecycle } from "./_components/org-data-lifecycle";
 import { OrgMembersCard } from "./_components/org-members-card";
 
 export const metadata: Metadata = {
   title: "Organization",
-  description: "Manage organization ownership, members, and data lifecycle.",
+  description:
+    "Manage organization ownership, members, AI settings, and data lifecycle.",
 };
 
-export default async function OrgPage() {
+export default async function OrgPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const requestedOrg = (await searchParams).org;
   const session = await getSession();
   const userId = session?.user?.id ?? null;
 
@@ -59,11 +68,28 @@ export default async function OrgPage() {
   }
 
   const { organizations, projects, access, activeOrgId } = await getWorkspace();
-  const org = activeOrgId
-    ? organizations.find((candidate) => candidate.id === activeOrgId)
-    : undefined;
+  // `?org=` (from a project page's AI link) shows that org when the viewer is a
+  // member of it; every form below posts `org.id`, so nothing depends on the
+  // active-org cookie. Otherwise the active org, as before.
+  const requested =
+    typeof requestedOrg === "string"
+      ? organizations.find(
+          (candidate) =>
+            candidate.id === requestedOrg &&
+            access.memberships.some(
+              (membership) =>
+                membership.orgId === candidate.id &&
+                membership.userId === userId,
+            ),
+        )
+      : undefined;
+  const org =
+    requested ??
+    (activeOrgId
+      ? organizations.find((candidate) => candidate.id === activeOrgId)
+      : undefined);
 
-  if (!org || !activeOrgId) {
+  if (!org) {
     return (
       <>
         <PageHeader
@@ -113,12 +139,19 @@ export default async function OrgPage() {
     else pendingInviteCount += 1;
   }
   const supportEmail = getSupportEmail();
+  const canManageAi = canInOrg(
+    access.memberships,
+    userId,
+    org.id,
+    "org.manage_ai",
+  );
+  const aiView = await loadOrgAiSettingsView(org.id, canManageAi);
 
   return (
     <>
       <PageHeader
         title="Organization"
-        description={`Settings for ${org.name}: ownership, access, retention, and data controls.`}
+        description={`Settings for ${org.name}: ownership, access, AI, retention, and data controls.`}
       >
         {canManage ? (
           <Dialog>
@@ -175,6 +208,19 @@ export default async function OrgPage() {
               </div>
             </CardContent>
           </Card>
+        </PageSection>
+
+        <PageSection
+          id="ai"
+          title="AI"
+          description="Use your organization's AI credentials for finding explanations, remediation suggestions and patches. AI never sets a compliance status."
+        >
+          <OrgAiSettingsCard
+            orgId={org.id}
+            canManage={canManageAi}
+            status={aiView.status}
+            recentChanges={aiView.recentChanges}
+          />
         </PageSection>
 
         {role === "owner" ? null : (

@@ -1,7 +1,7 @@
 import "@/test-fixtures/register-action-workspace-mock";
 import "@/test-fixtures/register-repo-mock";
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Remediation } from "@complyloop/analysis-core/contract/entities";
 import type { OrgMembership } from "@complyloop/analysis-core/contract/project-types";
@@ -26,6 +26,8 @@ import {
 const generateAiExplanation = vi.hoisted(() => vi.fn());
 const generateAiRemediation = vi.hoisted(() => vi.fn());
 const assertAiRateLimit = vi.hoisted(() => vi.fn());
+const assertAiOrgRateLimit = vi.hoisted(() => vi.fn());
+const prepareAiCallForOrg = vi.hoisted(() => vi.fn());
 const reportWarning = vi.hoisted(() => vi.fn());
 const refresh = vi.hoisted(() => vi.fn());
 
@@ -37,8 +39,13 @@ vi.mock("@/ai/remediation", () => ({
   generateAiRemediation: (...args: unknown[]) => generateAiRemediation(...args),
 }));
 
+vi.mock("../ai/ai-config", () => ({
+  prepareAiCallForOrg: (...args: unknown[]) => prepareAiCallForOrg(...args),
+}));
+
 vi.mock("../rate-limit", () => ({
   assertAiRateLimit: (...args: unknown[]) => assertAiRateLimit(...args),
+  assertAiOrgRateLimit: (...args: unknown[]) => assertAiOrgRateLimit(...args),
 }));
 
 vi.mock("../observability", () => ({
@@ -80,6 +87,15 @@ function workspaceFor(
 afterEach(() => {
   clearRecordedWrites();
   vi.clearAllMocks();
+});
+
+beforeEach(() => {
+  prepareAiCallForOrg.mockResolvedValue({
+    model: "test-model",
+    modelId: "test-model",
+  });
+  assertAiRateLimit.mockResolvedValue(undefined);
+  assertAiOrgRateLimit.mockResolvedValue(undefined);
 });
 
 describe("generateAiExplanationAction", () => {

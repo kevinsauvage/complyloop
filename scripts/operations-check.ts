@@ -6,7 +6,9 @@ import path from "node:path";
 import { sql } from "drizzle-orm";
 
 import { getDrizzle } from "@complyloop/db/postgres";
+import { countOrgAiSettings } from "@complyloop/db/repo/org-ai-settings";
 
+import { isSecretBoxConfigured } from "../src/server/ai/secret-box";
 import {
   oldestQueuedAssessmentJobAgeMs,
   queuedAssessmentJobCount,
@@ -115,6 +117,22 @@ async function main(): Promise<void> {
   );
   const queuedJobs = await queuedAssessmentJobCount();
   const oldestQueuedJobAgeMs = await oldestQueuedAssessmentJobAgeMs();
+  // A pending 0009 migration means the table is absent: report drift, not a
+  // raw SQL error ("relation does not exist").
+  const [aiTable] = (await drizzle.execute(sql`
+    SELECT to_regclass('org_ai_settings') IS NOT NULL AS present
+  `)) as Array<{ present: unknown }>;
+  const aiSettingsRows = aiTable?.present
+    ? await countOrgAiSettings(drizzle)
+    : 0;
+  const aiKeyConfigured = isSecretBoxConfigured();
+  // Only a check that loaded the app env can judge the secret: the scheduled
+  // workflow runs with DATABASE_URL alone and opts out of the env audit.
+  if (checkProdEnv && aiSettingsRows > 0 && !aiKeyConfigured) {
+    envFailures.push(
+      "AI_KEYS_ENCRYPTION_KEY is required (and must be a 32-byte base64 key) because org_ai_settings rows exist.",
+    );
+  }
 
   // Fast, lock-free size signals: exact byte size + planner row estimate
   // (no COUNT(*) seq scan on an ever-growing append-only table). Pipeline
@@ -193,6 +211,8 @@ async function main(): Promise<void> {
       evidenceBytes,
       evidenceRowsEstimate,
       pipelineTableBytes,
+      aiSettingsRows,
+      aiKeyConfigured,
       thresholds,
       envFailures,
       envWarnings,

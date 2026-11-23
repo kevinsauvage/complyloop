@@ -85,3 +85,18 @@ export function vercelGitRepoOwner(): string | undefined {
 export function vercelGitRepoSlug(): string | undefined {
   return trimmed("VERCEL_GIT_REPO_SLUG");
 }
+
+/** Operator gateway key: with `AI_MODEL`, serves orgs without their own key. */
+export function aiGatewayApiKey(): string | undefined {
+  return trimmed("AI_GATEWAY_API_KEY");
+}
+
+/** Operator's zero-retention model id for the platform fallback. */
+export function aiModel(): string | undefined {
+  return trimmed("AI_MODEL");
+}
+
+/** Current key for encrypting org AI credentials at rest (base64, 32 bytes). */
+export function aiKeysEncryptionKey(): string | undefined {
+  return trimmed("AI_KEYS_ENCRYPTION_KEY");
+}

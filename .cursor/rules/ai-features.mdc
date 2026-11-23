@@ -24,6 +24,9 @@ AI accelerates the product but is never the source of truth.
 
 ## Implementation
 
+- Build models from a resolved `AiConfig` (`src/ai/ai-config.ts`). Never pass a bare `provider/model` string to the SDK: it resolves credentials implicitly and can bill the operator for a customer's call.
+- Credentials are org-scoped and resolved on the server (`src/server/ai/`). `src/ai` reads no credentials and never imports `@/server/*`.
+- Never log, return, export or persist an AI key in plaintext. The settings card shows only `key_last4`; error reports and action states must not echo the key.
 - Parse AI output into typed Zod (or equivalent) schemas before use; reject or flag unparseable output.
 - Persist provenance: model, timestamp, feature id, and `provenance: "ai"` (`ExplanationProvenance`; shown in UI).
 - Suggested remediations enter the workflow at `suggested` only.

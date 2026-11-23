@@ -119,24 +119,25 @@ below) and check the Vercel function logs (filter `[event]` for
 
 ## 3. Environment variables (Vercel dashboard)
 
-| Variable                                      | Value                                                                                                                                                                                          |
-| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`                                | Pooled Postgres URL with `sslmode=require`                                                                                                                                                     |
-| `AUTH_SECRET`                                 | `openssl rand -base64 32` (stable — rotation invalidates sessions AND stored GitHub tokens, reconnect required)                                                                                |
-| `AUTH_URL`                                    | `https://<vercel-app>` (**required** in production)                                                                                                                                            |
-| `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET`       | GitHub App OAuth client                                                                                                                                                                        |
-| `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY`    | Installation-token repo access                                                                                                                                                                 |
-| `GITHUB_APP_SLUG` / `GITHUB_WEBHOOK_SECRET`   | Install link + webhook verification                                                                                                                                                            |
-| `GH_WORKER_DISPATCH_TOKEN`                    | Fine-grained PAT (Actions write on the app repo) so the app can fire `repository_dispatch`; target repo from `APP_REPO_FULL_NAME` or Vercel's `VERCEL_GIT_REPO_OWNER` / `VERCEL_GIT_REPO_SLUG` |
-| `APP_REPO_FULL_NAME`                          | `owner/repo` of the app repo (dispatch target fallback)                                                                                                                                        |
-| `ASSESSMENT_MAX_CHECKOUT_BYTES`               | `524288000` (500 MB — matches the code default; `/tmp` caps at ~500 MB)                                                                                                                        |
-| `ASSESSMENT_MAX_CHECKOUT_FILES`               | `50000`                                                                                                                                                                                        |
-| `ASSESSMENT_MAX_CHECKOUT_SCAN_MS`             | `30000`                                                                                                                                                                                        |
-| `ASSESSMENT_MAX_RUNTIME_PAGES`                | `25`                                                                                                                                                                                           |
-| `SENTRY_DSN` (+ `NEXT_PUBLIC_SENTRY_DSN`)     | Required by `ops:check` in production                                                                                                                                                          |
-| `BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD` | Private preview gate (Basic Auth on every page; unset = open). Set both on the deployed project until public launch                                                                            |
-| `COMPLYLOOP_SUPPORT_EMAIL`                    | Shown on the Organization page                                                                                                                                                                 |
-| `AI_GATEWAY_API_KEY` + `AI_MODEL`             | Optional — AI explanations/patches. Both required; no default model (use a zero-data-retention provider)                                                                                       |
+| Variable                                      | Value                                                                                                                                                                                           |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                | Pooled Postgres URL with `sslmode=require`                                                                                                                                                      |
+| `AUTH_SECRET`                                 | `openssl rand -base64 32` (stable — rotation invalidates sessions AND stored GitHub tokens, reconnect required)                                                                                 |
+| `AUTH_URL`                                    | `https://<vercel-app>` (**required** in production)                                                                                                                                             |
+| `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET`       | GitHub App OAuth client                                                                                                                                                                         |
+| `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY`    | Installation-token repo access                                                                                                                                                                  |
+| `GITHUB_APP_SLUG` / `GITHUB_WEBHOOK_SECRET`   | Install link + webhook verification                                                                                                                                                             |
+| `GH_WORKER_DISPATCH_TOKEN`                    | Fine-grained PAT (Actions write on the app repo) so the app can fire `repository_dispatch`; target repo from `APP_REPO_FULL_NAME` or Vercel's `VERCEL_GIT_REPO_OWNER` / `VERCEL_GIT_REPO_SLUG`  |
+| `APP_REPO_FULL_NAME`                          | `owner/repo` of the app repo (dispatch target fallback)                                                                                                                                         |
+| `ASSESSMENT_MAX_CHECKOUT_BYTES`               | `524288000` (500 MB — matches the code default; `/tmp` caps at ~500 MB)                                                                                                                         |
+| `ASSESSMENT_MAX_CHECKOUT_FILES`               | `50000`                                                                                                                                                                                         |
+| `ASSESSMENT_MAX_CHECKOUT_SCAN_MS`             | `30000`                                                                                                                                                                                         |
+| `ASSESSMENT_MAX_RUNTIME_PAGES`                | `25`                                                                                                                                                                                            |
+| `SENTRY_DSN` (+ `NEXT_PUBLIC_SENTRY_DSN`)     | Required by `ops:check` in production                                                                                                                                                           |
+| `BASIC_AUTH_USERNAME` / `BASIC_AUTH_PASSWORD` | Private preview gate (Basic Auth on every page; unset = open). Set both on the deployed project until public launch                                                                             |
+| `COMPLYLOOP_SUPPORT_EMAIL`                    | Shown on the Organization page                                                                                                                                                                  |
+| `AI_KEYS_ENCRYPTION_KEY`                      | BYOK: 32 random bytes, base64 (`openssl rand -base64 32`). Required before organizations can store AI keys. Keep stable: changing it makes stored keys unreadable and admins must re-enter them |
+| `AI_GATEWAY_API_KEY` + `AI_MODEL`             | Optional operator fallback for orgs without their own key. Both required (leave either unset to require BYOK); no default model (use a zero-data-retention provider)                            |
 
 **Never set:** `E2E_*` (the harness swaps real checkouts for fixtures and skips
 prod GitHub enforcement), `DATABASE_SSL_INSECURE`.
@@ -164,6 +165,9 @@ unreachable instead of tied.
   evidence size. It exits non-zero on any breach so it gates deploys and
   alerts. `OPS_CHECK_PROD_ENV=0` skips the env audit (the scheduled workflow
   sets it: the app env lives in Vercel, not in Actions secrets).
+  - It also fails the prod env audit when `org_ai_settings` has rows but
+    `AI_KEYS_ENCRYPTION_KEY` is missing or invalid (stored keys would be
+    unreadable).
   - Thresholds via env (defaults are starting values — tighten after the
     first prod signals):
     | Variable              | Default | Meaning                                                      |
@@ -227,6 +231,10 @@ running rather than that the queue is busy.
 | Delete org      | Dropped with the org's projects                                              | Retained (toast confirms it) | Survive — per-user rows with no org/project FK |
 
 In short: evidence is forever (until a superuser prune); project-scoped compliance state follows the project; tokens follow the user.
+
+Organization AI credentials (`org_ai_settings`) and the configuration audit
+trail (`org_ai_settings_events`) are org-scoped and cascade
+on organization deletion; disconnecting a project leaves them untouched.
 
 ## Pre-launch checklist
 

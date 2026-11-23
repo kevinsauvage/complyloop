@@ -1,9 +1,10 @@
 import { generateText } from "ai";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
+import { testAiConfig } from "@/test-fixtures/ai-config";
 import { testFinding } from "@/test-fixtures/finding";
 
 import {
@@ -11,10 +12,8 @@ import {
   aiCall,
   type AiErrorReport,
   findingPromptContext,
-  resolveAiModel,
 } from "./ai-call";
-
-const TEST_MODEL = "acme/zero-retention-model";
+import { GATEWAY_PROVIDER_OPTIONS } from "./gateway";
 
 vi.mock("ai", () => ({
   generateText: vi.fn(),
@@ -25,13 +24,9 @@ vi.mock("ai", () => ({
 
 const generate = vi.mocked(generateText);
 const schema = z.object({ value: z.string() });
-
-beforeEach(() => {
-  vi.stubEnv("AI_MODEL", TEST_MODEL);
-});
+const config = testAiConfig();
 
 afterEach(() => {
-  vi.unstubAllEnvs();
   generate.mockReset();
 });
 
@@ -46,29 +41,38 @@ function errorHook() {
 }
 
 describe("aiCall", () => {
-  it("returns the parsed object when AI is available", async () => {
+  it("returns the parsed output with zero-retention routing and an output bound", async () => {
     generate.mockResolvedValue({ output: { value: "ok" } } as never);
 
     await expect(
-      aiCall({ schema, available: true, prompt: "hi", code: "ai_test" }),
+      aiCall({ schema, config, prompt: "hi", code: "ai_test" }),
     ).resolves.toEqual({ value: "ok" });
     expect(generate).toHaveBeenCalledWith(
-      expect.objectContaining({ model: TEST_MODEL }),
+      expect.objectContaining({
+        model: config.model,
+        providerOptions: GATEWAY_PROVIDER_OPTIONS,
+        maxOutputTokens: 16_000,
+      }),
     );
   });
 
-  it("returns null without calling the gateway when AI is unavailable", async () => {
-    await expect(
-      aiCall({ schema, available: false, prompt: "hi", code: "ai_test" }),
-    ).resolves.toBeNull();
-    expect(generate).not.toHaveBeenCalled();
+  it("masks a key quoted in the provider error before reporting it", async () => {
+    generate.mockRejectedValue(new Error("rejected vck_abcdefgh12345678"));
+    const hook = errorHook();
+
+    await aiCall({
+      schema,
+      config,
+      prompt: "hi",
+      code: "ai_test",
+      onError: hook.onError,
+    });
+    expect(hook.calls[0]?.report.detail).toBe("rejected ***");
   });
 
-  it("fails closed without a model even when the caller claims availability", async () => {
-    vi.stubEnv("AI_MODEL", "");
-
+  it("returns null without calling the provider when config is null", async () => {
     await expect(
-      aiCall({ schema, available: true, prompt: "hi", code: "ai_test" }),
+      aiCall({ schema, config: null, prompt: "hi", code: "ai_test" }),
     ).resolves.toBeNull();
     expect(generate).not.toHaveBeenCalled();
   });
@@ -77,7 +81,7 @@ describe("aiCall", () => {
     await expect(
       aiCall({
         schema,
-        available: false,
+        config: null,
         throwIfUnavailable: true,
         prompt: "hi",
         code: "ai_test",
@@ -90,7 +94,7 @@ describe("aiCall", () => {
     await expect(
       aiCall({
         schema,
-        available: false,
+        config: null,
         throwIfUnavailable: true,
         failureMessage: "AI disabled",
         prompt: "hi",
@@ -99,14 +103,14 @@ describe("aiCall", () => {
     ).rejects.toThrow(new PublicError("AI disabled"));
   });
 
-  it("reports through onError and returns null when the gateway call fails", async () => {
+  it("reports through onError and returns null when the provider call fails", async () => {
     generate.mockRejectedValue(new Error("gateway down"));
     const hook = errorHook();
 
     await expect(
       aiCall({
         schema,
-        available: true,
+        config,
         prompt: "hi",
         code: "ai_test",
         detail: { findingId: "f1" },
@@ -122,11 +126,11 @@ describe("aiCall", () => {
     });
   });
 
-  it("stays silent without onError when the gateway call fails", async () => {
+  it("stays silent without onError when the provider call fails", async () => {
     generate.mockRejectedValue(new Error("gateway down"));
 
     await expect(
-      aiCall({ schema, available: true, prompt: "hi", code: "ai_test" }),
+      aiCall({ schema, config, prompt: "hi", code: "ai_test" }),
     ).resolves.toBeNull();
   });
 
@@ -137,7 +141,7 @@ describe("aiCall", () => {
     await expect(
       aiCall({
         schema,
-        available: true,
+        config,
         prompt: "hi",
         code: "ai_test",
         onError: hook.onError,
@@ -148,13 +152,13 @@ describe("aiCall", () => {
     expect(hook.calls[0]?.report).toMatchObject({ detail: "offline" });
   });
 
-  it("throws a PublicError when the gateway fails and throwIfUnavailable is set", async () => {
+  it("throws a PublicError when the provider fails and throwIfUnavailable is set", async () => {
     generate.mockRejectedValue(new Error("rate limited"));
 
     await expect(
       aiCall({
         schema,
-        available: true,
+        config,
         throwIfUnavailable: true,
         failureMessage: "AI patch generation failed",
         prompt: "hi",
@@ -213,17 +217,5 @@ describe("findingPromptContext", () => {
     ).join("\n");
     expect(lines).not.toContain("sk_live_123456789");
     expect(lines).toContain("api_key=***");
-  });
-});
-
-describe("resolveAiModel", () => {
-  it("has no default model when AI_MODEL is unset", () => {
-    vi.stubEnv("AI_MODEL", "");
-    expect(resolveAiModel()).toBeUndefined();
-  });
-
-  it("trims and returns the configured model", () => {
-    vi.stubEnv("AI_MODEL", "  acme/pro-model  ");
-    expect(resolveAiModel()).toBe("acme/pro-model");
   });
 });

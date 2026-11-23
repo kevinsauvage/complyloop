@@ -8,13 +8,12 @@ import type { Confidence } from "@complyloop/analysis-core/contract/statuses";
 import {
   AI_SNIPPET_MAX_CHARS,
   AI_TEXT_MAX_CHARS,
-  aiAvailable,
   aiCall,
   type AiCallOnError,
   confidenceSchema,
   findingPromptContext,
-  resolveAiModel,
 } from "./ai-call";
+import type { AiConfig } from "./ai-config";
 
 /**
  * Bounded at the AI output boundary: `attributeValue` flows into
@@ -39,24 +38,26 @@ export const remediationSchema = z.object({
   confidence: confidenceSchema,
 });
 
-interface AiRemediationResult {
+export interface AiRemediationResult {
   suggestion: RemediationSuggestion;
   /** When present, replace an editable insert_attribute fix value. */
   attributeValue?: string;
 }
 
 /**
- * Asks the model for a remediation proposal. Returns null without credentials
- * or on failure. Never applies changes — callers put the result at `suggested`.
+ * Asks the model for a remediation proposal. Returns null without a resolved
+ * config or on failure. Never applies changes — callers put the result at
+ * `suggested`.
  */
 export async function generateAiRemediation(
   finding: Finding,
   control: Control,
+  config: AiConfig | null,
   options: { onError?: AiCallOnError } = {},
 ): Promise<AiRemediationResult | null> {
-  const object = await aiCall({
+  const output = await aiCall({
     schema: remediationSchema,
-    available: aiAvailable(),
+    config,
     code: "ai_remediation_failed",
     detail: { findingId: finding.id, controlId: control.id },
     onError: options.onError,
@@ -73,17 +74,17 @@ export async function generateAiRemediation(
       "Be concise. Output only the structured fields.",
     ],
   });
-  if (!object) return null;
-  const confidence: Confidence = object.confidence;
+  if (!output || !config) return null;
+  const confidence: Confidence = output.confidence;
   return {
     suggestion: {
-      description: object.description,
-      proposedSnippet: object.proposedSnippet,
+      description: output.description,
+      proposedSnippet: output.proposedSnippet,
       provenance: "ai",
       confidence,
-      model: resolveAiModel(),
+      model: config.modelId,
       generatedAt: new Date().toISOString(),
     },
-    attributeValue: object.attributeValue?.trim() || undefined,
+    attributeValue: output.attributeValue?.trim() || undefined,
   };
 }

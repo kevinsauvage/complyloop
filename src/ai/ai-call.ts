@@ -12,6 +12,9 @@ import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 
 import { redactSecrets } from "@/lib/redact";
 
+import type { AiConfig } from "./ai-config";
+import { GATEWAY_PROVIDER_OPTIONS } from "./gateway";
+
 /** Error report handed to the `onError` hook on gateway failure. */
 export interface AiErrorReport {
   /** Stable machine-readable code attached to the observability report. */
@@ -35,6 +38,14 @@ export type AiCallOnError = (error: unknown, report: AiErrorReport) => void;
 const AI_CALL_TIMEOUT_MS = 60_000;
 
 /**
+ * Output budget per call (reasoning included on thinking models). Without it a
+ * provider defaults to the model maximum (128K on current Claude models), so a
+ * runaway call could spend far more than expected and outlast the timeout.
+ * Structured outputs here are a few thousand characters at most.
+ */
+const AI_MAX_OUTPUT_TOKENS = 16_000;
+
+/**
  * Output bounds applied to every model-generated field before it is persisted.
  * AI output is untrusted text: an unbounded field could bloat evidence/payload
  * rows or smuggle control characters into the UI.
@@ -44,37 +55,13 @@ export const AI_SNIPPET_MAX_CHARS = 4_000;
 export const AI_PATH_MAX_CHARS = 1_024;
 export const AI_EDIT_TEXT_MAX_CHARS = 200_000;
 
-/**
- * Resolved gateway model id (`provider/model`), or `undefined` when the
- * operator has not chosen one. There is deliberately **no default**: prompts
- * can carry client source code, so AI stays disabled until a model on a
- * zero-data-retention provider is configured explicitly.
- *
- * Reads `process.env` directly (not via `@/server/env`): `src/ai` must stay
- * importable without `@/server/*` (client-bundle/edge boundary, ESLint) —
- * same precedent as `aiAvailable()`.
- */
-export function resolveAiModel(): string | undefined {
-  return process.env.AI_MODEL?.trim() || undefined;
-}
-
-/**
- * True when AI is configured: gateway credentials **and** an explicit model.
- * A key alone is not enough — without a chosen zero-retention model we must
- * not send repository contents anywhere.
- */
-export function aiAvailable(): boolean {
-  // Direct `process.env` reads for the same boundary reason as `resolveAiModel`.
-  return Boolean(process.env.AI_GATEWAY_API_KEY && resolveAiModel());
-}
-
 /** User-facing copy when an AI call cannot run because AI is not configured. */
 export const AI_UNAVAILABLE_MESSAGE =
-  "AI isn't enabled for this workspace. Set AI_GATEWAY_API_KEY and AI_MODEL (a zero-data-retention model) to turn it on.";
+  "AI isn't enabled for this organization. An organization admin can configure it under Organization → AI.";
 
 /** User-facing copy when patch generation needs AI and none is configured. */
 export const AI_PATCH_UNAVAILABLE_MESSAGE =
-  "AI patch generation isn't enabled for this workspace, and there's no built-in fix for this finding. Use the developer handoff to fix it manually.";
+  "AI patch generation isn't enabled for this organization, and there's no built-in fix for this finding. Use the developer handoff to fix it manually.";
 
 /**
  * Shared zod schema for AI confidence values, aligned with analysis-core's
@@ -122,8 +109,11 @@ export function findingPromptContext(
 
 interface AiCallInput<TSchema extends z.ZodType> {
   schema: TSchema;
-  /** Pass `aiAvailable()`; false short-circuits without a gateway call. */
-  available: boolean;
+  /**
+   * Resolved configuration, or `null` when AI is unavailable. A `null` config
+   * short-circuits without a provider call.
+   */
+  config: AiConfig | null;
   /** When true, unavailable/failed calls throw PublicError instead of returning null. */
   throwIfUnavailable?: boolean;
   prompt: string | string[];
@@ -142,7 +132,7 @@ interface AiCallInput<TSchema extends z.ZodType> {
 }
 
 /**
- * Shared AI gateway shell: availability check + structured output through
+ * Shared AI shell: availability check + structured output through
  * `generateText` with `Output.object`, which makes the provider honor the zod
  * schema. There is deliberately no text-parsing fallback — a model that cannot
  * produce structured output fails the call instead of returning loosely parsed
@@ -154,10 +144,9 @@ interface AiCallInput<TSchema extends z.ZodType> {
 export async function aiCall<TSchema extends z.ZodType>(
   input: AiCallInput<TSchema>,
 ): Promise<z.infer<TSchema> | null> {
-  // Model is resolved here (not read from the caller) so a missing `AI_MODEL`
-  // fails closed even if a caller passed `available: true` by mistake.
-  const model = resolveAiModel();
-  if (!input.available || !model) {
+  // The config carries an explicit provider instance; a null config means the
+  // server layer decided AI is unavailable for this org.
+  if (!input.config) {
     if (input.throwIfUnavailable) {
       throw new PublicError(input.failureMessage ?? AI_UNAVAILABLE_MESSAGE);
     }
@@ -169,7 +158,9 @@ export async function aiCall<TSchema extends z.ZodType>(
   const fail = (failure: unknown): null => {
     input.onError?.(failure, {
       code: input.code,
-      detail: failure instanceof Error ? failure.message : String(failure),
+      detail: redactSecrets(
+        failure instanceof Error ? failure.message : String(failure),
+      ),
       ...input.detail,
     });
     if (input.throwIfUnavailable) {
@@ -181,9 +172,11 @@ export async function aiCall<TSchema extends z.ZodType>(
   };
   try {
     const { output } = await generateText({
-      model,
+      model: input.config.model,
+      providerOptions: GATEWAY_PROVIDER_OPTIONS,
       output: Output.object({ schema: input.schema }),
       prompt,
+      maxOutputTokens: AI_MAX_OUTPUT_TOKENS,
       abortSignal: AbortSignal.timeout(AI_CALL_TIMEOUT_MS),
     });
     return output as z.infer<TSchema>;

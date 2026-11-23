@@ -280,18 +280,13 @@ describe("runAiFixOnCheckout", () => {
     const root = tempRoot(
       'export const Footer = () => <footer role="contentinfo" />;\n',
     );
-    const propose = vi.fn(async () => {
-      throw new Error("fetch failed: gateway unreachable");
-    });
 
     await expect(
       runAiFixOnCheckout(root, finding(), control, {
-        propose,
         scan: () => [],
-        aiAvailable: false,
+        aiConfig: null,
       }),
-    ).rejects.toThrow(/isn't enabled for this workspace/);
-    expect(propose).not.toHaveBeenCalled();
+    ).rejects.toThrow(/isn't enabled for this organization/);
   });
 });
 
@@ -328,17 +323,17 @@ describe("generatePatchCandidateForFinding", () => {
       span: { start: source.indexOf("<input"), end: source.indexOf("/>") + 2 },
     };
 
-    const candidate = await generatePatchCandidateForFinding(
+    const result = await generatePatchCandidateForFinding(
       project,
       target,
       control,
-      { aiAvailable: true },
+      { aiConfig: null },
     );
 
     expect(withProjectFileWorkspaceMock.mock.calls[0]?.[0]).toBe(project);
     expect(withProjectFileWorkspaceMock.mock.calls[0]?.[1]).toBe("Hero.tsx");
-    expect(candidate.edits[0]?.path).toBe("Hero.tsx");
-    expect(candidate.edits[0]?.newText).toContain("<input />");
+    expect(result.edits[0]?.path).toBe("Hero.tsx");
+    expect(result.edits[0]?.newText).toContain("<input />");
   });
 });
 

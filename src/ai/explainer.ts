@@ -7,13 +7,12 @@ import type { Confidence } from "@complyloop/analysis-core/contract/statuses";
 
 import {
   AI_TEXT_MAX_CHARS,
-  aiAvailable,
   aiCall,
   type AiCallOnError,
   confidenceSchema,
   findingPromptContext,
-  resolveAiModel,
 } from "./ai-call";
+import type { AiConfig } from "./ai-config";
 
 const explanationSchema = z.object({
   whyItFailed: z.string().max(AI_TEXT_MAX_CHARS),
@@ -37,19 +36,20 @@ export function deterministicExplanation(
 }
 
 /**
- * Generates a developer-oriented explanation with an LLM. Returns null when no
- * AI credentials are configured or the call fails — the deterministic
- * explanation remains the baseline either way, per the product principle that
- * AI is never the source of truth.
+ * Generates a developer-oriented explanation with an LLM. Returns null when the
+ * resolved config is null (AI unavailable) or the call fails — the
+ * deterministic explanation remains the baseline either way, per the product
+ * principle that AI is never the source of truth.
  */
 export async function generateAiExplanation(
   finding: Finding,
   control: Control,
+  config: AiConfig | null,
   options: { onError?: AiCallOnError } = {},
 ): Promise<Explanation | null> {
-  const object = await aiCall({
+  const output = await aiCall({
     schema: explanationSchema,
-    available: aiAvailable(),
+    config,
     code: "ai_explanation_failed",
     detail: { findingId: finding.id, controlId: control.id },
     onError: options.onError,
@@ -61,15 +61,15 @@ export async function generateAiExplanation(
       "Be concise and practical; no legal language.",
     ],
   });
-  if (!object) return null;
-  const confidence: Confidence = object.confidence;
+  if (!output || !config) return null;
+  const confidence: Confidence = output.confidence;
   return {
-    whyItFailed: object.whyItFailed,
-    impact: object.impact,
-    howToFix: object.howToFix,
+    whyItFailed: output.whyItFailed,
+    impact: output.impact,
+    howToFix: output.howToFix,
     confidence,
     provenance: "ai",
-    model: resolveAiModel(),
+    model: config.modelId,
     generatedAt: new Date().toISOString(),
   };
 }
