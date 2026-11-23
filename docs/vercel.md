@@ -18,12 +18,12 @@ Checkouts use pure-JS git (isomorphic-git).
   which fires the GitHub Actions `assessment-worker` workflow
   (`.github/workflows/assessment-worker.yml`):
   - `repository_dispatch` (`assessment-drain`) for immediate start,
-  - 15-min schedule as the orphan/expired-lease backstop,
+  - 15-min schedule as the orphan/dead-worker backstop,
   - `workflow_dispatch` for manual operator drains.
   - No second executor: an unconfigured/failed dispatch leaves the job
     `queued` for the schedule.
-  - Serial per project, 3 attempts with backoff, 30-min lease renewed by a
-    5-min heartbeat.
+  - pg-boss queue (`pgboss` schema, installed by `db:migrate`): serial per
+    project, 3 attempts with backoff, 5-min heartbeat.
 - **Checkouts** — Ephemeral isomorphic-git shallow clone per job into `/tmp`;
   deleted after.
 - **Browsers** — Playwright Chromium (`npx playwright install chromium`,
@@ -75,7 +75,7 @@ Triggers (`assessment-worker.yml`):
 
 - `repository_dispatch` (`assessment-drain`, fired from the app in `after()`
   on every enqueue so scans start immediately),
-- schedule every 15 min (orphan/expired-lease backstop),
+- schedule every 15 min (orphan/dead-worker backstop),
 - `workflow_dispatch` (operator drain button, with `limit` / `concurrency` /
   `max-minutes` inputs).
 
@@ -200,7 +200,7 @@ Pipeline bookkeeping is bounded automatically on every worker batch
 
 | Table                  | Retention                                                                    |
 | ---------------------- | ---------------------------------------------------------------------------- |
-| `assessment_jobs`      | terminal (`succeeded`/`failed`/`cancelled`) older than 30 days               |
+| pg-boss jobs           | finished jobs deleted after 30 days by pg-boss (`supervise`)                 |
 | `assessments`          | newest 30 **per project**, never one referenced by a finding                 |
 | `assessments` (stale)  | never-completed rows older than 30 days (abandoned runs), same finding guard |
 | `assessment_snapshots` | cascades with its assessment (`ON DELETE CASCADE`)                           |

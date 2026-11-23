@@ -78,7 +78,14 @@ export async function waitForJobSuccess(options: {
     while (Date.now() < deadline) {
       const rows = await sql<
         Array<{ status: string; error: string | null }>
-      >`SELECT status, error FROM assessment_jobs WHERE id = ${jobId}`;
+      >`SELECT CASE state::text
+            WHEN 'completed' THEN 'succeeded'
+            WHEN 'active' THEN 'running'
+            WHEN 'failed' THEN 'failed'
+            WHEN 'cancelled' THEN 'cancelled'
+            ELSE 'queued' END AS status,
+          output->>'message' AS error
+        FROM pgboss.job WHERE name = 'assessment' AND id = ${jobId}::uuid`;
       const [row] = rows;
       if (!row) {
         throw new Error(`Assessment job ${jobId} not found.`);

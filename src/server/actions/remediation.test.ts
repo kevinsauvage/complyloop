@@ -26,7 +26,6 @@ import {
 const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
 const activeAssessmentJobForProject = vi.hoisted(() => vi.fn());
 const cancelAssessmentJob = vi.hoisted(() => vi.fn());
-const recoverExpiredAssessmentLeases = vi.hoisted(() => vi.fn());
 const scheduleAssessmentDrain = vi.hoisted(() => vi.fn());
 const shouldDrainAssessmentJobsInline = vi.hoisted(() => vi.fn());
 const assertAssessRateLimit = vi.hoisted(() => vi.fn());
@@ -67,8 +66,7 @@ vi.mock("../assessment/assessment-jobs", () => ({
     activeAssessmentJobForProject(...args),
   enqueueAssessmentJob: (...args: unknown[]) => enqueueAssessmentJob(...args),
   cancelAssessmentJob: (...args: unknown[]) => cancelAssessmentJob(...args),
-  recoverExpiredAssessmentLeases: (...args: unknown[]) =>
-    recoverExpiredAssessmentLeases(...args),
+  superviseAssessmentQueue: vi.fn(),
 }));
 
 vi.mock("../assessment/assessment-scheduler", () => ({
@@ -379,7 +377,7 @@ describe("runAssessmentAction", () => {
     expect(afterFn).not.toHaveBeenCalled();
   });
 
-  it("refuses a second run while a job is already active", async () => {
+  it("restarts a running job whose worker stopped heartbeating", async () => {
     const workspace = workspaceFor("member");
     mockProjectTx(workspace);
     activeAssessmentJobForProject.mockResolvedValue({
@@ -396,10 +394,10 @@ describe("runAssessmentAction", () => {
     expect(result).toEqual({
       ok: true,
       message:
-        "An assessment is already running — track it in the Pipeline below.",
+        "The last assessment's worker stopped responding — restarting it. Track progress in the Pipeline below.",
     });
     expect(enqueueAssessmentJob).not.toHaveBeenCalled();
-    expect(afterFn).not.toHaveBeenCalled();
+    expect(afterFn).toHaveBeenCalledTimes(1);
   });
 
   it("does not kick the worker while a live lease is held", async () => {
@@ -422,7 +420,6 @@ describe("runAssessmentAction", () => {
       message:
         "An assessment is already running — track it in the Pipeline below.",
     });
-    expect(recoverExpiredAssessmentLeases).toHaveBeenCalledTimes(1);
     expect(enqueueAssessmentJob).not.toHaveBeenCalled();
     expect(afterFn).not.toHaveBeenCalled();
   });
@@ -447,7 +444,6 @@ describe("runAssessmentAction", () => {
       message:
         "An assessment is already queued — kicked the worker to pick it up. Track progress in the Pipeline below.",
     });
-    expect(recoverExpiredAssessmentLeases).toHaveBeenCalledTimes(1);
     expect(enqueueAssessmentJob).not.toHaveBeenCalled();
     expect(scheduleAssessmentDrain).not.toHaveBeenCalled();
     expect(afterFn).toHaveBeenCalledTimes(1);

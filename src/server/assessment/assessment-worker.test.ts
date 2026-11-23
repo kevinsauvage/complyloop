@@ -212,13 +212,19 @@ beforeEach(() => {
 });
 
 /** Minimal tx stub: the apply re-checks the job status inside the transaction. */
+const JOB_STATE_OF_STATUS: Record<string, string> = {
+  queued: "created",
+  running: "active",
+  succeeded: "completed",
+  failed: "failed",
+  cancelled: "cancelled",
+};
+
 function stubTx(jobStatus: string) {
   return {
-    select: () => ({
-      from: () => ({
-        where: async () => [{ status: jobStatus }],
-      }),
-    }),
+    execute: async () => [
+      { state: JOB_STATE_OF_STATUS[jobStatus], retry_count: 0 },
+    ],
   };
 }
 

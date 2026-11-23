@@ -20,7 +20,8 @@
   },
   "dependencies": {
     "@complyloop/analysis-core": "^0.1.0",
-    "drizzle-orm": "^0.45.4"
+    "drizzle-orm": "^0.45.4",
+    "pg-boss": "^12.39.0"
   },
   "peerDependencies": {
     "postgres": "^4.1.1",

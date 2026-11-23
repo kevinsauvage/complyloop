@@ -10,13 +10,8 @@ import {
 } from "@complyloop/analysis-core/contract/statuses";
 
 import type { DrizzleDb } from "../postgres.ts";
-import {
-  alerts,
-  assessmentJobs,
-  assessments,
-  findings,
-  requirements,
-} from "../schema.ts";
+import { alerts, assessments, findings, requirements } from "../schema.ts";
+import { listLatestAssessmentJobs } from "./assessment-jobs.ts";
 
 /**
  * One row per project for the org portfolio. Everything here is an aggregate:
@@ -128,19 +123,7 @@ export async function listPortfolioForProjects(
         desc(assessments.id),
       ),
     // Newest job per project without a per-project round trip.
-    drizzle
-      .selectDistinctOn([assessmentJobs.projectId], {
-        projectId: assessmentJobs.projectId,
-        status: assessmentJobs.status,
-        updatedAt: assessmentJobs.updatedAt,
-      })
-      .from(assessmentJobs)
-      .where(inArray(assessmentJobs.projectId, ids))
-      .orderBy(
-        assessmentJobs.projectId,
-        desc(assessmentJobs.updatedAt),
-        desc(assessmentJobs.id),
-      ),
+    listLatestAssessmentJobs(drizzle, ids),
   ]);
 
   const byProject = new Map<string, PortfolioProjectRow>(

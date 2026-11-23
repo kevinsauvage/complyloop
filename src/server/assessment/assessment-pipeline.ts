@@ -75,7 +75,9 @@ export async function applyAuthoritativeAssessment(input: {
     // still discard the run. Re-check the job status inside the transaction
     // (under the project lock) so the check and the writes are atomic —
     // throwing here rolls everything back and the worker reports `cancelled`.
-    if ((await getAssessmentJobStatus(tx, job.id)) !== "running") {
+    if (
+      (await getAssessmentJobStatus(tx, job.id, job.attempts)) !== "running"
+    ) {
       throw new AssessmentJobCancelledError(job.id);
     }
 

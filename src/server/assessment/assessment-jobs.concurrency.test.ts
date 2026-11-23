@@ -1,232 +1,186 @@
 import { sql } from "drizzle-orm";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it } from "vitest";
 
+import { ASSESSMENT_QUEUE, createJobQueue } from "@complyloop/db/job-queue";
 import { closeDrizzle, getDrizzle } from "@complyloop/db/postgres";
-import { claimNextAssessmentJobRow } from "@complyloop/db/repo/assessment-jobs";
+import {
+  deleteAssessmentJobsForProject,
+  getAssessmentJobStatus,
+} from "@complyloop/db/repo/assessment-jobs";
 
 import {
   claimNextAssessmentJob,
+  completeAssessmentJob,
+  refreshAssessmentJobLease,
   releaseInFlightAssessmentJobs,
 } from "./assessment-job-lease";
-import { enqueueAssessmentJob } from "./assessment-jobs";
+import {
+  activeAssessmentJobForProject,
+  cancelAssessmentJob,
+  enqueueAssessmentJob,
+  recentAssessmentJobsForProject,
+} from "./assessment-jobs";
 
 /** Opt-in: needs a migrated Postgres (`DATABASE_URL`). Run via `npm run test:db`. */
 const enabled = Boolean(process.env.DATABASE_URL?.trim());
 
-/**
- * Regression tests for serial-per-project execution: the claim-time NOT
- * EXISTS guard cannot see a concurrent uncommitted `running` row under READ
- * COMMITTED, so the partial unique index
- * (`assessment_jobs_running_project_uidx`, drizzle/0001) is the backstop —
- * the losing claim gets 23505 and returns null instead of double-scanning.
- */
-describe.skipIf(!enabled)("assessment job serial claim concurrency", () => {
+const suffix = `${Date.now()}-queue`;
+const projectA = `proj-a-${suffix}`;
+const projectB = `proj-b-${suffix}`;
+
+async function clearJobs(): Promise<void> {
+  const drizzle = await getDrizzle();
+  await drizzle.execute(sql`
+    DELETE FROM pgboss.job
+    WHERE name = ${ASSESSMENT_QUEUE}
+      AND data->>'projectId' IN (${projectA}, ${projectB})
+  `);
+}
+
+async function claimOurs() {
+  const job = await claimNextAssessmentJob();
+  return job && [projectA, projectB].includes(job.projectId) ? job : null;
+}
+
+describe.skipIf(!enabled)("assessment queue on pg-boss", () => {
+  afterEach(clearJobs);
   afterAll(async () => {
+    await clearJobs();
     await closeDrizzle();
   });
 
-  it("grants only one running job per project under concurrent claims", async () => {
-    const drizzle = await getDrizzle();
-    const suffix = `${Date.now()}-serial`;
-    const orgId = `org-serial-${suffix}`;
-    const projectId = `proj-serial-${suffix}`;
-    await drizzle.execute(sql`
-      INSERT INTO organizations (id, slug, payload)
-      VALUES (${orgId}, ${`slug-serial-${suffix}`}, '{}'::jsonb)
-    `);
-    await drizzle.execute(sql`
-      INSERT INTO projects (id, name, owner_user_id, org_id, payload)
-      VALUES (${projectId}, 'serial-fixture', ${`user-${suffix}`}, ${orgId}, '{}'::jsonb)
-    `);
-
-    try {
-      await enqueueAssessmentJob({ projectId, trigger: "manual" });
+  it("runs at most one job per project under concurrent claims", async () => {
+    for (const projectId of [projectA, projectA, projectB]) {
       await enqueueAssessmentJob({
         projectId,
-        trigger: "webhook",
-        payload: { ref: "refs/heads/main", eventName: "push" },
+        trigger: "verify_remediation",
+        payload: { findingId: "f-1" },
       });
-
-      const [first, second] = await Promise.all([
-        claimNextAssessmentJob(),
-        claimNextAssessmentJob(),
-      ]);
-      expect([first, second].filter(Boolean)).toHaveLength(1);
-
-      const running = await drizzle.execute(sql`
-        SELECT id FROM assessment_jobs
-        WHERE project_id = ${projectId} AND status = 'running'
-      `);
-      expect(running.length).toBe(1);
-    } finally {
-      await drizzle.execute(
-        sql`DELETE FROM assessment_jobs WHERE project_id = ${projectId}`,
-      );
-      await drizzle.execute(sql`DELETE FROM projects WHERE id = ${projectId}`);
-      await drizzle.execute(sql`DELETE FROM organizations WHERE id = ${orgId}`);
     }
+
+    const claimed = (
+      await Promise.all([claimOurs(), claimOurs(), claimOurs()])
+    ).filter((job) => job !== null);
+
+    expect(claimed.map((job) => job.projectId).sort()).toEqual([
+      projectA,
+      projectB,
+    ]);
+    const active = await activeAssessmentJobForProject(projectA);
+    expect(active?.status).toBe("running");
+    for (const job of claimed) await completeAssessmentJob(job);
   });
 
-  it("returns null — not a 23505 — when a concurrent claim for the project commits first", async () => {
-    // Deterministic version of the race above (Promise.all rarely interleaves
-    // the two claims). Claim A holds its transaction open with job 1 running;
-    // claim B skips the locked job 1, picks job 2, and its UPDATE blocks on
-    // the partial unique index until A commits — then gets 23505. postgres.js
-    // re-throws a failed query when its transaction ends even if the claim
-    // caught it, so this only returns null because the UPDATE is savepointed.
-    const drizzle = await getDrizzle();
-    const suffix = `${Date.now()}-interleaved`;
-    const orgId = `org-interleaved-${suffix}`;
-    const projectId = `proj-interleaved-${suffix}`;
-    await drizzle.execute(sql`
-      INSERT INTO organizations (id, slug, payload)
-      VALUES (${orgId}, ${`slug-interleaved-${suffix}`}, '{}'::jsonb)
-    `);
-    await drizzle.execute(sql`
-      INSERT INTO projects (id, name, owner_user_id, org_id, payload)
-      VALUES (${projectId}, 'interleaved-fixture', ${`user-${suffix}`}, ${orgId}, '{}'::jsonb)
-    `);
-    // Epoch `available_at` sorts these ahead of any other queued fixture.
-    await drizzle.execute(sql`
-      INSERT INTO assessment_jobs
-        (id, project_id, status, trigger, payload, attempts, max_attempts, available_at, created_at, updated_at)
-      VALUES
-        (${`job-a-${suffix}`}, ${projectId}, 'queued', 'manual', '{}'::jsonb, 0, 3, 'epoch', 'epoch', NOW()),
-        (${`job-b-${suffix}`}, ${projectId}, 'queued', 'manual', '{}'::jsonb, 0, 3, 'epoch', 'epoch'::timestamptz + interval '1 second', NOW())
-    `);
+  it("returns the original job for a repeated idempotency key", async () => {
+    const input = {
+      projectId: projectA,
+      trigger: "webhook" as const,
+      idempotencyKey: `delivery-${suffix}`,
+      payload: { ref: "sha-1", eventName: "push" as const },
+    };
+    const first = await enqueueAssessmentJob(input);
+    const second = await enqueueAssessmentJob(input);
+    expect(second.id).toBe(first.id);
+  });
 
-    const now = new Date().toISOString();
-    const lease = new Date(Date.now() + 60_000).toISOString();
-    let commitFirst!: () => void;
-    const firstMayCommit = new Promise<void>((resolve) => {
-      commitFirst = resolve;
+  it("folds a newer push into the queued webhook job", async () => {
+    const first = await enqueueAssessmentJob({
+      projectId: projectA,
+      trigger: "webhook",
+      payload: { ref: "sha-1", eventName: "push" },
     });
-    let markFirstClaimed!: () => void;
-    const firstClaimed = new Promise<void>((resolve) => {
-      markFirstClaimed = resolve;
+    const second = await enqueueAssessmentJob({
+      projectId: projectA,
+      trigger: "webhook",
+      payload: { ref: "sha-2", eventName: "push" },
     });
-
-    try {
-      const first = drizzle.transaction(async (tx) => {
-        const row = await claimNextAssessmentJobRow(tx, now, lease);
-        markFirstClaimed();
-        await firstMayCommit;
-        return row;
-      });
-      await firstClaimed;
-      const second = drizzle.transaction((tx) =>
-        claimNextAssessmentJobRow(tx, now, lease),
-      );
-      // Let B reach the unique-index wait before A commits.
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      commitFirst();
-
-      const [a, b] = await Promise.all([first, second]);
-      expect(a?.id).toBe(`job-a-${suffix}`);
-      expect(b).toBeNull();
-
-      const running = await drizzle.execute(sql`
-        SELECT id FROM assessment_jobs
-        WHERE project_id = ${projectId} AND status = 'running'
-      `);
-      expect(running.length).toBe(1);
-    } finally {
-      commitFirst();
-      await drizzle.execute(
-        sql`DELETE FROM assessment_jobs WHERE project_id = ${projectId}`,
-      );
-      await drizzle.execute(sql`DELETE FROM projects WHERE id = ${projectId}`);
-      await drizzle.execute(sql`DELETE FROM organizations WHERE id = ${orgId}`);
-    }
+    expect(second.id).toBe(first.id);
+    expect(second.payload).toMatchObject({
+      ref: "sha-2",
+      supersededRefs: ["sha-1"],
+    });
   });
 
-  it("terminal-fails malformed payloads instead of scanning", async () => {
-    const drizzle = await getDrizzle();
-    const suffix = `${Date.now()}-malformed`;
-    const orgId = `org-malformed-${suffix}`;
-    const projectId = `proj-malformed-${suffix}`;
-    const jobId = `job-malformed-${suffix}`;
-    await drizzle.execute(sql`
-      INSERT INTO organizations (id, slug, payload)
-      VALUES (${orgId}, ${`slug-malformed-${suffix}`}, '{}'::jsonb)
-    `);
-    await drizzle.execute(sql`
-      INSERT INTO projects (id, name, owner_user_id, org_id, payload)
-      VALUES (${projectId}, 'malformed-fixture', ${`user-${suffix}`}, ${orgId}, '{}'::jsonb)
-    `);
-    await drizzle.execute(sql`
-      INSERT INTO assessment_jobs
-        (id, project_id, status, trigger, payload, attempts, max_attempts, available_at, created_at, updated_at)
-      VALUES
-        (${jobId}, ${projectId}, 'queued', 'webhook', '"corrupt"'::jsonb, 0, 3, NOW(), NOW(), NOW())
-    `);
-
-    try {
-      // Fail closed: no worker ever sees this row as an authoritative scan.
-      expect(await claimNextAssessmentJob()).toBeNull();
-
-      const rows = (await drizzle.execute(sql`
-        SELECT status, error FROM assessment_jobs WHERE id = ${jobId}
-      `)) as Array<{ status: string; error: string | null }>;
-      expect(rows).toHaveLength(1);
-      expect(rows[0]?.status).toBe("failed");
-      expect(rows[0]?.error).toMatch(/malformed job payload/i);
-    } finally {
-      await drizzle.execute(
-        sql`DELETE FROM assessment_jobs WHERE project_id = ${projectId}`,
-      );
-      await drizzle.execute(sql`DELETE FROM projects WHERE id = ${projectId}`);
-      await drizzle.execute(sql`DELETE FROM organizations WHERE id = ${orgId}`);
-    }
+  it("fails a malformed payload instead of scanning it", async () => {
+    await createJobQueue(await getDrizzle()).send(
+      ASSESSMENT_QUEUE,
+      {
+        projectId: projectB,
+        trigger: "manual",
+        payload: ["not", "an", "object"],
+      },
+      { group: { id: projectB } },
+    );
+    expect(await claimOurs()).toBeNull();
+    const [job] = await recentAssessmentJobsForProject(projectB, 1);
+    expect(job?.status).toBe("failed");
+    expect(job?.error).toMatch(/Malformed job payload/);
   });
 
-  it("hands a crashed worker's in-flight job back to the queue", async () => {
+  it("hands a crashed worker's job back for a retry", async () => {
+    await enqueueAssessmentJob({ projectId: projectA, trigger: "manual" });
+    const job = await claimOurs();
+    expect(job?.status).toBe("running");
+
+    expect(await releaseInFlightAssessmentJobs("worker crashed")).toBe(1);
+    const retried = await activeAssessmentJobForProject(projectA);
+    expect(retried).toMatchObject({
+      status: "queued",
+      error: "worker crashed",
+    });
+  });
+
+  it("stops the heartbeat once the job is cancelled", async () => {
+    await enqueueAssessmentJob({ projectId: projectA, trigger: "manual" });
+    const job = await claimOurs();
+    if (!job?.leaseExpiresAt || !job.startedAt) throw new Error("no lease");
+    const lease = {
+      id: job.id,
+      attempts: job.attempts,
+      leaseExpiresAt: job.leaseExpiresAt,
+      startedAt: job.startedAt,
+    };
+    expect(await refreshAssessmentJobLease(lease)).toBe(job.leaseExpiresAt);
+
+    const cancelled = await cancelAssessmentJob({
+      projectId: projectA,
+      jobId: job.id,
+    });
+    expect(cancelled?.status).toBe("cancelled");
+    expect(await refreshAssessmentJobLease(lease)).toBeNull();
+    expect(
+      await cancelAssessmentJob({ projectId: projectB, jobId: job.id }),
+    ).toBeNull();
+  });
+
+  it("fences out a worker whose job another worker re-claimed", async () => {
+    await enqueueAssessmentJob({ projectId: projectA, trigger: "manual" });
+    const first = await claimOurs();
+    if (!first?.leaseExpiresAt || !first.startedAt) throw new Error("no lease");
+    await releaseInFlightAssessmentJobs("heartbeat lapsed");
     const drizzle = await getDrizzle();
-    const suffix = `${Date.now()}-crash`;
-    const orgId = `org-crash-${suffix}`;
-    const projectId = `proj-crash-${suffix}`;
-    const jobId = `job-crash-${suffix}`;
     await drizzle.execute(sql`
-      INSERT INTO organizations (id, slug, payload)
-      VALUES (${orgId}, ${`slug-crash-${suffix}`}, '{}'::jsonb)
+      UPDATE pgboss.job SET start_after = now() WHERE id = ${first.id}::uuid
     `);
-    await drizzle.execute(sql`
-      INSERT INTO projects (id, name, owner_user_id, org_id, payload)
-      VALUES (${projectId}, 'crash-fixture', ${`user-${suffix}`}, ${orgId}, '{}'::jsonb)
-    `);
-    await drizzle.execute(sql`
-      INSERT INTO assessment_jobs
-        (id, project_id, status, trigger, payload, attempts, max_attempts, available_at, created_at, updated_at)
-      VALUES
-        (${jobId}, ${projectId}, 'queued', 'manual', '{}'::jsonb, 0, 3, NOW(), NOW(), NOW())
-    `);
+    const second = await claimOurs();
+    expect(second).toMatchObject({ id: first.id, attempts: 2 });
 
-    try {
-      const claimed = await claimNextAssessmentJob();
-      expect(claimed?.id).toBe(jobId);
+    const staleLease = {
+      id: first.id,
+      attempts: first.attempts,
+      leaseExpiresAt: first.leaseExpiresAt,
+      startedAt: first.startedAt,
+    };
+    expect(await refreshAssessmentJobLease(staleLease)).toBeNull();
+    expect(
+      await getAssessmentJobStatus(drizzle, first.id, first.attempts),
+    ).toBeUndefined();
+    expect(await getAssessmentJobStatus(drizzle, first.id, 2)).toBe("running");
+  });
 
-      expect(await releaseInFlightAssessmentJobs("Worker crashed: test")).toBe(
-        1,
-      );
-
-      const rows = (await drizzle.execute(sql`
-        SELECT status, lease_expires_at, error FROM assessment_jobs WHERE id = ${jobId}
-      `)) as Array<{
-        status: string;
-        lease_expires_at: string | null;
-        error: string | null;
-      }>;
-      expect(rows[0]?.status).toBe("queued");
-      expect(rows[0]?.lease_expires_at).toBeNull();
-      expect(rows[0]?.error).toMatch(/worker crashed/i);
-      // Nothing left to release: a second call is a no-op.
-      expect(await releaseInFlightAssessmentJobs("again")).toBe(0);
-    } finally {
-      await drizzle.execute(
-        sql`DELETE FROM assessment_jobs WHERE project_id = ${projectId}`,
-      );
-      await drizzle.execute(sql`DELETE FROM projects WHERE id = ${projectId}`);
-      await drizzle.execute(sql`DELETE FROM organizations WHERE id = ${orgId}`);
-    }
+  it("drops a deleted project's jobs", async () => {
+    await enqueueAssessmentJob({ projectId: projectB, trigger: "manual" });
+    await deleteAssessmentJobsForProject(await getDrizzle(), projectB);
+    expect(await recentAssessmentJobsForProject(projectB, 5)).toEqual([]);
   });
 });

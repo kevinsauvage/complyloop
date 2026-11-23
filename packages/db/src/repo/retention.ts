@@ -5,7 +5,7 @@ import type { DrizzleDb } from "../postgres.ts";
 /**
  * Retention for the assessment pipeline's own bookkeeping tables.
  *
- * `assessment_jobs`, `assessments` and `assessment_snapshots` grow with every
+ * `assessments` and `assessment_snapshots` grow with every
  * run and are never read far back, so they are pruned on the worker tick
  * (`runAssessmentJobBatch`) in bounded batches — a deployment must not stop
  * taking assessments because a DELETE holds a long lock.
@@ -26,8 +26,6 @@ import type { DrizzleDb } from "../postgres.ts";
  * so they need no pass of their own.
  */
 export interface RetentionOptions {
-  /** Terminal (`succeeded`/`failed`/`cancelled`) jobs older than this go. */
-  jobRetentionDays: number;
   /** Completed assessments kept per project, newest first. */
   assessmentsPerProject: number;
   /** Never-completed assessments older than this go (abandoned rows). */
@@ -44,7 +42,6 @@ export interface RetentionOptions {
 }
 
 export const RETENTION_DEFAULTS: RetentionOptions = {
-  jobRetentionDays: 30,
   assessmentsPerProject: 30,
   abandonedAssessmentDays: 30,
   batchSize: 1_000,
@@ -52,7 +49,6 @@ export const RETENTION_DEFAULTS: RetentionOptions = {
 };
 
 export interface RetentionResult {
-  jobsDeleted: number;
   assessmentsDeleted: number;
 }
 
@@ -90,25 +86,6 @@ export async function prunePipelineRetention(
   db: DrizzleDb,
   options: RetentionOptions = RETENTION_DEFAULTS,
 ): Promise<RetentionResult> {
-  const jobsDeleted = await deleteInBatches(
-    db,
-    options.batchSize,
-    options.maxBatches,
-    async (limit) =>
-      db.execute(sql`
-        DELETE FROM assessment_jobs
-        WHERE id IN (
-          SELECT id FROM assessment_jobs
-          WHERE status IN ('succeeded', 'failed', 'cancelled')
-            AND updated_at < now() - (${options.jobRetentionDays} * interval '1 day')
-            ${scopeClause(options, "project_id")}
-          ORDER BY updated_at
-          LIMIT ${limit}
-        )
-        RETURNING id
-      `),
-  );
-
   // Ranked per project — a global ranking would delete a low-volume project's
   // newest assessments whenever another project had more runs.
   const assessmentsDeleted = await deleteInBatches(
@@ -177,7 +154,6 @@ export async function prunePipelineRetention(
   );
 
   return {
-    jobsDeleted,
     assessmentsDeleted: assessmentsDeleted + abandonedDeleted,
   };
 }

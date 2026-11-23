@@ -106,11 +106,11 @@ publish-only.
 - Manual and webhook assessments are durable jobs: enqueue →
   `repository_dispatch` kicks the GitHub Actions `assessment-worker`
   (Playwright Chromium, same family as local dev) → 15-min schedule backstop
-  for failed dispatches, killed tasks, and expired leases. Dev/e2e drain inline.
+  for failed dispatches and dead workers. Dev/e2e drain inline.
 
 ```
 Manual run (dashboard action enqueues + after() dispatch) → assessment-worker (GH) → claim → scan → persist
-Webhook (enqueue + after() dispatch) → assessment-worker (GH); 15-min schedule covers orphans/expired leases
+Webhook (enqueue + after() dispatch) → assessment-worker (GH); 15-min schedule covers orphans/dead workers
                                            ↓ (clone → scan → persist)
                            Core + contract → Catalog / Analysis / AI
                                            ↓
@@ -288,14 +288,12 @@ deleteMembershipIds, deleteOrgIds }` — explicit rows, no in-memory slice diff.
     `baseline`), skipping unchanged rows only to avoid churning `updatedAt`.
   - Project-scoped filtering is shared via `projectScopedSlice` (assessment
     scratch clones).
-- **Locks** — job claim `FOR UPDATE SKIP LOCKED`. Interactive project writes
-  and apply take `project-write:{projectId}`; org and connect writes take the
-  user-scoped org lock.
-  - Serial-per-project is enforced by the database, not just the claim query:
-    the partial unique index `assessment_jobs_running_project_uidx`
-    (`project_id` where `running`, `drizzle/0000_init`) rejects a second
-    concurrent claim (23505 → claim returns null).
-  - Corrupt job payloads terminal-fail at claim time instead of scanning.
+- **Locks** — interactive project writes and apply take
+  `project-write:{projectId}`; org and connect writes take the user-scoped org
+  lock.
+  - Serial-per-project comes from pg-boss group concurrency: every job is sent
+    with `group: { id: projectId }` and fetched with `groupConcurrency: 1`.
+  - Corrupt job payloads fail at claim time instead of scanning.
   - Scan authority is explicit (`resolveJobAuthoritative`: manual, or webhook
     push without a PR SHA).
   - Project `updatedAt` on findings/remediations/requirements is still stamped
@@ -342,9 +340,7 @@ deleteMembershipIds, deleteOrgIds }` — explicit rows, no in-memory slice diff.
   evidence survives only as `detail.orgId` on its `project_connected` /
   `project_disconnected` rows, which org deletion erases by.
   - Pipeline bookkeeping is pruned on the worker tick by
-    `repo/retention.ts` (`prunePipelineRetention`): terminal
-    (`succeeded`/`failed`/`cancelled`) `assessment_jobs` older than 30 days,
-    then the oldest `assessments` beyond the newest 30 per project (ranked per
+    `repo/retention.ts` (`prunePipelineRetention`): the oldest `assessments` beyond the newest 30 per project (ranked per
     project, not globally), plus abandoned never-completed rows. Snapshots
     cascade with their assessment. An assessment still referenced by a finding
     is never deleted (`findings.assessment_id` is `ON DELETE CASCADE`, so
@@ -352,7 +348,7 @@ deleteMembershipIds, deleteOrgIds }` — explicit rows, no in-memory slice diff.
     newest full file-hash snapshot per project is kept so change detection
     never loses its fallback map — the FK stays `CASCADE` and retention simply
     keeps those rows.
-  - `ops:check` measures `assessment_jobs`/`assessments`/
+  - `ops:check` measures `assessments`/
     `assessment_snapshots` (`OPS_MAX_PIPELINE_TABLE_MB`, default 512 MiB) so a
     stopped retention pass fails the check instead of growing silently.
   - Snapshots dedup identical hash maps (`hashes_unchanged`, reader fallback).
@@ -394,9 +390,18 @@ deleteMembershipIds, deleteOrgIds }` — explicit rows, no in-memory slice diff.
   No abstract repositories, interfaces-per-table, or DI containers: expensive
   edges are injected explicitly via function params (`runAssessment`
   options), everything else is a direct import.
-- **Jobs** — 30-min lease (renewed by a 5-min heartbeat while a scan runs),
-  3 attempts, serial per project, cancellable (`queued`/`running` →
-  `cancelled`, project-scoped; a cancelled mid-run run saves nothing).
+- **Jobs** — pg-boss queue `assessment` (`pgboss` schema, installed and
+  upgraded by `db:migrate` through `installJobQueue`; options in
+  `packages/db/src/job-queue.ts`). pg-boss runs on the app's own Drizzle
+  connection, never started: no pool or timers of its own, maintenance
+  (`supervise`) once per drain. 3 attempts with backoff from 30s, 1h deadline,
+  5-min heartbeat (15 min without one = dead worker, retried), finished jobs
+  kept 30 days. Reads that filter by project are SQL on `pgboss.job`
+  (`repo/assessment-jobs.ts`, index `job_common_project_idx`). Cancellable
+  (`queued`/`running` → `cancelled`, project-scoped; the heartbeat sees it and
+  a cancelled run saves nothing). Idempotency keys map to a fixed job id.
+  The old `assessment_jobs` table is no longer used; drop it in a later
+  migration once a release on pg-boss is live (expand, then contract).
   Two triggers, one queued topology, one job model:
   - **Manual** — `runAssessmentAction` enqueues (`queued`, `attempts: 0`)
     and schedules the drain in `after()`. The click resolves fast with
@@ -406,7 +411,7 @@ deleteMembershipIds, deleteOrgIds }` — explicit rows, no in-memory slice diff.
     a duplicate — claims are serial per project.
   - **Webhook (queued)** — enqueue then `after()` dispatch of the GH worker;
     its 15-min schedule is the backstop for failed dispatches, killed tasks,
-    and expired leases. Dev/e2e drain the queue inline. Expired rate-limit
+    and dead workers. Dev/e2e drain the queue inline. Expired rate-limit
     buckets prune once per batch.
 - **Checkouts** — shallow ephemeral checkout per job via pure-JS git
   (isomorphic-git, no `git` CLI); deleted after. Worker-only: request handlers

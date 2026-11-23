@@ -13,6 +13,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { drizzle } from "drizzle-orm/postgres-js";
+
+import { installJobQueue } from "../packages/db/src/job-queue";
 import { openScriptClient, requireDatabaseUrl } from "./db";
 
 // Deterministic per-database lock key for serializing migrations across
@@ -75,6 +78,15 @@ export async function applyPendingMigrations(url: string): Promise<void> {
     .filter((name) => name.endsWith(".sql"))
     .sort();
   await applyMigrations(url, dir, files);
+  // pg-boss owns and versions the `pgboss` schema; it installs or upgrades it
+  // under its own advisory lock.
+  const client = await openScriptClient(url, 1);
+  try {
+    await installJobQueue(drizzle(client));
+  } finally {
+    await client.end({ timeout: 5 });
+  }
+  console.log("Job queue ready");
 }
 
 async function main(): Promise<void> {

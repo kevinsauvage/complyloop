@@ -11,10 +11,6 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-import {
-  ASSESSMENT_JOB_STATUSES,
-  ASSESSMENT_JOB_TRIGGERS,
-} from "@complyloop/analysis-core/contract/assessment-jobs";
 import type {
   Alert,
   Assessment,
@@ -376,70 +372,6 @@ export const webhookDeliveries = pgTable(
   },
   (table) => [
     index("webhook_deliveries_processed_at_idx").on(table.processedAt),
-  ],
-);
-
-export const assessmentJobs = pgTable(
-  "assessment_jobs",
-  {
-    id: text("id").primaryKey(),
-    projectId: text("project_id")
-      .notNull()
-      .references(() => projects.id, { onDelete: "cascade" }),
-    status: text("status").notNull(),
-    trigger: text("trigger").notNull(),
-    requestedByUserId: text("requested_by_user_id"),
-    idempotencyKey: text("idempotency_key"),
-    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
-    attempts: integer("attempts").notNull().default(0),
-    maxAttempts: integer("max_attempts").notNull().default(3),
-    availableAt: timestamp("available_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    startedAt: timestamp("started_at", { withTimezone: true, mode: "string" }),
-    leaseExpiresAt: timestamp("lease_expires_at", {
-      withTimezone: true,
-      mode: "string",
-    }),
-    completedAt: timestamp("completed_at", {
-      withTimezone: true,
-      mode: "string",
-    }),
-    error: text("error"),
-    createdAt: timestamp("created_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-    updatedAt: timestamp("updated_at", {
-      withTimezone: true,
-      mode: "string",
-    }).notNull(),
-  },
-  (table) => [
-    index("assessment_jobs_ready_idx").on(table.status, table.availableAt),
-    index("assessment_jobs_project_idx").on(table.projectId, table.createdAt),
-    // recoverExpiredLeases scans running jobs by lease expiry on every claim tick.
-    index("assessment_jobs_running_lease_idx")
-      .on(table.leaseExpiresAt)
-      .where(sql`${table.status} = 'running'`),
-    // Serial-per-project backstop (drizzle/0000_init): the claim-time NOT EXISTS
-    // guard cannot see a concurrent uncommitted `running` row under READ
-    // COMMITTED, so the database rejects a second concurrent claim (23505).
-    uniqueIndex("assessment_jobs_running_project_uidx")
-      .on(table.projectId)
-      .where(sql`${table.status} = 'running'`),
-    uniqueIndex("assessment_jobs_idempotency_uidx")
-      .on(table.idempotencyKey)
-      .where(sql`${table.idempotencyKey} IS NOT NULL`),
-    check(
-      "assessment_jobs_status_check",
-      sqlIn(sql`${table.status}`, ASSESSMENT_JOB_STATUSES),
-    ),
-    check(
-      "assessment_jobs_trigger_check",
-      sqlIn(sql`${table.trigger}`, ASSESSMENT_JOB_TRIGGERS),
-    ),
   ],
 );
 

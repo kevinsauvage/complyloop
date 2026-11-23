@@ -1,15 +1,13 @@
 import "server-only";
 
+import type { JobAttempt } from "pg-boss";
+
 import { type AssessmentJobStatus } from "@complyloop/analysis-core/contract/assessment-jobs";
+import { ASSESSMENT_QUEUE, createJobQueue } from "@complyloop/db/job-queue";
 import { getDrizzle } from "@complyloop/db/postgres";
 import {
-  type AssessmentJobLease,
-  claimNextAssessmentJobRow,
-  failAssessmentJobTerminally,
-  recoverExpiredAssessmentJobLeases,
-  releaseRunningAssessmentJobs,
-  renewAssessmentJobLease,
-  settleAssessmentJob,
+  exhaustAssessmentJobRetries,
+  findAssessmentJobById,
   stampAssessmentJobStage,
 } from "@complyloop/db/repo/assessment-jobs";
 
@@ -21,87 +19,73 @@ import {
 import { reportWarning } from "../observability";
 import { isJobPayloadWellFormed, jobFromRow } from "./assessment-jobs";
 
-const DEFAULT_LEASE_MS = 30 * 60_000;
-
-const RETRY_BASE_MS = 30_000;
-
 /**
- * How often a running worker extends its lease. Well below the 30-minute
- * lease so a live scan (clone + Playwright) can never expire mid-run and get
- * double-executed by `recoverExpiredLeases`.
+ * How often a running worker touches its job. Well below the queue's
+ * 15-minute `heartbeatSeconds`, after which pg-boss treats the worker as dead
+ * and retries the job.
  */
 export const ASSESSMENT_JOB_HEARTBEAT_MS = 5 * 60_000;
 
-/** Lease guard for complete/fail/heartbeat writes (claim-time pair). */
-function leaseOf(job: {
-  id: string;
-  leaseExpiresAt?: string;
-  startedAt?: string;
-}): AssessmentJobLease | null {
-  return job.leaseExpiresAt && job.startedAt
-    ? {
-        id: job.id,
-        leaseExpiresAt: job.leaseExpiresAt,
-        startedAt: job.startedAt,
-      }
-    : null;
+async function queue() {
+  return createJobQueue(await getDrizzle());
 }
 
-/** Claims one ready job while ensuring only one assessment runs per project. */
+/** Settles only the attempt this worker fetched, never a later retry of it. */
+function attemptOf(job: { id: string; attempts: number }): JobAttempt {
+  return { id: job.id, retryCount: Math.max(0, job.attempts - 1) };
+}
+
+/**
+ * Claims one ready job; at most one runs per project (`groupConcurrency`).
+ * A malformed job is failed for good and the next one is tried, so it cannot
+ * end a drain that has other work.
+ */
 export async function claimNextAssessmentJob(): Promise<AssessmentJob | null> {
+  const boss = await queue();
   const drizzle = await getDrizzle();
-  return drizzle.transaction(async (tx) => {
-    const now = new Date().toISOString();
-    await recoverExpiredAssessmentJobLeases(tx, now);
-    const leaseExpiresAt = new Date(
-      Date.now() + DEFAULT_LEASE_MS,
-    ).toISOString();
-    const claimed = await claimNextAssessmentJobRow(tx, now, leaseExpiresAt);
-    if (!claimed) return null;
-    if (!isJobPayloadWellFormed(claimed.payload)) {
-      // Fail closed: never hand a corrupt row to a worker (lenient parsing
-      // would degrade it to `{}` and scan as authoritative). Terminal, not a
-      // retry — re-running would fail identically.
-      await failAssessmentJobTerminally(
-        tx,
-        claimed.id,
-        "Malformed job payload; refusing to scan.",
-        now,
-      );
-      return null;
+  for (;;) {
+    const [fetched] = await boss.fetch(ASSESSMENT_QUEUE, {
+      batchSize: 1,
+      groupConcurrency: 1,
+    });
+    if (!fetched) return null;
+    const row = await findAssessmentJobById(drizzle, fetched.id);
+    if (!row) continue;
+    if (isJobPayloadWellFormed(row.payload)) {
+      inFlightJobs.set(row.id, attemptOf(row));
+      return jobFromRow(row);
     }
-    inFlightJobIds.add(claimed.id);
-    return jobFromRow(claimed);
-  });
+    // Fail closed: never hand a corrupt job to a worker (lenient parsing
+    // would degrade it to `{}` and scan as authoritative).
+    await exhaustAssessmentJobRetries(drizzle, row.id);
+    await boss.fail(ASSESSMENT_QUEUE, attemptOf(row), {
+      message: "Malformed job payload; refusing to scan.",
+    });
+  }
 }
 
 /**
  * Jobs this process claimed and has not yet completed or failed. A fatal
  * crash (unhandled rejection, OOM handler) hands them back through
- * `releaseInFlightAssessmentJobs` instead of leaving them `running` until the
- * lease expires.
+ * `releaseInFlightAssessmentJobs` instead of leaving them active until the
+ * heartbeat lapses.
  */
-const inFlightJobIds = new Set<string>();
+const inFlightJobs = new Map<string, JobAttempt>();
 
 /**
- * Returns this process's unfinished jobs to the queue (or fails them when
- * attempts are exhausted — a job that crashes the worker every time must not
- * loop forever). Best-effort: call it from a crash handler, never throws on an
- * empty set.
+ * Fails this process's unfinished jobs, so pg-boss retries them while attempts
+ * remain. Best-effort: call it from a crash handler.
  */
 export async function releaseInFlightAssessmentJobs(
   reason: string,
 ): Promise<number> {
-  const ids = [...inFlightJobIds];
-  if (ids.length === 0) return 0;
-  const released = await releaseRunningAssessmentJobs(
-    await getDrizzle(),
-    ids,
-    reason.slice(0, 2_000),
-    new Date().toISOString(),
-  );
-  inFlightJobIds.clear();
-  return released;
+  const attempts = [...inFlightJobs.values()];
+  if (attempts.length === 0) return 0;
+  const { affected } = await (
+    await queue()
+  ).fail(ASSESSMENT_QUEUE, attempts, { message: reason.slice(0, 2_000) });
+  inFlightJobs.clear();
+  return affected;
 }
 
 function reportStaleLease(jobId: string): void {
@@ -111,74 +95,51 @@ function reportStaleLease(jobId: string): void {
   });
 }
 
-async function settleWithLease(
-  job: AssessmentJob,
-  set: Parameters<typeof settleAssessmentJob>[2],
-  now: string,
-): Promise<void> {
-  const lease = leaseOf(job);
-  const settled = lease
-    ? await settleAssessmentJob(await getDrizzle(), lease, set, now)
-    : false;
-  inFlightJobIds.delete(job.id);
-  if (!settled) reportStaleLease(job.id);
-}
-
 export async function completeAssessmentJob(job: AssessmentJob): Promise<void> {
-  const now = new Date().toISOString();
-  await settleWithLease(
-    job,
-    { status: "succeeded", completedAt: now, error: null },
-    now,
-  );
+  const { affected } = await (
+    await queue()
+  ).complete(ASSESSMENT_QUEUE, attemptOf(job));
+  inFlightJobs.delete(job.id);
+  if (affected === 0) reportStaleLease(job.id);
 }
 
+/** Fails one attempt; pg-boss retries it with backoff while attempts remain. */
 export async function failAssessmentJob(
   job: AssessmentJob,
   error: unknown,
 ): Promise<AssessmentJobStatus> {
-  const now = new Date();
   const message =
     error instanceof Error ? error.message : "Assessment job failed.";
-  const terminal = job.attempts >= job.maxAttempts;
-  const status: AssessmentJobStatus = terminal ? "failed" : "queued";
-  const delay = RETRY_BASE_MS * 2 ** Math.max(0, job.attempts - 1);
-  await settleWithLease(
-    job,
-    {
-      status,
-      availableAt: terminal
-        ? now.toISOString()
-        : new Date(now.getTime() + delay).toISOString(),
-      completedAt: terminal ? now.toISOString() : null,
-      error: message.slice(0, 2_000),
-    },
-    now.toISOString(),
-  );
-  return status;
+  const { affected } = await (
+    await queue()
+  ).fail(ASSESSMENT_QUEUE, attemptOf(job), {
+    message: message.slice(0, 2_000),
+  });
+  inFlightJobs.delete(job.id);
+  if (affected === 0) reportStaleLease(job.id);
+  return job.attempts >= job.maxAttempts ? "failed" : "queued";
 }
 
 export interface RefreshAssessmentJobLeaseInput {
   id: string;
+  /** The attempt this worker runs: a re-claim by another worker fences it out. */
+  attempts: number;
   leaseExpiresAt: string;
   startedAt: string;
 }
 
 /**
- * Worker heartbeat: extends a `running` job's lease by one full lease period.
- * Returns the new expiry, or null when the job left `running` (cancelled,
- * completed, or reaped) — the worker must then stop and neither
- * complete nor fail it.
+ * Worker heartbeat. Returns the job's deadline, or null when the job left
+ * `running` (cancelled, completed, or expired): the worker must then stop and
+ * neither complete nor fail it.
  */
 export async function refreshAssessmentJobLease(
   input: RefreshAssessmentJobLeaseInput,
 ): Promise<string | null> {
-  return renewAssessmentJobLease(
-    await getDrizzle(),
-    input,
-    new Date(Date.now() + DEFAULT_LEASE_MS).toISOString(),
-    new Date().toISOString(),
-  );
+  const { affected } = await (
+    await queue()
+  ).touch(ASSESSMENT_QUEUE, attemptOf(input));
+  return affected > 0 ? input.leaseExpiresAt : null;
 }
 
 /**

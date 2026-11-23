@@ -59,7 +59,7 @@ jobs:
         # seconds, not a full install + browser download (~96 installs a day
         # otherwise). `psql` ships on ubuntu-latest; the first count mirrors
         # `queuedAssessmentJobCount()` (queued + running — running is included
-        # so an expired lease gets recovered). The second counts lapsed
+        # so a dead worker's job gets retried). The second counts lapsed
         # temporary exceptions so the drain's sweep (`exception-expiry.ts`)
         # runs on quiet projects too; expiries are stored as UTC ISO strings
         # (`normalizeExpiryInstant`), hence the byte-order text comparison.
@@ -68,7 +68,7 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           depth=$(psql "$DATABASE_URL" -tAc \
-            "SELECT (SELECT count(*) FROM assessment_jobs WHERE status IN ('queued','running'))
+            "SELECT (SELECT count(*) FROM pgboss.job WHERE name = 'assessment' AND state IN ('created','retry','active'))
                   + (SELECT count(*) FROM requirements
                      WHERE payload->'exception'->>'reason' = 'temporary'
                        AND (payload->'exception'->>'expiresAt') COLLATE \"C\"

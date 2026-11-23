@@ -4,6 +4,7 @@ import type { Project } from "@complyloop/analysis-core/contract/project-types";
 
 import type { DrizzleDb } from "../postgres.ts";
 import { projects } from "../schema.ts";
+import { deleteAssessmentJobsForProject } from "./assessment-jobs.ts";
 import { projectToRow } from "./mappers.ts";
 
 export async function insertProject(
@@ -138,6 +139,7 @@ export async function deleteProject(
   tx: DrizzleDb,
   projectId: string,
 ): Promise<void> {
+  await deleteAssessmentJobsForProject(tx, projectId);
   await tx.delete(projects).where(eq(projects.id, projectId));
 }
 

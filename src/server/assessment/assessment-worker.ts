@@ -97,6 +97,7 @@ async function runClaimedAssessmentJob(
             try {
               const renewed = await refreshAssessmentJobLease({
                 id: job.id,
+                attempts: job.attempts,
                 leaseExpiresAt: expectedLease as string,
                 startedAt: job.startedAt as string,
               });

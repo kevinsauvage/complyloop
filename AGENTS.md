@@ -40,15 +40,15 @@ Compliance engineering for **RGAA/WCAG** on React/Next.js/TypeScript — orgs, p
 
 ## Stack
 
-| Layer    | Tech                                                                                                                    |
-| -------- | ----------------------------------------------------------------------------------------------------------------------- |
-| App      | Next.js 16, React 19, TypeScript strict, Tailwind 4, shadcn/ui                                                          |
-| DB       | Postgres + Drizzle (`DATABASE_URL`); evidence insert-only                                                               |
-| Auth     | Auth.js v5 + GitHub OAuth/App; ephemeral checkouts per job                                                              |
-| Analysis | AST + jsx-a11y + optional Playwright/axe when `runtimeBaseUrl` is set                                                   |
-| Jobs     | GH Actions `assessment-worker` via `repository_dispatch` + 15-min schedule backstop (no worker process, no Vercel Cron) |
-| AI       | Vercel AI SDK (`ai`) through AI Gateway, org BYOK gateway key or operator fallback; **never sets statuses**             |
-| Tests    | Vitest + RTL; Playwright e2e (`E2E_AUTH_ENABLED`)                                                                       |
+| Layer    | Tech                                                                                                                     |
+| -------- | ------------------------------------------------------------------------------------------------------------------------ |
+| App      | Next.js 16, React 19, TypeScript strict, Tailwind 4, shadcn/ui                                                           |
+| DB       | Postgres + Drizzle (`DATABASE_URL`); evidence insert-only                                                                |
+| Auth     | Auth.js v5 + GitHub OAuth/App; ephemeral checkouts per job                                                               |
+| Analysis | AST + jsx-a11y + optional Playwright/axe when `runtimeBaseUrl` is set                                                    |
+| Jobs     | pg-boss queue on the app's Postgres; GH Actions `assessment-worker` via `repository_dispatch` + 15-min schedule backstop |
+| AI       | Vercel AI SDK (`ai`) through AI Gateway, org BYOK gateway key or operator fallback; **never sets statuses**              |
+| Tests    | Vitest + RTL; Playwright e2e (`E2E_AUTH_ENABLED`)                                                                        |
 
 Record new stack decisions here and in `docs/ai/architecture.md`.
 

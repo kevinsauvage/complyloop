@@ -1,54 +1,164 @@
-import {
-  and,
-  asc,
-  count,
-  desc,
-  eq,
-  gte,
-  inArray,
-  lt,
-  lte,
-  sql,
-} from "drizzle-orm";
+import { type SQL, sql } from "drizzle-orm";
 
-import { isUniqueViolation } from "../pg-errors.ts";
+import type { AssessmentJobStatus } from "@complyloop/analysis-core/contract/assessment-jobs";
+
+import { ASSESSMENT_QUEUE } from "../job-queue.ts";
 import type { DrizzleDb } from "../postgres.ts";
-import { assessmentJobs } from "../schema.ts";
 
 /**
- * Durable assessment queue rows. Policy (payload parsing, retry backoff,
- * coalescing rules, in-flight bookkeeping) lives in
- * `src/server/assessment/assessment-jobs.ts`; this module only reads and
- * writes rows.
+ * Read side of the assessment queue. Jobs live in pg-boss (`pgboss.job`);
+ * writes go through its API (`src/server/assessment/assessment-job-lease.ts`),
+ * reads that need a project filter or an ordering pg-boss does not offer are
+ * plain SQL here. `data` holds `{ projectId, trigger, requestedByUserId,
+ * idempotencyKey, payload }`.
  */
-export type AssessmentJobRow = typeof assessmentJobs.$inferSelect;
-export type NewAssessmentJobRow = typeof assessmentJobs.$inferInsert;
+export interface AssessmentJobData {
+  projectId: string;
+  trigger: string;
+  requestedByUserId?: string | null;
+  idempotencyKey?: string | null;
+  payload?: unknown;
+}
 
-/** The claim-time pair every lease-guarded write must still match. */
-export interface AssessmentJobLease {
+export interface AssessmentJobRow {
   id: string;
-  leaseExpiresAt: string;
-  startedAt: string;
+  projectId: string;
+  trigger: string;
+  requestedByUserId: string | null;
+  idempotencyKey: string | null;
+  payload: unknown;
+  status: AssessmentJobStatus;
+  attempts: number;
+  maxAttempts: number;
+  availableAt: string;
+  startedAt: string | null;
+  leaseExpiresAt: string | null;
+  completedAt: string | null;
+  error: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
-function leaseMatches(lease: AssessmentJobLease) {
-  return and(
-    eq(assessmentJobs.id, lease.id),
-    eq(assessmentJobs.status, "running"),
-    eq(assessmentJobs.leaseExpiresAt, lease.leaseExpiresAt),
-    eq(assessmentJobs.startedAt, lease.startedAt),
-  );
+const QUEUED_STATES = sql`('created', 'retry')`;
+const ACTIVE_STATES = sql`('created', 'retry', 'active')`;
+
+function iso(column: SQL): SQL {
+  return sql`to_char(${column} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`;
 }
 
-export async function findAssessmentJobByIdempotencyKey(
+const JOB_COLUMNS = sql`
+  id::text AS id,
+  data,
+  state::text AS state,
+  retry_count,
+  retry_limit,
+  output,
+  ${iso(sql`start_after`)} AS start_after,
+  ${iso(sql`created_on`)} AS created_on,
+  ${iso(sql`started_on`)} AS started_on,
+  ${iso(sql`completed_on`)} AS completed_on,
+  ${iso(sql`least(
+    started_on + make_interval(secs => expire_seconds),
+    coalesce(heartbeat_on, started_on) + make_interval(secs => coalesce(heartbeat_seconds, expire_seconds))
+  )`)} AS expires_on,
+  ${iso(sql`greatest(created_on, started_on, completed_on, heartbeat_on)`)} AS updated_on
+`;
+
+interface RawJob extends Record<string, unknown> {
+  id: string;
+  data: AssessmentJobData | null;
+  state: string;
+  retry_count: number;
+  retry_limit: number;
+  output: unknown;
+  start_after: string;
+  created_on: string;
+  started_on: string | null;
+  completed_on: string | null;
+  expires_on: string | null;
+  updated_on: string;
+}
+
+export function statusOfJobState(state: string): AssessmentJobStatus {
+  switch (state) {
+    case "created":
+    case "retry":
+      return "queued";
+    case "active":
+      return "running";
+    case "completed":
+      return "succeeded";
+    case "failed":
+      return "failed";
+    case "cancelled":
+      return "cancelled";
+    default:
+      throw new Error(`Unexpected pg-boss job state: ${state}`);
+  }
+}
+
+/** Our failures store `{ message }`; pg-boss's expiries `{ value: { message } }`. */
+function errorOf(output: unknown): string | null {
+  if (output === null || typeof output !== "object") return null;
+  const { message, value } = output as { message?: unknown; value?: unknown };
+  if (typeof message === "string") return message;
+  return value === undefined ? null : errorOf(value);
+}
+
+function rowOf(raw: RawJob): AssessmentJobRow {
+  const data = raw.data ?? { projectId: "", trigger: "" };
+  const status = statusOfJobState(raw.state);
+  const started = raw.started_on !== null;
+  return {
+    id: raw.id,
+    projectId: String(data.projectId ?? ""),
+    trigger: String(data.trigger ?? ""),
+    requestedByUserId: data.requestedByUserId ?? null,
+    idempotencyKey: data.idempotencyKey ?? null,
+    payload: data.payload ?? null,
+    status,
+    attempts: started ? Number(raw.retry_count) + 1 : 0,
+    maxAttempts: Number(raw.retry_limit) + 1,
+    availableAt: raw.start_after,
+    startedAt: raw.started_on,
+    leaseExpiresAt: status === "running" ? raw.expires_on : null,
+    completedAt: raw.completed_on,
+    error:
+      status === "failed" || raw.state === "retry" ? errorOf(raw.output) : null,
+    createdAt: raw.created_on,
+    updatedAt: raw.updated_on,
+  };
+}
+
+async function selectJobs(
   drizzle: DrizzleDb,
-  idempotencyKey: string,
+  where: SQL,
+  tail: SQL = sql``,
+): Promise<AssessmentJobRow[]> {
+  const rows = await drizzle.execute<RawJob>(sql`
+    SELECT ${JOB_COLUMNS}
+    FROM pgboss.job
+    WHERE name = ${ASSESSMENT_QUEUE} AND ${where}
+    ${tail}
+  `);
+  return [...rows].map(rowOf);
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** pg-boss ids are uuids; anything else (a stale or forged id) matches no job. */
+export function isAssessmentJobId(value: string): boolean {
+  return UUID.test(value);
+}
+
+const projectIs = (projectId: string) => sql`data->>'projectId' = ${projectId}`;
+
+export async function findAssessmentJobById(
+  drizzle: DrizzleDb,
+  id: string,
 ): Promise<AssessmentJobRow | undefined> {
-  const [row] = await drizzle
-    .select()
-    .from(assessmentJobs)
-    .where(eq(assessmentJobs.idempotencyKey, idempotencyKey))
-    .limit(1);
+  if (!isAssessmentJobId(id)) return undefined;
+  const [row] = await selectJobs(drizzle, sql`id = ${id}::uuid`);
   return row;
 }
 
@@ -58,274 +168,12 @@ export async function findOldestQueuedAssessmentJob(
   projectId: string,
   trigger: string,
 ): Promise<AssessmentJobRow | undefined> {
-  const [row] = await drizzle
-    .select()
-    .from(assessmentJobs)
-    .where(
-      and(
-        eq(assessmentJobs.projectId, projectId),
-        eq(assessmentJobs.status, "queued"),
-        eq(assessmentJobs.trigger, trigger),
-      ),
-    )
-    .orderBy(asc(assessmentJobs.createdAt))
-    .limit(1);
+  const [row] = await selectJobs(
+    drizzle,
+    sql`${projectIs(projectId)} AND data->>'trigger' = ${trigger} AND state IN ${QUEUED_STATES}`,
+    sql`ORDER BY created_on ASC LIMIT 1`,
+  );
   return row;
-}
-
-/**
- * Refreshes a job only while it is still `queued`. Undefined when a worker
- * claimed it concurrently, so the caller can enqueue instead of dropping the
- * request.
- */
-export async function refreshQueuedAssessmentJob(
-  drizzle: DrizzleDb,
-  id: string,
-  set: Partial<
-    Pick<NewAssessmentJobRow, "payload" | "availableAt" | "updatedAt">
-  >,
-): Promise<AssessmentJobRow | undefined> {
-  const [updated] = await drizzle
-    .update(assessmentJobs)
-    .set(set)
-    .where(and(eq(assessmentJobs.id, id), eq(assessmentJobs.status, "queued")))
-    .returning();
-  return updated;
-}
-
-/**
- * Inserts a job. With an idempotency key, a concurrent insert of the same key
- * loses to the unique index and gets the winning row back.
- */
-export async function insertAssessmentJob(
-  drizzle: DrizzleDb,
-  row: NewAssessmentJobRow,
-): Promise<AssessmentJobRow> {
-  try {
-    const [created] = await drizzle
-      .insert(assessmentJobs)
-      .values(row)
-      .returning();
-    if (!created) throw new Error("Could not enqueue assessment job.");
-    return created;
-  } catch (error) {
-    if (row.idempotencyKey && isUniqueViolation(error)) {
-      const existing = await findAssessmentJobByIdempotencyKey(
-        drizzle,
-        row.idempotencyKey,
-      );
-      if (existing) return existing;
-    }
-    throw error;
-  }
-}
-
-/**
- * Leases expire when a worker crashes mid-run. Requeue only while attempts
- * remain; a poison job (OOM, crash loop) at max attempts is terminal instead
- * of being resurrected on every claim tick forever.
- */
-export async function recoverExpiredAssessmentJobLeases(
-  tx: DrizzleDb,
-  now: string,
-): Promise<void> {
-  await tx
-    .update(assessmentJobs)
-    .set({
-      status: "queued",
-      availableAt: now,
-      leaseExpiresAt: null,
-      updatedAt: now,
-      error: "Worker lease expired; retrying.",
-    })
-    .where(
-      and(
-        eq(assessmentJobs.status, "running"),
-        lte(assessmentJobs.leaseExpiresAt, now),
-        lt(assessmentJobs.attempts, assessmentJobs.maxAttempts),
-      ),
-    );
-  await tx
-    .update(assessmentJobs)
-    .set({
-      status: "failed",
-      completedAt: now,
-      leaseExpiresAt: null,
-      updatedAt: now,
-      error: "Worker lease expired repeatedly; giving up.",
-    })
-    .where(
-      and(
-        eq(assessmentJobs.status, "running"),
-        lte(assessmentJobs.leaseExpiresAt, now),
-        gte(assessmentJobs.attempts, assessmentJobs.maxAttempts),
-      ),
-    );
-}
-
-/**
- * Claims one ready job (inside the caller's transaction) while keeping one
- * assessment per project. Single-row claim: lock exactly the job we will run;
- * the correlated NOT EXISTS keeps one running job per project without
- * rescanning the table (served by assessment_jobs_ready_idx +
- * assessment_jobs_project_idx). The UPDATE re-checks NOT EXISTS, and the
- * partial unique index assessment_jobs_running_project_uidx is the real
- * backstop: under READ COMMITTED two workers claiming different queued jobs
- * for the same project can both see "no running", so the loser gets 23505.
- * Null when nothing is ready or the race was lost.
- */
-export async function claimNextAssessmentJobRow(
-  tx: DrizzleDb,
-  now: string,
-  leaseExpiresAt: string,
-): Promise<AssessmentJobRow | null> {
-  const locked = await tx.execute<{
-    id: string;
-    attempts: number;
-    project_id: string;
-  }>(sql`
-    SELECT job.id AS id, job.attempts AS attempts, job.project_id AS project_id
-    FROM assessment_jobs AS job
-    WHERE job.status = 'queued'
-      AND job.available_at <= ${now}
-      AND NOT EXISTS (
-        SELECT 1
-        FROM assessment_jobs AS running
-        WHERE running.status = 'running'
-          AND running.project_id = job.project_id
-      )
-    ORDER BY job.available_at ASC, job.created_at ASC
-    LIMIT 1
-    FOR UPDATE SKIP LOCKED
-  `);
-  const [row] = [...locked];
-  if (!row) return null;
-  const candidateId = String(row.id);
-  const candidateProjectId = String(row.project_id);
-
-  // The UPDATE runs in a savepoint: a losing claim's 23505 aborts the
-  // enclosing transaction, and postgres.js re-throws any failed query when
-  // its transaction scope ends (`uncaughtError`) even if we caught it here —
-  // so without the savepoint the "return null" below never reached callers.
-  try {
-    return await tx.transaction(async (savepoint) => {
-      const [claimed] = await savepoint
-        .update(assessmentJobs)
-        .set({
-          status: "running",
-          attempts: Number(row.attempts) + 1,
-          startedAt: now,
-          leaseExpiresAt,
-          error: null,
-          updatedAt: now,
-        })
-        .where(
-          and(
-            eq(assessmentJobs.id, candidateId),
-            eq(assessmentJobs.status, "queued"),
-            sql`NOT EXISTS (
-            SELECT 1 FROM assessment_jobs AS running
-            WHERE running.status = 'running'
-              AND running.project_id = ${candidateProjectId}
-              AND running.id <> ${candidateId}
-          )`,
-          ),
-        )
-        .returning();
-      return claimed ?? null;
-    });
-  } catch (error) {
-    if (isUniqueViolation(error)) return null;
-    throw error;
-  }
-}
-
-/** Terminal failure without a retry (e.g. a payload no worker may run). */
-export async function failAssessmentJobTerminally(
-  drizzle: DrizzleDb,
-  id: string,
-  error: string,
-  now: string,
-): Promise<void> {
-  await drizzle
-    .update(assessmentJobs)
-    .set({
-      status: "failed",
-      completedAt: now,
-      leaseExpiresAt: null,
-      updatedAt: now,
-      error,
-    })
-    .where(eq(assessmentJobs.id, id));
-}
-
-/**
- * Hands `running` jobs back to the queue, or fails those out of attempts.
- * Returns how many rows moved.
- */
-export async function releaseRunningAssessmentJobs(
-  drizzle: DrizzleDb,
-  ids: readonly string[],
-  error: string,
-  now: string,
-): Promise<number> {
-  if (ids.length === 0) return 0;
-  const released = await drizzle
-    .update(assessmentJobs)
-    .set({
-      status: sql`case when ${assessmentJobs.attempts} >= ${assessmentJobs.maxAttempts} then 'failed' else 'queued' end`,
-      availableAt: now,
-      completedAt: sql`case when ${assessmentJobs.attempts} >= ${assessmentJobs.maxAttempts} then ${now}::timestamptz else null end`,
-      leaseExpiresAt: null,
-      error,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        inArray(assessmentJobs.id, [...ids]),
-        eq(assessmentJobs.status, "running"),
-      ),
-    )
-    .returning({ id: assessmentJobs.id });
-  return released.length;
-}
-
-/**
- * Settles a running job if the caller still holds its lease. False means the
- * lease is stale (cancelled, reaped or re-claimed) and nothing was written.
- */
-export async function settleAssessmentJob(
-  drizzle: DrizzleDb,
-  lease: AssessmentJobLease,
-  set: Partial<
-    Pick<
-      NewAssessmentJobRow,
-      "status" | "availableAt" | "completedAt" | "error"
-    >
-  >,
-  now: string,
-): Promise<boolean> {
-  const result = await drizzle
-    .update(assessmentJobs)
-    .set({ ...set, leaseExpiresAt: null, updatedAt: now })
-    .where(leaseMatches(lease))
-    .returning({ id: assessmentJobs.id });
-  return result.length > 0;
-}
-
-/** Extends a held lease. Null when the job left `running` or the lease moved. */
-export async function renewAssessmentJobLease(
-  drizzle: DrizzleDb,
-  lease: AssessmentJobLease,
-  leaseExpiresAt: string,
-  now: string,
-): Promise<string | null> {
-  const [refreshed] = await drizzle
-    .update(assessmentJobs)
-    .set({ leaseExpiresAt, updatedAt: now })
-    .where(leaseMatches(lease))
-    .returning({ leaseExpiresAt: assessmentJobs.leaseExpiresAt });
-  return refreshed?.leaseExpiresAt ?? null;
 }
 
 export async function listRecentAssessmentJobs(
@@ -333,12 +181,11 @@ export async function listRecentAssessmentJobs(
   projectId: string,
   limit: number,
 ): Promise<AssessmentJobRow[]> {
-  return drizzle
-    .select()
-    .from(assessmentJobs)
-    .where(eq(assessmentJobs.projectId, projectId))
-    .orderBy(desc(assessmentJobs.createdAt))
-    .limit(limit);
+  return selectJobs(
+    drizzle,
+    projectIs(projectId),
+    sql`ORDER BY created_on DESC LIMIT ${limit}`,
+  );
 }
 
 /** The newest job of one trigger for a project, in any state. */
@@ -347,72 +194,51 @@ export async function findNewestAssessmentJob(
   projectId: string,
   trigger: string,
 ): Promise<AssessmentJobRow | undefined> {
-  const [row] = await drizzle
-    .select()
-    .from(assessmentJobs)
-    .where(
-      and(
-        eq(assessmentJobs.projectId, projectId),
-        eq(assessmentJobs.trigger, trigger),
-      ),
-    )
-    .orderBy(desc(assessmentJobs.createdAt))
-    .limit(1);
+  const [row] = await selectJobs(
+    drizzle,
+    sql`${projectIs(projectId)} AND data->>'trigger' = ${trigger}`,
+    sql`ORDER BY created_on DESC LIMIT 1`,
+  );
   return row;
 }
 
-/** A project's `queued`/`running` jobs (bounded; callers pick the oldest). */
-export async function listActiveAssessmentJobs(
+/** The project's oldest `queued`/`running` job. */
+export async function findOldestActiveAssessmentJob(
   drizzle: DrizzleDb,
   projectId: string,
-  limit: number,
-): Promise<AssessmentJobRow[]> {
-  return drizzle
-    .select()
-    .from(assessmentJobs)
-    .where(
-      and(
-        eq(assessmentJobs.projectId, projectId),
-        inArray(assessmentJobs.status, ["queued", "running"]),
-      ),
-    )
-    .limit(limit);
-}
-
-/**
- * Moves a `queued`/`running` job of this project to `cancelled`. Undefined
- * when nothing was cancellable (unknown id, wrong project, already terminal).
- */
-export async function cancelActiveAssessmentJob(
-  drizzle: DrizzleDb,
-  input: { projectId: string; jobId: string },
-  now: string,
 ): Promise<AssessmentJobRow | undefined> {
-  const [cancelled] = await drizzle
-    .update(assessmentJobs)
-    .set({
-      status: "cancelled",
-      completedAt: now,
-      leaseExpiresAt: null,
-      error: null,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(assessmentJobs.id, input.jobId),
-        eq(assessmentJobs.projectId, input.projectId),
-        inArray(assessmentJobs.status, ["queued", "running"]),
-      ),
-    )
-    .returning();
-  return cancelled;
+  const [row] = await selectJobs(
+    drizzle,
+    sql`${projectIs(projectId)} AND state IN ${ACTIVE_STATES}`,
+    sql`ORDER BY created_on ASC LIMIT 1`,
+  );
+  return row;
+}
+
+/** Newest job status per project, for the portfolio. */
+export async function listLatestAssessmentJobs(
+  drizzle: DrizzleDb,
+  projectIds: readonly string[],
+): Promise<AssessmentJobRow[]> {
+  if (projectIds.length === 0) return [];
+  const rows = await drizzle.execute<RawJob>(sql`
+    SELECT DISTINCT ON (data->>'projectId') ${JOB_COLUMNS}
+    FROM pgboss.job
+    WHERE name = ${ASSESSMENT_QUEUE}
+      AND data->>'projectId' IN ${sql`(${sql.join(
+        projectIds.map((id) => sql`${id}`),
+        sql`, `,
+      )})`}
+    ORDER BY data->>'projectId',
+      greatest(created_on, started_on, completed_on, heartbeat_on) DESC, id DESC
+  `);
+  return [...rows].map(rowOf);
 }
 
 /**
- * Stamps the running job's pipeline stage in one atomic jsonb merge (no
- * SELECT-then-UPDATE, so overlapping stamps converge on the last writer).
- * Gated on `running`: it can neither resurrect a terminal job nor fight a
- * cancel. False when the job is no longer running.
+ * Stamps the running job's pipeline stage into `data.payload` in one atomic
+ * jsonb merge. Gated on `active`: it can neither resurrect a settled job nor
+ * fight a cancel. False when the job is no longer running.
  */
 export async function stampAssessmentJobStage(
   drizzle: DrizzleDb,
@@ -420,55 +246,99 @@ export async function stampAssessmentJobStage(
   stage: string,
   now: string,
 ): Promise<boolean> {
-  const [updated] = await drizzle
-    .update(assessmentJobs)
-    .set({
-      payload: sql`${assessmentJobs.payload} || jsonb_build_object('stage', ${stage}::text, 'stageStartedAt', ${now}::text)`,
-      updatedAt: now,
-    })
-    .where(
-      and(eq(assessmentJobs.id, jobId), eq(assessmentJobs.status, "running")),
+  if (!isAssessmentJobId(jobId)) return false;
+  const updated = await drizzle.execute(sql`
+    UPDATE pgboss.job
+    SET data = jsonb_set(
+      data,
+      '{payload}',
+      coalesce(data->'payload', '{}'::jsonb)
+        || jsonb_build_object('stage', ${stage}::text, 'stageStartedAt', ${now}::text)
     )
-    .returning({ id: assessmentJobs.id });
-  return updated !== undefined;
+    WHERE name = ${ASSESSMENT_QUEUE} AND id = ${jobId}::uuid AND state = 'active'
+    RETURNING id
+  `);
+  return [...updated].length > 0;
 }
 
-/** Current status of one job (apply-time cancel check), or undefined. */
+/**
+ * Current status of one job (apply-time cancel check), or undefined. With
+ * `attempts`, a job another worker re-claimed since reads as undefined: this
+ * worker's attempt is over even though the job is running again.
+ */
 export async function getAssessmentJobStatus(
   drizzle: DrizzleDb,
   jobId: string,
-): Promise<string | undefined> {
-  const [row] = await drizzle
-    .select({ status: assessmentJobs.status })
-    .from(assessmentJobs)
-    .where(eq(assessmentJobs.id, jobId));
-  return row?.status;
+  attempts?: number,
+): Promise<AssessmentJobStatus | undefined> {
+  const [row] = await drizzle.execute<{
+    state: string;
+    retry_count: number;
+  }>(sql`
+    SELECT state::text AS state, retry_count FROM pgboss.job
+    WHERE name = ${ASSESSMENT_QUEUE} AND id = ${jobId}::uuid
+  `);
+  if (!row) return undefined;
+  if (attempts !== undefined && Number(row.retry_count) !== attempts - 1) {
+    return undefined;
+  }
+  return statusOfJobState(row.state);
 }
 
-/** Queue depth: `queued` + `running` (running so expired leases get recovered). */
+/**
+ * Drops a deleted project's jobs. `data.projectId` has no foreign key, and a
+ * job left behind would run against nothing and keep its payload (preview
+ * URLs, refs) until retention. A running scan sees it on its next heartbeat.
+ */
+export async function deleteAssessmentJobsForProject(
+  drizzle: DrizzleDb,
+  projectId: string,
+): Promise<void> {
+  await drizzle.execute(sql`
+    DELETE FROM pgboss.job
+    WHERE name = ${ASSESSMENT_QUEUE} AND data->>'projectId' = ${projectId}
+  `);
+}
+
+/**
+ * Makes the job's current attempt its last, so failing it is terminal (a
+ * payload no worker may run would fail identically on every retry).
+ */
+export async function exhaustAssessmentJobRetries(
+  drizzle: DrizzleDb,
+  jobId: string,
+): Promise<void> {
+  await drizzle.execute(sql`
+    UPDATE pgboss.job SET retry_limit = retry_count
+    WHERE name = ${ASSESSMENT_QUEUE} AND id = ${jobId}::uuid AND state = 'active'
+  `);
+}
+
+/** Queue depth: `queued` + `running`. */
 export async function countActiveAssessmentJobs(
   drizzle: DrizzleDb,
 ): Promise<number> {
-  const [row] = await drizzle
-    .select({ value: count() })
-    .from(assessmentJobs)
-    .where(inArray(assessmentJobs.status, ["queued", "running"]));
+  const [row] = await drizzle.execute<{ value: number }>(sql`
+    SELECT count(*)::int AS value FROM pgboss.job
+    WHERE name = ${ASSESSMENT_QUEUE} AND state IN ${ACTIVE_STATES}
+  `);
   return Number(row?.value ?? 0);
 }
 
-/** Age (ms) of the oldest `queued` job, or null when none are waiting. */
+/**
+ * How long the oldest due `queued` job has waited (since it became due, so a
+ * job in retry backoff or refreshed by coalescing does not read older), or
+ * null when none are waiting.
+ */
 export async function oldestQueuedAssessmentJobAge(
   drizzle: DrizzleDb,
 ): Promise<number | null> {
-  const [row] = await drizzle
-    .select({
-      ageMs: sql<
-        string | null
-      >`(EXTRACT(EPOCH FROM (now() - min(${assessmentJobs.createdAt}))) * 1000)::bigint`,
-    })
-    .from(assessmentJobs)
-    .where(eq(assessmentJobs.status, "queued"));
-  if (row?.ageMs === null || row?.ageMs === undefined) return null;
-  const parsed = Number(row.ageMs);
+  const [row] = await drizzle.execute<{ age_ms: string | null }>(sql`
+    SELECT (EXTRACT(EPOCH FROM (now() - min(start_after))) * 1000)::bigint AS age_ms
+    FROM pgboss.job
+    WHERE name = ${ASSESSMENT_QUEUE} AND state IN ${QUEUED_STATES}
+  `);
+  if (row?.age_ms === null || row?.age_ms === undefined) return null;
+  const parsed = Number(row.age_ms);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }

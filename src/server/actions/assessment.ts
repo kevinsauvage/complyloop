@@ -19,7 +19,7 @@ import {
   type AssessmentJob,
   cancelAssessmentJob,
   enqueueAssessmentJob,
-  recoverExpiredAssessmentLeases,
+  superviseAssessmentQueue,
 } from "../assessment/assessment-jobs";
 import {
   scheduleAssessmentDrain,
@@ -40,9 +40,9 @@ const cancelAssessmentJobInput = z.object({
 });
 
 /**
- * A `running` job whose lease already expired is a dead worker, not an
- * active scan — the heartbeat renews live leases every 5 minutes against a
- * 30-minute lease, so an expired lease means no worker is coming back.
+ * A `running` job whose heartbeat lapsed is a dead worker, not an active
+ * scan: the worker touches its job every 5 minutes against a 15-minute
+ * heartbeat window, so a lapsed one means no worker is coming back.
  */
 function hasLiveLease(job: AssessmentJob, now: number): boolean {
   if (job.status !== "running" || !job.leaseExpiresAt) return false;
@@ -99,11 +99,6 @@ export async function runAssessmentAction(
     };
     await withProjectTx(projectId, "project.assess", async (ctx) => {
       if (ctx.userId) await assertAssessRateLimit(ctx.userId, ctx.tx);
-      // Reclaim crashed-worker leases before reading the active job: an
-      // expired-`running` row must not block re-dispatch until the 15-minute
-      // schedule happens to claim (recovery requeues while attempts remain,
-      // terminal-fails poison jobs — either way the row below is current).
-      await recoverExpiredAssessmentLeases(ctx.tx);
       const active = await activeAssessmentJobForProject(
         ctx.project.id,
         ctx.tx,
@@ -144,8 +139,16 @@ export async function runAssessmentAction(
         after(() => scheduleAssessmentDrain());
         return "An assessment is already queued — kicked the worker to pick it up. Track progress in the Pipeline below.";
       }
-      const state = alreadyActive.status === "running" ? "running" : "queued";
-      return `An assessment is already ${state} — track it in the Pipeline below.`;
+      if (alreadyActive.status === "running") {
+        // Dead worker: hand its job back to the queue and kick a drain now
+        // instead of waiting for the 15-minute schedule.
+        after(async () => {
+          await superviseAssessmentQueue();
+          await scheduleAssessmentDrain();
+        });
+        return "The last assessment's worker stopped responding — restarting it. Track progress in the Pipeline below.";
+      }
+      return "An assessment is already queued — track it in the Pipeline below.";
     }
 
     const job = context.job;

@@ -32,6 +32,7 @@ async function main(): Promise<void> {
   const sql = await openScriptClient(url, 1);
   try {
     await sql.unsafe(`
+      DROP SCHEMA IF EXISTS pgboss CASCADE;
       DROP SCHEMA public CASCADE;
       CREATE SCHEMA public;
       GRANT ALL ON SCHEMA public TO public;

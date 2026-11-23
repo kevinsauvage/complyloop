@@ -1,9 +1,6 @@
 import { StatefulActionForm } from "@/components/forms/stateful-action-form";
 import { runAssessmentAction } from "@/server/actions/assessment";
-import {
-  activeAssessmentJobForProject,
-  recoverExpiredAssessmentLeases,
-} from "@/server/assessment/assessment-jobs";
+import { activeAssessmentJobForProject } from "@/server/assessment/assessment-jobs";
 
 /**
  * Single Run-assessment trigger shared by the dashboard hero and checklist.
@@ -15,11 +12,10 @@ import {
  * stacking a second full scan behind the serial-per-project claim. A merely
  * queued job leaves the button enabled: the action re-kicks the worker
  * without enqueuing a duplicate, so it doubles as the retry when a dispatch
- * failed. Expired leases recover here first so a dead worker cannot pin the
- * button on "running" until the 15-minute schedule reclaims it.
+ * failed. A running job whose worker stopped heartbeating no longer counts
+ * as live, so a dead worker cannot pin the button on "running".
  */
 async function loadActiveJob(projectId: string) {
-  await recoverExpiredAssessmentLeases();
   const activeJob = await activeAssessmentJobForProject(projectId);
   // Plain helper (not a component): `Date.now()` here keeps the component
   // body pure for `react-hooks/purity`.

@@ -22,10 +22,7 @@ import { advanceRemediation } from "@/core/requirements/remediation-lifecycle";
 
 import { runAction } from "../action-state";
 import { sameInstance } from "../assessment/assessment-findings";
-import {
-  enqueueAssessmentJob,
-  recoverExpiredAssessmentLeases,
-} from "../assessment/assessment-jobs";
+import { enqueueAssessmentJob } from "../assessment/assessment-jobs";
 import {
   scheduleAssessmentDrain,
   shouldDrainAssessmentJobsInline,
@@ -103,7 +100,6 @@ export async function verifyRemediationAction(
       // the finding since the preview read.
       assertVerifiableFinding(live);
 
-      await recoverExpiredAssessmentLeases(ctx.tx);
       const job = await enqueueAssessmentJob(
         {
           projectId: live.projectId,

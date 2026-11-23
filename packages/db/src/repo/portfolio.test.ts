@@ -2,7 +2,6 @@ import { sql } from "drizzle-orm";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { closeDrizzle, getDrizzle } from "../postgres.ts";
-import { assessmentJobs } from "../schema.ts";
 import {
   cleanupProjectSliceFixture,
   insertProjectSliceFixture,
@@ -28,32 +27,16 @@ describe.skipIf(!enabled)("portfolio aggregation", () => {
     const fixture = await insertProjectSliceFixture(drizzle, suffix);
 
     try {
-      await drizzle.insert(assessmentJobs).values([
-        {
-          id: `job-old-${suffix}`,
-          projectId: fixture.projectId,
-          status: "succeeded",
-          trigger: "manual",
-          payload: {},
-          attempts: 0,
-          maxAttempts: 3,
-          availableAt: "2026-01-01T00:00:00.000Z",
-          createdAt: "2026-01-01T00:00:00.000Z",
-          updatedAt: "2026-01-01T00:00:00.000Z",
-        },
-        {
-          id: `job-new-${suffix}`,
-          projectId: fixture.projectId,
-          status: "failed",
-          trigger: "webhook",
-          payload: {},
-          attempts: 1,
-          maxAttempts: 3,
-          availableAt: "2026-01-02T00:00:00.000Z",
-          createdAt: "2026-01-02T00:00:00.000Z",
-          updatedAt: "2026-01-02T00:00:00.000Z",
-        },
-      ]);
+      const data = (trigger: string) =>
+        JSON.stringify({ projectId: fixture.projectId, trigger, payload: {} });
+      await drizzle.execute(sql`
+        INSERT INTO pgboss.job (name, id, data, state, created_on, completed_on)
+        VALUES
+          ('assessment', gen_random_uuid(), ${data("manual")}::jsonb, 'completed',
+           '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
+          ('assessment', gen_random_uuid(), ${data("webhook")}::jsonb, 'failed',
+           '2026-01-02T00:00:00.000Z', '2026-01-02T00:00:00.000Z')
+      `);
 
       const [row] = await listPortfolioForProjects(drizzle, [
         fixture.projectId,
@@ -70,6 +53,9 @@ describe.skipIf(!enabled)("portfolio aggregation", () => {
       expect(row?.latestJobStatus).toBe("failed");
       expect(row?.latestJobAt).toBe("2026-01-02T00:00:00.000Z");
     } finally {
+      await drizzle.execute(
+        sql`DELETE FROM pgboss.job WHERE data->>'projectId' = ${fixture.projectId}`,
+      );
       await cleanupProjectSliceFixture(drizzle, fixture);
     }
   });
@@ -110,7 +96,7 @@ describe.skipIf(!enabled)("portfolio aggregation", () => {
       expect(rows[0]?.requirements.failed).toBe(0);
       expect(rows[1]?.openViolations).toBe(2);
     } finally {
-      // `projects` cascades findings/alerts/requirements and assessment_jobs.
+      // `projects` cascades findings/alerts/requirements.
       await drizzle.execute(
         sql`DELETE FROM projects WHERE id = ${emptyProjectId}`,
       );

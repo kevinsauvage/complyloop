@@ -1,11 +1,7 @@
 /** Pure ops-threshold checks for `npm run ops:check`; dependency-free so `scripts/operations-check.ts` and tests share it. */
 
 /** Pipeline bookkeeping tables pruned on the worker tick (`repo/retention.ts`). */
-export const PIPELINE_TABLES = [
-  "assessment_jobs",
-  "assessments",
-  "assessment_snapshots",
-] as const;
+export const PIPELINE_TABLES = ["assessments", "assessment_snapshots"] as const;
 
 export type PipelineTable = (typeof PIPELINE_TABLES)[number];
 

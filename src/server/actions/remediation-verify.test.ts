@@ -23,7 +23,6 @@ import {
 
 const { getWorkspace } = actionWorkspaceMocks;
 const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
-const recoverExpiredAssessmentLeases = vi.hoisted(() => vi.fn());
 const scheduleAssessmentDrain = vi.hoisted(() => vi.fn());
 const assertRemediationRateLimit = vi.hoisted(() => vi.fn());
 const isE2EHarnessEnabled = vi.hoisted(() => vi.fn(() => true));
@@ -50,8 +49,6 @@ vi.mock("../assessment/assessment-jobs", async () => {
   return {
     ...actual,
     enqueueAssessmentJob: (...args: unknown[]) => enqueueAssessmentJob(...args),
-    recoverExpiredAssessmentLeases: (...args: unknown[]) =>
-      recoverExpiredAssessmentLeases(...args),
   };
 });
 

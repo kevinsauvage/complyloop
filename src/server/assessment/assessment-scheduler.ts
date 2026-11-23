@@ -108,8 +108,8 @@ export async function runAssessmentJobBatch(
       // observability (see the boundary contract above).
       const { pruneWebhookDeliveryRows } =
         await import("@complyloop/db/repo/webhook-deliveries");
-      // Same treatment for the pipeline's own tables: terminal jobs, old
-      // assessments and (by FK cascade) their snapshots.
+      // Same treatment for old assessments and (by FK cascade) their
+      // snapshots; pg-boss deletes old jobs itself.
       const { prunePipelineRetention } =
         await import("@complyloop/db/repo/retention");
       const { getDrizzle } = await import("@complyloop/db/postgres");
@@ -119,6 +119,17 @@ export async function runAssessmentJobBatch(
     } catch (error) {
       reportWarning("Batch prune failed.", {
         code: "batch_prune_failed",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+    // Retries jobs whose worker died and deletes old ones (pg-boss's own
+    // maintenance, which a never-started client does not run on a timer).
+    try {
+      const { superviseAssessmentQueue } = await import("./assessment-jobs");
+      await superviseAssessmentQueue();
+    } catch (error) {
+      reportWarning("Assessment queue maintenance failed.", {
+        code: "assessment_queue_supervise_failed",
         error: error instanceof Error ? error.message : String(error),
       });
     }

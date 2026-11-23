@@ -122,26 +122,8 @@ describe.skipIf(!enabled)("pipeline retention", () => {
       )
     `);
 
-    const insertJob = async (id: string, status: string, ageDays: number) => {
-      await drizzle.execute(sql`
-        INSERT INTO assessment_jobs (
-          id, project_id, status, trigger, payload, available_at,
-          created_at, updated_at
-        ) VALUES (
-          ${id}, ${projectId}, ${status}, 'manual', '{}'::jsonb,
-          now() - (${ageDays} * interval '1 day'),
-          now() - (${ageDays} * interval '1 day'),
-          now() - (${ageDays} * interval '1 day')
-        )
-      `);
-    };
-    await insertJob(`j-old-${suffix}`, "succeeded", 40);
-    await insertJob(`j-queued-${suffix}`, "queued", 40);
-    await insertJob(`j-fresh-${suffix}`, "succeeded", 1);
-
     try {
       const result = await prunePipelineRetention(drizzle, {
-        jobRetentionDays: 30,
         assessmentsPerProject: 2,
         abandonedAssessmentDays: 30,
         batchSize: 10,
@@ -153,7 +135,6 @@ describe.skipIf(!enabled)("pipeline retention", () => {
       // a2 is actually deleted. The hash project keeps all three (position 3
       // is the last full hash map).
       expect(result.assessmentsDeleted).toBe(1);
-      expect(result.jobsDeleted).toBe(1);
 
       const remaining = (await drizzle.execute(sql`
         SELECT id FROM assessments WHERE project_id = ${projectId} ORDER BY id
@@ -192,19 +173,7 @@ describe.skipIf(!enabled)("pipeline retention", () => {
       expect(snapshots.map((row) => row.assessment_id)).toContain(
         assessments[0],
       );
-
-      const jobs = (await drizzle.execute(sql`
-        SELECT id FROM assessment_jobs WHERE project_id = ${projectId} ORDER BY id
-      `)) as Array<{ id: string }>;
-      // Queued work is never aged out, and a fresh terminal job stays.
-      expect(jobs.map((row) => row.id)).toEqual([
-        `j-fresh-${suffix}`,
-        `j-queued-${suffix}`,
-      ]);
     } finally {
-      await drizzle.execute(
-        sql`DELETE FROM assessment_jobs WHERE project_id = ${projectId}`,
-      );
       await drizzle.execute(
         sql`DELETE FROM findings WHERE project_id = ${projectId}`,
       );

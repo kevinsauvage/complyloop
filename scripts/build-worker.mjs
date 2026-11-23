@@ -57,6 +57,8 @@ buildSync({
     "typescript",
     "@sentry/*",
     "isomorphic-git",
+    // `pg` (pulled in by pg-boss) lazily requires its optional native binding.
+    "pg-native",
   ],
   logLevel: "warning",
 });
