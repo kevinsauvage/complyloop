@@ -40,6 +40,9 @@ export default defineConfig({
   test: {
     // Assessment / temp-fs tests can exceed 5s under parallel load.
     testTimeout: 15_000,
+    // Playwright launch/teardown hooks exceed the 10s default once the run is
+    // instrumented for coverage; a slow hook must not fail the quality job.
+    hookTimeout: 30_000,
     coverage: {
       provider: "v8",
       // Product / domain surface — Postgres loaders and Playwright browser driver
