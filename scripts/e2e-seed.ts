@@ -88,7 +88,6 @@ async function main(): Promise<void> {
       id: E2E_PROJECT_ID,
       name: "sample-app",
       source: "github",
-      sourceRef: `https://github.com/${E2E_PROJECT_FULL_NAME}`,
       createdAt: now,
       orgId: E2E_ORG_ID,
       ownerUserId: E2E_OWNER.id,

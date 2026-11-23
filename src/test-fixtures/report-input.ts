@@ -16,7 +16,6 @@ import { testProject } from "./project";
 
 export const reportSampleProject = testProject({
   name: "demo-app",
-  sourceRef: "https://github.com/acme/demo-app",
 });
 
 export function sampleReportInput(): ReportInput {

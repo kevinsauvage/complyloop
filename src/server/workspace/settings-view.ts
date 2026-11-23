@@ -13,6 +13,7 @@ import { getDrizzle } from "@complyloop/db/postgres";
 import { listLatestAssessmentForProject } from "@complyloop/db/repo/assessments";
 
 import { latestAssessmentFor } from "@/core/assessment/assessment-helpers";
+import { projectRepoUrl } from "@/core/project-url";
 import type { ProjectCapabilities } from "@/server/workspace/project-capabilities";
 import { loadProjectPage } from "@/server/workspace/project-page";
 
@@ -56,9 +57,7 @@ export async function loadSettingsView(
       : "No runtime audit has run yet for this project.";
 
   const githubFullName = project.github?.fullName;
-  const repoUrl =
-    project.sourceRef ??
-    (githubFullName ? `https://github.com/${githubFullName}` : undefined);
+  const repoUrl = projectRepoUrl(project);
   const defaultPresetId = projectDefaultPresetId(project);
   const defaultPreset = presetById(defaultPresetId);
   const presets = presetSummaries();

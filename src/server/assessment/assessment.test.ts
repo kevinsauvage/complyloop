@@ -37,7 +37,6 @@ beforeEach(() => {
     name: "test-project",
     source: "github",
     orgId: "org-test",
-    sourceRef: "https://github.com/acme/test-project",
     createdAt: new Date().toISOString(),
   };
   db = {

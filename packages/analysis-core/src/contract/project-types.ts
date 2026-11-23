@@ -94,8 +94,6 @@ export interface Project {
   id: string;
   name: string;
   source: ProjectSource;
-  /** Canonical https://github.com/org/repo URL. */
-  sourceRef?: string;
   createdAt: string;
   /** Organization (tenant) that owns this project; access is via org membership RBAC. */
   orgId: string;

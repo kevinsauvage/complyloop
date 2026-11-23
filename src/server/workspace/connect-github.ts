@@ -14,6 +14,7 @@ import { newEvidenceRecord } from "@complyloop/db/repo/mappers";
 import { nextUniqueSlug } from "@complyloop/db/repo/orgs";
 import type { WorkspaceSlice } from "@complyloop/db/types";
 
+import { projectRepoUrl } from "@/core/project-url";
 import { canOnProject } from "@/core/rbac";
 
 import { withRepoCheckout } from "../assessment/repo-checkout";
@@ -159,7 +160,6 @@ export async function connectGitHubRepo(
     );
   }
 
-  const sourceRef = `https://github.com/${fullName}`;
   const existing = findConnectedGitHubProject(
     db.projects,
     fullName,
@@ -192,7 +192,6 @@ export async function connectGitHubRepo(
     id: crypto.randomUUID(),
     name,
     source: "github",
-    sourceRef,
     ownerUserId: input.ownerUserId,
     orgId,
     github,
@@ -208,7 +207,7 @@ export async function connectGitHubRepo(
         projectId: project.id,
         detail: {
           source: project.source,
-          sourceRef: project.sourceRef,
+          sourceRef: projectRepoUrl(project),
           fullName: project.github?.fullName,
           orgId,
         },

@@ -369,8 +369,8 @@ deleteMembershipIds, deleteOrgIds }` — explicit rows, no in-memory slice diff.
   that installation (one job each, idempotency key
   `${deliveryId}:${projectId}`); installation-less deliveries for several
   projects and foreign-installation deliveries are rejected, never run against
-  an arbitrary row. A delivery writes the id and canonical `fullName`/`sourceRef`
-  onto the project, so a rename or transfer keeps routing; `updateProject`
+  an arbitrary row. A delivery writes the id and canonical `fullName` onto the
+  project (the repository URL is derived from it, `projectRepoUrl`), so a rename or transfer keeps routing; `updateProject`
   preserves those delivery-owned fields so a stale settings save cannot revert
   them.
 - **Migrations** — `scripts/vercel-build.mjs` applies `drizzle/*.sql` on

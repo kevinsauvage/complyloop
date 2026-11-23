@@ -16,7 +16,7 @@ export async function insertProject(
 
 /**
  * After connect, `lastDeployment` and the repository identity
- * (`github.defaultBranch`, `github.fullName`, `github.repoId`, `sourceRef`) are
+ * (`github.defaultBranch`, `github.fullName`, `github.repoId`) are
  * written only by GitHub deliveries, which do not take the project write lock
  * (a delivery must answer within seconds, an assessment apply can hold that
  * lock longer). A whole-payload rewrite therefore keeps the stored values, so a
@@ -25,7 +25,6 @@ export async function insertProject(
  */
 const DELIVERY_OWNED_PATHS = [
   "{lastDeployment}",
-  "{sourceRef}",
   "{github,defaultBranch}",
   "{github,fullName}",
   "{github,repoId}",
@@ -110,27 +109,21 @@ export async function recordProjectRepositoryIdentity(
   projectId: string,
   identity: { repoId: number; fullName: string },
 ): Promise<void> {
-  const sourceRef = `https://github.com/${identity.fullName}`;
   await drizzle.execute(sql`
     UPDATE projects
     SET payload = jsonb_set(
       jsonb_set(
-        jsonb_set(
-          payload,
-          '{github,repoId}'::text[],
-          to_jsonb(${identity.repoId}::bigint)
-        ),
-        '{github,fullName}'::text[],
-        to_jsonb(${identity.fullName}::text)
+        payload - 'sourceRef',
+        '{github,repoId}'::text[],
+        to_jsonb(${identity.repoId}::bigint)
       ),
-      '{sourceRef}'::text[],
-      to_jsonb(${sourceRef}::text)
+      '{github,fullName}'::text[],
+      to_jsonb(${identity.fullName}::text)
     )
     WHERE id = ${projectId}
       AND (
         payload->'github'->>'repoId' IS DISTINCT FROM ${String(identity.repoId)}
         OR lower(payload->'github'->>'fullName') IS DISTINCT FROM lower(${identity.fullName})
-        OR payload->>'sourceRef' IS DISTINCT FROM ${sourceRef}
       )
   `);
 }

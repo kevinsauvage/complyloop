@@ -40,6 +40,7 @@ import {
   requirementStatusDisplay,
   severityDisplay,
 } from "@/core/display/status";
+import { projectRepoUrl } from "@/core/project-url";
 
 export interface ReportInput {
   project: Project;
@@ -143,7 +144,7 @@ function reportHeader(title: string, input: ReportInput): ReportHeaderModel {
     frameworkName: input.framework.name,
     frameworkVersion: input.framework.version,
     sourceKind: input.project.source,
-    sourceRef: input.project.sourceRef,
+    sourceRef: projectRepoUrl(input.project),
     githubFullName: input.project.github?.fullName,
     exportedAt: input.exportedAt,
   };

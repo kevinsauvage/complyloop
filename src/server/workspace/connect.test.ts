@@ -139,7 +139,6 @@ describe("disconnectGitHubRepo", () => {
       id: "gh-1",
       name: "shop",
       source: "github",
-      sourceRef: "https://github.com/acme/shop",
       orgId: "org-1",
       ownerUserId: "user-a",
       github: {

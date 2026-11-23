@@ -137,7 +137,6 @@ describe.skipIf(!enabled)("project github lookup", () => {
         id: projectA,
         name: "repo-a",
         source: "github",
-        sourceRef: `https://github.com/${oldName}`,
         orgId: orgA,
         createdAt: "2026-01-01T00:00:00.000Z",
         github: {
@@ -159,7 +158,6 @@ describe.skipIf(!enabled)("project github lookup", () => {
       const after = await getProjectById(drizzle, projectA);
       expect(after?.github?.fullName).toBe(newName);
       expect(after?.github?.repoId).toBe(repoId);
-      expect(after?.sourceRef).toBe(`https://github.com/${newName}`);
     } finally {
       await drizzle.execute(
         sql`DELETE FROM projects WHERE id IN (${projectA}, ${projectB})`,
