@@ -331,11 +331,18 @@ deleteMembershipIds, deleteOrgIds }` — explicit rows, no in-memory slice diff.
   derives a requirement status. The finding-page beat follows the remediation
   status, never the finding.
 - **Webhooks** — same repo may be connected in several orgs: deliveries
-  resolve via `findProjectsByGithubFullName` (all matches, id order) pinned
-  by installation id, and fan out to every project bound to that
-  installation (one job each, idempotency key `${deliveryId}:${projectId}`);
-  installation-less deliveries for several projects and foreign-installation
-  deliveries are rejected, never run against an arbitrary row.
+  resolve by the stable `repository.id` (`findProjectsByGithubRepoId`, indexed
+  by `projects_github_repo_id_idx`) plus `findProjectsByGithubFullName` matches
+  that never stored an id (legacy rows; id order). A name match bound to
+  another id is a different repository that once had the name and is ignored.
+  Deliveries are pinned by installation id, and fan out to every project bound to
+  that installation (one job each, idempotency key
+  `${deliveryId}:${projectId}`); installation-less deliveries for several
+  projects and foreign-installation deliveries are rejected, never run against
+  an arbitrary row. A delivery writes the id and canonical `fullName`/`sourceRef`
+  onto the project, so a rename or transfer keeps routing; `updateProject`
+  preserves those delivery-owned fields so a stale settings save cannot revert
+  them.
 - **Migrations** — `scripts/vercel-build.mjs` applies `drizzle/*.sql` on
   production deploys only (`VERCEL_ENV=production` or unset). Preview and
   development builds skip `db:migrate`: a preview pointed at a shared/staging

@@ -1,4 +1,6 @@
 export interface GitHubRepoSummary {
+  /** Stable numeric repository id (survives renames and transfers). */
+  id: number;
   fullName: string;
   name: string;
   description: string | null;

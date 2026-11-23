@@ -16,6 +16,7 @@ vi.mock("./github-app", async (importOriginal) => {
 });
 
 const summary: GitHubRepoSummary = {
+  id: 1,
   fullName: "acme/shop",
   name: "shop",
   description: "Shop app",

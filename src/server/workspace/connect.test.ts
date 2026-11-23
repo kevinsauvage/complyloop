@@ -88,6 +88,20 @@ describe("findConnectedGitHubProject", () => {
     );
   });
 
+  it("matches a renamed repository by its stable id", () => {
+    const project = {
+      ...base,
+      ownerUserId: "user-b",
+      github: { ...base.github, repoId: 42 },
+    };
+    expect(
+      findConnectedGitHubProject([project], "acme/new-name", "org-team", 42),
+    ).toBe(project);
+    expect(
+      findConnectedGitHubProject([project], "acme/new-name", "org-team", 7),
+    ).toBeUndefined();
+  });
+
   it("does not match a different org", () => {
     const project = { ...base, ownerUserId: "user-a", orgId: "org-other" };
     expect(

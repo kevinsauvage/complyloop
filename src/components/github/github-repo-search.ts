@@ -22,6 +22,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function isRepoSummary(value: unknown): value is GitHubRepoSummary {
   if (!isRecord(value)) return false;
   return (
+    typeof value.id === "number" &&
     typeof value.fullName === "string" &&
     typeof value.name === "string" &&
     (value.description === null || typeof value.description === "string") &&

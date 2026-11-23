@@ -5,9 +5,12 @@ import { verify as verifyWebhookSignature } from "@octokit/webhooks-methods";
 
 import { type DrizzleDb, getDrizzle } from "@complyloop/db/postgres";
 import {
+  type DeliveryProject,
   findProjectsByGithubFullName,
+  findProjectsByGithubRepoId,
   recordProjectDefaultBranch,
   recordProjectLastDeployment,
+  recordProjectRepositoryIdentity,
 } from "@complyloop/db/repo/projects";
 
 import {
@@ -15,6 +18,7 @@ import {
   latestWebhookJobRef,
 } from "../assessment/assessment-jobs";
 import { githubWebhookSecret } from "../env";
+import { reportWarning } from "../observability";
 import { assertRateLimit } from "../rate-limit";
 
 type PushPayload = EmitterWebhookEvent<"push">["payload"];
@@ -86,6 +90,18 @@ function repositoryFullName(event: HandledWebhookEvent): string | undefined {
   const fullName = event.payload.repository?.full_name;
   return typeof fullName === "string" && fullName.length > 0
     ? fullName
+    : undefined;
+}
+
+/**
+ * Stable repository identity: survives renames and transfers, unlike
+ * `full_name`. Some payloads (or older deliveries) may omit it, which is why
+ * resolution still falls back to the name.
+ */
+function repositoryId(event: HandledWebhookEvent): number | undefined {
+  const id = event.payload.repository?.id;
+  return typeof id === "number" && Number.isSafeInteger(id) && id > 0
+    ? id
     : undefined;
 }
 
@@ -189,9 +205,31 @@ export interface WebhookHandleResult {
   jobIds?: string[];
 }
 
-type WebhookProject = Awaited<
-  ReturnType<typeof findProjectsByGithubFullName>
->[number];
+type WebhookProject = DeliveryProject;
+
+/**
+ * Id first: a repository keeps its id across renames and transfers. A name
+ * match only counts for legacy rows that never stored an id (the delivery then
+ * backfills it). A row bound to another id is a different repository that once
+ * had this name — e.g. a repo renamed away and a new one created under the old
+ * name — and must never receive, or be rebound by, this delivery. Legacy rows
+ * are merged with id matches, not replaced by them, so the same repo connected
+ * in another org before ids were stored keeps receiving deliveries.
+ */
+function deliveryCandidates(
+  byId: readonly WebhookProject[],
+  byName: readonly WebhookProject[],
+  repoId: number | undefined,
+): WebhookProject[] {
+  if (repoId === undefined) return [...byName];
+  const seen = new Set(byId.map((project) => project.id));
+  const legacy = byName.filter(
+    (project) => project.repoId === undefined && !seen.has(project.id),
+  );
+  return [...byId, ...legacy].sort((left, right) =>
+    left.id.localeCompare(right.id),
+  );
+}
 
 /**
  * The projects a delivery is for. The same repo may be connected in several
@@ -319,7 +357,14 @@ export async function handleGitHubWebhookEvent(
   if (!fullName) return { handled: false, message: "No repository in payload" };
 
   const drizzle = await getDrizzle();
-  const candidates = await findProjectsByGithubFullName(drizzle, fullName);
+  const repoId = repositoryId(parsed.event);
+  const [byId, byName] = await Promise.all([
+    repoId !== undefined
+      ? findProjectsByGithubRepoId(drizzle, repoId)
+      : Promise.resolve([]),
+    findProjectsByGithubFullName(drizzle, fullName),
+  ]);
+  const candidates = deliveryCandidates(byId, byName, repoId);
   if (candidates.length === 0) {
     return { handled: false, message: `No connected project for ${fullName}` };
   }
@@ -329,6 +374,35 @@ export async function handleGitHubWebhookEvent(
     fullName,
   );
   if (!routed.ok) return { handled: false, message: routed.message };
+
+  if (repoId !== undefined) {
+    // Self-heal a renamed/transferred repo (id matched, name changed) and
+    // backfill a legacy row (name matched, id missing). Delivery-owned write:
+    // no project lock, same as `lastDeployment` / `defaultBranch`.
+    for (const project of routed.projects) {
+      if (
+        project.repoId !== repoId ||
+        (project.fullName ?? "").toLowerCase() !== fullName.toLowerCase()
+      ) {
+        try {
+          await recordProjectRepositoryIdentity(drizzle, project.id, {
+            repoId,
+            fullName,
+          });
+        } catch (error) {
+          // Self-healing is best effort: a collision with another project's
+          // name in the same org (unique index) must not fail the delivery,
+          // or GitHub would redeliver it forever and the scan would never run.
+          reportWarning("Could not record the repository identity", {
+            code: "webhook_repo_identity_failed",
+            projectId: project.id,
+            repoId,
+            detail: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+    }
+  }
 
   const outcomes = [];
   for (const project of routed.projects) {

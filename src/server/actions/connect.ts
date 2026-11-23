@@ -116,6 +116,7 @@ export async function connectGitHubRepoAction(
         db.projects,
         fullName,
         orgId,
+        repo.id,
       );
       if (alreadyConnected) {
         throw new PublicError(
@@ -125,6 +126,7 @@ export async function connectGitHubRepoAction(
       }
       const { project, evidence } = await connectGitHubRepo(db, {
         fullName: repo.fullName,
+        repoId: repo.id,
         defaultBranch: repo.defaultBranch,
         private: repo.private,
         ownerUserId: userId,

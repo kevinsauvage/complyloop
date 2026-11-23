@@ -122,6 +122,10 @@ export const projects = pgTable(
     index("projects_github_fullname_lower_idx").on(
       sql`lower((${table.payload}->'github'->>'fullName'))`,
     ),
+    // Webhook path resolves by the stable repo id first (survives renames).
+    index("projects_github_repo_id_idx")
+      .on(sql`(${table.payload}->'github'->>'repoId')`)
+      .where(sql`${table.payload}->'github'->>'repoId' IS NOT NULL`),
     uniqueIndex("projects_org_github_uidx")
       .on(table.orgId, sql`lower((payload->'github'->>'fullName'))`)
       .where(sql`payload->'github'->>'fullName' IS NOT NULL`),

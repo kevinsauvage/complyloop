@@ -83,6 +83,7 @@ describe("redactCloneUrl", () => {
 
 describe("mapGitHubRepo", () => {
   const apiRepo = {
+    id: 42,
     full_name: "acme/shop",
     name: "shop",
     description: "Shop app",
@@ -95,6 +96,7 @@ describe("mapGitHubRepo", () => {
 
   it("maps the REST payload and keeps the installation id", () => {
     expect(mapGitHubRepo(apiRepo, 123)).toEqual({
+      id: 42,
       fullName: "acme/shop",
       name: "shop",
       description: "Shop app",
@@ -137,6 +139,7 @@ describe("mapGitHubRepo", () => {
 describe("filterReposByQuery", () => {
   const repos = [
     mapGitHubRepo({
+      id: 1,
       full_name: "acme/shop",
       name: "shop",
       description: "Shop app",
@@ -147,6 +150,7 @@ describe("filterReposByQuery", () => {
       clone_url: "https://github.com/acme/shop.git",
     }),
     mapGitHubRepo({
+      id: 2,
       full_name: "acme/docs",
       name: "docs",
       description: null,

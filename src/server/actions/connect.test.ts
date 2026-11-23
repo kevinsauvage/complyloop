@@ -171,6 +171,7 @@ describe("connectGitHubRepoAction", () => {
     resolveUserInstallationForRepo.mockResolvedValue(42);
     createInstallationAccessToken.mockResolvedValue("ghs_install");
     fetchGitHubRepo.mockResolvedValue({
+      id: 1,
       fullName: "acme/shop",
       defaultBranch: "main",
       private: false,
@@ -191,6 +192,7 @@ describe("connectGitHubRepoAction", () => {
     resolveUserInstallationForRepo.mockResolvedValue(42);
     createInstallationAccessToken.mockResolvedValue("ghs_install");
     fetchGitHubRepo.mockResolvedValue({
+      id: 1,
       fullName: "acme/shop",
       defaultBranch: "main",
       private: false,
@@ -212,6 +214,7 @@ describe("connectGitHubRepoAction", () => {
     resolveUserInstallationForRepo.mockResolvedValue(42);
     createInstallationAccessToken.mockResolvedValue("ghs_install");
     fetchGitHubRepo.mockResolvedValue({
+      id: 1,
       fullName: "acme/shop",
       defaultBranch: "main",
       private: false,
@@ -233,6 +236,7 @@ describe("connectGitHubRepoAction", () => {
     resolveUserInstallationForRepo.mockResolvedValue(42);
     createInstallationAccessToken.mockResolvedValue("ghs_install");
     fetchGitHubRepo.mockResolvedValue({
+      id: 1,
       fullName: "acme/shop",
       defaultBranch: "main",
       private: false,
@@ -273,6 +277,7 @@ describe("connectGitHubRepoAction", () => {
     resolveUserInstallationForRepo.mockResolvedValue(42);
     createInstallationAccessToken.mockResolvedValue("ghs_install");
     fetchGitHubRepo.mockResolvedValue({
+      id: 1,
       fullName: "acme/shop",
       defaultBranch: "main",
       private: true,

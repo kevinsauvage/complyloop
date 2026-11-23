@@ -21,6 +21,7 @@ afterEach(() => {
 function repoFixture(fullName: string) {
   const [owner, name] = fullName.split("/");
   return {
+    id: 1,
     fullName,
     name: name ?? fullName,
     description: `${fullName} fixture`,

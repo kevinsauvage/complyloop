@@ -1,4 +1,4 @@
-import { eq, inArray, sql } from "drizzle-orm";
+import { eq, inArray, type SQL, sql } from "drizzle-orm";
 
 import type { Project } from "@complyloop/analysis-core/contract/project-types";
 
@@ -14,20 +14,34 @@ export async function insertProject(
 }
 
 /**
- * After connect, `lastDeployment` and `github.defaultBranch` are written only
- * by GitHub deliveries, which do not take the project write lock (a delivery
- * must answer within seconds, an assessment apply can hold that lock longer).
- * A whole-payload rewrite therefore keeps the stored values, so a settings
- * save racing a delivery cannot roll them back to its stale copy.
+ * After connect, `lastDeployment` and the repository identity
+ * (`github.defaultBranch`, `github.fullName`, `github.repoId`, `sourceRef`) are
+ * written only by GitHub deliveries, which do not take the project write lock
+ * (a delivery must answer within seconds, an assessment apply can hold that
+ * lock longer). A whole-payload rewrite therefore keeps the stored values, so a
+ * settings save racing a delivery cannot roll them back to its stale copy —
+ * including after a repository rename.
  */
-const PAYLOAD_KEEPING_LAST_DEPLOYMENT = sql`CASE
-  WHEN projects.payload ? 'lastDeployment'
-    THEN jsonb_set(excluded.payload, '{lastDeployment}', projects.payload->'lastDeployment')
-  ELSE excluded.payload END`;
-const PAYLOAD_KEEPING_DELIVERY_FIELDS = sql`CASE
-  WHEN projects.payload->'github' ? 'defaultBranch' AND excluded.payload ? 'github'
-    THEN jsonb_set(${PAYLOAD_KEEPING_LAST_DEPLOYMENT}, '{github,defaultBranch}', projects.payload->'github'->'defaultBranch')
-  ELSE ${PAYLOAD_KEEPING_LAST_DEPLOYMENT} END`;
+const DELIVERY_OWNED_PATHS = [
+  "{lastDeployment}",
+  "{sourceRef}",
+  "{github,defaultBranch}",
+  "{github,fullName}",
+  "{github,repoId}",
+] as const;
+
+/**
+ * `excluded.payload` with each stored delivery-owned value put back. A path
+ * whose parent is absent from the incoming payload (no `github`) stays absent:
+ * `jsonb_set` does not create intermediate objects.
+ */
+const PAYLOAD_KEEPING_DELIVERY_FIELDS = DELIVERY_OWNED_PATHS.reduce<SQL>(
+  (payload, path) => sql`CASE
+    WHEN projects.payload #>> ${path}::text[] IS NOT NULL
+      THEN jsonb_set(${payload}, ${path}::text[], projects.payload #> ${path}::text[])
+    ELSE ${payload} END`,
+  sql`excluded.payload`,
+);
 
 export async function updateProject(
   tx: DrizzleDb,
@@ -84,6 +98,42 @@ export async function recordProjectLastDeployment(
   `);
 }
 
+/**
+ * Records the stable repository identity from a delivery. A rename or transfer
+ * changes only the name; the id is the compare-and-set key, so the update is a
+ * no-op when the stored identity already matches. Delivery-owned, no project
+ * lock — same rule as `lastDeployment` / `defaultBranch`.
+ */
+export async function recordProjectRepositoryIdentity(
+  drizzle: DrizzleDb,
+  projectId: string,
+  identity: { repoId: number; fullName: string },
+): Promise<void> {
+  const sourceRef = `https://github.com/${identity.fullName}`;
+  await drizzle.execute(sql`
+    UPDATE projects
+    SET payload = jsonb_set(
+      jsonb_set(
+        jsonb_set(
+          payload,
+          '{github,repoId}'::text[],
+          to_jsonb(${identity.repoId}::bigint)
+        ),
+        '{github,fullName}'::text[],
+        to_jsonb(${identity.fullName}::text)
+      ),
+      '{sourceRef}'::text[],
+      to_jsonb(${sourceRef}::text)
+    )
+    WHERE id = ${projectId}
+      AND (
+        payload->'github'->>'repoId' IS DISTINCT FROM ${String(identity.repoId)}
+        OR lower(payload->'github'->>'fullName') IS DISTINCT FROM lower(${identity.fullName})
+        OR payload->>'sourceRef' IS DISTINCT FROM ${sourceRef}
+      )
+  `);
+}
+
 export async function deleteProject(
   tx: DrizzleDb,
   projectId: string,
@@ -125,53 +175,107 @@ export async function getProjectById(
 export async function findProjectsByGithubFullName(
   drizzle: DrizzleDb,
   fullName: string,
-): Promise<
-  Array<{
-    id: string;
-    orgId: string;
-    defaultBranch?: string;
-    trackedBranch?: string;
-    installationId?: number;
-  }>
-> {
+): Promise<DeliveryProject[]> {
   const normalized = fullName.toLowerCase();
-  const rows = await drizzle
-    .select({
-      id: projects.id,
-      orgId: projects.orgId,
-      githubDefaultBranch: sql<
-        string | null
-      >`${projects.payload}->'github'->>'defaultBranch'`,
-      githubTrackedBranch: sql<
-        string | null
-      >`${projects.payload}->'github'->>'trackedBranch'`,
-      githubInstallationId: sql<
-        string | null
-      >`${projects.payload}->'github'->>'installationId'`,
-    })
-    .from(projects)
-    .where(
-      sql`lower((${projects.payload}->'github'->>'fullName')) = ${normalized}`,
-    )
-    .orderBy(projects.id);
-  return rows.flatMap((row) => {
-    if (!row?.orgId) return [];
-    return [
-      {
-        id: row.id,
-        orgId: row.orgId,
-        ...(typeof row.githubDefaultBranch === "string"
-          ? { defaultBranch: row.githubDefaultBranch }
-          : {}),
-        ...(typeof row.githubTrackedBranch === "string" &&
-        row.githubTrackedBranch.length > 0
-          ? { trackedBranch: row.githubTrackedBranch }
-          : {}),
-        ...(typeof row.githubInstallationId === "string" &&
-        row.githubInstallationId.length > 0
-          ? { installationId: Number(row.githubInstallationId) }
-          : {}),
-      },
-    ];
+  return findDeliveryProjects(
+    drizzle,
+    sql`lower((${projects.payload}->'github'->>'fullName')) = ${normalized}`,
+  );
+}
+
+/**
+ * Stable-identity lookup: a repository id survives renames and transfers, so
+ * deliveries try this before falling back to `fullName` (legacy rows connected
+ * before the id was stored).
+ */
+export async function findProjectsByGithubRepoId(
+  drizzle: DrizzleDb,
+  repoId: number,
+): Promise<DeliveryProject[]> {
+  return findDeliveryProjects(
+    drizzle,
+    sql`(${projects.payload}->'github'->>'repoId') = ${String(repoId)}`,
+  );
+}
+
+export interface DeliveryProject {
+  id: string;
+  orgId: string;
+  fullName?: string;
+  repoId?: number;
+  defaultBranch?: string;
+  trackedBranch?: string;
+  installationId?: number;
+}
+
+const DELIVERY_PROJECT_COLUMNS = {
+  id: projects.id,
+  orgId: projects.orgId,
+  githubFullName: sql<
+    string | null
+  >`${projects.payload}->'github'->>'fullName'`,
+  githubRepoId: sql<string | null>`${projects.payload}->'github'->>'repoId'`,
+  githubDefaultBranch: sql<
+    string | null
+  >`${projects.payload}->'github'->>'defaultBranch'`,
+  githubTrackedBranch: sql<
+    string | null
+  >`${projects.payload}->'github'->>'trackedBranch'`,
+  githubInstallationId: sql<
+    string | null
+  >`${projects.payload}->'github'->>'installationId'`,
+} as const;
+
+type DeliveryProjectRow = {
+  id: string;
+  orgId: string;
+  githubFullName: string | null;
+  githubRepoId: string | null;
+  githubDefaultBranch: string | null;
+  githubTrackedBranch: string | null;
+  githubInstallationId: string | null;
+};
+
+function positiveInteger(value: string | null): number | undefined {
+  if (value === null) return undefined;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function nonEmpty(value: string | null): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function toDeliveryProjects(
+  rows: readonly DeliveryProjectRow[],
+): DeliveryProject[] {
+  return rows.map((row) => {
+    const repoId = positiveInteger(row.githubRepoId);
+    const fullName = nonEmpty(row.githubFullName);
+    const trackedBranch = nonEmpty(row.githubTrackedBranch);
+    const installationId = positiveInteger(row.githubInstallationId);
+    return {
+      id: row.id,
+      orgId: row.orgId,
+      ...(fullName ? { fullName } : {}),
+      ...(repoId !== undefined ? { repoId } : {}),
+      ...(typeof row.githubDefaultBranch === "string"
+        ? { defaultBranch: row.githubDefaultBranch }
+        : {}),
+      ...(trackedBranch ? { trackedBranch } : {}),
+      ...(installationId !== undefined ? { installationId } : {}),
+    };
   });
+}
+
+async function findDeliveryProjects(
+  drizzle: DrizzleDb,
+  condition: SQL,
+): Promise<DeliveryProject[]> {
+  const rows = await drizzle
+    .select(DELIVERY_PROJECT_COLUMNS)
+    .from(projects)
+    .where(condition)
+    .orderBy(projects.id);
+  return toDeliveryProjects(rows as DeliveryProjectRow[]);
 }

@@ -10,6 +10,7 @@ const repo = {
   name: "app",
   description: null,
   private: false,
+  id: 1,
   defaultBranch: "main",
   updatedAt: "2026-01-01T00:00:00.000Z",
   htmlUrl: "https://github.com/acme/app",

@@ -46,6 +46,7 @@ export function octokitErrorMessage(error: unknown, fallback: string): string {
 }
 
 type GitHubRepoApiShape = {
+  id: number;
   full_name: string;
   name: string;
   description: string | null;
@@ -73,6 +74,7 @@ export function mapGitHubRepo(
   installationId?: number,
 ): GitHubRepoSummary {
   return {
+    id: repo.id,
     fullName: repo.full_name,
     name: repo.name,
     description: repo.description,

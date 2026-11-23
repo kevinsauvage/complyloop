@@ -53,16 +53,21 @@ export function uniqueProjectName(db: WorkspaceSlice, desired: string): string {
 
 /**
  * A GitHub repo is already connected for this org when it belongs to the
- * active org. Matches connect-action duplicate detection.
+ * active org. Matches connect-action duplicate detection. The stable repo id
+ * also counts: a repo renamed since it was connected still carries its old
+ * name until a delivery heals it, and must not be connected a second time
+ * under the new one (both projects would then receive every delivery).
  */
 export function isConnectedGitHubProject(
   project: Project,
   normalizedFullName: string,
   activeOrgId: string | null,
+  repoId?: number,
 ): boolean {
   if (!activeOrgId) return false;
   if (project.source !== "github" || project.orgId !== activeOrgId)
     return false;
+  if (repoId !== undefined && project.github?.repoId === repoId) return true;
   if (!project.github?.fullName) return false;
   return (
     normalizeGitHubFullName(project.github.fullName) === normalizedFullName
@@ -73,11 +78,12 @@ export function findConnectedGitHubProject(
   projects: ReadonlyArray<Project>,
   fullName: string,
   activeOrgId: string | null,
+  repoId?: number,
 ): Project | undefined {
   if (!activeOrgId) return undefined;
   const needle = normalizeGitHubFullName(fullName);
   return projects.find((project) =>
-    isConnectedGitHubProject(project, needle, activeOrgId),
+    isConnectedGitHubProject(project, needle, activeOrgId, repoId),
   );
 }
 
@@ -101,6 +107,8 @@ export function connectedGitHubProjectsByFullName(
 
 interface ConnectGitHubRepoInput {
   fullName: string;
+  /** Stable GitHub repository id: the webhook identity that survives renames. */
+  repoId: number;
   defaultBranch: string;
   private: boolean;
   ownerUserId: string;
@@ -156,6 +164,7 @@ export async function connectGitHubRepo(
     db.projects,
     fullName,
     input.orgId,
+    input.repoId,
   );
   if (existing) {
     // Already connected: no-op, no duplicate evidence.
@@ -167,6 +176,7 @@ export async function connectGitHubRepo(
   const name = uniqueProjectName(db, deriveProjectName(fullName));
   const github: ProjectGitHubMeta = {
     fullName,
+    repoId: input.repoId,
     defaultBranch: input.defaultBranch || "main",
     private: input.private,
     ...(input.installationId != null

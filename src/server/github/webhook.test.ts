@@ -5,8 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { handleGitHubWebhookEvent, verifyGitHubSignature } from "./webhook";
 
 const findProjectsByGithubFullName = vi.hoisted(() => vi.fn());
+const findProjectsByGithubRepoId = vi.hoisted(() => vi.fn());
 const recordProjectDefaultBranch = vi.hoisted(() => vi.fn());
 const recordProjectLastDeployment = vi.hoisted(() => vi.fn());
+const recordProjectRepositoryIdentity = vi.hoisted(() => vi.fn());
 const enqueueAssessmentJob = vi.hoisted(() => vi.fn());
 const assertRateLimit = vi.hoisted(() => vi.fn());
 const latestWebhookJobRef = vi.hoisted(() => vi.fn());
@@ -15,10 +17,14 @@ vi.mock("@complyloop/db/postgres", () => ({ getDrizzle: async () => ({}) }));
 vi.mock("@complyloop/db/repo/projects", () => ({
   findProjectsByGithubFullName: (...args: unknown[]) =>
     findProjectsByGithubFullName(...args),
+  findProjectsByGithubRepoId: (...args: unknown[]) =>
+    findProjectsByGithubRepoId(...args),
   recordProjectDefaultBranch: (...args: unknown[]) =>
     recordProjectDefaultBranch(...args),
   recordProjectLastDeployment: (...args: unknown[]) =>
     recordProjectLastDeployment(...args),
+  recordProjectRepositoryIdentity: (...args: unknown[]) =>
+    recordProjectRepositoryIdentity(...args),
 }));
 vi.mock("../assessment/assessment-jobs", () => ({
   enqueueAssessmentJob,
@@ -26,9 +32,17 @@ vi.mock("../assessment/assessment-jobs", () => ({
 }));
 vi.mock("../rate-limit", () => ({ assertRateLimit }));
 
+beforeEach(() => {
+  findProjectsByGithubFullName.mockResolvedValue([]);
+  findProjectsByGithubRepoId.mockResolvedValue([]);
+  recordProjectRepositoryIdentity.mockResolvedValue(undefined);
+});
+
 afterEach(() => {
   delete process.env.GITHUB_WEBHOOK_SECRET;
   vi.clearAllMocks();
+  findProjectsByGithubRepoId.mockReset();
+  recordProjectRepositoryIdentity.mockReset();
 });
 
 describe("verifyGitHubSignature", () => {
@@ -94,6 +108,192 @@ describe("handleGitHubWebhookEvent", () => {
       message: "Queued re-assessment of acme/app.",
       jobIds: ["job-1"],
     });
+  });
+
+  it("resolves a renamed repository by its stable id and heals the stored name", async () => {
+    const sha = "c".repeat(40);
+    findProjectsByGithubRepoId.mockResolvedValue([
+      {
+        id: "p1",
+        orgId: "org-1",
+        fullName: "acme/old-name",
+        repoId: 42,
+        defaultBranch: "main",
+      },
+    ]);
+    enqueueAssessmentJob.mockResolvedValue({ id: "job-renamed" });
+
+    const result = await handleGitHubWebhookEvent(
+      "push",
+      {
+        repository: { id: 42, full_name: "acme/new-name" },
+        ref: "refs/heads/main",
+        after: sha,
+      },
+      "delivery-renamed",
+    );
+
+    expect(findProjectsByGithubRepoId).toHaveBeenCalledWith({}, 42);
+    expect(recordProjectRepositoryIdentity).toHaveBeenCalledWith({}, "p1", {
+      repoId: 42,
+      fullName: "acme/new-name",
+    });
+    expect(enqueueAssessmentJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "p1",
+        idempotencyKey: "delivery-renamed:p1",
+      }),
+    );
+    expect(result.handled).toBe(true);
+  });
+
+  it("backfills the repository id for a legacy project matched by name", async () => {
+    const sha = "d".repeat(40);
+    findProjectsByGithubFullName.mockResolvedValue([
+      { id: "p1", orgId: "org-1", fullName: "acme/app", defaultBranch: "main" },
+    ]);
+    enqueueAssessmentJob.mockResolvedValue({ id: "job-legacy" });
+
+    await handleGitHubWebhookEvent(
+      "push",
+      {
+        repository: { id: 42, full_name: "acme/app" },
+        ref: "refs/heads/main",
+        after: sha,
+      },
+      "delivery-legacy",
+    );
+
+    expect(findProjectsByGithubRepoId).toHaveBeenCalledWith({}, 42);
+    expect(recordProjectRepositoryIdentity).toHaveBeenCalledWith({}, "p1", {
+      repoId: 42,
+      fullName: "acme/app",
+    });
+  });
+
+  it("never routes to or rebinds a same-named project bound to another repository", async () => {
+    // acme/app was renamed away (id 7) and a new repository took its name (id 42).
+    findProjectsByGithubFullName.mockResolvedValue([
+      {
+        id: "p1",
+        orgId: "org-1",
+        fullName: "acme/app",
+        repoId: 7,
+        defaultBranch: "main",
+      },
+    ]);
+
+    const result = await handleGitHubWebhookEvent(
+      "push",
+      {
+        repository: { id: 42, full_name: "acme/app" },
+        ref: "refs/heads/main",
+        after: "f".repeat(40),
+      },
+      "delivery-impostor",
+    );
+
+    expect(result.handled).toBe(false);
+    expect(recordProjectRepositoryIdentity).not.toHaveBeenCalled();
+    expect(enqueueAssessmentJob).not.toHaveBeenCalled();
+  });
+
+  it("keeps delivering to a legacy row in another org once one row has the id", async () => {
+    findProjectsByGithubRepoId.mockResolvedValue([
+      {
+        id: "p1",
+        orgId: "org-1",
+        fullName: "acme/app",
+        repoId: 42,
+        defaultBranch: "main",
+        installationId: 9,
+      },
+    ]);
+    findProjectsByGithubFullName.mockResolvedValue([
+      {
+        id: "p1",
+        orgId: "org-1",
+        fullName: "acme/app",
+        repoId: 42,
+        defaultBranch: "main",
+        installationId: 9,
+      },
+      {
+        id: "p2",
+        orgId: "org-2",
+        fullName: "acme/app",
+        defaultBranch: "main",
+        installationId: 9,
+      },
+    ]);
+    enqueueAssessmentJob.mockResolvedValue({ id: "job-shared" });
+
+    await handleGitHubWebhookEvent(
+      "push",
+      {
+        installation: { id: 9 },
+        repository: { id: 42, full_name: "acme/app" },
+        ref: "refs/heads/main",
+        after: "a".repeat(40),
+      },
+      "delivery-shared",
+    );
+
+    expect(enqueueAssessmentJob).toHaveBeenCalledTimes(2);
+    expect(recordProjectRepositoryIdentity).toHaveBeenCalledTimes(1);
+    expect(recordProjectRepositoryIdentity).toHaveBeenCalledWith({}, "p2", {
+      repoId: 42,
+      fullName: "acme/app",
+    });
+  });
+
+  it("still runs the delivery when recording the identity fails", async () => {
+    findProjectsByGithubFullName.mockResolvedValue([
+      { id: "p1", orgId: "org-1", fullName: "acme/app", defaultBranch: "main" },
+    ]);
+    recordProjectRepositoryIdentity.mockRejectedValue(
+      new Error("duplicate key value violates unique constraint"),
+    );
+    enqueueAssessmentJob.mockResolvedValue({ id: "job-heal-failed" });
+
+    const result = await handleGitHubWebhookEvent(
+      "push",
+      {
+        repository: { id: 42, full_name: "acme/app" },
+        ref: "refs/heads/main",
+        after: "9".repeat(40),
+      },
+      "delivery-heal-failed",
+    );
+
+    expect(enqueueAssessmentJob).toHaveBeenCalledTimes(1);
+    expect(result.handled).toBe(true);
+  });
+
+  it("does not rewrite an unchanged identity", async () => {
+    const sha = "e".repeat(40);
+    findProjectsByGithubRepoId.mockResolvedValue([
+      {
+        id: "p1",
+        orgId: "org-1",
+        fullName: "acme/app",
+        repoId: 42,
+        defaultBranch: "main",
+      },
+    ]);
+    enqueueAssessmentJob.mockResolvedValue({ id: "job-same" });
+
+    await handleGitHubWebhookEvent(
+      "push",
+      {
+        repository: { id: 42, full_name: "acme/app" },
+        ref: "refs/heads/main",
+        after: sha,
+      },
+      "delivery-same",
+    );
+
+    expect(recordProjectRepositoryIdentity).not.toHaveBeenCalled();
   });
 
   describe("deployment_status", () => {

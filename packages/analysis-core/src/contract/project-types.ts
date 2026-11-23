@@ -68,6 +68,12 @@ export interface OrgMembership {
 
 export interface ProjectGitHubMeta {
   fullName: string;
+  /**
+   * Stable GitHub numeric repository id. Survives renames and transfers, so a
+   * webhook resolves the project by id before falling back to `fullName`
+   * (legacy rows connected before the id was stored).
+   */
+  repoId?: number;
   defaultBranch: string;
   /**
    * Branch ComplyLoop treats as the project's truth: its pushes and deployments

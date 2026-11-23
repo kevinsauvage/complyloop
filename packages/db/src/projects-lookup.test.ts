@@ -6,9 +6,11 @@ import type { Project } from "@complyloop/analysis-core/contract/project-types";
 import { closeDrizzle, getDrizzle } from "./postgres";
 import {
   findProjectsByGithubFullName,
+  findProjectsByGithubRepoId,
   getProjectById,
   recordProjectDefaultBranch,
   recordProjectLastDeployment,
+  recordProjectRepositoryIdentity,
   updateProject,
 } from "./repo/projects";
 
@@ -76,6 +78,88 @@ describe.skipIf(!enabled)("project github lookup", () => {
       expect(
         matches.find((match) => match.id === projectB)?.installationId,
       ).toBe(222);
+    } finally {
+      await drizzle.execute(
+        sql`DELETE FROM projects WHERE id IN (${projectA}, ${projectB})`,
+      );
+      await drizzle.execute(
+        sql`DELETE FROM organizations WHERE id IN (${orgA}, ${orgB})`,
+      );
+    }
+  });
+
+  it("finds a project by stable repo id and keeps a rename through a stale save", async () => {
+    const drizzle = await getDrizzle();
+    const suffix = `${Date.now()}-repo-id`;
+    const orgA = `org-repo-a-${suffix}`;
+    const orgB = `org-repo-b-${suffix}`;
+    const projectA = `proj-repo-a-${suffix}`;
+    const projectB = `proj-repo-b-${suffix}`;
+    const oldName = `acme/old-${suffix}`;
+    const newName = `acme/new-${suffix}`;
+    const repoId = 777_000_000 + (Date.now() % 1_000_000);
+
+    await drizzle.execute(sql`
+      INSERT INTO organizations (id, slug, payload)
+      VALUES
+        (${orgA}, ${`slug-repo-a-${suffix}`}, '{}'::jsonb),
+        (${orgB}, ${`slug-repo-b-${suffix}`}, '{}'::jsonb)
+    `);
+    await drizzle.execute(sql`
+      INSERT INTO projects (id, name, owner_user_id, org_id, payload)
+      VALUES
+        (${projectB}, 'repo-b', ${`user-${suffix}`}, ${orgB}, ${JSON.stringify({
+          github: {
+            fullName: oldName,
+            repoId,
+            defaultBranch: "main",
+            installationId: 222,
+          },
+        })}::jsonb),
+        (${projectA}, 'repo-a', ${`user-${suffix}`}, ${orgA}, ${JSON.stringify({
+          github: {
+            fullName: oldName,
+            repoId,
+            defaultBranch: "main",
+            installationId: 111,
+          },
+        })}::jsonb)
+    `);
+
+    try {
+      const matches = await findProjectsByGithubRepoId(drizzle, repoId);
+      expect(matches.map((match) => match.id)).toEqual(
+        [projectA, projectB].sort(),
+      );
+      expect(matches.every((match) => match.repoId === repoId)).toBe(true);
+
+      const stale: Project = {
+        id: projectA,
+        name: "repo-a",
+        source: "github",
+        sourceRef: `https://github.com/${oldName}`,
+        orgId: orgA,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        github: {
+          fullName: oldName,
+          repoId,
+          defaultBranch: "main",
+          private: false,
+          installationId: 111,
+        },
+      };
+
+      await recordProjectRepositoryIdentity(drizzle, projectA, {
+        repoId,
+        fullName: newName,
+      });
+      // A settings save holding the pre-rename copy must not revert it.
+      await updateProject(drizzle, stale);
+
+      const after = await getProjectById(drizzle, projectA);
+      expect(after?.github?.fullName).toBe(newName);
+      expect(after?.github?.repoId).toBe(repoId);
+      expect(after?.sourceRef).toBe(`https://github.com/${newName}`);
     } finally {
       await drizzle.execute(
         sql`DELETE FROM projects WHERE id IN (${projectA}, ${projectB})`,
