@@ -3,7 +3,6 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import type {
   Assessment,
-  AssessmentSnapshot,
   Finding,
 } from "@complyloop/analysis-core/contract/entities";
 
@@ -119,7 +118,6 @@ describe.skipIf(!enabled)("typed query columns", () => {
     const drizzle = await getDrizzle();
     const suffix = `${Date.now()}-typed-completed`;
     const fixture = await insertProjectSliceFixture(drizzle, suffix);
-    const snapshot: AssessmentSnapshot = { fileHashes: {} };
     const summary = {
       passed: 0,
       failed: 0,
@@ -145,9 +143,10 @@ describe.skipIf(!enabled)("typed query columns", () => {
       completedAt: "2026-01-01T22:00:00.000Z",
       filesScanned: 1,
       summary,
+      sources: { gitHead: "cafebabe", controlScopeKey: "scope" },
     };
-    await insertAssessment(drizzle, older, snapshot);
-    await insertAssessment(drizzle, newer, snapshot);
+    await insertAssessment(drizzle, older);
+    await insertAssessment(drizzle, newer);
 
     try {
       const [latest] = await listLatestAssessmentForProject(
@@ -155,6 +154,11 @@ describe.skipIf(!enabled)("typed query columns", () => {
         fixture.projectId,
       );
       expect(latest?.id).toBe(newer.id);
+      // Source state rides in the payload JSONB (no snapshot table).
+      expect(latest?.sources).toEqual({
+        gitHead: "cafebabe",
+        controlScopeKey: "scope",
+      });
     } finally {
       await cleanupProjectSliceFixture(drizzle, fixture);
     }

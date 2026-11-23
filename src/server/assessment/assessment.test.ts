@@ -72,6 +72,23 @@ async function assess(
   return run;
 }
 
+/**
+ * Commit the given checkout files so `readRepoHead` has a parent run to
+ * compare against — change detection asks git, not the file tree.
+ */
+async function commitAll(paths: string[], message: string): Promise<string> {
+  await git.init({ fs, dir: rootPath, defaultBranch: "main" });
+  for (const filepath of paths) {
+    await git.add({ fs, dir: rootPath, filepath });
+  }
+  return git.commit({
+    fs,
+    dir: rootPath,
+    message,
+    author: { name: "test", email: "test@example.com" },
+  });
+}
+
 describe("runAssessment", () => {
   it("creates findings, remediations with suggestions, and requirement statuses", async () => {
     const { assessment } = await assess();
@@ -341,12 +358,20 @@ describe("runAssessment", () => {
     ).toBe("Out of scope for this release");
   });
 
-  it("records a snapshot and attributes file changes on re-assessment", async () => {
+  it("records source state and attributes file changes on re-assessment", async () => {
+    await commitAll(["Hero.tsx"], "broken");
     const { assessment: first } = await assess();
-    expect(first.snapshot?.fileHashes["Hero.tsx"]).toBeDefined();
+    expect(first.sources?.gitHead).toBeDefined();
+    expect(first.changesSincePrevious).toEqual([]);
 
     fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
-    const { assessment: second } = await assess();
+    const head = await commitAll(["Hero.tsx"], "fixed");
+    const compareCommits = vi.fn(async () => [
+      { filePath: "Hero.tsx", removed: false },
+    ]);
+    const { assessment: second } = await assess({ rootPath, compareCommits });
+
+    expect(compareCommits).toHaveBeenCalledWith(first.sources?.gitHead, head);
     expect(
       second.changesSincePrevious?.some((c) => c.filePath === "Hero.tsx"),
     ).toBe(true);
@@ -474,6 +499,7 @@ describe("runAssessment", () => {
         control.checkId !== "duplicate-id",
     );
     fs.writeFileSync(path.join(rootPath, "Other.tsx"), BROKEN);
+    await commitAll(["Hero.tsx", "Other.tsx"], "broken");
     await assess({ rootPath, controls: scopedControls });
     const otherFinding = db.findings.find(
       (finding) =>
@@ -485,9 +511,11 @@ describe("runAssessment", () => {
 
     // Only Hero.tsx changes; Other.tsx must stay open under scoped scan.
     fs.writeFileSync(path.join(rootPath, "Hero.tsx"), FIXED);
+    await commitAll(["Hero.tsx"], "fix hero");
     const { assessment: second } = await assess({
       rootPath,
       controls: scopedControls,
+      compareCommits: async () => [{ filePath: "Hero.tsx", removed: false }],
     });
     expect(second.scanMode).toBe("scoped");
     expect(

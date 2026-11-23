@@ -14,7 +14,6 @@ import {
 import type {
   Alert,
   Assessment,
-  AssessmentSnapshot,
   Finding,
   Remediation,
   Requirement,
@@ -40,9 +39,6 @@ import {
  *
  * Foreign keys use ON DELETE CASCADE on mutable tables. Evidence has no FKs —
  * rows outlive project disconnect and organization deletion.
- *
- * Assessment file-hash snapshots live in {@link assessmentSnapshots}, not in
- * the assessment payload, so workspace reads stay bounded.
  */
 
 function sqlIn(column: ReturnType<typeof sql>, values: readonly string[]) {
@@ -152,8 +148,8 @@ export const requirements = pgTable(
   ],
 );
 
-/** Assessment metadata without snapshot (snapshot is in assessment_snapshots). */
-export type AssessmentPayload = Omit<Assessment, "snapshot">;
+/** Assessment payload: the whole entity. Source state rides in the JSONB. */
+export type AssessmentPayload = Assessment;
 
 export const assessments = pgTable(
   "assessments",
@@ -181,18 +177,6 @@ export const assessments = pgTable(
     ),
   ],
 );
-
-/** File-hash snapshot for change detection; loaded only during assessment runs. */
-export const assessmentSnapshots = pgTable("assessment_snapshots", {
-  assessmentId: text("assessment_id")
-    .primaryKey()
-    .references(() => assessments.id, { onDelete: "cascade" }),
-  snapshot: jsonb("snapshot").$type<AssessmentSnapshot>().notNull(),
-  // Dedup marker: when a run's file hashes are byte-identical to the previous
-  // stored map, the row keeps gitHead/scope but stores an empty fileHashes
-  // map. Readers fall back to the latest row with hashesUnchanged = false.
-  hashesUnchanged: boolean("hashes_unchanged").notNull().default(false),
-});
 
 export const findings = pgTable(
   "findings",

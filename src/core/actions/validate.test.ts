@@ -15,7 +15,6 @@ import {
   parseEvidenceDateParam,
   parseEvidenceKindParam,
   parseEvidenceQueryParam,
-  parseReportViewParam,
   reportHref,
 } from "@/core/filter-params/evidence";
 import {
@@ -137,33 +136,11 @@ describe("parseEvidenceDateParam", () => {
   });
 });
 
-describe("parseReportViewParam", () => {
-  it("accepts the engineering view", () => {
-    expect(parseReportViewParam("engineering")).toBe("engineering");
-  });
-
-  it("defaults everything else to audit", () => {
-    expect(parseReportViewParam(undefined)).toBe("audit");
-    expect(parseReportViewParam(null)).toBe("audit");
-    expect(parseReportViewParam("audit")).toBe("audit");
-    expect(parseReportViewParam("bogus")).toBe("audit");
-  });
-});
-
 describe("report href builders", () => {
-  it("builds markdown and html hrefs for each view", () => {
-    expect(reportHref("p1", "audit", "markdown")).toBe(
-      "/projects/p1/evidence/report?view=audit",
-    );
-    expect(reportHref("p1", "engineering", "markdown")).toBe(
-      "/projects/p1/evidence/report?view=engineering",
-    );
-    expect(reportHref("p1", "audit", "html")).toBe(
-      "/projects/p1/evidence/report/html?view=audit",
-    );
-    expect(reportHref("p1", "engineering", "html")).toBe(
-      "/projects/p1/evidence/report/html?view=engineering",
-    );
+  it("maps the format to its report route", () => {
+    // The format names the view: markdown = engineering, html = audit.
+    expect(reportHref("p1", "markdown")).toBe("/projects/p1/evidence/report");
+    expect(reportHref("p1", "html")).toBe("/projects/p1/evidence/report/html");
   });
 });
 

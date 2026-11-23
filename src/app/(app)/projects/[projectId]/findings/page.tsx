@@ -149,7 +149,7 @@ export default async function FindingsPage({
           />
         ) : null}
         <Button variant="outline" size="sm" asChild>
-          <a href={reportHref(projectId, "engineering", "markdown")} download>
+          <a href={reportHref(projectId, "markdown")} download>
             Export engineering report
           </a>
         </Button>
@@ -278,10 +278,11 @@ export default async function FindingsPage({
                           </PageActionLink>
                           <Button variant="outline" size="sm" asChild>
                             <a
-                              href={reportHref(projectId, "audit", "markdown")}
-                              download
+                              href={reportHref(projectId, "html")}
+                              target="_blank"
+                              rel="noreferrer"
                             >
-                              Export audit report
+                              Open audit report
                             </a>
                           </Button>
                         </div>

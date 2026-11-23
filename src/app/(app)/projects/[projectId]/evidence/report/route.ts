@@ -2,10 +2,7 @@
 // that page's export menu (route handlers don't inherit layouts, so the (app)
 // group here is organizational only).
 import { loadReportInput } from "@/server/reporting/report";
-import {
-  buildAuditReportMarkdown,
-  buildEngineeringReportMarkdown,
-} from "@/server/reporting/report-markdown";
+import { buildReportMarkdown } from "@/server/reporting/report-markdown";
 
 function sanitizeDownloadFilename(raw: string, fallback = "download"): string {
   const cleaned = raw
@@ -26,18 +23,16 @@ export async function GET(
   const context = await loadReportInput(request, projectId);
   if (!context.ok) return context.response;
 
-  const { project, view, input } = context;
-  const markdown =
-    view === "engineering"
-      ? buildEngineeringReportMarkdown(input)
-      : buildAuditReportMarkdown(input);
+  const { project, input } = context;
+  // Markdown is the engineering view: the handoff engineers paste into a PR or
+  // a ticket. The audit artifact is the HTML report.
+  const markdown = buildReportMarkdown(input);
 
   const safeName = sanitizeDownloadFilename(project.name, "project");
-  const prefix = view === "engineering" ? "engineering-report" : "audit-report";
   return new Response(markdown, {
     headers: {
       "Content-Type": "text/markdown; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${prefix}-${safeName}.md"`,
+      "Content-Disposition": `attachment; filename="engineering-report-${safeName}.md"`,
     },
   });
 }

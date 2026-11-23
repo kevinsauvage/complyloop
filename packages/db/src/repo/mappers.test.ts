@@ -16,6 +16,7 @@ import type {
 
 import {
   alertToRow,
+  assessmentFromRow,
   assessmentToRow,
   evidenceToRow,
   findingToRow,
@@ -129,15 +130,22 @@ describe("repo mappers emit stable row shapes", () => {
     expect(findingToRow({} as unknown as Finding).engine).toBe("ast");
   });
 
-  it("assessment payload excludes the snapshot (stored separately)", () => {
-    const withSnapshot = {
+  it("keeps source state in the assessment payload", () => {
+    const assessment = {
       id: "a1",
       projectId: "p1",
-      snapshot: { fileHashes: { "a.tsx": "hash" }, gitHead: "abc" },
+      sources: { gitHead: "abc", controlScopeKey: "scope" },
     } as unknown as Assessment;
-    const row = assessmentToRow(withSnapshot);
-    expect(row.payload).not.toHaveProperty("snapshot");
-    expect(JSON.stringify(row.payload)).not.toContain("fileHashes");
+    const row = assessmentToRow(assessment);
+
+    expect(row.payload.sources).toEqual({
+      gitHead: "abc",
+      controlScopeKey: "scope",
+    });
+    expect(assessmentFromRow({ payload: row.payload }).sources).toEqual({
+      gitHead: "abc",
+      controlScopeKey: "scope",
+    });
   });
 
   it("round-trips evidence rows through the append-only table shape", () => {

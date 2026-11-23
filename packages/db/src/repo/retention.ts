@@ -15,15 +15,8 @@ import type { DrizzleDb } from "../postgres.ts";
  * - `findings.assessment_id` is `ON DELETE CASCADE`, so an assessment still
  *   referenced by a finding is never deleted: the finding keeps its provenance
  *   row, and the retention pass leaves that assessment behind.
- * - The newest *full* file-hash snapshot per project is kept. Consecutive runs
- *   over an unchanged tree store marker rows (`hashes_unchanged`), and
- *   `getLatestAssessmentSnapshot` falls back to the newest full map — pruning
- *   it would make `detectChanges` report the whole repo as changed.
  * - Only completed assessments are ranked; abandoned rows (never completed)
  *   age out separately so the table stays bounded.
- *
- * `assessment_snapshots` cascade with their assessment (`ON DELETE CASCADE`),
- * so they need no pass of their own.
  */
 export interface RetentionOptions {
   /** Completed assessments kept per project, newest first. */
@@ -114,15 +107,6 @@ export async function prunePipelineRetention(
               SELECT 1 FROM findings
               WHERE findings.project_id = ranked.project_id
                 AND findings.assessment_id = ranked.id
-            )
-            AND ranked.id IS DISTINCT FROM (
-              SELECT s2.assessment_id
-              FROM assessment_snapshots s2
-              JOIN assessments a2 ON a2.id = s2.assessment_id
-              WHERE a2.project_id = ranked.project_id
-                AND s2.hashes_unchanged = false
-              ORDER BY a2.completed_at DESC NULLS LAST, a2.id DESC
-              LIMIT 1
             )
           LIMIT ${limit}
         )

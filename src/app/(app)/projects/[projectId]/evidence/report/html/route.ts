@@ -2,10 +2,7 @@
 // that page's export menu (route handlers don't inherit layouts, so the (app)
 // group here is organizational only).
 import { loadReportInput } from "@/server/reporting/report";
-import {
-  buildAuditReportHtml,
-  buildEngineeringReportHtml,
-} from "@/server/reporting/report-html/report";
+import { buildReportHtml } from "@/server/reporting/report-html/report";
 
 export async function GET(
   request: Request,
@@ -15,12 +12,10 @@ export async function GET(
   const context = await loadReportInput(request, projectId);
   if (!context.ok) return context.response;
 
-  const { view, input } = context;
+  // The HTML report is the audit view: the printable/PDF artifact handed to a
+  // reviewer. The engineering handoff is Markdown (`report` route).
   const nonce = request.headers.get("x-nonce") ?? undefined;
-  const html =
-    view === "engineering"
-      ? buildEngineeringReportHtml(input, nonce)
-      : buildAuditReportHtml(input, nonce);
+  const html = await buildReportHtml(context.input, nonce);
 
   return new Response(html, {
     headers: {

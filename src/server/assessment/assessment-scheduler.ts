@@ -109,7 +109,7 @@ export async function runAssessmentJobBatch(
       const { pruneWebhookDeliveryRows } =
         await import("@complyloop/db/repo/webhook-deliveries");
       // Same treatment for old assessments and (by FK cascade) their
-      // snapshots; pg-boss deletes old jobs itself.
+      // bookkeeping rows; pg-boss deletes old jobs itself.
       const { prunePipelineRetention } =
         await import("@complyloop/db/repo/retention");
       const { getDrizzle } = await import("@complyloop/db/postgres");

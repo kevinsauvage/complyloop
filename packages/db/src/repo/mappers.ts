@@ -1,7 +1,6 @@
 import {
   type Alert,
   type Assessment,
-  type AssessmentSnapshot,
   EVIDENCE_KINDS,
   type EvidenceKind,
   type EvidenceRecord,
@@ -70,25 +69,18 @@ export function requirementToRow(requirement: Requirement) {
   });
 }
 
-function assessmentPayloadFrom(assessment: Assessment): AssessmentPayload {
-  const { snapshot, ...payload } = assessment;
-  void snapshot;
-  return payload;
-}
-
 export function assessmentToRow(assessment: Assessment) {
-  return withPayload(assessmentPayloadFrom(assessment), {
+  return withPayload(assessment, {
     projectId: assessment.projectId,
     startedAt: assessment.startedAt,
     completedAt: assessment.completedAt,
   });
 }
 
-export function assessmentFromRow(
-  row: { payload: AssessmentPayload },
-  snapshot?: AssessmentSnapshot,
-): Assessment {
-  return snapshot ? { ...row.payload, snapshot } : { ...row.payload };
+export function assessmentFromRow(row: {
+  payload: AssessmentPayload;
+}): Assessment {
+  return { ...row.payload };
 }
 
 export function findingToRow(finding: Finding) {

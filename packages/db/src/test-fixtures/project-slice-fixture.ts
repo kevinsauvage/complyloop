@@ -161,24 +161,20 @@ export async function insertProjectSliceFixture(
     detail: { controlId },
   };
 
-  await insertAssessment(
-    drizzle,
-    {
-      id: `assessment-${suffix}`,
-      projectId,
-      startedAt: "2026-01-01T00:00:00.000Z",
-      completedAt: "2026-01-01T00:00:00.000Z",
-      filesScanned: 1,
-      summary: {
-        passed: 0,
-        failed: 1,
-        needs_review: 0,
-        not_applicable: 0,
-        unable_to_verify: 0,
-      },
+  await insertAssessment(drizzle, {
+    id: `assessment-${suffix}`,
+    projectId,
+    startedAt: "2026-01-01T00:00:00.000Z",
+    completedAt: "2026-01-01T00:00:00.000Z",
+    filesScanned: 1,
+    summary: {
+      passed: 0,
+      failed: 1,
+      needs_review: 0,
+      not_applicable: 0,
+      unable_to_verify: 0,
     },
-    { fileHashes: {} },
-  );
+  });
   await upsertFindings(drizzle, [findingOne, findingTwo]);
   await upsertRemediations(drizzle, [remediationOne, remediationTwo]);
   await upsertRequirements(drizzle, [requirement]);

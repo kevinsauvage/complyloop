@@ -1,11 +1,6 @@
 import "server-only";
 
-import {
-  createCipheriv,
-  createDecipheriv,
-  createHash,
-  randomBytes,
-} from "node:crypto";
+import { createHash } from "node:crypto";
 
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
 import {
@@ -19,6 +14,7 @@ import {
   upsertGithubTokenRow,
 } from "@complyloop/db/repo/github-tokens";
 
+import { openAead, sealAead } from "../aead";
 import { reportError } from "../observability";
 
 interface EncryptedTokenEntry {
@@ -42,34 +38,15 @@ function deriveKey(): Buffer {
 }
 
 export function encryptToken(accessToken: string): EncryptedTokenEntry {
-  const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", deriveKey(), iv);
-  const ciphertext = Buffer.concat([
-    cipher.update(accessToken, "utf8"),
-    cipher.final(),
-  ]);
-  const tag = cipher.getAuthTag();
   return {
     v: 1,
-    iv: iv.toString("base64"),
-    tag: tag.toString("base64"),
-    ciphertext: ciphertext.toString("base64"),
+    ...sealAead(accessToken, deriveKey()),
     updatedAt: new Date().toISOString(),
   };
 }
 
 export function decryptToken(entry: EncryptedTokenEntry): string {
-  const decipher = createDecipheriv(
-    "aes-256-gcm",
-    deriveKey(),
-    Buffer.from(entry.iv, "base64"),
-  );
-  decipher.setAuthTag(Buffer.from(entry.tag, "base64"));
-  const plaintext = Buffer.concat([
-    decipher.update(Buffer.from(entry.ciphertext, "base64")),
-    decipher.final(),
-  ]);
-  return plaintext.toString("utf8");
+  return openAead(entry, deriveKey());
 }
 
 /**

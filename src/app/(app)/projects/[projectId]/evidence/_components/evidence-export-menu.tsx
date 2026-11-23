@@ -15,8 +15,12 @@ export function EvidenceExportMenu({ projectId }: { projectId: string }) {
   return (
     <div className="flex items-center gap-2">
       <Button variant="outline" size="sm" asChild>
-        <a href={reportHref(projectId, "audit", "markdown")} download>
-          Download audit report
+        <a
+          href={reportHref(projectId, "html")}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Open audit report
         </a>
       </Button>
       <DropdownMenu>
@@ -27,39 +31,11 @@ export function EvidenceExportMenu({ projectId }: { projectId: string }) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem asChild>
-            <a href={reportHref(projectId, "engineering", "markdown")} download>
+            <a href={reportHref(projectId, "markdown")} download>
               <span className="flex flex-col gap-0.5">
                 <span>Download engineering report</span>
                 <span className="text-xs text-muted-foreground">
                   Markdown for developers fixing findings
-                </span>
-              </span>
-            </a>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <a
-              href={reportHref(projectId, "audit", "html")}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <span className="flex flex-col gap-0.5">
-                <span>Open audit report</span>
-                <span className="text-xs text-muted-foreground">
-                  Auditor-ready HTML in a new tab
-                </span>
-              </span>
-            </a>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <a
-              href={reportHref(projectId, "engineering", "html")}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <span className="flex flex-col gap-0.5">
-                <span>Open engineering report</span>
-                <span className="text-xs text-muted-foreground">
-                  HTML in a new tab
                 </span>
               </span>
             </a>

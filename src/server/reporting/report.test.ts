@@ -12,10 +12,7 @@ import {
   sampleReportInput,
 } from "@/test-fixtures/report-input";
 
-import {
-  buildAuditReportMarkdown,
-  buildEngineeringReportMarkdown,
-} from "./report-markdown";
+import { buildReportMarkdown } from "./report-markdown";
 
 vi.mock("../workspace/workspace", () => ({
   getWorkspace: vi.fn(),
@@ -45,69 +42,9 @@ describe("displayControl", () => {
   });
 });
 
-describe("buildAuditReportMarkdown", () => {
-  it("includes summary, requirements, and human evidence labels for auditors", () => {
-    const markdown = buildAuditReportMarkdown(sampleReportInput());
-
-    expect(markdown).toContain("# Audit report — demo-app");
-    expect(markdown).toContain("| Failed |");
-    expect(markdown).toContain("Not applicable");
-    expect(markdown).toContain("Marketing microsite excluded from scope");
-    expect(markdown).toContain("## Evidence trail");
-    expect(markdown).toContain("Assessment completed");
-    expect(markdown).not.toContain("assessment_completed");
-    expect(markdown).not.toContain("Button.tsx:4");
-    expect(markdown).toContain("### RGAA 1.1 —");
-    expect(markdown).toContain("- **WCAG:** WCAG 1.1.1");
-  });
-
-  it("names the connected GitHub repository when there is one", () => {
-    const input = sampleReportInput();
-    input.project = {
-      ...input.project,
-      github: {
-        fullName: "acme/demo-app",
-        defaultBranch: "main",
-        private: false,
-      },
-    };
-
-    expect(buildAuditReportMarkdown(input)).toContain(
-      "- **GitHub repository:** `acme/demo-app`",
-    );
-  });
-
-  it("marks a truncated evidence trail and an empty one", () => {
-    const truncated = sampleReportInput();
-    truncated.evidenceTotal = 9;
-    truncated.evidenceTruncated = true;
-    expect(buildAuditReportMarkdown(truncated)).toContain(
-      "_Showing the latest 1 of 9 evidence records",
-    );
-
-    const empty = sampleReportInput();
-    empty.evidence = [];
-    empty.evidenceTotal = 0;
-    expect(buildAuditReportMarkdown(empty)).toContain(
-      "_No evidence recorded._",
-    );
-  });
-
-  it("labels controls with WCAG as primary when the assessment target is WCAG", () => {
-    const input = sampleReportInput();
-    input.framework = wcagFramework;
-
-    const markdown = buildAuditReportMarkdown(input);
-
-    expect(markdown).toContain(`**Framework:** ${wcagFramework.name}`);
-    expect(markdown).toContain("### WCAG 1.1.1 —");
-    expect(markdown).toContain("- **RGAA:** RGAA 1.1");
-  });
-});
-
-describe("buildEngineeringReportMarkdown", () => {
+describe("buildReportMarkdown", () => {
   it("includes open findings with snippets and omits full requirements table", () => {
-    const markdown = buildEngineeringReportMarkdown(sampleReportInput());
+    const markdown = buildReportMarkdown(sampleReportInput());
 
     expect(markdown).toContain("# Engineering report — demo-app");
     expect(markdown).toContain("## Open findings");
@@ -130,7 +67,7 @@ describe("buildEngineeringReportMarkdown", () => {
       },
     } as Finding;
 
-    const markdown = buildEngineeringReportMarkdown(input);
+    const markdown = buildReportMarkdown(input);
 
     // The fence is one backtick longer than the longest run in the snippet
     // (three), so the embedded fence cannot terminate the block early.
@@ -156,7 +93,7 @@ describe("buildEngineeringReportMarkdown", () => {
       },
     } as Remediation;
 
-    const markdown = buildEngineeringReportMarkdown(input);
+    const markdown = buildReportMarkdown(input);
 
     expect(markdown).toContain("### Findings by severity");
     expect(markdown).toContain("| Critical | 1 |");
@@ -171,7 +108,7 @@ describe("buildEngineeringReportMarkdown", () => {
   it("notes a capped list and says so when nothing is open", () => {
     const capped = sampleReportInput();
     capped.findingCounts = { ...capped.findingCounts, open: 12 };
-    expect(buildEngineeringReportMarkdown(capped)).toContain(
+    expect(buildReportMarkdown(capped)).toContain(
       "_Showing the 1 most severe of 12 open findings._",
     );
 
@@ -179,7 +116,7 @@ describe("buildEngineeringReportMarkdown", () => {
     clean.findings = [];
     clean.remediations = [];
     clean.findingCounts = { ...clean.findingCounts, open: 0 };
-    expect(buildEngineeringReportMarkdown(clean)).toContain(
+    expect(buildReportMarkdown(clean)).toContain(
       "_No open findings — nothing to fix right now._",
     );
   });
@@ -196,7 +133,7 @@ describe("buildEngineeringReportMarkdown", () => {
       },
     } as Finding;
 
-    const markdown = buildEngineeringReportMarkdown(input);
+    const markdown = buildReportMarkdown(input);
     const lines = markdown.split("\n");
 
     // Newlines are collapsed, so the payload can never start a real heading
@@ -214,27 +151,6 @@ describe("buildEngineeringReportMarkdown", () => {
     // Backtick in the file path cannot break out of its code span.
     expect(markdown).toContain("weird'file.tsx");
     expect(markdown).not.toContain("`weird`");
-  });
-
-  it("neutralizes markdown injection from evidence summaries", () => {
-    const input = sampleReportInput();
-    input.evidence = [
-      {
-        ...input.evidence[0]!,
-        summary: "Done | hacked | [evil](https://evil.example)",
-      },
-    ];
-
-    const markdown = buildAuditReportMarkdown(input);
-    const hackedLines = markdown
-      .split("\n")
-      .filter((line) => line.includes("hacked"));
-    expect(hackedLines.length).toBeGreaterThan(0);
-    for (const line of hackedLines) {
-      expect(line).toContain("\\| hacked \\|");
-      expect(line).not.toMatch(/(^|[^\\])\| hacked \|/);
-    }
-    expect(markdown).not.toMatch(/(^|[^\\])\[evil\]\(/);
   });
 });
 

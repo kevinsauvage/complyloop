@@ -25,10 +25,6 @@ import { getDrizzle } from "@complyloop/db/postgres";
 import { listEvidenceForExport } from "@complyloop/db/repo/evidence";
 import { countFindingsByStatusForProject } from "@complyloop/db/repo/findings";
 
-import {
-  parseReportViewParam,
-  type ReportView,
-} from "@/core/filter-params/evidence";
 import { publicErrorMessage } from "@/server/action-state";
 
 import { assertExportRateLimit } from "../rate-limit";
@@ -44,7 +40,7 @@ import type { ReportInput } from "./report-model";
 
 export type ReportLoadResult =
   | { ok: false; response: Response }
-  | { ok: true; project: Project; view: ReportView; input: ReportInput };
+  | { ok: true; project: Project; input: ReportInput };
 
 const CONTROLS_BY_ID: ReadonlyMap<string, Control> = new Map(
   shippedCatalog().controls.map((control) => [control.id, control]),
@@ -148,9 +144,6 @@ export async function loadReportInput(
     }
   }
 
-  const view = parseReportViewParam(
-    new URL(request.url).searchParams.get("view"),
-  );
   const drizzle = await getDrizzle();
   const scoped = scopedControlIds(project);
   // Reports render open findings and per-status totals only: load the open
@@ -172,7 +165,6 @@ export async function loadReportInput(
   return {
     ok: true,
     project,
-    view,
     input: reportInputForProject(
       { ...runtime, evidence: exported.records },
       project,

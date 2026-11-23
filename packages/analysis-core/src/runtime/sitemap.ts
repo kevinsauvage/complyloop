@@ -6,11 +6,14 @@
  * smuggle an outbound request into a unit test. Everything here is bounded —
  * a hostile sitemap must not be able to grow memory or the option list.
  *
- * Both scans below are linear. A regex like `/<loc\b[^>]*>([\s\S]*?)<\/loc>/g`
- * backtracks quadratically when a document is full of `<loc` openers and no
- * closers — a 1 MB body took ~30 s of synchronous CPU to reject — so the
- * element walk is done with `indexOf` instead.
+ * Element reading is delegated to `fast-xml-parser`, which scans the document
+ * linearly: a hand-rolled regex over `<loc>` backtracks quadratically on a
+ * document full of openers and no closers (a 1 MB body took ~30 s of
+ * synchronous CPU to reject). Malformed XML throws, which reads as "nothing to
+ * offer" — the picker already lets the user add pages by hand.
  */
+
+import { XMLParser } from "fast-xml-parser";
 
 import { normalizeRoutes } from "./routes.ts";
 
@@ -23,13 +26,15 @@ export const SITEMAP_MAX_DOCUMENTS = 5;
 /** Route options offered to the picker. */
 export const SITEMAP_MAX_URLS = 200;
 
-const NAMED_ENTITIES: Record<string, string> = {
-  amp: "&",
-  lt: "<",
-  gt: ">",
-  quot: '"',
-  apos: "'",
-};
+/** `urlset > url > loc` is the deepest legal nesting; extensions sit lower. */
+const MAX_LOC_DEPTH = 4;
+
+const parser = new XMLParser({
+  ignoreAttributes: true,
+  ignoreDeclaration: true,
+  // A `<loc>` holding digits is a path, not a number.
+  parseTagValue: false,
+});
 
 export type SitemapDocumentKind = "urlset" | "index" | "unknown";
 
@@ -41,128 +46,80 @@ export interface ParsedSitemapDocument {
 }
 
 /**
- * Decodes the XML text of one element. Invalid numeric references keep their
- * literal form instead of throwing: `String.fromCodePoint` raises on
- * out-of-range or `NaN` code points, and a hostile `<loc>&#x110000;</loc>`
- * must not turn "unparseable sitemap" into a 500.
+ * Root element name, with an optional namespace prefix (`<sm:urlset>` is
+ * legal). A sitemap index wins over a urlset: an index whose child list is
+ * read as pages would offer `.xml` files as routes.
  */
-function decodeXmlText(raw: string): string {
-  const trimmed = raw.trim();
-  // CDATA may be wrapped in whitespace (`<loc>\n  <![CDATA[…]]>\n</loc>`).
-  const unwrapped =
-    trimmed.startsWith("<![CDATA[") && trimmed.endsWith("]]>")
-      ? trimmed.slice("<![CDATA[".length, -"]]>".length)
-      : trimmed;
-
-  return unwrapped
-    .replace(
-      /&#x([0-9a-f]+);/gi,
-      (match, hex: string) => decodeCodePoint(hex, 16) ?? match,
-    )
-    .replace(
-      /&#(\d+);/g,
-      (match, digits: string) => decodeCodePoint(digits, 10) ?? match,
-    )
-    .replace(/&([a-z]+);/gi, (match, name: string) => {
-      return NAMED_ENTITIES[name.toLowerCase()] ?? match;
-    })
-    .trim();
-}
-
-function decodeCodePoint(digits: string, radix: 10 | 16): string | null {
-  const value = Number.parseInt(digits, radix);
-  if (!Number.isSafeInteger(value)) return null;
-  // Out of the Unicode range, or a lone surrogate half: not a valid character.
-  if (value < 0 || value > 0x10ffff) return null;
-  if (value >= 0xd800 && value <= 0xdfff) return null;
-  return String.fromCodePoint(value);
-}
-
-/** Removes `<!-- … -->` runs in one pass; an unterminated run swallows the rest. */
-function stripComments(source: string): string {
-  let out = "";
-  let cursor = 0;
-  for (;;) {
-    const start = source.indexOf("<!--", cursor);
-    if (start === -1) return out + source.slice(cursor);
-    out += source.slice(cursor, start);
-    const end = source.indexOf("-->", start + 4);
-    if (end === -1) return out;
-    cursor = end + 3;
-  }
-}
-
-function isTagSpace(code: number): boolean {
-  return code === 0x20 || code === 0x09 || code === 0x0a || code === 0x0d;
+function rootKind(tree: object): SitemapDocumentKind {
+  const roots = Object.keys(tree);
+  if (roots.some((key) => /(^|:)sitemapindex$/i.test(key))) return "index";
+  if (roots.some((key) => /(^|:)urlset$/i.test(key))) return "urlset";
+  return "unknown";
 }
 
 /**
- * Collects `<loc …>value</loc>` elements in document order.
+ * Collects `<loc>` values in document order, wherever they are nested.
  *
- * `<image:loc>` and `<video:loc>` are not matched: `indexOf("<loc")` needs the
- * `<` and `l` adjacent, so the prefixed form never qualifies. A malformed open
- * tag without `>` ends the walk rather than scanning to the end of the buffer.
+ * Keyed on the element name alone rather than on `urlset > url`, so a stray
+ * or differently-nested `<loc>` is still offered: the old hand parser was that
+ * permissive and real generators do wrap their root. `image:loc` and
+ * `video:loc` never match because their key carries the namespace prefix.
  */
-function readLocElements(source: string): {
-  locs: string[];
-  truncated: boolean;
-} {
-  const locs: string[] = [];
-  let cursor = 0;
+function collectLocs(
+  node: unknown,
+  depth: number,
+  locs: string[],
+  state: { truncated: boolean },
+): void {
+  if (state.truncated || depth > MAX_LOC_DEPTH) return;
+  if (Array.isArray(node)) {
+    for (const item of node) collectLocs(item, depth, locs, state);
+    return;
+  }
+  if (typeof node !== "object" || node === null) return;
 
-  for (;;) {
-    const open = source.indexOf("<loc", cursor);
-    if (open === -1) return { locs, truncated: false };
-
-    const afterName = source.charCodeAt(open + 4);
-    if (!isTagSpace(afterName) && afterName !== 0x3e /* > */) {
-      // `<location>` and friends: not the element we want.
-      cursor = open + 4;
+  for (const [key, value] of Object.entries(node)) {
+    if (key === "loc") {
+      if (typeof value !== "string") continue;
+      const loc = value.trim();
+      if (loc.length === 0) continue;
+      if (locs.length >= SITEMAP_MAX_LOCS) {
+        // More entries declared than the cap: say so instead of silently
+        // presenting a subset as the site's full page list.
+        state.truncated = true;
+        return;
+      }
+      locs.push(loc);
       continue;
     }
-
-    const tagEnd = source.indexOf(">", open);
-    if (tagEnd === -1) return { locs, truncated: false };
-
-    const close = source.indexOf("</loc", tagEnd);
-    if (close === -1) return { locs, truncated: false };
-    const afterClose = source.charCodeAt(close + 5);
-    if (!isTagSpace(afterClose) && afterClose !== 0x3e) {
-      cursor = close + 5;
-      continue;
-    }
-
-    if (locs.length >= SITEMAP_MAX_LOCS) return { locs, truncated: true };
-
-    const loc = decodeXmlText(source.slice(tagEnd + 1, close));
-    if (loc.length > 0) locs.push(loc);
-    cursor = close + 5;
+    collectLocs(value, depth + 1, locs, state);
   }
 }
 
 /**
- * Reads a sitemap or sitemap-index document. Comments are stripped first so a
- * commented-out `<loc>` is not offered as a page; CDATA wrappers are unwrapped
- * because real generators emit them around URLs containing `&`.
+ * Reads a sitemap or sitemap-index document. Comments are ignored by the
+ * parser, so a commented-out `<loc>` is not offered as a page, and CDATA
+ * wrappers are unwrapped because real generators emit them around URLs
+ * containing `&`.
  *
  * Malformed XML yields `kind: "unknown"` and no locations rather than an
- * error: a broken sitemap means "nothing to offer", which the picker already
- * handles by letting the user add pages by hand.
+ * error: a broken sitemap means "nothing to offer".
  */
 export function parseSitemapDocument(xml: string): ParsedSitemapDocument {
-  const source = stripComments(xml);
-  const kind: SitemapDocumentKind = /<sitemapindex\b/i.test(source)
-    ? "index"
-    : /<urlset\b/i.test(source)
-      ? "urlset"
-      : "unknown";
+  let tree: unknown;
+  try {
+    tree = parser.parse(xml);
+  } catch {
+    return { kind: "unknown", locs: [], truncated: false };
+  }
+  if (typeof tree !== "object" || tree === null) {
+    return { kind: "unknown", locs: [], truncated: false };
+  }
 
-  // HTML or a truncated document has no element worth walking. A recognised
-  // root is not required though: a namespace-prefixed root (`<sm:urlset>`) is
-  // legal and its <loc>s are still pages.
-  if (!source.includes("<loc")) return { kind, locs: [], truncated: false };
-
-  return { kind, ...readLocElements(source) };
+  const locs: string[] = [];
+  const state = { truncated: false };
+  collectLocs(tree, 0, locs, state);
+  return { kind: rootKind(tree), locs, truncated: state.truncated };
 }
 
 /**

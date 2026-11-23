@@ -4,7 +4,7 @@ import { requiresFullTreeScan } from "@complyloop/analysis-core/check-authority"
 import { checkRegistrySignature } from "@complyloop/analysis-core/checks/registry";
 import {
   type Assessment,
-  type AssessmentSnapshot,
+  type AssessmentSources,
   type FileChange,
 } from "@complyloop/analysis-core/contract/entities";
 import type { AssessmentEngines } from "@complyloop/analysis-core/contract/finding-types";
@@ -18,11 +18,18 @@ import type { RawFinding } from "@complyloop/analysis-core/types";
 import { latestAssessmentFor } from "@/core/assessment/assessment-helpers";
 import type { AssessmentJobStage } from "@/core/assessment/assessment-jobs";
 
+import { compareProjectCommits } from "../github/github-connector";
 import { reportWarning } from "../observability";
 import { assertAssessableCatalog } from "../workspace/project-scope";
 import type { RunAssessmentOptions } from "./assessment";
 import { type AssessmentPipelineInput } from "./assessment-scratch";
-import { detectChanges, readRepoHead, summarizeChanges } from "./monitor";
+import {
+  assertCheckoutQuota,
+  type CompareCommits,
+  readRepoHead,
+  resolveChanges,
+  summarizeChanges,
+} from "./monitor";
 import { buildRuntimeCoverage } from "./runtime-coverage";
 
 interface RuntimeScanEngineInput {
@@ -87,15 +94,15 @@ function pathnameOfUrl(url: string): string | null {
  * project row is touched and nothing is persisted. The worker scans once (in
  * the ephemeral checkout), then hands this to `reconcileAssessment` — which
  * runs on freshly loaded rows inside the apply transaction, so a scan that
- * takes minutes cannot reconcile against a stale snapshot.
+ * takes minutes cannot reconcile against rows that went stale.
  */
 export interface AssessmentScanResult {
   assessmentId: string;
   startedAt: string;
-  snapshot: AssessmentSnapshot;
+  sources: AssessmentSources;
   changes: FileChange[];
   changeContext: string | undefined;
-  /** Git head of the previous snapshot (for the change evidence detail). */
+  /** Git head of the previous assessment (for the change evidence detail). */
   previousGitHead: string | undefined;
   /** True when sources were reused without any scan (same commit + scope). */
   sourcesUnchanged: boolean;
@@ -174,9 +181,9 @@ export function createStageTimer(
 
 /**
  * Scan phase: read the checkout and produce raw findings + the assessment
- * snapshot, reusing prior findings when the commit, scope, and engine set are
+ * sources, reusing prior findings when the commit, scope, and engine set are
  * unchanged. Pure with respect to project rows — it reads `input` (project +
- * prior assessment snapshot) but never mutates it, and never writes evidence.
+ * prior assessment) but never mutates it, and never writes evidence.
  */
 export async function scanAssessment(
   input: AssessmentPipelineInput,
@@ -193,64 +200,91 @@ export async function scanAssessment(
   const stageMs: Record<string, number> = {};
   const timed = createStageTimer(stageMs, options.onStage, projectId);
 
-  // — Stage 2: change detection (snapshot + changed files). —
+  // — Stage 2: change detection (quota + changed files). —
   const previous = latestAssessmentFor(input.assessments, projectId);
   const scoped = assertAssessableCatalog(project, options.controls);
   // Reuse prior AST findings only when the commit, control scope, and engine
   // behavior version/check set are all unchanged. Any difference forces a real
   // scan so new/changed checks (or a bumped ANALYSIS_ENGINE_VERSION) are not
   // silently missed.
-  const snapshotKey = `${checkRegistrySignature()}#${scoped
+  const scopeKey = `${checkRegistrySignature()}#${scoped
     .map((control) => control.id)
     .sort()
     .join(",")}`;
   const head = await readRepoHead(rootPath);
   const sourcesUnchanged =
-    previous?.snapshot?.gitHead !== undefined &&
+    previous?.sources?.gitHead !== undefined &&
     head !== undefined &&
-    previous.snapshot.gitHead === head &&
-    previous.snapshot.controlScopeKey === snapshotKey;
+    previous.sources.gitHead === head &&
+    previous.sources.controlScopeKey === scopeKey;
 
-  const { snapshot, changes } = await timed("changedetection", async () => {
-    if (sourcesUnchanged && previous?.snapshot) {
-      return {
-        snapshot: { ...previous.snapshot },
-        changes: [] as FileChange[],
-      };
+  const changeSet = await timed("changedetection", async () => {
+    if (sourcesUnchanged) {
+      // Nothing is read from the tree this run (findings are reused), so the
+      // quota walk would only re-enumerate it for nothing.
+      return { changes: [] as FileChange[], removed: [], comparable: true };
     }
-    const detected = await detectChanges(rootPath, previous?.snapshot);
-    return { snapshot: detected.snapshot, changes: detected.changes };
+    await assertCheckoutQuota(rootPath);
+    const compare: CompareCommits =
+      options.compareCommits ??
+      ((base, tip) => compareProjectCommits(project, base, tip));
+    const resolved = await resolveChanges({
+      previousHead: previous?.sources?.gitHead,
+      head,
+      compare,
+    });
+    if (
+      previous?.sources?.gitHead !== undefined &&
+      head !== undefined &&
+      previous.sources.gitHead !== head &&
+      !resolved.comparable
+    ) {
+      // Every scan is a full scan until this clears: name the cause instead of
+      // leaving a "why is this slow / why did it miss a change" question.
+      reportWarning("Change comparison unavailable; scanning the whole tree", {
+        code: "assessment_change_compare_unavailable",
+        projectId,
+        previousGitHead: previous.sources.gitHead,
+        gitHead: head,
+      });
+    }
+    return resolved;
   });
-  snapshot.controlScopeKey = snapshotKey;
+  const sources: AssessmentSources = {
+    gitHead: head,
+    controlScopeKey: scopeKey,
+  };
+  const { changes, removed: deletedFiles } = changeSet;
   const changeContext =
     changes.length > 0 ? summarizeChanges(changes) : undefined;
 
   const changedJsx = changes
     .map((change) => change.filePath)
     .filter((filePath) => /\.(tsx|jsx)$/i.test(filePath));
-  // Files the previous snapshot knew but the current tree no longer has.
-  // `changes` already lists them (detectChanges adds missing paths), but the
-  // resolve scope must name them explicitly: a deleted file is never scanned,
-  // so its findings only clear when the file is in the invalidation set.
-  const deletedFiles = previous?.snapshot
-    ? Object.keys(previous.snapshot.fileHashes).filter(
-        (filePath) => snapshot.fileHashes[filePath] === undefined,
-      )
-    : [];
+  // Files the previous commit had but this one does not. `changes` does not
+  // list them, but the resolve scope must name them explicitly: a deleted file
+  // is never scanned, so its findings only clear when the file is in the
+  // invalidation set.
   const deletedJsx = deletedFiles.filter((filePath) =>
     /\.(tsx|jsx)$/i.test(filePath),
   );
   const hasDeletion = deletedFiles.length > 0;
   // Cross-file verdicts can shift with any cross-file change and deletions
   // invalidate per-file assumptions outright — both force a full-tree scan
-  // with an unbounded resolve scope instead of a scoped re-scan.
+  // with an unbounded resolve scope instead of a scoped re-scan. An
+  // incomparable range (no previous commit, force-push, API failure) is the
+  // same kind of unknown.
   const hasCrossFileChecks = scoped.some(
     (control) =>
       control.checkId !== null && requiresFullTreeScan(control.checkId),
   );
-  const forceFullScan = hasDeletion || hasCrossFileChecks;
+  const forceFullScan =
+    !changeSet.comparable || hasDeletion || hasCrossFileChecks;
   const useScoped =
-    Boolean(previous?.snapshot) && changedJsx.length > 0 && !forceFullScan;
+    changeSet.comparable &&
+    previous?.sources?.gitHead !== undefined &&
+    changedJsx.length > 0 &&
+    !forceFullScan;
 
   // — Stage 3: AST scan (full / scoped / reuse when sources unchanged). —
   const { astFindings, filesScanned, scanMode } = await timed("ast", () => {
@@ -387,10 +421,10 @@ export async function scanAssessment(
   return {
     assessmentId,
     startedAt,
-    snapshot,
+    sources,
     changes,
     changeContext,
-    previousGitHead: previous?.snapshot?.gitHead,
+    previousGitHead: previous?.sources?.gitHead,
     sourcesUnchanged,
     scopedFileSet,
     rawFindings: mergeRawFindings(

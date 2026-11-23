@@ -2,7 +2,7 @@
  * Assessment pipeline owner.
  *
  * Single place that answers "how does an assessment run?":
- * narrow input → `scanAssessment` (checkout → raw findings + snapshot) →
+ * narrow input → `scanAssessment` (checkout → raw findings + source state) →
  * `reconcileAssessment` on rows loaded inside the apply transaction → persist.
  * The worker (`assessment-worker.ts`) does load → `scanAssessment` →
  * `applyAuthoritativeAssessment`, with no inline status/alert/evidence logic.
@@ -107,11 +107,6 @@ export async function applyAuthoritativeAssessment(input: {
         onStage: input.onStage,
       },
     );
-    const snapshot = run.assessment.snapshot;
-    if (!snapshot) {
-      throw new Error("Assessment completed without a snapshot.");
-    }
-
     // Alerts are built from a read inside the transaction (under the project
     // write lock): matching against a pre-scan slice could refresh an alert the
     // user just read or mint duplicates of one just created.
@@ -127,7 +122,6 @@ export async function applyAuthoritativeAssessment(input: {
       tx,
       {
         assessment: run.assessment,
-        snapshot,
         evidence: run.evidence,
         findings: run.findings,
         remediations: run.remediations,
@@ -209,7 +203,7 @@ function buildRegressionAlerts(input: {
           trigger,
           controlId: record.controlId,
           findingId: openFinding?.id,
-          commitSha: assessment.snapshot?.gitHead,
+          commitSha: assessment.sources?.gitHead,
           changeFilePath: primaryChange?.filePath,
         },
       };

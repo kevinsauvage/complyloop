@@ -198,18 +198,18 @@ the newest 5000 rows and mark `truncated` — that bounds downloads, not the tab
 Pipeline bookkeeping is bounded automatically on every worker batch
 (`packages/db/src/repo/retention.ts`):
 
-| Table                  | Retention                                                                    |
-| ---------------------- | ---------------------------------------------------------------------------- |
-| pg-boss jobs           | finished jobs deleted after 30 days by pg-boss (`supervise`)                 |
-| `assessments`          | newest 30 **per project**, never one referenced by a finding                 |
-| `assessments` (stale)  | never-completed rows older than 30 days (abandoned runs), same finding guard |
-| `assessment_snapshots` | cascades with its assessment (`ON DELETE CASCADE`)                           |
+| Table                 | Retention                                                                    |
+| --------------------- | ---------------------------------------------------------------------------- |
+| pg-boss jobs          | finished jobs deleted after 30 days by pg-boss (`supervise`)                 |
+| `assessments`         | newest 30 **per project**, never one referenced by a finding                 |
+| `assessments` (stale) | never-completed rows older than 30 days (abandoned runs), same finding guard |
 
-Two extra guards keep the audit trail usable: the newest **full** file-hash
-snapshot per project is never pruned (consecutive unchanged runs store marker
-rows and change detection falls back to that full map), and assessments are
-ranked per project — a global ranking would delete a low-volume project's newest
-runs whenever another project was busier.
+One extra guard keeps the audit trail usable: assessments are ranked per
+project — a global ranking would delete a low-volume project's newest runs
+whenever another project was busier. Change detection no longer stores a
+file-hash map (the scanned commit lives in the assessment payload and the diff
+comes from the GitHub compare API), so retention has no snapshot table to
+protect.
 
 Evidence is append-only and keeps the `assessmentId` of a run that retention may
 later prune: evidence is the long-lived record, assessments are bookkeeping, and

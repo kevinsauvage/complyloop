@@ -172,7 +172,7 @@ function assessmentRun(
   assessment: {
     id: string;
     projectId: string;
-    snapshot: { fileHashes: Record<string, string> };
+    sources: { gitHead?: string };
   },
   slice: Partial<
     Pick<
@@ -200,7 +200,7 @@ beforeEach(() => {
   // produced a run. Tests override these when they assert on the payload.
   scanAssessment.mockResolvedValue(undefined);
   reconcileAssessment.mockResolvedValue(
-    assessmentRun({ id: "a1", projectId: "p1", snapshot: { fileHashes: {} } }),
+    assessmentRun({ id: "a1", projectId: "p1", sources: { gitHead: "abc" } }),
   );
   loadProjectRuntime.mockResolvedValue({
     requirements: [],
@@ -281,7 +281,7 @@ describe("settleRunningAssessmentJob", () => {
       assessmentRun({
         id: "a1",
         projectId: "p1",
-        snapshot: { fileHashes: {} },
+        sources: { gitHead: "abc" },
       }),
     );
     completeAssessmentJob.mockResolvedValue(undefined);
@@ -307,7 +307,7 @@ describe("settleRunningAssessmentJob", () => {
       assessmentRun({
         id: "a1",
         projectId: "p1",
-        snapshot: { fileHashes: {} },
+        sources: { gitHead: "abc" },
       }),
     );
     completeAssessmentJob.mockResolvedValue(undefined);
@@ -410,7 +410,7 @@ describe("settleRunningAssessmentJob", () => {
         assessmentRun({
           id: "a1",
           projectId: "p1",
-          snapshot: { fileHashes: {} },
+          sources: { gitHead: "abc" },
         }),
       );
 
@@ -456,7 +456,7 @@ describe("settleRunningAssessmentJob", () => {
         assessmentRun({
           id: "a1",
           projectId: "p1",
-          snapshot: { fileHashes: {} },
+          sources: { gitHead: "abc" },
         }),
       );
       await expect(pending).resolves.toEqual({
@@ -527,7 +527,7 @@ describe("settleRunningAssessmentJob", () => {
       assessmentRun({
         id: "a1",
         projectId: "p1",
-        snapshot: { fileHashes: {} },
+        sources: { gitHead: "abc" },
       }),
     );
     completeAssessmentJob.mockResolvedValue(undefined);
@@ -566,7 +566,7 @@ describe("settleRunningAssessmentJob", () => {
       assessmentRun({
         id: "a1",
         projectId: "p1",
-        snapshot: { fileHashes: {} },
+        sources: { gitHead: "abc" },
       }),
     );
     // The apply-time re-check sees the job already left `running`: the
@@ -609,7 +609,7 @@ describe("processNextAssessmentJob", () => {
       assessmentRun({
         id: "a1",
         projectId: "p1",
-        snapshot: { fileHashes: {} },
+        sources: { gitHead: "abc" },
       }),
     );
     completeAssessmentJob.mockResolvedValue(undefined);
@@ -671,7 +671,7 @@ describe("processNextAssessmentJob", () => {
         assessmentRun({
           id: "a1",
           projectId: "p1",
-          snapshot: { fileHashes: {} },
+          sources: { gitHead: "abc" },
         }),
       );
 
@@ -690,7 +690,7 @@ describe("processNextAssessmentJob", () => {
     }
   });
 
-  it("persists remediations after a run whose evidence snapshot is empty", async () => {
+  it("persists remediations after a run whose evidence is empty", async () => {
     const db = projectDb();
     db.evidence = [];
     db.findings = [testFinding()];
@@ -728,7 +728,7 @@ describe("processNextAssessmentJob", () => {
         requirements: WorkspaceSlice["requirements"];
       }) =>
         assessmentRun(
-          { id: "a1", projectId: "p1", snapshot: { fileHashes: {} } },
+          { id: "a1", projectId: "p1", sources: { gitHead: "abc" } },
           {
             findings: input.findings,
             remediations: input.remediations.map((remediation) => ({
@@ -842,7 +842,7 @@ describe("processNextAssessmentJob", () => {
         {
           id: "a1",
           projectId: "p1",
-          snapshot: { fileHashes: {} },
+          sources: { gitHead: "abc" },
         },
         {
           evidence: db.evidence,
@@ -912,7 +912,7 @@ describe("processNextAssessmentJob", () => {
         {
           id: "a1",
           projectId: "p1",
-          snapshot: { fileHashes: {} },
+          sources: { gitHead: "abc" },
         },
         {
           evidence: db.evidence,
@@ -987,7 +987,7 @@ describe("processNextAssessmentJob", () => {
       assessmentRun({
         id: "a1",
         projectId: "p1",
-        snapshot: { fileHashes: {} },
+        sources: { gitHead: "abc" },
       }),
     );
     completeAssessmentJob.mockResolvedValue(undefined);
@@ -1037,7 +1037,7 @@ describe("processNextAssessmentJob", () => {
       assessmentRun({
         id: "a1",
         projectId: "p1",
-        snapshot: { fileHashes: {} },
+        sources: { gitHead: "abc" },
       }),
     );
     completeAssessmentJob.mockResolvedValue(undefined);
@@ -1068,7 +1068,7 @@ describe("processNextAssessmentJob", () => {
       assessmentRun({
         id: "a1",
         projectId: "p1",
-        snapshot: { fileHashes: {} },
+        sources: { gitHead: "abc" },
       }),
     );
     completeAssessmentJob.mockResolvedValue(undefined);
@@ -1101,29 +1101,6 @@ describe("processNextAssessmentJob", () => {
       jobId: "job-1",
     });
     expect(withProjectCheckout).not.toHaveBeenCalled();
-  });
-
-  it("retries when the assessment has no snapshot", async () => {
-    claimNextAssessmentJob.mockResolvedValue(job());
-    loadProjectDb.mockResolvedValue(projectDb());
-    withProjectCheckout.mockImplementation(
-      async (_project: unknown, fn: (rootPath: string) => Promise<unknown>) =>
-        fn("/tmp/checkout"),
-    );
-    reconcileAssessment.mockResolvedValue({
-      assessment: { id: "a1", projectId: "p1" },
-      evidence: [],
-      findings: [],
-      remediations: [],
-      requirements: [],
-    });
-    failAssessmentJob.mockResolvedValue("queued");
-
-    await expect(processNextAssessmentJob()).resolves.toEqual({
-      kind: "retrying",
-      jobId: "job-1",
-    });
-    expect(completeAssessmentJob).not.toHaveBeenCalled();
   });
 
   it("warns when failure evidence cannot be recorded", async () => {

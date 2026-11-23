@@ -33,6 +33,7 @@ import type {
 
 import type { PatchCandidate } from "@/ai/verified-fix";
 
+import { type ChangedPath, compareCommitFiles } from "./compare";
 import { fetchGitHubRepo, resolveProjectGitHubToken } from "./github-access";
 import { assertBranchExists } from "./github-access";
 import {
@@ -76,6 +77,27 @@ export function fetchRepo(
   fullName: string,
 ): Promise<GitHubRepoSummary> {
   return fetchGitHubRepo(accessToken, fullName);
+}
+
+/**
+ * Files that differ between two commits of a connected project, or `null` when
+ * the range cannot be compared (force-push, API or token failure, 300+ files).
+ * `null` means "scan the whole tree".
+ */
+export async function compareProjectCommits(
+  project: Project,
+  base: string,
+  head: string,
+): Promise<ChangedPath[] | null> {
+  const fullName = project.github?.fullName;
+  if (!fullName) return null;
+  // A token failure is one more "cannot compare": scan the whole tree rather
+  // than fail the run.
+  const accessToken = await resolveProjectGitHubToken(project).catch(
+    () => null,
+  );
+  if (!accessToken) return null;
+  return compareCommitFiles({ fullName, accessToken, base, head });
 }
 
 /**

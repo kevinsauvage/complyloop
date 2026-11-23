@@ -6,10 +6,7 @@ import type { FindingStatus } from "@complyloop/analysis-core/contract/statuses"
 
 import type { DrizzleDb } from "./postgres.ts";
 import { listAlertsForProject } from "./repo/alerts.ts";
-import {
-  getLatestAssessmentSnapshot,
-  listLatestAssessmentForProject,
-} from "./repo/assessments.ts";
+import { listLatestAssessmentForProject } from "./repo/assessments.ts";
 import { listFindingsForProject } from "./repo/findings.ts";
 import {
   listMembershipsForOrgs,
@@ -151,7 +148,7 @@ export async function loadTenancyDb(
   };
 }
 
-/** Loads a single project slice for assessment runs (includes latest snapshot). */
+/** Loads a single project slice for assessment runs. */
 export async function loadProjectAssessmentDb(
   drizzle: DrizzleDb,
   projectId: string,
@@ -167,15 +164,7 @@ export async function loadProjectAssessmentDb(
     };
   }
 
-  const [runtime, latestSnapshot] = await Promise.all([
-    loadProjectRuntime(drizzle, projectId),
-    getLatestAssessmentSnapshot(drizzle, projectId),
-  ]);
-
-  const [latest] = runtime.assessments;
-  if (latestSnapshot && latest) {
-    runtime.assessments[0] = { ...latest, snapshot: latestSnapshot };
-  }
+  const runtime = await loadProjectRuntime(drizzle, projectId);
 
   const orgIds = [project.orgId];
   const [organizations, memberships] = await Promise.all([

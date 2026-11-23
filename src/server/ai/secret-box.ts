@@ -1,15 +1,10 @@
 import "server-only";
 
-import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
-
+import { openAead, sealAead, type SealedBox } from "../aead";
 import { aiKeysEncryptionKey } from "../env";
 
 /** AES-256-GCM envelope fields stored on `org_ai_settings`. */
-export interface SealedSecret {
-  iv: string;
-  tag: string;
-  ciphertext: string;
-}
+export type SealedSecret = SealedBox;
 
 export type SecretBoxFailure =
   "not_configured" | "invalid_key" | "authentication_failed";
@@ -25,9 +20,6 @@ export class SecretBoxError extends Error {
 }
 
 const KEY_BYTES = 32;
-const IV_BYTES = 12;
-/** Full 128-bit GCM tag: Node otherwise accepts a truncated tag on decrypt. */
-const TAG_BYTES = 16;
 
 function encryptionKey(): Buffer {
   const encoded = aiKeysEncryptionKey();
@@ -62,20 +54,7 @@ export function isSecretBoxConfigured(): boolean {
  * org's row fails to open.
  */
 export function sealSecret(plaintext: string, aad: string): SealedSecret {
-  const iv = randomBytes(IV_BYTES);
-  const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv, {
-    authTagLength: TAG_BYTES,
-  });
-  cipher.setAAD(Buffer.from(aad, "utf8"));
-  const ciphertext = Buffer.concat([
-    cipher.update(plaintext, "utf8"),
-    cipher.final(),
-  ]);
-  return {
-    iv: iv.toString("base64"),
-    tag: cipher.getAuthTag().toString("base64"),
-    ciphertext: ciphertext.toString("base64"),
-  };
+  return sealAead(plaintext, encryptionKey(), aad);
 }
 
 /**
@@ -85,18 +64,7 @@ export function sealSecret(plaintext: string, aad: string): SealedSecret {
 export function openSecret(row: SealedSecret, aad: string): string {
   const key = encryptionKey();
   try {
-    const decipher = createDecipheriv(
-      "aes-256-gcm",
-      key,
-      Buffer.from(row.iv, "base64"),
-      { authTagLength: TAG_BYTES },
-    );
-    decipher.setAAD(Buffer.from(aad, "utf8"));
-    decipher.setAuthTag(Buffer.from(row.tag, "base64"));
-    return Buffer.concat([
-      decipher.update(Buffer.from(row.ciphertext, "base64")),
-      decipher.final(),
-    ]).toString("utf8");
+    return openAead(row, key, aad);
   } catch {
     throw new SecretBoxError(
       "authentication_failed",

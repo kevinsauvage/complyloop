@@ -13,7 +13,6 @@ const dbTypesEntityBan = [
       "Alert",
       "AlertKind",
       "Assessment",
-      "AssessmentSnapshot",
       "EvidenceKind",
       "EvidenceRecord",
       "FileChange",

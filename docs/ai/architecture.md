@@ -218,9 +218,9 @@ Chain per domain. `exists` = shipped, `evolves` = shipped but domain-blind today
 - **Reads** — `getWorkspace()` loads **tenancy only** (orgs, memberships,
   projects). Compliance rows load via
   `getProjectRuntime(projectId)` or repo `list*`/`get*` helpers. The compliance
-  catalog is compile-time data (`shippedCatalog()`). File hashes live in
-  `assessment_snapshots` and load for the assessment scan
-  (`scanAssessment`). Evidence and
+  catalog is compile-time data (`shippedCatalog()`). The commit a run scanned
+  rides in the assessment payload (`sources`), so change detection compares
+  commits instead of loading a second table. Evidence and
   findings pages load via `src/server/reporting/evidence-queries.ts` and
   `src/server/workspace/findings-view.ts` (`loadFindingsView`). The org
   portfolio (`/projects`) is the one cross-project read: `loadPortfolioView`
@@ -341,17 +341,14 @@ deleteMembershipIds, deleteOrgIds }` — explicit rows, no in-memory slice diff.
   `project_disconnected` rows, which org deletion erases by.
   - Pipeline bookkeeping is pruned on the worker tick by
     `repo/retention.ts` (`prunePipelineRetention`): the oldest `assessments` beyond the newest 30 per project (ranked per
-    project, not globally), plus abandoned never-completed rows. Snapshots
-    cascade with their assessment. An assessment still referenced by a finding
-    is never deleted (`findings.assessment_id` is `ON DELETE CASCADE`, so
-    pruning it would erase the finding and its remediation history), and the
-    newest full file-hash snapshot per project is kept so change detection
-    never loses its fallback map — the FK stays `CASCADE` and retention simply
-    keeps those rows.
-  - `ops:check` measures `assessments`/
-    `assessment_snapshots` (`OPS_MAX_PIPELINE_TABLE_MB`, default 512 MiB) so a
-    stopped retention pass fails the check instead of growing silently.
-  - Snapshots dedup identical hash maps (`hashes_unchanged`, reader fallback).
+    project, not globally), plus abandoned never-completed rows. An assessment
+    still referenced by a finding is never deleted (`findings.assessment_id` is
+    `ON DELETE CASCADE`, so pruning it would erase the finding and its
+    remediation history) — the FK stays `CASCADE` and retention simply keeps
+    those rows.
+  - `ops:check` measures `assessments`
+    (`OPS_MAX_PIPELINE_TABLE_MB`, default 512 MiB) so a stopped retention pass
+    fails the check instead of growing silently.
   - `webhook_deliveries` prunes to 10k per batch tick.
   - Patch evidence keeps full edit texts — they are load-bearing for
     `applyFileEdits` PR apply; identical candidates dedup on write instead.
@@ -561,7 +558,8 @@ worker via dispatch (backstop: 15-min schedule); webhook runs go
 enqueue → dispatch, 15-min schedule backstop (see Jobs above). Either way the
 worker clones + scans:
 
-1. `detectChanges` (depth-1 clone: author is HEAD)
+1. `assertCheckoutQuota` + `resolveChanges` (depth-1 clone: author is HEAD;
+   changed paths come from the GitHub compare API, see Change detection)
 2. AST → optional Playwright → merge
 3. Re-derive statuses → `verifyRemediationOnResolve` (uses the run's re-scan
    proof, not historical evidence)
@@ -571,6 +569,19 @@ persists findings/statuses and may auto-verify. Anything else (legacy
 non-push rows still draining) runs the same analysis but persists nothing
 and never resolves findings, flips statuses, or auto-verifies. There is no
 per-PR scan: PR feedback arrives via the merge-push scan.
+
+**Change detection** — the run stores the commit it scanned (`sources.gitHead`)
+and the control-scope/engine fingerprint (`sources.controlScopeKey`) in the
+assessment payload. The next run reuses prior AST findings when both match, and
+otherwise asks the GitHub compare API (`compareProjectCommits`,
+`repo.compareCommitsWithBasehead`) for the paths that differ. The comparison is
+the only change signal: `null` — no previous commit, a previous commit that is
+not an ancestor of the new one (force-push: compare status `behind`/`diverged`),
+an API or token failure, or 300+ changed files (GitHub's listing cap) — means
+"scan the whole tree", never "nothing changed", and records
+`assessment_change_compare_unavailable` so a permanently-full-scanning project
+has a named cause. Per-file content hashing is gone: the checkout no longer
+SHA-256s every source file per run.
 
 **Decision (permanent, Sep 2026): no per-PR Check Runs.** PR preview scans
 and the GitHub Checks surface were built, shipped (`a45401c`), then removed
@@ -612,7 +623,16 @@ when it changes) are enqueued as authoritative assessments; feature-branch
 pushes and PR events are ignored. Failures become
 `assessment_job_failed` evidence.
 
-**Reports:** `report-model.ts` + markdown/HTML renderers; routes load via `loadReportInput` in `report.ts`.
+**Reports:** `report-model.ts` composes one model per view; the format _is_ the
+view. `/evidence/report` is the engineering handoff in Markdown
+(`report-markdown.ts`); `/evidence/report/html` is the audit report, a
+standalone printable document rendered with `renderToStaticMarkup`
+(`report-html/`) so project-derived text is escaped by construction — there is
+no hand-written `escapeHtml`. Next 16 rejects a static `react-dom/server`
+import anywhere in the app graph ("render or return the content directly as a
+Server Component"), which a route handler returning a full document cannot do,
+so that module imports it dynamically; keep the import local to the renderer.
+Routes load via `loadReportInput` in `report.ts`.
 
 ## Rendering and data access
 

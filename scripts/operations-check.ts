@@ -146,7 +146,7 @@ async function main(): Promise<void> {
       FROM pg_class
      WHERE relnamespace = current_schema()::regnamespace
        AND relname IN (
-         'evidence', 'assessments', 'assessment_snapshots'
+         'evidence', 'assessments'
        )
   `)) as Array<{
     relname: unknown;

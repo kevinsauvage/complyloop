@@ -30,16 +30,13 @@ export interface FileChange {
   filePath: string;
 }
 
-export interface AssessmentSnapshot {
-  /** Relative path → content hash for source files at assessment time. */
-  fileHashes: Record<string, string>;
+/**
+ * What a scan knew about the source tree: the commit it read, and the control
+ * scope + AST check registry it assessed. The next run compares against
+ * `gitHead` through the GitHub API and reuses prior findings when both match.
+ */
+export interface AssessmentSources {
   gitHead?: string;
-  /**
-   * Fingerprint of the assessed control scope + AST check registry at snapshot
-   * time. Lets a re-assessment at the same `gitHead` reuse prior AST findings
-   * and skip a full source scan when sources, scope, and engine set are all
-   * unchanged.
-   */
   controlScopeKey?: string;
 }
 
@@ -66,7 +63,8 @@ export interface Assessment {
    * disagree after any human edit. No live reader exists today by design.
    */
   summary: Record<RequirementStatus, number>;
-  snapshot?: AssessmentSnapshot;
+  /** Source state this run observed — the next run's change-detection input. */
+  sources?: AssessmentSources;
   /** Files that changed since the previous assessment, when detectable. */
   changesSincePrevious?: FileChange[];
 }

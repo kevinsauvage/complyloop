@@ -110,6 +110,71 @@ let pixels: number[] = [];
 /** jsdom has no canvas implementation: opt into a null ctx per test. */
 let canvasAvailable = true;
 
+/** Colors the double understands: what the fixtures and jsdom canonicalize to. */
+const FIXTURE_COLOR = /^(#[0-9a-f]{3,8}|rgba?\([^)]*\)|transparent)$/i;
+
+function paintFixtureColor(value: string): number[] {
+  const text = value.trim().toLowerCase();
+  if (text === "transparent") return [0, 0, 0, 0];
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/.exec(text);
+  if (hex) {
+    const digits = hex[1] as string;
+    const full =
+      digits.length === 3
+        ? digits
+            .split("")
+            .map((digit) => digit + digit)
+            .join("")
+        : digits;
+    const channel = (offset: number): number =>
+      Number.parseInt(full.slice(offset, offset + 2), 16);
+    return [channel(0), channel(2), channel(4), 255];
+  }
+  const channels = text
+    .replace(/^(rgba?\()|\)$/g, "")
+    .split(/[,/\s]+/)
+    .filter((part) => part.length > 0)
+    .map(Number);
+  return [
+    channels[0] ?? 0,
+    channels[1] ?? 0,
+    channels[2] ?? 0,
+    Math.round((channels[3] ?? 1) * 255),
+  ];
+}
+
+/**
+ * jsdom has no canvas. The two uses the resolver makes are modelled: the color
+ * probe paints one pixel and reads it back, the pixel sampler draws a
+ * screenshot and reads the stub's pixels.
+ */
+function fakeContext() {
+  let fillStyle = "#000000";
+  let painted = [0, 0, 0, 0];
+  let drewImage = false;
+  return {
+    get fillStyle(): string {
+      return fillStyle;
+    },
+    // Like a real canvas, an assignment it cannot parse is ignored.
+    set fillStyle(value: string) {
+      if (FIXTURE_COLOR.test(value.trim())) fillStyle = value.trim();
+    },
+    clearRect: () => {
+      painted = [0, 0, 0, 0];
+    },
+    fillRect: () => {
+      painted = paintFixtureColor(fillStyle);
+    },
+    drawImage: () => {
+      drewImage = true;
+    },
+    getImageData: () => ({
+      data: new Uint8ClampedArray(drewImage ? pixels : painted),
+    }),
+  };
+}
+
 /** Opaque white text over a black background: 21:1, a comfortable pass. */
 function pixelsAll(color: [number, number, number]): number[] {
   return [color[0], color[1], color[2], 255];
@@ -127,10 +192,7 @@ beforeAll(() => {
   document.createRange = () => new FakeRange() as unknown as Range;
   HTMLCanvasElement.prototype.getContext = (() =>
     canvasAvailable
-      ? {
-          drawImage: vi.fn(),
-          getImageData: () => ({ data: new Uint8ClampedArray(pixels) }),
-        }
+      ? fakeContext()
       : null) as unknown as HTMLCanvasElement["getContext"];
 });
 

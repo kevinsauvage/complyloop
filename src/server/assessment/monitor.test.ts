@@ -6,9 +6,10 @@ import git from "isomorphic-git";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  captureSnapshot,
-  detectChanges,
+  assertCheckoutQuota,
+  type CompareCommits,
   readRepoHead,
+  resolveChanges,
   summarizeChanges,
 } from "./monitor";
 
@@ -24,30 +25,88 @@ beforeEach(() => {
 
 afterEach(() => {
   fs.rmSync(rootPath, { recursive: true, force: true });
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
 });
 
-describe("detectChanges", () => {
-  it("returns no changes when there is no previous snapshot", async () => {
-    const { changes, snapshot } = await detectChanges(rootPath, undefined);
-    expect(changes).toHaveLength(0);
-    expect(snapshot.fileHashes["A.tsx"]).toBeDefined();
+describe("resolveChanges", () => {
+  const compare: CompareCommits = async () => [
+    { filePath: "B.tsx", removed: false },
+    { filePath: "A.tsx", removed: false },
+    { filePath: "Gone.tsx", removed: true },
+    { filePath: "Renamed.tsx", removed: true },
+    { filePath: "Renamed.tsx", removed: false },
+  ];
+
+  it("maps a comparison to changed and removed paths in order", async () => {
+    const changeSet = await resolveChanges({
+      previousHead: "aaa",
+      head: "bbb",
+      compare,
+    });
+
+    expect(changeSet.comparable).toBe(true);
+    expect(changeSet.changes.map((change) => change.filePath)).toEqual([
+      "A.tsx",
+      "B.tsx",
+      "Renamed.tsx",
+    ]);
+    expect(changeSet.removed).toEqual(["Gone.tsx", "Renamed.tsx"]);
   });
 
-  it("detects modified and deleted files", async () => {
-    const previous = await captureSnapshot(rootPath);
-    fs.writeFileSync(
-      path.join(rootPath, "A.tsx"),
-      "export const A = () => <img src='/x' />;\n",
-    );
-    fs.writeFileSync(
-      path.join(rootPath, "B.tsx"),
-      "export const B = () => null;\n",
-    );
-    const { changes } = await detectChanges(rootPath, previous);
-    const paths = changes.map((change) => change.filePath).sort();
-    expect(paths).toEqual(["A.tsx", "B.tsx"]);
+  it("is comparable and empty when the commit did not move", async () => {
+    const spy = vi.fn(compare);
+    const changeSet = await resolveChanges({
+      previousHead: "aaa",
+      head: "aaa",
+      compare: spy,
+    });
+
+    expect(changeSet).toEqual({
+      changes: [],
+      removed: [],
+      comparable: true,
+    });
+    expect(spy).not.toHaveBeenCalled();
   });
 
+  it("treats a missing previous commit as not comparable", async () => {
+    const changeSet = await resolveChanges({
+      previousHead: undefined,
+      head: "bbb",
+      compare,
+    });
+
+    expect(changeSet.comparable).toBe(false);
+    expect(changeSet.changes).toEqual([]);
+  });
+
+  it("treats a missing checkout head as not comparable", async () => {
+    const changeSet = await resolveChanges({
+      previousHead: "aaa",
+      head: undefined,
+      compare,
+    });
+
+    expect(changeSet.comparable).toBe(false);
+  });
+
+  it("treats an unavailable comparison as not comparable, never as no change", async () => {
+    const changeSet = await resolveChanges({
+      previousHead: "aaa",
+      head: "bbb",
+      compare: async () => null,
+    });
+
+    expect(changeSet).toEqual({
+      changes: [],
+      removed: [],
+      comparable: false,
+    });
+  });
+});
+
+describe("summarizeChanges", () => {
   it("summarizes change lists for evidence copy", () => {
     expect(
       summarizeChanges([{ filePath: "a.tsx" }, { filePath: "b.tsx" }]),
@@ -69,45 +128,28 @@ describe("detectChanges", () => {
       "No source changes since the previous assessment.",
     );
   });
+});
 
-  it("snapshots exactly the script set (node_modules/dotfiles excluded)", async () => {
-    fs.mkdirSync(path.join(rootPath, "node_modules", "pkg"), {
-      recursive: true,
-    });
-    fs.writeFileSync(
-      path.join(rootPath, "node_modules", "pkg", "index.ts"),
-      "export {};\n",
-    );
-    fs.writeFileSync(path.join(rootPath, ".hidden.ts"), "export {};\n");
-    fs.writeFileSync(path.join(rootPath, "util.ts"), "export {};\n");
-    const snapshot = await captureSnapshot(rootPath);
-    expect(Object.keys(snapshot.fileHashes).sort()).toEqual([
-      "A.tsx",
-      "util.ts",
-    ]);
+describe("assertCheckoutQuota", () => {
+  it("accepts a checkout inside the quota", async () => {
+    await expect(assertCheckoutQuota(rootPath)).resolves.toBeUndefined();
   });
 
-  it("fails the snapshot walk when the checkout exceeds quota", async () => {
+  it("fails when the checkout exceeds the file quota", async () => {
     vi.stubEnv("ASSESSMENT_MAX_CHECKOUT_FILES", "1");
-    try {
-      fs.writeFileSync(path.join(rootPath, "B.tsx"), "export {};\n");
-      await expect(captureSnapshot(rootPath)).rejects.toThrow(
-        /assessment quota/,
-      );
-    } finally {
-      vi.unstubAllEnvs();
-    }
+    fs.writeFileSync(path.join(rootPath, "B.tsx"), "export {};\n");
+
+    await expect(assertCheckoutQuota(rootPath)).rejects.toThrow(
+      /assessment quota/,
+    );
   });
 
-  it("fails the walk when the checkout exceeds the byte quota", async () => {
+  it("fails when the checkout exceeds the byte quota", async () => {
     vi.stubEnv("ASSESSMENT_MAX_CHECKOUT_BYTES", "1");
-    try {
-      await expect(captureSnapshot(rootPath)).rejects.toThrow(
-        /assessment quota/,
-      );
-    } finally {
-      vi.unstubAllEnvs();
-    }
+
+    await expect(assertCheckoutQuota(rootPath)).rejects.toThrow(
+      /assessment quota/,
+    );
   });
 
   it("abandons the walk when it runs past its time budget", async () => {
@@ -116,12 +158,8 @@ describe("detectChanges", () => {
     vi.spyOn(Date, "now").mockImplementation(() =>
       calls++ === 0 ? 1_000 : 100_000,
     );
-    try {
-      await expect(captureSnapshot(rootPath)).rejects.toThrow(/timed out/);
-    } finally {
-      vi.unstubAllEnvs();
-      vi.restoreAllMocks();
-    }
+
+    await expect(assertCheckoutQuota(rootPath)).rejects.toThrow(/timed out/);
   });
 
   it("keeps walking when a directory cannot be opened", async () => {
@@ -139,14 +177,8 @@ describe("detectChanges", () => {
       return opendir(target);
     }) as typeof fs.promises.opendir);
 
-    try {
-      const snapshot = await captureSnapshot(rootPath);
-      // The unreadable subtree is skipped; the rest of the tree still lands.
-      expect(snapshot.fileHashes["A.tsx"]).toBeDefined();
-      expect(snapshot.fileHashes["sub/B.tsx"]).toBeUndefined();
-    } finally {
-      spy.mockRestore();
-    }
+    await expect(assertCheckoutQuota(rootPath)).resolves.toBeUndefined();
+    spy.mockRestore();
   });
 });
 

@@ -91,23 +91,17 @@ export function evidenceKindHref(
   });
 }
 
-export type ReportView = "engineering" | "audit";
-
-export function parseReportViewParam(
-  raw: string | null | undefined,
-): ReportView {
-  if (raw === "engineering") return "engineering";
-  return "audit";
-}
-
 export type ReportFormat = "markdown" | "html";
 
+/**
+ * Report download for a project. The format names the view: the audit report is
+ * the printable HTML document, the engineering handoff is Markdown.
+ */
 export function reportHref(
   projectId: string,
-  view: ReportView,
   format: ReportFormat,
 ): ProjectHref {
-  return href(projectEvidenceReportPath(projectId, format), { view });
+  return projectEvidenceReportPath(projectId, format);
 }
 
 /** Primary navigation target for an evidence row in the compliance loop. */

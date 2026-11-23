@@ -40,7 +40,7 @@ import {
   createAssessmentScratch,
 } from "./assessment-scratch";
 import { applyRequirementStatusRefresh } from "./assessment-status";
-import { summarizeChanges } from "./monitor";
+import { type CompareCommits, summarizeChanges } from "./monitor";
 
 export interface RunAssessmentOptions {
   /** Absolute path of the current ephemeral (or test) checkout to scan. */
@@ -49,6 +49,11 @@ export interface RunAssessmentOptions {
   runtimeScanner?: RuntimePageScanner;
   /** Injected DNS lookup for runtime SSRF checks in tests. */
   runtimeLookup?: DnsLookup;
+  /**
+   * Injected commit comparison for change detection (tests). Production asks
+   * the GitHub API through the connector; `null` means "scan the whole tree".
+   */
+  compareCommits?: CompareCommits;
   /**
    * Deployment to audit, with the commit it serves (`deployment_status` jobs).
    * Absent → the project's static `runtimeBaseUrl`, which is not tied to any
@@ -104,7 +109,7 @@ export async function reconcileAssessment(
   const {
     assessmentId,
     startedAt,
-    snapshot,
+    sources,
     changes,
     changeContext,
     previousGitHead,
@@ -135,7 +140,7 @@ export async function reconcileAssessment(
       detail: {
         files: changes.map((change) => change.filePath),
         previousGitHead,
-        gitHead: snapshot.gitHead,
+        gitHead: sources.gitHead,
       },
     });
   }
@@ -279,7 +284,7 @@ export async function reconcileAssessment(
     scanMode,
     engines,
     summary,
-    snapshot,
+    sources,
     changesSincePrevious: changes,
   };
 

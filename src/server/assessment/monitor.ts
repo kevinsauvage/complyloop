@@ -1,32 +1,28 @@
 import "server-only";
 
-import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
 import git from "isomorphic-git";
 
-import type {
-  AssessmentSnapshot,
-  FileChange,
-} from "@complyloop/analysis-core/contract/entities";
+import type { FileChange } from "@complyloop/analysis-core/contract/entities";
 import { PublicError } from "@complyloop/analysis-core/contract/public-error";
-import { shouldSnapshotFile } from "@complyloop/analysis-core/source-files";
 
 import { assessmentCheckoutQuota } from "../env";
+import type { ChangedPath } from "../github/compare";
 import { reportWarning } from "../observability";
 
-function hashFileContents(absolutePath: string): string {
-  const buffer = fs.readFileSync(absolutePath);
-  return createHash("sha256").update(buffer).digest("hex");
-}
+/** One commit comparison: changed paths, or `null` when it cannot be made. */
+export type CompareCommits = (
+  base: string,
+  head: string,
+) => Promise<ChangedPath[] | null>;
 
 /**
  * Current commit of the checkout, or `undefined` when git metadata is absent.
  * Resolved with isomorphic-git (pure JS — no `git` CLI, which serverless
  * runtimes don't ship), so the unchanged-commit fast path in `runAssessment`
- * also fires where the binary is missing instead of always paying a full
- * re-hash + full re-scan.
+ * also fires where the binary is missing.
  */
 export async function readRepoHead(
   rootPath: string,
@@ -38,17 +34,14 @@ export async function readRepoHead(
   }
 }
 
-export async function captureSnapshot(
-  rootPath: string,
-): Promise<AssessmentSnapshot> {
-  // Single tree walk: quota-count every file but `.git` (same coverage as
-  // `assertCheckoutWithinQuota`) while hashing exactly the snapshot set
-  // (`shouldSnapshotFile` mirrors `listSourceFiles` enumeration, so snapshot
-  // bytes — and therefore `detectChanges` diffs — are unchanged). Async +
-  // time-budgeted so a huge tree cannot block the event loop.
+/**
+ * Enforces the per-checkout quota: counts every file (and its bytes) outside
+ * `.git`, failing loud before an oversized tree is parsed. Async and
+ * time-budgeted so a huge tree cannot block the event loop.
+ */
+export async function assertCheckoutQuota(rootPath: string): Promise<void> {
   const { maxBytes, maxFiles, scanTimeoutMs } = assessmentCheckoutQuota();
   const deadline = Date.now() + scanTimeoutMs;
-  const fileHashes: Record<string, string> = {};
   let bytes = 0;
   let files = 0;
   const pending = [rootPath];
@@ -88,53 +81,64 @@ export async function captureSnapshot(
       files += 1;
       bytes += (await fs.promises.stat(absolute)).size;
       if (files > maxFiles || bytes > maxBytes) throw quotaExceeded();
-      const relative = path.relative(rootPath, absolute);
-      if (shouldSnapshotFile(relative)) {
-        fileHashes[relative] = hashFileContents(absolute);
-      }
     }
   }
-  return { fileHashes, gitHead: await readRepoHead(rootPath) };
 }
 
+export interface ChangeSet {
+  /** Changed paths that exist at `head`. Empty when nothing changed. */
+  changes: FileChange[];
+  /** Paths that existed before and are gone now (deleted or renamed away). */
+  removed: string[];
+  /**
+   * False when the range could not be compared (no previous commit, a
+   * force-push, an API failure, too many files). Callers must scan the whole
+   * tree: "unknown" is never "nothing changed".
+   */
+  comparable: boolean;
+}
+
+const NOT_COMPARABLE: ChangeSet = {
+  changes: [],
+  removed: [],
+  comparable: false,
+};
+
 /**
- * Diffs the current tree against a previous assessment snapshot.
- * File paths only — a depth-1 clone cannot attribute who last touched a file.
+ * Changed files between the previous assessment's commit and this one.
+ *
+ * Git already knows what changed, so this asks the host instead of re-reading
+ * and hashing every source file on each run. File paths only — a depth-1 clone
+ * cannot attribute who last touched a file.
  */
-export async function detectChanges(
-  rootPath: string,
-  previous: AssessmentSnapshot | undefined,
-): Promise<{ snapshot: AssessmentSnapshot; changes: FileChange[] }> {
-  const gitHead = await readRepoHead(rootPath);
-  // Unchanged commit: reuse the previous snapshot instead of re-reading and
-  // SHA-256ing every source file. The AST scan is likewise skipped by the
-  // caller when the control/engine scope is also unchanged.
-  if (previous && gitHead !== undefined && previous.gitHead === gitHead) {
-    return { snapshot: previous, changes: [] };
-  }
-  const snapshot = await captureSnapshot(rootPath);
-  if (!previous) {
-    return { snapshot, changes: [] };
+export async function resolveChanges(input: {
+  previousHead: string | undefined;
+  head: string | undefined;
+  compare: CompareCommits;
+}): Promise<ChangeSet> {
+  const { previousHead, head, compare } = input;
+  if (previousHead === undefined || head === undefined) return NOT_COMPARABLE;
+  if (previousHead === head) {
+    return { changes: [], removed: [], comparable: true };
   }
 
-  const previousPaths = new Set(Object.keys(previous.fileHashes));
-  const currentPaths = new Set(Object.keys(snapshot.fileHashes));
-  const changed = new Set<string>();
+  const compared = await compare(previousHead, head);
+  if (compared === null) return NOT_COMPARABLE;
 
-  for (const filePath of currentPaths) {
-    if (previous.fileHashes[filePath] !== snapshot.fileHashes[filePath]) {
-      changed.add(filePath);
-    }
-  }
-  for (const filePath of previousPaths) {
-    if (!currentPaths.has(filePath)) changed.add(filePath);
+  const changes = new Set<string>();
+  const removed = new Set<string>();
+  for (const entry of compared) {
+    if (entry.removed) removed.add(entry.filePath);
+    else changes.add(entry.filePath);
   }
 
-  const changes: FileChange[] = [...changed].sort().map((filePath) => ({
-    filePath,
-  }));
-
-  return { snapshot, changes };
+  return {
+    changes: [...changes]
+      .sort((a, b) => a.localeCompare(b))
+      .map((filePath) => ({ filePath })),
+    removed: [...removed].sort(),
+    comparable: true,
+  };
 }
 
 export function summarizeChanges(changes: FileChange[]): string {

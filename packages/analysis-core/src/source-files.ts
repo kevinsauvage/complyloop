@@ -22,20 +22,9 @@ export type SourceExtensionSet = "jsx" | "script";
 const EXTENSIONS: Record<SourceExtensionSet, ReadonlySet<string>> = {
   /** Assessed UI sources (AST checks). */
   jsx: new Set(["tsx", "jsx"]),
-  /** Broader tree for snapshots / connectability. */
+  /** Broader tree for connectability checks. */
   script: new Set(["tsx", "jsx", "ts", "js"]),
 };
-
-/**
- * Whether a checkout-relative path belongs in the assessment snapshot —
- * exactly the set `listSourceFiles(root, "script")` enumerates (script
- * extensions, shared ignore directories as *directories*, no dotfiles).
- * The snapshot walk uses this per-entry so quota counting and hashing share
- * one tree walk without changing snapshot bytes.
- */
-export function shouldSnapshotFile(relativePath: string): boolean {
-  return matchesSourceSet(relativePath, "script");
-}
 
 function matchesSourceSet(
   relativePath: string,
@@ -46,7 +35,7 @@ function matchesSourceSet(
   // No dot-segment at any level (the old `dot: false`).
   if (segments.some((segment) => segment.startsWith("."))) return false;
   // Shared `**/<dir>/**` ignores apply to directories, not to a root-level
-  // file that merely shares the name (e.g. `dist.ts` still snapshots).
+  // file that merely shares the name (e.g. `dist.ts` is still a source).
   if (
     segments
       .slice(0, -1)
@@ -57,7 +46,7 @@ function matchesSourceSet(
   if (NON_SHIPPED_FILE.test(basename)) return false;
   const dot = basename.lastIndexOf(".");
   if (dot < 0) return false;
-  // Case-sensitive like the old glob: `App.TSX` does not snapshot.
+  // Case-sensitive like the old glob: `App.TSX` is not a source.
   return EXTENSIONS[extensions].has(basename.slice(dot + 1));
 }
 

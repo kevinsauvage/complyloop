@@ -63,7 +63,7 @@ export function scanProject(rootPath: string): ScanResult {
 
 /**
  * Scans only the given relative JSX/TSX paths (and skips missing deleted files).
- * Used for continuous re-assessment when a snapshot diff exists.
+ * Used for continuous re-assessment over the changed-file set.
  */
 export function scanChangedFiles(
   rootPath: string,

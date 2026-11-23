@@ -1,7 +1,6 @@
 import type {
   Alert,
   Assessment,
-  AssessmentSnapshot,
   EvidenceRecord,
   Finding,
   Remediation,
@@ -31,7 +30,6 @@ export interface ProjectSlice {
 /** Rows an assessment apply writes after reconciling a scan against them. */
 export interface AssessmentApplyPayload {
   assessment: Assessment;
-  snapshot: AssessmentSnapshot;
   findings: Finding[];
   remediations: Remediation[];
   requirements: Requirement[];
@@ -133,7 +131,7 @@ export async function applyAssessmentPayload(
   options: ApplyAssessmentPayloadOptions,
 ): Promise<void> {
   const { baseline } = options;
-  await insertAssessment(tx, payload.assessment, payload.snapshot);
+  await insertAssessment(tx, payload.assessment);
   await upsertFindings(
     tx,
     changedRowsSince(baseline.findings, payload.findings),

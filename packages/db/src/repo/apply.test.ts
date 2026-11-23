@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   Alert,
   Assessment,
-  AssessmentSnapshot,
   EvidenceRecord,
   Finding,
   Remediation,
@@ -92,7 +91,6 @@ const assessment: Assessment = {
     unable_to_verify: 0,
   },
 };
-const snapshot: AssessmentSnapshot = { fileHashes: { "App.tsx": "h1" } };
 const evidence: EvidenceRecord = {
   id: "e1",
   at: "2026-01-02T00:01:00.000Z",
@@ -147,7 +145,6 @@ describe("applyAssessmentPayload", () => {
       tx,
       {
         assessment,
-        snapshot,
         evidence: [evidence],
         findings: [nextFinding],
         remediations: [remediation],
@@ -157,7 +154,7 @@ describe("applyAssessmentPayload", () => {
       { baseline },
     );
 
-    expect(insertAssessment).toHaveBeenCalledWith(tx, assessment, snapshot);
+    expect(insertAssessment).toHaveBeenCalledWith(tx, assessment);
     expect(upsertFindings).toHaveBeenCalledWith(tx, [nextFinding]);
     expect(upsertRemediations).toHaveBeenCalledWith(tx, []);
     expect(upsertRequirements).toHaveBeenCalledWith(tx, []);
@@ -175,7 +172,6 @@ describe("applyAssessmentPayload", () => {
       tx,
       {
         assessment,
-        snapshot,
         evidence: [],
         findings: [finding],
         remediations: [remediation],

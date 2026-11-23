@@ -264,11 +264,11 @@ export async function withRepoCheckout<T>(
         );
       }
     }
-    // The post-checkout quota gate lives in the snapshot walk
-    // (`captureSnapshot` counts every file but `.git` while hashing, so a
-    // separate walk here would re-enumerate the tree for nothing). The
-    // pre-fetch walk above stays: it fails fast before a ref fetch can pull
-    // more tree than the default shallow clone.
+    // The post-checkout quota gate lives in the scan's own walk
+    // (`assertCheckoutQuota` counts every file but `.git`, so a separate walk
+    // here would re-enumerate the tree for nothing). The pre-fetch walk above
+    // stays: it fails fast before a ref fetch can pull more tree than the
+    // default shallow clone.
     return await fn(rootPath);
   } finally {
     fs.rmSync(rootPath, { recursive: true, force: true });

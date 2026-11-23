@@ -60,8 +60,8 @@ describe("parseSitemapDocument", () => {
   });
 
   it("keeps an out-of-range numeric reference literal instead of throwing", () => {
-    // `String.fromCodePoint` raises on these; a hostile sitemap must not turn
-    // "unparseable" into a 500.
+    // Invalid references must not turn "unparseable" into a 500: the parser
+    // leaves them as text, and a lone surrogate (not a character) is dropped.
     const parsed = parseSitemapDocument(
       urlset(`${BASE}/&#x110000;`, `${BASE}/&#xzz;`, `${BASE}/&#xD800;`),
     );
@@ -69,7 +69,7 @@ describe("parseSitemapDocument", () => {
     expect(parsed.locs).toEqual([
       `${BASE}/&#x110000;`,
       `${BASE}/&#xzz;`,
-      `${BASE}/&#xD800;`,
+      `${BASE}/`,
     ]);
   });
 
@@ -137,7 +137,7 @@ describe("parseSitemapDocument", () => {
     });
   });
 
-  it("keeps lone surrogate and out-of-range numeric references literal", () => {
+  it("keeps out-of-range numeric references literal and drops surrogates", () => {
     const parsed = parseSitemapDocument(
       urlset(
         `${BASE}/a?x=&#xD800;`,
@@ -147,7 +147,7 @@ describe("parseSitemapDocument", () => {
     );
 
     expect(parsed.locs).toEqual([
-      `${BASE}/a?x=&#xD800;`,
+      `${BASE}/a?x=`,
       `${BASE}/b?x=&#x110000;`,
       `${BASE}/c?x=&#999999999;`,
     ]);

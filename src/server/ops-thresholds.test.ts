@@ -106,7 +106,7 @@ describe("evaluateOpsStatus", () => {
       {
         ...healthy,
         pipelineTableBytes: {
-          assessment_snapshots: evidenceBytesFromMb(600),
+          assessments: evidenceBytesFromMb(600),
         },
       },
       {
@@ -116,7 +116,7 @@ describe("evaluateOpsStatus", () => {
     );
     expect(result.ok).toBe(false);
     expect(result.failures.join(" ")).toMatch(
-      /assessment_snapshots size 600\.0 MiB exceeds max 512\.0 MiB/,
+      /assessments size 600\.0 MiB exceeds max 512\.0 MiB/,
     );
   });
 

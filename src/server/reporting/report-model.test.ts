@@ -2,15 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { sampleReportInput } from "@/test-fixtures/report-input";
 
-import {
-  buildAuditReportHtml,
-  buildEngineeringReportHtml,
-} from "./report-html/report";
-import { buildAuditReportMarkdown } from "./report-markdown";
+import { buildReportHtml } from "./report-html/report";
+import { buildReportMarkdown } from "./report-markdown";
 import { composeAuditReport, composeEngineeringReport } from "./report-model";
 
 describe("report model composers", () => {
-  it("labels evidence kinds once so markdown and HTML stay in sync", () => {
+  it("labels evidence kinds once so markdown and HTML stay in sync", async () => {
     const input = sampleReportInput();
     input.evidence.push({
       id: "e-kind",
@@ -27,25 +24,22 @@ describe("report model composers", () => {
       "Assessment completed",
     ]);
 
-    const markdown = buildAuditReportMarkdown(input);
-    const html = buildAuditReportHtml(input);
-    expect(markdown).toContain("Finding detected");
-    expect(markdown).not.toContain("finding_detected");
+    const html = await buildReportHtml(input);
     expect(html).toContain("Finding detected");
     expect(html).not.toContain("finding_detected");
   });
 
-  it("feeds engineering findings to both renderers from one model", () => {
+  it("feeds engineering findings to the markdown handoff from one model", async () => {
     const model = composeEngineeringReport(sampleReportInput());
     expect(model.findings).toHaveLength(1);
     expect(model.findings[0]?.locationRef).toBe("Button.tsx:4");
 
-    const html = buildEngineeringReportHtml(sampleReportInput());
-    expect(html).toContain(model.findings[0]!.reason);
-    expect(html).toContain(model.findings[0]!.locationRef);
+    const markdown = buildReportMarkdown(sampleReportInput());
+    expect(markdown).toContain(model.findings[0]!.reason);
+    expect(markdown).toContain(model.findings[0]!.locationRef);
   });
 
-  it("falls back when a finding has no catalog control or remediation", () => {
+  it("falls back when a finding has no catalog control or remediation", async () => {
     const input = sampleReportInput();
     input.findings[0] = {
       ...input.findings[0]!,
@@ -74,7 +68,7 @@ describe("report model composers", () => {
     expect(model.findings[0]?.suggestion?.provenance).toBe("ai");
   });
 
-  it("hints fenced-code languages from the finding location", () => {
+  it("hints fenced-code languages from the finding location", async () => {
     const input = sampleReportInput();
     const base = input.findings[0]!;
     const locations = [
@@ -187,7 +181,7 @@ describe("report model composers", () => {
     );
   });
 
-  it("excludes project-less evidence and includes github metadata on the header", () => {
+  it("excludes project-less evidence and includes github metadata on the header", async () => {
     const input = sampleReportInput();
     input.project = {
       ...input.project,
@@ -210,7 +204,7 @@ describe("report model composers", () => {
     );
   });
 
-  it("notes capped evidence in both renderers, and stays silent when whole", () => {
+  it("notes capped evidence in the audit report, and stays silent when whole", async () => {
     const input = sampleReportInput();
     input.evidenceTotal = 2000;
     input.evidenceTruncated = true;
@@ -219,17 +213,14 @@ describe("report model composers", () => {
     expect(model.evidenceTotal).toBe(2000);
     expect(model.evidenceTruncated).toBe(true);
 
-    const markdown = buildAuditReportMarkdown(input);
-    expect(markdown).toContain("latest 1 of 2000 evidence records");
-    const html = buildAuditReportHtml(input);
+    const html = await buildReportHtml(input);
     expect(html).toContain("latest 1 of 2000 evidence records");
 
     const whole = sampleReportInput();
-    expect(buildAuditReportMarkdown(whole)).not.toContain("latest");
-    expect(buildAuditReportHtml(whole)).not.toContain("latest");
+    expect(await buildReportHtml(whole)).not.toContain("latest");
   });
 
-  it("labels a non-RGAA/WCAG secondary reference as Also", () => {
+  it("labels a non-RGAA/WCAG secondary reference as Also", async () => {
     const input = sampleReportInput();
     input.controls = [
       {
@@ -244,7 +235,7 @@ describe("report model composers", () => {
     expect(model.requirements[0]?.secondaryLabel).toBe("Also");
   });
 
-  it("renders the export window (oldest-first) newest-first", () => {
+  it("renders the export window (oldest-first) newest-first", async () => {
     const input = sampleReportInput();
     input.evidence = [1, 2, 3].map((day) => ({
       id: `e${day}`,

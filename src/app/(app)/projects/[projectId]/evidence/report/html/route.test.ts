@@ -1,17 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
 const loadReportInput = vi.hoisted(() => vi.fn());
-const buildAuditReportHtml = vi.hoisted(() => vi.fn());
-const buildEngineeringReportHtml = vi.hoisted(() => vi.fn());
+const buildReportHtml = vi.hoisted(() => vi.fn());
 
 vi.mock("@/server/reporting/report", () => ({
   loadReportInput: (...args: unknown[]) => loadReportInput(...args),
 }));
 
 vi.mock("@/server/reporting/report-html/report", () => ({
-  buildAuditReportHtml: (...args: unknown[]) => buildAuditReportHtml(...args),
-  buildEngineeringReportHtml: (...args: unknown[]) =>
-    buildEngineeringReportHtml(...args),
+  buildReportHtml: (...args: unknown[]) => buildReportHtml(...args),
 }));
 
 import { GET } from "./route";
@@ -35,10 +32,9 @@ describe("GET /evidence/report/html", () => {
     loadReportInput.mockResolvedValue({
       ok: true,
       project: { name: "Shop" },
-      view: "audit",
       input: {},
     });
-    buildAuditReportHtml.mockReturnValue("<html>audit</html>");
+    buildReportHtml.mockResolvedValue("<html>audit</html>");
     const response = await GET(request, context);
     expect(response.headers.get("Content-Type")).toContain("text/html");
     await expect(response.text()).resolves.toBe("<html>audit</html>");
@@ -48,17 +44,15 @@ describe("GET /evidence/report/html", () => {
     loadReportInput.mockResolvedValue({
       ok: true,
       project: { name: "Shop" },
-      view: "engineering",
       input: {},
     });
-    buildEngineeringReportHtml.mockReturnValue("<html>engineering</html>");
+    buildReportHtml.mockResolvedValue("<html>audit</html>");
     await GET(
-      new Request(
-        "http://localhost/projects/p1/evidence/report/html?view=engineering",
-        { headers: { "x-nonce": "abc123" } },
-      ),
+      new Request("http://localhost/projects/p1/evidence/report/html", {
+        headers: { "x-nonce": "abc123" },
+      }),
       context,
     );
-    expect(buildEngineeringReportHtml).toHaveBeenCalledWith({}, "abc123");
+    expect(buildReportHtml).toHaveBeenCalledWith({}, "abc123");
   });
 });

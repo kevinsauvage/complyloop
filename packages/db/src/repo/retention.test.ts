@@ -8,9 +8,8 @@ import { prunePipelineRetention } from "./retention";
 const enabled = Boolean(process.env.DATABASE_URL?.trim());
 
 /**
- * Pipeline retention: terminal jobs age out, assessments keep the newest N
- * **per project** (never globally), snapshots follow their assessment by FK
- * cascade, and an assessment still referenced by a finding is never deleted
+ * Pipeline retention: assessments keep the newest N **per project** (never
+ * globally), and an assessment still referenced by a finding is never deleted
  * (the finding would cascade away with it).
  */
 describe.skipIf(!enabled)("pipeline retention", () => {
@@ -18,13 +17,12 @@ describe.skipIf(!enabled)("pipeline retention", () => {
     await closeDrizzle();
   });
 
-  it("keeps the newest N per project and protects findings and the last full hash map", async () => {
+  it("keeps the newest N per project and protects findings", async () => {
     const drizzle = await getDrizzle();
     const suffix = `${Date.now()}-retain`;
     const orgId = `org-${suffix}`;
     const projectId = `proj-${suffix}`;
     const decoyProjectId = `proj-decoy-${suffix}`;
-    const hashProjectId = `proj-hash-${suffix}`;
     const userId = `user-${suffix}`;
 
     await drizzle.execute(sql`
@@ -34,7 +32,6 @@ describe.skipIf(!enabled)("pipeline retention", () => {
     for (const [id, name] of [
       [projectId, "retention-fixture"],
       [decoyProjectId, "retention-decoy"],
-      [hashProjectId, "retention-hash"],
     ] as const) {
       await drizzle.execute(sql`
         INSERT INTO projects (id, name, owner_user_id, org_id, payload)
@@ -46,35 +43,17 @@ describe.skipIf(!enabled)("pipeline retention", () => {
       project: string,
       id: string,
       completedAt: string,
-      fullHashMap: boolean,
     ) => {
       await drizzle.execute(sql`
         INSERT INTO assessments (id, project_id, started_at, completed_at, payload)
         VALUES (${id}, ${project}, ${completedAt}, ${completedAt}, '{}'::jsonb)
-      `);
-      await drizzle.execute(sql`
-        INSERT INTO assessment_snapshots (assessment_id, snapshot, hashes_unchanged)
-        VALUES (
-          ${id},
-          ${JSON.stringify(
-            fullHashMap
-              ? { fileHashes: { "App.tsx": "abc" }, scope: "repo" }
-              : { fileHashes: {}, scope: "repo" },
-          )}::jsonb,
-          ${!fullHashMap}
-        )
       `);
     };
 
     const assessments = [1, 2, 3, 4].map((index) => `a${index}-${suffix}`);
     for (const [position, id] of assessments.entries()) {
       const day = String(position + 1).padStart(2, "0");
-      await insertAssessment(
-        projectId,
-        id,
-        `2026-01-${day}T00:10:00.000Z`,
-        true,
-      );
+      await insertAssessment(projectId, id, `2026-01-${day}T00:10:00.000Z`);
     }
 
     // A busier project with newer runs. A global ranking would push this
@@ -84,31 +63,8 @@ describe.skipIf(!enabled)("pipeline retention", () => {
         decoyProjectId,
         `b${index}-${suffix}`,
         `2026-02-01T00:${String(index).padStart(2, "0")}:00.000Z`,
-        true,
       );
     }
-
-    // Long-stable project: the only full hash map is the oldest run, followed
-    // by unchanged-tree markers. `getLatestAssessmentSnapshot` falls back to
-    // that full map, so it must survive even when it falls out of the newest N.
-    await insertAssessment(
-      hashProjectId,
-      `c1-${suffix}`,
-      "2026-03-01T00:00:00.000Z",
-      true,
-    );
-    await insertAssessment(
-      hashProjectId,
-      `c2-${suffix}`,
-      "2026-03-02T00:00:00.000Z",
-      false,
-    );
-    await insertAssessment(
-      hashProjectId,
-      `c3-${suffix}`,
-      "2026-03-03T00:00:00.000Z",
-      false,
-    );
 
     // A finding pins the oldest assessment of the fixture project: deleting it
     // would cascade the finding (and its remediation workflow) away.
@@ -128,12 +84,13 @@ describe.skipIf(!enabled)("pipeline retention", () => {
         abandonedAssessmentDays: 30,
         batchSize: 10,
         maxBatches: 5,
-        projectIds: [projectId, hashProjectId],
+        // The decoy project is out of scope on purpose: the pass must rank per
+        // project, so a busier project's newer runs never evict this one's.
+        projectIds: [projectId],
       });
 
       // a4 + a3 survive as the newest two; a1 is pinned by the finding; only
-      // a2 is actually deleted. The hash project keeps all three (position 3
-      // is the last full hash map).
+      // a2 is actually deleted.
       expect(result.assessmentsDeleted).toBe(1);
 
       const remaining = (await drizzle.execute(sql`
@@ -145,39 +102,15 @@ describe.skipIf(!enabled)("pipeline retention", () => {
         assessments[3],
       ]);
 
-      const hashRows = (await drizzle.execute(sql`
-        SELECT id FROM assessments WHERE project_id = ${hashProjectId} ORDER BY id
-      `)) as Array<{ id: string }>;
-      expect(hashRows.map((row) => row.id)).toEqual([
-        `c1-${suffix}`,
-        `c2-${suffix}`,
-        `c3-${suffix}`,
-      ]);
-
-      const fullMap = (await drizzle.execute(sql`
-        SELECT snapshot FROM assessment_snapshots
-        WHERE assessment_id = ${`c1-${suffix}`}
-      `)) as Array<{ snapshot: { fileHashes: Record<string, string> } }>;
-      expect(fullMap[0]?.snapshot.fileHashes).toEqual({ "App.tsx": "abc" });
-
-      const snapshots = (await drizzle.execute(sql`
-        SELECT s.assessment_id
-        FROM assessment_snapshots s
-        JOIN assessments a ON a.id = s.assessment_id
-        WHERE a.project_id = ${projectId}
-        ORDER BY s.assessment_id
-      `)) as Array<{ assessment_id: string }>;
-      expect(snapshots.map((row) => row.assessment_id)).not.toContain(
-        assessments[1],
-      );
-      expect(snapshots.map((row) => row.assessment_id)).toContain(
-        assessments[0],
-      );
+      const decoyRows = (await drizzle.execute(sql`
+        SELECT count(*)::int AS n FROM assessments WHERE project_id = ${decoyProjectId}
+      `)) as Array<{ n: number }>;
+      expect(decoyRows[0]?.n).toBe(35);
     } finally {
       await drizzle.execute(
         sql`DELETE FROM findings WHERE project_id = ${projectId}`,
       );
-      for (const project of [projectId, decoyProjectId, hashProjectId]) {
+      for (const project of [projectId, decoyProjectId]) {
         await drizzle.execute(
           sql`DELETE FROM assessments WHERE project_id = ${project}`,
         );

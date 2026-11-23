@@ -29,7 +29,6 @@ async function truncateAll(connectionString: string): Promise<void> {
         alerts,
         remediations,
         findings,
-        assessment_snapshots,
         assessments,
         requirements,
         projects,
@@ -100,26 +99,23 @@ async function main(): Promise<void> {
       },
     });
 
-    await insertAssessment(
-      tx,
-      {
-        id: assessmentId,
-        projectId: E2E_PROJECT_ID,
-        startedAt: now,
-        completedAt: now,
-        filesScanned: 1,
-        scanMode: "full",
-        engines: { ast: true, runtime: false },
-        summary: {
-          passed: 0,
-          failed: 1,
-          needs_review: 0,
-          not_applicable: 0,
-          unable_to_verify: 0,
-        },
+    await insertAssessment(tx, {
+      id: assessmentId,
+      projectId: E2E_PROJECT_ID,
+      startedAt: now,
+      completedAt: now,
+      filesScanned: 1,
+      scanMode: "full",
+      engines: { ast: true, runtime: false },
+      summary: {
+        passed: 0,
+        failed: 1,
+        needs_review: 0,
+        not_applicable: 0,
+        unable_to_verify: 0,
       },
-      { fileHashes: { "Bad.tsx": "e2e-seed" } },
-    );
+      sources: { gitHead: "e2e-seed" },
+    });
 
     await upsertFindings(tx, [
       {
